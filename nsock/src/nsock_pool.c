@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -19,15 +19,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -56,7 +56,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_pool.c 15192 2009-08-20 21:36:58Z david $ */
+/* $Id: nsock_pool.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nsock_internal.h"
 #include "gh_list.h"
@@ -121,20 +121,33 @@ void *nsp_getud(nsock_pool nsp) {
   return mt->userdata;
 }
 
-/* Sets a trace/debug level.  Zero (the default) turns tracing off,
-   while higher numbers are more verbose.  This is generally only used
-   for debugging purposes.  Trace logs are printed to stdout.  The
-   initial value is set in nsp_new().  A level of 1 or 2 is usually
-   sufficient, but 10 will ensure you get everything.  The basetime
-   can be NULL to print trace lines with the current time, otherwise
-   the difference between the current time and basetime will be used
-   (the time program execution starts would be a good candidate) */
-void nsp_settrace(nsock_pool nsp, int level, const struct timeval *basetime) {
+/* Sets a trace/debug level and stream.  A level of 0 (the default)
+   turns tracing off, while higher numbers are more verbose.  If the
+   stream given is NULL, it defaults to stdout.  This is generally only
+   used for debugging purposes. A level of 1 or 2 is usually sufficient,
+   but 10 will ensure you get everything.  The basetime can be NULL to
+   print trace lines with the current time, otherwise the difference
+   between the current time and basetime will be used (the time program
+   execution starts would be a good candidate) */
+void nsp_settrace(nsock_pool nsp, FILE *file, int level, const struct timeval *basetime) {
   mspool *mt = (mspool *) nsp;
+  if (file == NULL)
+    mt->tracefile = stdout;
+  else
+    mt->tracefile = file;
   mt->tracelevel = level;
   if (!basetime) 
     memset(&(mt->tracebasetime), 0, sizeof(struct timeval));
   else mt->tracebasetime = *basetime;
+}
+
+/* Turns on or off broadcast support on new sockets. Default is off 
+   (0, false) set in nsp_new(). Any non-zero (true) value sets 
+   SO_BROADCAST on all new sockets (value of optval will be used directly
+   in the setsockopt() call */
+void nsp_setbroadcast(nsock_pool nsp, int optval) {
+  mspool *mt = (mspool *) nsp;
+  mt->broadcast = optval;
 }
 
 /* And here is how you create an nsock_pool.  This allocates, initializes,
@@ -147,8 +160,9 @@ nsock_pool nsp_new(void *userdata) {
   memset(nsp, 0, sizeof(*nsp));
 
   gettimeofday(&nsock_tod, NULL);
+  nsp_settrace(nsp, NULL, 0, NULL);
 
-  nsp->tracelevel = 0;
+  nsp->broadcast = 0;
   if (!nsocklib_initialized) {
     nsock_library_initialize();
     nsocklib_initialized = 1;

@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -19,15 +19,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -56,7 +56,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_ssl.c 13078 2009-04-25 21:22:57Z fyodor $ */
+/* $Id: nsock_ssl.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 
 #include "nsock.h"
@@ -191,9 +191,9 @@ nsock_ssl_ctx nsp_ssl_init_max_speed(nsock_pool ms_pool) {
    SSL object is SSL_VERIFY_NONE, or if OpenSSL is disabled, this function
    always returns true. */
 int nsi_ssl_post_connect_verify(const nsock_iod nsockiod) {
+#if HAVE_OPENSSL
   msiod *iod = (msiod *) nsockiod;
 
-#if HAVE_OPENSSL
   assert(iod->ssl != NULL);
   if (SSL_get_verify_mode(iod->ssl) != SSL_VERIFY_NONE) {
     X509 *cert;

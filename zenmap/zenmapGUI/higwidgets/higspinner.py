@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -132,7 +132,7 @@ class HIGSpinnerImages:
         """
 
         dprint('HIGSpinnerImages::add_static_pixbuf')
-        
+
         self.static_pixbufs[name] = pixbuf
         if (len(self.static_pixbufs) == 1) or default_on_rest:
             self.set_rest_pixbuf(name)
@@ -158,34 +158,34 @@ class HIGSpinnerImages:
         """Sets the size of eache pixbuf (static and animated)"""
         new_animated = []
         for p in self.animated_pixbufs:
-            new_animated.append(p.scale_simple(width, height, 
+            new_animated.append(p.scale_simple(width, height,
                                                gtk.gdk.INTERP_BILINEAR))
         self.animated_pixbufs = new_animated
 
         for k in self.static_pixbufs:
             self.static_pixbufs[k] = self.static_pixbufs[k].\
-                                     scale_simple(width, 
-                                                  height, 
+                                     scale_simple(width,
+                                                  height,
                                                   gtk.gdk.INTERP_BILINEAR)
 
         self.rest_pixbuf = self.rest_pixbuf.\
-                           scale_simple(width, 
-                                        height, 
+                           scale_simple(width,
+                                        height,
                                         gtk.gdk.INTERP_BILINEAR)
 
         self.images_width = width
         self.images_height = height
-        
+
 
 class HIGSpinnerCache:
     """This hols a copy of the images used on the HIGSpinners instances."""
     def __init__(self):
 
         dprint('HIGSpinnerCache::__init__')
-        
+
         # Our own instance of a HIGSpinnerImages
         self.spinner_images = HIGSpinnerImages()
-        
+
         # These are on Private member in the C implementation
         self.icon_theme = gtk.IconTheme()
         self.originals = None
@@ -199,7 +199,7 @@ class HIGSpinnerCache:
             self.default_animated_icon_name = "gnome-spinner"
         else:
             self.default_animated_icon_name = None
-        
+
     def load_animated_from_lookup(self, icon_name=None):
         """Loads an animated icon by doing a lookup on the icon theme."""
 
@@ -211,7 +211,7 @@ class HIGSpinnerCache:
         if icon_name == None:
             raise AnimatedIconNotFound
 
-        # Try to lookup the icon 
+        # Try to lookup the icon
         icon_info = self.icon_theme.lookup_icon(icon_name, -1, 0)
         # Even if icon_name exists, it might not be found by lookup
         if icon_info == None:
@@ -233,7 +233,7 @@ class HIGSpinnerCache:
         self.load_animated_from_filename(filename, size)
 
     def load_animated_from_filename(self, filename, size):
-        # grid_pixbuf is a pixbuf that holds the entire 
+        # grid_pixbuf is a pixbuf that holds the entire
         grid_pixbuf = gtk.gdk.pixbuf_new_from_file(filename)
         grid_width = grid_pixbuf.get_width()
         grid_height = grid_pixbuf.get_height()
@@ -254,12 +254,12 @@ class HIGSpinnerCache:
 
     def load_static_from_filename(self, filename, key_name=None):
         icon_pixbuf = gtk.gdk.pixbuf_new_from_file(filename)
-        
+
         if key_name == None:
             key_name = filename.split(".")[0]
 
         self.spinner_images.add_static_pixbuf(key_name, icon_pixbuf)
-    
+
     def __extract_frame(self, pixbuf, x, y, w, h):
         """Cuts a sub pixbuffer, usually a frame of an animation.
 
@@ -274,7 +274,7 @@ class HIGSpinnerCache:
 
     def _write_animated_pixbuf_to_files(self, path_format, image_format):
         """Writes image files from self.spinner_images.animated_pixbufs
-        
+
         - path_format should be a format string with one occurrence of a
           string substitution, such as '/tmp/animation_%s.png'
         - image_format can be either 'png' or 'jpeg'
@@ -302,7 +302,7 @@ class HIGSpinner(gtk.EventBox):
 
     def __init__(self):
         gtk.EventBox.__init__(self)
-        
+
         #self.set_events(self.get_events())
 
         # This holds a GDK Graphic Context
@@ -325,7 +325,7 @@ class HIGSpinner(gtk.EventBox):
         # is in progress, and __bump_frame is being continually called). If the
         # spinner is static, timer_task is 0
         self.timer_task = 0
-        # animated_pixbuf_index is a index on 
+        # animated_pixbuf_index is a index on
         self.animated_pixbuf_index = 0
         # current_pixbuf is initially the default rest_pixbuf
         self.current_pixbuf = self.cache.spinner_images.rest_pixbuf
@@ -343,7 +343,7 @@ class HIGSpinner(gtk.EventBox):
 
         self.queue_draw()
         return True
-            
+
     def __select_pixbuf(self):
         """This selects either a rest pixbuf or a animation frame based on the
         status of timer_task."""
@@ -382,12 +382,12 @@ class HIGSpinner(gtk.EventBox):
 
     def do_expose_event(self, event):
         #self.chain(event)
-        
+
         if self.cache.spinner_images.rest_pixbuf == None:
             raise RestPixbufNotFound
 
         self.__select_pixbuf()
-        
+
         width = self.current_pixbuf.get_width()
         height = self.current_pixbuf.get_height()
         x_offset = (self.allocation.width - width) / 2
@@ -404,7 +404,7 @@ class HIGSpinner(gtk.EventBox):
             self.gc = gtk.gdk.GC(self.window)
         #gc = self.gc
 
-        self.window.draw_pixbuf(self.gc, 
+        self.window.draw_pixbuf(self.gc,
                                 self.current_pixbuf,
                                 dest.x - x_offset - self.allocation.x,
                                 dest.y - y_offset - self.allocation.y,

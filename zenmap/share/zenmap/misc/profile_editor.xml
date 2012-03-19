@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <!-- XML file to populate the Profile Editor interface -->
-<!-- Compiled by Jurand Nogiec and David Fifield, Summer 2008 -->
+<!-- When adding a new option_check, be sure to update the function
+     get_option_check_auxiliary_widget in zenmapGUI/OptionBuilder.py. That
+     function only needs to know about the options in this file. -->
 <interface>
 	<groups>
 		<group name="Scan"/>
@@ -29,7 +31,7 @@
 			<option option="-sU" label="UDP scan" short_desc="Scan UDP ports. UDP is in general slower and more difficult to scan than TCP, and is often ignored by security auditors."/>
 			<option option="-sO" label="IP protocol scan" short_desc="Scan IP protocols (TCP, ICMP, IGMP, etc.) to find which are supported by target machines."/>
 			<option option="-sL" label="List scan" short_desc="Do not scan any targets, just list which ones would be scanned (with reverse DNS names if available)."/>
-			<option option="-sP" label="Ping scanning" short_desc="Only perform a ping scan (host discovery), then print out the available hosts that responded to the scan."/>
+			<option option="-sn" label="No port scan" short_desc="Skip the port scanning phase. Other phases (host discovery, script scan, traceroute) may still run."/>
 			<option option="-sY" label="SCTP INIT port scan" short_desc="SCTP is a layer 4 protocol used mostly for telephony related applications.  This is the SCTP equivalent of a TCP SYN stealth scan."/>
 			<option option="-sZ" label="SCTP cookie-echo port scan"
 short_desc="SCTP is a layer 4 protocol used mostly for telephony related applications."/>
@@ -52,11 +54,10 @@ short_desc="SCTP is a layer 4 protocol used mostly for telephony related applica
 		<option_check option="-6" label="IPv6 support" short_desc="Enable IPv6 scanning." example=""/>
 	</Scan>
 	<Ping label="Ping options">
-		<option_check option="-PN" label="Don't ping before scanning" short_desc="Don't check if targets are up before scanning them. Scan every target listed." example=""/>
+		<option_check option="-Pn" label="Don't ping before scanning" short_desc="Don't check if targets are up before scanning them. Scan every target listed." example=""/>
 		<option_check option="-PE" label="ICMP ping" short_desc="Send an ICMP echo request (ping) probe to see if targets are up." example=""/>
 		<option_check option="-PP" label="ICMP timestamp request" short_desc="Send an ICMP timestamp probe to see if targets are up." example=""/>
 		<option_check option="-PM" label="ICMP netmask request" short_desc="Send an ICMP address mask request probe to see if targets are up." example=""/>
-		<option_check option="-PB" label="Default ping type" short_desc="Send an ICMP ping probe and an ACK probe to see if targets are up (just like -PE -PA)." example=""/>
 		<option_check option="-PA" label="ACK ping" short_desc="Send one or more ACK probes to see if targets are up. Give a list of ports or leave the argument blank to use a default port." example="22,53,80"/>
 		<option_check option="-PS" label="SYN ping" short_desc="Send one or more SYN probes to see if targets are up. Give a list of ports or leave the argument blank to use a default port." example="22,53,80"/>
 		<option_check option="-PU" label="UDP probes" short_desc="Send one or more UDP probes to see if targets are up. Give a list of ports or leave the argument blank to use a default port." example="100,31338"/>
@@ -95,15 +96,15 @@ short_desc="SCTP is a layer 4 protocol used mostly for telephony related applica
 		<option_check option="--max-retries" label="Max Retries" short_desc="Try sending a probe to each port no more than this many times before giving up." example="10"/>
 	</Other>
 	<Timing label="Timing and performance">
-		<option_check option="--host-timeout" label="Max time to scan a target" short_desc="Give up on a host if it has not finished being scanning in this long. Time is in milliseconds, unless followed by a suffix of 's' for seconds, 'm' for minutes, or 'h' for hours." example="1s; 4m; 2h"/>
-		<option_check option="--max-rtt-timeout" label="Max probe timeout" short_desc="Wait no longer than this for a probe response before giving up or retransmitting the probe. Time is in milliseconds, unless followed by a suffix of 's' for seconds, 'm' for minutes, or 'h' for hours." example="1s; 4m; 2h"/>
-		<option_check option="--min-rtt-timeout" label="Min probe timeout" short_desc="Wait at least this long for a probe response before giving up or retransmitting the probe. Time is in milliseconds, unless followed by a suffix of 's' for seconds, 'm' for minutes, or 'h' for hours." example="1s; 4m; 2h"/>
+		<option_check option="--host-timeout" label="Max time to scan a target" short_desc="Give up on a host if it has not finished being scanning in this long. Time is in seconds by default, or may be followed by a suffix of 'ms' for milliseconds, 's' for seconds, 'm' for minutes, or 'h' for hours." example="1s; 4m; 2h"/>
+		<option_check option="--max-rtt-timeout" label="Max probe timeout" short_desc="Wait no longer than this for a probe response before giving up or retransmitting the probe. Time is in seconds by default, or may be followed by a suffix of 'ms' for milliseconds, 's' for seconds, 'm' for minutes, or 'h' for hours." example="1s; 4m; 2h"/>
+		<option_check option="--min-rtt-timeout" label="Min probe timeout" short_desc="Wait at least this long for a probe response before giving up or retransmitting the probe. Time is in seconds by default, or may be followed by a suffix of 'ms' for milliseconds, 's' for seconds, 'm' for minutes, or 'h' for hours." example="1s; 4m; 2h"/>
 		<option_check option="--initial-rtt-timeout" label="Initial probe timeout" short_desc="Use the time given as the initial estimate of round-trip time. This can speed up scans if you know a good time for the network you're scanning." example="1s; 4m; 2h"/>
 		<option_check option="--max-hostgroup" label="Max hosts in parallel" short_desc="Scan no more than this many hosts in parallel." example="1024"/>
 		<option_check option="--min-hostgroup" label="Min hosts in parallel" short_desc="Scan at least this many hosts in parallel." example="50"/>
 		<option_check option="--max-parallelism" label="Max outstanding probes" short_desc="Never allow more than the given number of probes to be outstanding at a time. May be set to 1 to prevent Nmap from sending more than one probe at a time to hosts." example="1"/>
 		<option_check option="--min-parallelism" label="Min outstanding probes" short_desc="Try to maintain at least the given number of probes outstanding during a scan. Common usage is to set to a number higher than 1 to speed up scans of poorly performing hosts or networks." example="10"/>
-		<option_check option="--max-scan-delay" label="Max scan delay" short_desc="Do not allow the scan delay (time delay between successive probes) to grow larger than the given amount of time. Time is in milliseconds, unless followed by a suffix of 's' for seconds, 'm' for minutes, or 'h' for hours." example="20"/>
-		<option_check option="--scan-delay" label="Min delay between probes" short_desc="Wait at least the given amount of time between each probe sent to a given host. Time is in milliseconds, unless followed by a suffix of 's' for seconds, 'm' for minutes, or 'h' for hours." example="4s; 2m"/>
+		<option_check option="--max-scan-delay" label="Max scan delay" short_desc="Do not allow the scan delay (time delay between successive probes) to grow larger than the given amount of time. Time is in seconds by default, or may be followed by a suffix of 'ms' for milliseconds, 's' for seconds, 'm' for minutes, or 'h' for hours." example="20"/>
+		<option_check option="--scan-delay" label="Min delay between probes" short_desc="Wait at least the given amount of time between each probe sent to a given host. Time is in seconds by default, or may be followed by a suffix of 'ms' for milliseconds, 's' for seconds, 'm' for minutes, or 'h' for hours." example="4s; 2m"/>
 	</Timing>
 </interface>

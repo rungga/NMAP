@@ -8,12 +8,31 @@
 #   NmapOptions, a class representing a set of Nmap options.
 #
 # NmapOptions is the class for external use. NmapOptions.parse parses a list of
-# command-line arguments and NmapOptions.render returns a list of arguments. The
-# command line may be modified by accessing member variables:
+# a command followed by command-line arguments. NmapOptions.render returns a
+# list of of a command followed by arguments. NmapOptions.parse_string and
+# NmapOptions.render_string first split strings into lists, following certain
+# quoting rules.
+#
 # >>> ops = NmapOptions()
+# >>> ops.parse(["nmap", "-v", "--script", "safe", "localhost"])
+# >>> ops.executable
+# 'nmap'
+# >>> ops.target_specs
+# ['localhost']
+# >>> ops["-v"]
+# 1
+# >>> ops["--script"]
+# 'safe'
+#
+# The command line may be modified by accessing member variables:
+#
+# >>> ops.executable = "C:\Program Files\Nmap\nmap.exe"
+# >>> ops["-v"] = 2
 # >>> ops["-oX"] = "output.xml"
-# >>> ops.render
-# ['-oX', 'output.xml']
+# >>> ops.render()
+# ['C:\\Program Files\\Nmap\\nmap.exe', '-v', '-v', '-oX', 'output.xml', '--script', 'safe', 'localhost']
+# >>> ops.render_string()
+# '"C:\\Program Files\\Nmap\\nmap.exe" -v -v -oX output.xml --script safe localhost'
 #
 # A primary design consideration was robust handling of unknown options. That
 # gives this code a degree of independence from Nmap's own list of options. If
@@ -40,23 +59,25 @@
 #
 # To add a new option, one should do the following:
 # 1) Add a test case to the NmapOptionsTest::test_options() method for the new
-#   option and make sure it initially fails.
-# 2) Add an appropriate case to NmapOptions::handle_result()
-#   This should include a line something like
-#       self[opt] = True
-#   or, if the option has an argument 'arg':
-#       self[opt] = arg
-# 3) Add an appropriate case to NmapOptions::render()
-#   This should include a check to make sure the option was set in
-#   handle_result:
-#       if self[opt]:
-#   or, if self[opt] contains arguments
-#       if self[opt] is not None:
-#   If the check passed, then opt should be added to opt_list
-# 4) Edit profile_editor.xml to display the new option in the gui.
-# 5) Depending on the option, one may need to edit
-#   get_option_check_auxiliary_widget in OptionBuilder.py
-# 6) Make sure the test case works now.
+#    option and make sure it initially fails.
+# 2) Add the new option to NmapOptions.SHORT_OPTIONS and/or
+#    NmapOptions.LONG_OPTIONS.
+# 3) Add an appropriate case to NmapOptions::handle_result(). This should
+#    include a line something like
+#      self[opt] = True
+#    or, if the option has an argument 'arg':
+#      self[opt] = arg
+# 4) Add an appropriate case to NmapOptions::render()
+#    This should include a check to make sure the option was set in
+#    handle_result:
+#      if self[opt]:
+#    or, if self[opt] contains arguments
+#      if self[opt] is not None:
+#    If the check passed, then opt should be added to opt_list.
+# 5) Edit profile_editor.xml to display the new option in the GUI.
+# 6) Depending on the option, one may need to edit
+#    get_option_check_auxiliary_widget in OptionBuilder.py.
+# 7) Make sure the test case works now.
 
 class option:
     """A single option, part of a pool of potential options. It's just a name
@@ -69,6 +90,64 @@ class option:
     def __init__(self, name, has_arg):
         self.name = name
         self.has_arg = has_arg
+
+def split_quoted(s):
+    """Like str.split, except that no splits occur inside quoted strings, and
+    quoted strings are unquoted."""
+    r = []
+    i = 0
+    while i < len(s) and s[i].isspace():
+        i += 1
+    while i < len(s):
+        part = []
+        while i < len(s) and not s[i].isspace():
+            c = s[i]
+            if c == "\"" or c == "'":
+                begin = c
+                i += 1
+                while i < len(s):
+                    c = s[i]
+                    if c == begin:
+                        i += 1
+                        break
+                    elif c == "\\":
+                        i += 1
+                        if i < len(s):
+                            c = s[i]
+                        # Otherwise, ignore the error and leave the backslash at
+                        # the end of the string.
+                    part.append(c)
+                    i += 1
+            else:
+                part.append(c)
+                i += 1
+        r.append("".join(part))
+        while i < len(s) and s[i].isspace():
+            i += 1
+
+    return r
+
+def maybe_quote(s):
+    """Return s quoted if it needs to be, otherwise unchanged."""
+    for c in s:
+        if c == "\"" or c == "\\" or c == "'" or c.isspace():
+            break
+    else:
+        return s
+
+    r = []
+    for c in s:
+        if c == "\"":
+            r.append("\\\"")
+        elif c == "\\":
+            r.append("\\\\")
+        else:
+            r.append(c)
+
+    return "\"" + "".join(r) + "\""
+
+def join_quoted(l):
+    return " ".join([maybe_quote(x) for x in l])
 
 def make_options(short_opts, long_opts):
     """Parse a short option specification string and long option tuples into a
@@ -284,7 +363,7 @@ def getopt_long_only_extras(cmd_args, short_opts, long_opts):
         yield result
 
 class NmapOptions(object):
-    SHORT_OPTIONS = "6Ab:D:d::e:Ffg:hi:M:m:nO::o:P:p:RrS:s:T:vV"
+    SHORT_OPTIONS = "6Ab:D:d::e:Ffg:hi:M:m:nO::o:P:p:RrS:s:T:v::V"
     LONG_OPTIONS = (
         ("allports", option.NO_ARGUMENT),
         ("append-output", option.NO_ARGUMENT),
@@ -341,6 +420,7 @@ class NmapOptions(object):
         ("script-args", option.REQUIRED_ARGUMENT),
         ("script-trace", option.NO_ARGUMENT),
         ("script-updatedb", option.NO_ARGUMENT),
+        ("script-help", option.REQUIRED_ARGUMENT),
         ("send-eth", option.NO_ARGUMENT),
         ("send-ip", option.NO_ARGUMENT),
         ("servicedb", option.REQUIRED_ARGUMENT),
@@ -353,7 +433,7 @@ class NmapOptions(object):
         ("traceroute", option.NO_ARGUMENT),
         ("ttl", option.REQUIRED_ARGUMENT),
         ("unprivileged", option.NO_ARGUMENT),
-        ("verbose", option.NO_ARGUMENT),
+        ("verbose", option.OPTIONAL_ARGUMENT),
         ("version", option.NO_ARGUMENT),
         ("version-all", option.NO_ARGUMENT),
         ("version-intensity", option.REQUIRED_ARGUMENT),
@@ -374,9 +454,10 @@ class NmapOptions(object):
         ("osscan-guess", "fuzzy"),
         ("oG", "oM", "m"),
         ("oN", "o"),
+        ("sP", "sn"),
         ("P", "PE", "PI"),
         ("PA", "PT"),
-        ("P0", "PD", "PN"),
+        ("P0", "PD", "PN", "Pn"),
         ("rH", "randomize-hosts"),
         ("source-port", "g"),
         ("timing", "T"),
@@ -401,19 +482,27 @@ class NmapOptions(object):
         self.clear()
 
     def clear(self):
+        self._executable = None
         self.target_specs = []
         self.extras = []
 
         # This is the internal mapping of option names to values.
         self.d = {}
 
+    def _set_executable(self, executable):
+        self._executable = executable
+
+    executable = property(lambda self: self._executable or "nmap", _set_executable)
+
     def canonicalize_name(self, name):
         opt, arg, remainder = split_option(name, self.options)
         assert remainder == None
         if arg is None:
             option = lookup_option(opt, self.options)
-            assert option is not None
-            option = option.name
+            if option:
+                option = option.name
+            else:
+                option = opt
         else:
             option = name.lstrip("-")
         option = NmapOptions.EQUIVALENCE_MAP.get(option, option)
@@ -476,7 +565,10 @@ class NmapOptions(object):
             self["--" + opt] = True
         elif opt in ("b", "D", "e", "g", "i", "iL", "m", "M", "o", "oA", "oG", "oM", "oN", "oS", "oX", "p", "S", "sI"):
             assert arg is not None
-            self["-" + opt] = arg
+            if self["-" + opt] is None:
+                self["-" + opt] = arg
+            else:
+                self.extras.extend(("-" + opt, arg))
         elif opt in (\
             "datadir",
             "data-length",
@@ -504,6 +596,7 @@ class NmapOptions(object):
             "scanflags",
             "script",
             "script-args",
+            "script-help",
             "servicedb",
             "source-port",
             "spoof-mac",
@@ -514,33 +607,47 @@ class NmapOptions(object):
             "version-intensity",
             ):
             assert arg is not None
-            self["--" + opt] = arg
+            if self["--" + opt] is None:
+                self["--" + opt] = arg
+            else:
+                self.extras.extend(("--" + opt, arg))
         elif opt == "d" or opt == "debug":
             if arg is None:
-                self.setdefault("-d", 0)
-                self["-d"] += 1
-            else:
-                try:
-                    self["-d"] = int(arg)
-                except ValueError:
+                arg = ""
+            try:
+                self["-d"] = int(arg)
+            except ValueError:
+                if reduce(lambda x, y: x and y, map(lambda z: z == "d", arg), True):
+                    self.setdefault("-d", 0)
+                    self["-d"] += len(arg) + 1
+                else:
                     self.extras.append("-d%s" % arg)
         elif opt == "f":
             self.setdefault("-f", 0)
             self["-f"] += 1
         elif opt == "iR":
-            try:
-                self["-iR"] = int(arg)
-            except ValueError:
+            if self["-iR"] is None:
+                try:
+                    self["-iR"] = int(arg)
+                except ValueError:
+                    self.extras.extend(("-iR", arg))
+            else:
                 self.extras.extend(("-iR", arg))
         elif opt == "O":
             if arg is None:
-                self["-O"] = True
+                if self["-O"] is None:
+                    self["-O"] = True
+                else:
+                    self.extras.append("-O")
             else:
-                self["-O"] = arg
+                if self["-O"] is None:
+                    self["-O"] = arg
+                else:
+                    self.extras.append("-O%s" % arg)
         elif opt == "P":
             type, ports = arg[:1], arg[1:]
-            if type == "0" or type == "D" or type == "N" and ports == "":
-                self["-PN"] = True
+            if type == "0" or type == "D" or type == "N" or type == "n" and ports == "":
+                self["-Pn"] = True
             elif (type == "" or type == "I" or type == "E") and ports == "":
                 self["-PE"] = True
             elif type == "M" and ports == "":
@@ -565,37 +672,53 @@ class NmapOptions(object):
                 self.extras.append("-P%s" % arg)
         elif opt == "s":
             for type in arg:
-                if type in "ACFLMNOPRSTUVWXYZ":
+                if type in "Nn":
+                    self["-sn"] = True
+                elif type in "ACFLMOPRSTUVWXYZ":
                     self["-s%s" % type] = True
                 else:
                     self.extras.append("-s%s" % type)
         elif opt == "T" or opt == "timing":
-            try:
-                self["-T"] = int(arg)
-            except ValueError:
+            if self["-T"] is None:
                 try:
-                    self["-T"] = self.TIMING_PROFILE_NAMES[arg.lower()]
-                except KeyError:
-                    self.extras.extend(("-T", arg))
+                    self["-T"] = int(arg)
+                except ValueError:
+                    try:
+                        self["-T"] = self.TIMING_PROFILE_NAMES[arg.lower()]
+                    except KeyError:
+                        self.extras.extend(("-T", arg))
+            else:
+                self.extras.extend(("-T", arg))
         elif opt == "v" or opt == "verbose":
-            self.setdefault("-v", 0)
-            self["-v"] += 1
+            if arg is None:
+                arg = ""
+            try:
+                self["-v"] = int(arg)
+            except ValueError:
+                if reduce(lambda x, y: x and y, map(lambda z: z == "v", arg), True):
+                    self.setdefault("-v", 0)
+                    self["-v"] += len(arg) + 1
+                else:
+                    self.extras.append("-v%s" % arg)
         else:
             assert False, (opt, arg)
 
     def parse(self, opt_list):
         self.clear()
 
-        for result in getopt_long_only_extras(opt_list, self.SHORT_OPTIONS, self.LONG_OPTIONS):
+        if len(opt_list) > 0:
+            self.executable = opt_list[0]
+
+        for result in getopt_long_only_extras(opt_list[1:], self.SHORT_OPTIONS, self.LONG_OPTIONS):
             self.handle_result(result)
 
     def parse_string(self, opt_string):
-        self.parse(opt_string.split())
+        self.parse(split_quoted(opt_string))
 
     def render(self):
         opt_list = []
 
-        for opt in ("-sA", "-sC", "-sF", "-sL", "-sM", "-sN", "-sO", "-sP", "-sR", "-sS", "-sT", "-sU", "-sV", "-sW", "-sX", "-sY", "-sZ"):
+        for opt in ("-sA", "-sC", "-sF", "-sL", "-sM", "-sN", "-sO", "-sn", "-sR", "-sS", "-sT", "-sU", "-sV", "-sW", "-sX", "-sY", "-sZ"):
             if self[opt]:
                 opt_list.append(opt)
 
@@ -655,7 +778,7 @@ class NmapOptions(object):
             if self[opt] is not None:
                 opt_list.extend((opt, self[opt]))
 
-        for ping_option in ("-PN", "-PE", "-PM", "-PP", "-PR"):
+        for ping_option in ("-Pn", "-PE", "-PM", "-PP", "-PR"):
             if self[ping_option]:
                 opt_list.append(ping_option)
         for ping_option in ("-PS", "-PA", "-PU", "-PO", "-PY"):
@@ -720,6 +843,7 @@ class NmapOptions(object):
             "--scanflags",
             "--script",
             "--script-args",
+            "--script-help",
             "--servicedb",
             "--spoof-mac",
             "--stylesheet",
@@ -735,10 +859,10 @@ class NmapOptions(object):
 
         opt_list.extend(self.extras)
 
-        return opt_list
+        return [self.executable] + opt_list
 
     def render_string(self):
-        return " ".join(self.render())
+        return join_quoted(self.render())
 
 import doctest
 import unittest
@@ -748,31 +872,116 @@ class NmapOptionsTest(unittest.TestCase):
         """Test that a new object starts without defining any options, that the
         clear method removes all options, and that parsing the empty string or
         an empty list removes all options."""
-        TEST = "-T4 -A -v localhost --webxml"
+        TEST = "nmap -T4 -A -v localhost --webxml"
         ops = NmapOptions()
-        self.assertTrue(len(ops.render()) == 0)
+        self.assertTrue(len(ops.render()) == 1)
         ops.parse_string(TEST)
-        self.assertFalse(len(ops.render()) == 0)
+        self.assertFalse(len(ops.render()) == 1)
         ops.clear()
-        self.assertTrue(len(ops.render()) == 0)
+        self.assertTrue(len(ops.render()) == 1)
         ops.parse_string(TEST)
         ops.parse_string("")
-        self.assertEqual(ops.render_string(), "")
+        self.assertEqual(ops.render_string(), "nmap")
         ops.parse_string(TEST)
         ops.parse([])
-        self.assertEqual(ops.render_string(), "")
+        self.assertEqual(ops.render_string(), "nmap")
+
+    def test_default_executable(self):
+        """Test that there is a default executable member set."""
+        ops = NmapOptions()
+        self.assertNotNull(ops.executable)
+
+    def test_default_executable(self):
+        """Test that you can set the executable."""
+        ops = NmapOptions()
+        ops.executable = "foo"
+        self.assertEqual(ops.executable, "foo")
+        self.assertEqual(ops.render(), ["foo"])
 
     def test_render(self):
         """Test that the render method returns a list."""
-        TEST = "-T4 -A -v localhost --webxml"
+        TEST = "nmap -T4 -A -v localhost --webxml"
         ops = NmapOptions()
         ops.parse_string(TEST)
         self.assertTrue(type(ops.render()) == list, "type == %s" % type(ops.render))
 
+    def test_quoted(self):
+        """Test that strings can be quoted."""
+        ops = NmapOptions()
+
+        ops.parse_string('nmap --script ""')
+        self.assertEqual(ops["--script"], "")
+        ops.parse_string("nmap --script ''")
+        self.assertEqual(ops["--script"], "")
+
+        ops.parse_string('nmap --script test one two three')
+        self.assertEqual(ops["--script"], "test")
+        self.assertEqual(ops.target_specs, ["one", "two", "three"])
+        ops.parse_string('nmap --script "test" one two three')
+        self.assertEqual(ops["--script"], "test")
+        self.assertEqual(ops.target_specs, ["one", "two", "three"])
+        ops.parse_string('nmap --script "test one" two three')
+        self.assertEqual(ops["--script"], "test one")
+        self.assertEqual(ops.target_specs, ["two", "three"])
+        ops.parse_string('nmap --script test" one" two three')
+        self.assertEqual(ops["--script"], "test one")
+        self.assertEqual(ops.target_specs, ["two", "three"])
+        ops.parse_string('nmap --script test" one"""" two" three')
+        self.assertEqual(ops["--script"], "test one two")
+        self.assertEqual(ops.target_specs, ["three"])
+
+        ops.parse_string("nmap --script test one two three")
+        self.assertEqual(ops["--script"], "test")
+        self.assertEqual(ops.target_specs, ["one", "two", "three"])
+        ops.parse_string("nmap --script 'test' one two three")
+        self.assertEqual(ops["--script"], "test")
+        self.assertEqual(ops.target_specs, ["one", "two", "three"])
+        ops.parse_string("nmap --script 'test one' two three")
+        self.assertEqual(ops["--script"], "test one")
+        self.assertEqual(ops.target_specs, ["two", "three"])
+        ops.parse_string("nmap --script test' one' two three")
+        self.assertEqual(ops["--script"], "test one")
+        self.assertEqual(ops.target_specs, ["two", "three"])
+        ops.parse_string("nmap --script test' one'''' two' three")
+        self.assertEqual(ops["--script"], "test one two")
+        self.assertEqual(ops.target_specs, ["three"])
+
+        ops.parse_string('nmap --script "ab\\\"cd"')
+        self.assertEqual(ops["--script"], "ab\"cd")
+        ops.parse_string('nmap --script "ab\\\\cd"')
+        self.assertEqual(ops["--script"], "ab\\cd")
+        ops.parse_string('nmap --script "ab\\\'cd"')
+        self.assertEqual(ops["--script"], "ab'cd")
+        ops.parse_string("nmap --script 'ab\\\"cd'")
+        self.assertEqual(ops["--script"], 'ab"cd')
+
+        ops.parse_string('nmap "--script" test')
+        self.assertEqual(ops["--script"], "test")
+        ops.parse_string("nmap '--script' test")
+        self.assertEqual(ops["--script"], "test")
+
+        ops.parse_string('"nmap foo" --script test')
+        self.assertEqual(ops.executable, "nmap foo")
+        ops.parse_string("'nmap foo' --script test")
+        self.assertEqual(ops.executable, "nmap foo")
+
+    def test_render_quoted(self):
+        """Test that strings that need to be quoted are quoted."""
+        ops = NmapOptions()
+        ops.parse_string('"/path/ /nmap" --script "test one two three"')
+        self.assertEqual(ops.executable, "/path/ /nmap")
+        self.assertEqual(ops["--script"], "test one two three")
+        self.assertEqual(ops.target_specs, [])
+        s = ops.render_string()
+        ops.parse_string(s)
+        self.assertEqual(ops.executable, "/path/ /nmap")
+        self.assertEqual(ops["--script"], "test one two three")
+        self.assertEqual(ops.target_specs, [])
+
     def test_end(self):
         """Test that -- ends argument processing."""
         ops = NmapOptions()
-        ops.parse_string("-v -- -v")
+        ops.parse_string("nmap -v -- -v")
         self.assertTrue(ops["-v"] == 1)
         self.assertTrue(ops.target_specs == ["-v"])
 
@@ -780,14 +989,14 @@ class NmapOptionsTest(unittest.TestCase):
         """Test that parsing and re-rendering a previous rendering gives the
         same thing as the previous rendering."""
         TESTS = (
-            "",
-            "-v",
-            "-vv",
-            "-d -v",
-            "-d -d",
-            "-d -v -d",
-            "localhost",
-            "-oX - 192.168.0.1 -PS10",
+            "nmap",
+            "nmap -v",
+            "nmap -vv",
+            "nmap -d -v",
+            "nmap -d -d",
+            "nmap -d -v -d",
+            "nmap localhost",
+            "nmap -oX - 192.168.0.1 -PS10",
         )
         ops = NmapOptions()
         for test in TESTS:
@@ -801,45 +1010,45 @@ class NmapOptionsTest(unittest.TestCase):
         """Test that underscores in option names are treated the same as
         dashes (and are canonicalized to dashes)."""
         ops = NmapOptions()
-        ops.parse_string("--osscan_guess")
+        ops.parse_string("nmap --osscan_guess")
         self.assertTrue("--osscan-guess" in ops.render_string())
 
     def test_args(self):
         """Test potentially tricky argument scenarios."""
         ops = NmapOptions()
-        ops.parse_string("-d9")
+        ops.parse_string("nmap -d9")
         self.assertTrue(len(ops.target_specs) == 0)
         self.assertTrue(ops["-d"] == 9, ops["-d"])
-        ops.parse_string("-d 9")
+        ops.parse_string("nmap -d 9")
         self.assertTrue(ops.target_specs == ["9"])
         self.assertTrue(ops["-d"] == 1)
 
     def test_repetition(self):
         """Test options that can be repeated to increase their effect."""
         ops = NmapOptions()
-        ops.parse_string("-vv")
+        ops.parse_string("nmap -vv")
         self.assertTrue(ops["-v"] == 2)
-        ops.parse_string("-v -v")
+        ops.parse_string("nmap -v -v")
         self.assertTrue(ops["-v"] == 2)
-        ops.parse_string("-ff")
+        ops.parse_string("nmap -ff")
         self.assertTrue(ops["-f"] == 2)
-        ops.parse_string("-f -f")
+        ops.parse_string("nmap -f -f")
         self.assertTrue(ops["-f"] == 2)
         # Note: unlike -d, -v doesn't take an optional numeric argument.
-        ops.parse_string("-d2 -d")
+        ops.parse_string("nmap -d2 -d")
         self.assertTrue(ops["-d"] == 3)
 
     def test_scan_types(self):
         """Test that multiple scan types given to the -s option are all
         interpreted correctly."""
         ops = NmapOptions()
-        ops.parse_string("-s")
+        ops.parse_string("nmap -s")
         self.assertTrue(ops.extras == ["-s"])
-        ops.parse_string("-sS")
+        ops.parse_string("nmap -sS")
         self.assertTrue(ops.extras == [])
         self.assertTrue(ops["-sS"])
         self.assertTrue(not ops["-sU"])
-        ops.parse_string("-sSU")
+        ops.parse_string("nmap -sSU")
         self.assertTrue(ops["-sS"])
         self.assertTrue(ops["-sU"])
 
@@ -855,68 +1064,75 @@ class NmapOptionsTest(unittest.TestCase):
            ordering with each block."""
         ops = NmapOptions()
 
-        ops.parse_string("--fee")
+        ops.parse_string("nmap --fee")
         self.assertTrue(ops.extras == ["--fee"])
-        self.assertTrue(ops.render_string() == "--fee")
+        self.assertTrue(ops.render_string() == "nmap --fee")
 
         # Note: -x is not a real Nmap option.
 
-        ops.parse_string("-x")
+        ops.parse_string("nmap -x")
         self.assertTrue(ops.extras == ["-x"])
-        self.assertTrue(ops.render_string() == "-x")
+        self.assertTrue(ops.render_string() == "nmap -x")
 
-        ops.parse_string("-v --fie scanme.nmap.org -d")
+        ops.parse_string("nmap -v --fie scanme.nmap.org -d")
         self.assertTrue(ops.extras == ["--fie", "scanme.nmap.org"])
         self.assertTrue(ops["-v"] == 1)
         self.assertTrue(ops["-d"] == 1)
         self.assertTrue(len(ops.target_specs) == 0)
 
-        ops.parse_string("-v --foe=5 scanme.nmap.org -d")
+        ops.parse_string("nmap -v --foe=5 scanme.nmap.org -d")
         self.assertTrue(ops.extras == ["--foe=5"])
         self.assertTrue(ops.target_specs == ["scanme.nmap.org"])
 
-        ops.parse_string("--fum -oX out.xml -v")
+        ops.parse_string("nmap --fum -oX out.xml -v")
         self.assertTrue(ops.extras == ["--fum", "-oX", "out.xml"])
         self.assertTrue(ops["-v"] == 1)
 
-        ops.parse_string("-x -A localhost")
+        ops.parse_string("nmap -x -A localhost")
         self.assertTrue(ops.extras == ["-x", "-A"])
 
-        ops.parse_string("-x --fee -A localhost")
+        ops.parse_string("nmap -x --fee -A localhost")
         self.assertTrue(ops.extras == ["-x", "--fee", "-A"])
 
-        ops.parse_string("-x -x --timing 3 localhost")
+        ops.parse_string("nmap -x -x --timing 3 localhost")
         self.assertTrue(ops.extras == ["-x", "-x", "--timing", "3"])
         self.assertTrue(ops.target_specs == ["localhost"])
 
-        ops.parse_string("-x -x --timing=3 localhost")
+        ops.parse_string("nmap -x -x --timing=3 localhost")
         self.assertTrue(ops.extras == ["-x", "-x", "--timing=3"])
         self.assertTrue(ops.target_specs == ["localhost"])
 
-        ops.parse_string("-x -Ad9")
+        ops.parse_string("nmap -x -Ad9")
         self.assertTrue(ops.extras == ["-x", "-Ad9"])
 
-        ops.parse_string("-xrest")
+        ops.parse_string("nmap -xrest")
         self.assertTrue(ops.extras == ["-xrest"])
+
+        # Options that can't be given more than once should end up in extras.
+        ops.parse_string("nmap -p 53 -p 80 -O --mtu 50 --mtu 100 -O2")
+        self.assertTrue(ops["-p"] == "53")
+        self.assertTrue(ops["--mtu"] == "50")
+        self.assertTrue(ops["-O"])
+        self.assertTrue(ops.extras == ["-p", "80", "--mtu", "100", "-O2"])
 
     def test_quirks(self):
         """Test the handling of constructions whose interpretation isn't
         specified in documentation, but should match that of GNU getopt."""
         ops = NmapOptions()
         # Long options can be written with one dash.
-        ops.parse_string("-min-rate 100")
+        ops.parse_string("nmap -min-rate 100")
         self.assertTrue(ops["--min-rate"] == "100")
-        ops.parse_string("-min-rate=100")
+        ops.parse_string("nmap -min-rate=100")
         self.assertTrue(ops["--min-rate"] == "100")
 
         # Short options not taking an argument can be followed by a long option.
-        ops.parse_string("-nFmin-rate 100")
+        ops.parse_string("nmap -nFmin-rate 100")
         self.assertTrue(ops["-n"])
         self.assertTrue(ops["-F"])
         self.assertTrue(ops["--min-rate"] == "100")
 
         # Short options taking an argument consume the rest of the argument.
-        ops.parse_string("-nFp1-100")
+        ops.parse_string("nmap -nFp1-100")
         self.assertTrue(ops["-n"])
         self.assertTrue(ops["-F"])
         self.assertTrue(ops["-p"] == "1-100")
@@ -925,14 +1141,20 @@ class NmapOptionsTest(unittest.TestCase):
         """Test that failed integer conversions cause the option to wind up in
         the extras."""
         ops = NmapOptions()
-        ops.parse_string("-d#")
+        ops.parse_string("nmap -d#")
         self.assertTrue(ops.extras == ["-d#"])
-        ops.parse_string("-T monkeys")
+        ops.parse_string("nmap -T monkeys")
         self.assertTrue(ops["-T"] == None)
         self.assertTrue(ops.extras == ["-T", "monkeys"])
-        ops.parse_string("-iR monkeys")
+        ops.parse_string("nmap -iR monkeys")
         self.assertTrue(ops["-iR"] == None)
         self.assertTrue(ops.extras == ["-iR", "monkeys"])
+
+    def test_read_unknown(self):
+        """Test that getting the value of non-options returns None."""
+        ops = NmapOptions()
+        self.assertEqual(ops["-x"], None)
+        self.assertEqual(ops["--nonoption"], None)
 
     def test_canonical_option_names(self):
         """Test that equivalent option names are properly canonicalized, so that
@@ -945,9 +1167,10 @@ class NmapOptionsTest(unittest.TestCase):
             ("--osscan-guess", "--fuzzy"),
             ("-oG", "-oM", "-m"),
             ("-oN", "-o"),
+            ("-sP", "-sn"),
             ("-P", "-PE", "-PI"),
             ("-PA", "-PT"),
-            ("-P0", "-PD", "-PN"),
+            ("-P0", "-PD", "-PN", "-Pn"),
             ("--source-port", "-g"),
             ("--timing", "-T"),
             ("--verbose", "-v"),
@@ -972,8 +1195,8 @@ class NmapOptionsTest(unittest.TestCase):
             "-e eth0", "-f -f", "-g 53", "-i input.txt", "-M 100",
             "-m output.gnmap", "-O", "-O2", "-o output.nmap", "-p 1-100",
             "-S 192.168.0.1", "-T0", "-v -v"]
-        TESTS += ["-s" + opt for opt in "ACFLMNOPRSTUVWXYZ"]
-        TESTS += ["-P" + opt for opt in "IEMP0NDRBSTAUOY"]
+        TESTS += ["-s" + opt for opt in "ACFLMNnOPRSTUVWXYZ"]
+        TESTS += ["-P" + opt for opt in "IEMP0NnDRBSTAUOY"]
         TESTS += ["-P" + opt + "100" for opt in "STAUOY"]
         TESTS += [
             "--version",
@@ -1069,6 +1292,8 @@ class NmapOptionsTest(unittest.TestCase):
             "--script-updatedb",
             "--script-args=none",
             "--script-args none",
+            "--script-help=script.nse",
+            "--script-help script.nse",
             "--ip-options=S",
             "--ip-options S",
             "--min-rate=10",
@@ -1109,14 +1334,33 @@ class NmapOptionsTest(unittest.TestCase):
 
         ops = NmapOptions()
         for test in TESTS:
-            ops.parse_string(test)
+            ops.parse_string("nmap " + test)
             opt_list_1 = ops.render()
-            self.assertTrue(len(opt_list_1) > 0, "%s missing on render" % test)
+            self.assertTrue(len(opt_list_1) > 1, "%s missing on render" % test)
             self.assertTrue(len(ops.extras) == 0, "%s caused extras: %s" % (test, repr(ops.extras)))
             ops.parse(opt_list_1)
             opt_list_2 = ops.render()
             self.assertTrue(opt_list_1 == opt_list_2, "Result of parsing and rendering %s not parsable again" % test)
             self.assertTrue(len(ops.extras) == 0, "Result of parsing and rendering %s left extras: %s" % (test, ops.extras))
+
+class SplitQuotedTest(unittest.TestCase):
+    """A unittest class that tests the split_quoted function."""
+
+    def test_split(self):
+        self.assertEqual(split_quoted(''), [])
+        self.assertEqual(split_quoted('a'), ['a'])
+        self.assertEqual(split_quoted('a b c'), 'a b c'.split())
+
+    def test_quotes(self):
+        self.assertEqual(split_quoted('a "b" c'), ['a', 'b', 'c'])
+        self.assertEqual(split_quoted('a "b c"'), ['a', 'b c'])
+        self.assertEqual(split_quoted('a "b c""d e"'), ['a', 'b cd e'])
+        self.assertEqual(split_quoted('a "b c"z"d e"'), ['a', 'b czd e'])
+
+    def test_backslash(self):
+        self.assertEqual(split_quoted('"\\""'), ['"'])
+        self.assertEqual(split_quoted('\\"\\""'), ['\\"'])
+        self.assertEqual(split_quoted('"\\"\\""'), ['""'])
 
 if __name__ == "__main__":
     doctest.testmod()

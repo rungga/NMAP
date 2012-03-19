@@ -9,7 +9,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -31,7 +31,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -54,8 +54,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -92,7 +92,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase.h 15804 2009-10-10 03:10:21Z david $ */
+/* $Id: nbase.h 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #ifndef NBASE_H
 #define NBASE_H
@@ -221,6 +221,8 @@ typedef int64_t s64;
 #define TIMEVAL_BEFORE(a, b) (((a).tv_sec < (b).tv_sec) || ((a).tv_sec == (b).tv_sec && (a).tv_usec < (b).tv_usec))
 #define TIMEVAL_AFTER(a, b) (((a).tv_sec > (b).tv_sec) || ((a).tv_sec == (b).tv_sec && (a).tv_usec > (b).tv_usec))
 
+/* Convert a timeval to floating point seconds */
+#define TIMEVAL_SECS(a) ((double) (a).tv_sec + (double) (a).tv_usec / 1000000)
 
 
 /* sprintf family */
@@ -390,8 +392,27 @@ int Snprintf(char *, size_t, const char *, ...)
    length strlength are printable (as defined by isprint()) */
 int stringisprintable(const char *str, int strlength);
 
+/* parse_long is like strtol or atoi, but it allows digits only.
+   No whitespace, sign, or radix prefix. */
+long parse_long(const char *s, char **tail);
+
+/* This function takes a byte count and stores a short ascii equivalent
+   in the supplied buffer. Eg: 0.122MB, 10.322Kb or 128B. */
+char *format_bytecount(unsigned long long bytes, char *buf, size_t buflen);
+
+/* Compare a canonical option name (e.g. "max-scan-delay") with a
+   user-generated option such as "max_scan_delay" and returns 0 if the
+   two values are considered equivalant (for example, - and _ are
+   considered to be the same), nonzero otherwise. */
+int optcmp(const char *a, const char *b);
+
 /* Convert non-printable characters to replchar in the string */
 void replacenonprintable(char *str, int strlength, char replchar);
+
+/* Returns one if the file pathname given exists, is not a directory and
+ * is readable by the executing process.  Returns two if it is readable
+ * and is a directory.  Otherwise returns 0. */
+int fileexistsandisreadable(const char *pathname);
 
 /* Portable, incompatible replacements for dirname and basename. */
 char *path_get_dirname(const char *path);
@@ -431,7 +452,9 @@ unsigned long nbase_crc32c(unsigned char *buf, int len);
 /* Adler32 Checksum */
 unsigned long nbase_adler32(unsigned char *buf, int len);
 
-long tval2msecs(char *tspec);
+double tval2secs(const char *tspec);
+long tval2msecs(const char *tspec);
+const char *tval_unit(const char *tspec);
 
 int fselect(int s, fd_set *rmaster, fd_set *wmaster, fd_set *emaster, struct timeval *tv);
 

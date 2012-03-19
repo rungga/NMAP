@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -118,11 +118,6 @@ paths_config = PathsConfig()
 
 log.debug(">>> Platform: %s" % sys.platform)
 
-def split_quoted(s):
-    """Like str.split, except that no splits occur inside quoted strings, and
-    quoted strings are unquoted."""
-    return [x.replace("\"", "") for x in re.findall('((?:"[^"]*"|[^"\s]+)+)', s)]
-
 def wrap_file_in_preferred_encoding(f):
     """Wrap an open file to automatically decode its contents when reading from
     the encoding given by locale.getpreferredencoding, or just return the file
@@ -164,7 +159,10 @@ class NmapCommand(object):
     """This class represents an Nmap command line. It is responsible for
     starting, stopping, and returning the results from a command-line scan. A
     command line is represented as a string but it is split into a list of
-    arguments for execution."""
+    arguments for execution.
+    
+    The normal output (stdout and stderr) are written to the file object
+    self.stdout_file."""
 
     def __init__(self, command):
         """Initialize an Nmap command. This creates temporary files for
@@ -173,77 +171,41 @@ class NmapCommand(object):
         self.command = command
         self.command_process = None
 
-        self._stdout_file = None
+        self.stdout_file = None
 
-        # Get the command as a list of options
-        self.command_list = self._get_sanitized_command_list()
-        
-        # Go through the list and look for -oX or -oA, because that means the
-        # user has specified an XML output file. When we find one, we escape '%'
-        # characters to avoid strftime expansion and insert it back into the
-        # command. We also escape the arguments to -oG, -oN, and -oS for
-        # uniformity although we don't use the file names. If we find a -oX or
-        # -oA option, set self.xml_is_temp to False and don't delete the file
-        # after we're done. Otherwise, generate a random output file name and
-        # delete it when the scan is finished.
+        self.ops = NmapOptions()
+        self.ops.parse_string(command)
+        # Replace the executable name with the value of nmap_command_path.
+        self.ops.executable = paths_config.nmap_command_path
+
+        # Normally we generate a random temporary filename to save XML output
+        # to. If we find -oX or -oA, the user has chosen his own output file.
+        # Set self.xml_is_temp to False and don't delete the file when we're
+        # done.
         self.xml_is_temp = True
         self.xml_output_filename = None
-        i = 0
-        while i < len(self.command_list):
-            if self.command_list[i] == "-oX":
-                self.xml_is_temp = False
-                if i == len(self.command_list) - 1:
-                    break
-                self.xml_output_filename = self.command_list[i + 1]
-                escaped_xml_output_filename = escape_nmap_filename(self.xml_output_filename)
-                self.command_list[i + 1] = escaped_xml_output_filename
-                i += 1
-            elif self.command_list[i] == "-oA":
-                self.xml_is_temp = False
-                if i == len(self.command_list) - 1:
-                    break
-                xml_output_prefix = self.command_list[i + 1]
-                self.xml_output_filename = xml_output_prefix + ".xml"
-                escaped_xml_output_prefix = escape_nmap_filename(xml_output_prefix)
-                self.command_list[i + 1] = escaped_xml_output_prefix
-                i += 1
-            elif self.command_list[i] in ("-oG", "-oN", "-oS"):
-                if i == len(self.command_list) - 1:
-                    break
-                escaped_filename = escape_nmap_filename(self.command_list[i + 1])
-                self.command_list[i + 1] = escaped_filename
-            i += 1
+        if self.ops["-oX"]:
+            self.xml_is_temp = False
+            self.xml_output_filename = self.ops["-oX"]
+        if self.ops["-oA"]:
+            self.xml_is_temp = False
+            self.xml_output_filename = self.ops["-oA"] + ".xml"
+
+        # Escape '%' to avoid strftime expansion.
+        for op in ("-oA", "-oX", "-oG", "-oN", "-oS"):
+            if self.ops[op]:
+                self.ops[op] = escape_nmap_filename(self.ops[op])
 
         if self.xml_is_temp:
             self.xml_output_filename = tempfile.mktemp(prefix = APP_NAME + "-", suffix = ".xml")
-            escaped_xml_output_filename = escape_nmap_filename(self.xml_output_filename)
-            self.command_list.append("-oX")
-            self.command_list.append("%s" % escaped_xml_output_filename)
+            self.ops["-oX"] = escape_nmap_filename(self.xml_output_filename)
 
         log.debug(">>> Temporary files:")
         log.debug(">>> XML OUTPUT: %s" % self.xml_output_filename)
 
-    def _get_sanitized_command_list(self):
-        """Remove comments from the command, add output options, and return the
-        command split up into a list ready for execution."""
-        command = self.command
-
-        # Remove comments from command.
-        command = re.sub('#.*', '', command)
-
-        # Split back into individual options, honoring double quotes.
-        command_list = split_quoted(command)        
-
-        # Replace the executable name with the value of nmap_command_path.
-        if len(command_list) == 0:
-            command_list.append(None)
-        command_list[0] = paths_config.nmap_command_path
-
-        return command_list
-
     def close(self):
         """Close and remove temporary output files used by the command."""
-        self._stdout_file.close()
+        self.stdout_file.close()
         if self.xml_is_temp:
             try:
                 os.remove(self.xml_output_filename)
@@ -286,32 +248,39 @@ class NmapCommand(object):
                 search_paths.append(path)
         return os.pathsep.join(search_paths)
 
-    def run_scan(self):
+    def run_scan(self, stderr = None):
         """Run the command represented by this class."""
 
         # We don't need a file name for stdout output, just a handle. A
         # TemporaryFile is deleted as soon as it is closed, and in Unix is
         # unlinked immediately after creation so it's not even visible.
         f = tempfile.TemporaryFile(mode = "rb", prefix = APP_NAME + "-stdout-")
-        self._stdout_file = wrap_file_in_preferred_encoding(f)
+        self.stdout_file = wrap_file_in_preferred_encoding(f)
+        if stderr is None:
+            stderr = f
 
         search_paths = self.get_path()
         env = dict(os.environ)
         env["PATH"] = search_paths
         log.debug("PATH=%s" % env["PATH"])
 
-        log.debug("Running command: %s" % repr(self.command_list))
+        command_list = self.ops.render()
+        log.debug("Running command: %s" % repr(command_list))
 
         startupinfo = None
         if sys.platform == "win32":
             # This keeps a terminal window from opening.
             startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            try:
+                startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+            except AttributeError:
+                # This name is used before Python 2.6.5.
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        self.command_process = subprocess.Popen(self.command_list, bufsize=1,
+        self.command_process = subprocess.Popen(command_list, bufsize=1,
                                      stdin=subprocess.PIPE,
-                                     stdout=f.fileno(),
-                                     stderr=f.fileno(),
+                                     stdout=f,
+                                     stderr=stderr,
                                      startupinfo = startupinfo,
                                      env=env)
 
@@ -332,34 +301,20 @@ class NmapCommand(object):
             return False # False means that the process had a successful exit
         else:
             log.warning("An error occurred during the scan execution!")
-            log.warning("Command that raised the exception: '%s'" %
-                         " ".join(self.command_list))
+            log.warning("Command that raised the exception: '%s'" % self.ops.render_string())
             log.warning("Scan output:\n%s" % self.get_output())
 
             raise Exception("An error occurred during the scan execution!\n\n'%s'" % self.get_output())
 
     def get_output(self):
-        """Return the stdout of the nmap subprocess."""
-        self._stdout_file.seek(0)
-        return self._stdout_file.read()
+        """Return the complete contents of the self.stdout_file. This modifies
+        the file pointer."""
+        self.stdout_file.seek(0)
+        return self.stdout_file.read()
 
     def get_xml_output_filename(self):
         """Return the name of the XML (-oX) output file."""
         return self.xml_output_filename
-
-class SplitQuotedTest(unittest.TestCase):
-    """A unittest class that tests the split_quoted function."""
-
-    def test_split(self):
-        self.assertEqual(split_quoted(''), [])
-        self.assertEqual(split_quoted('a'), ['a'])
-        self.assertEqual(split_quoted('a b c'), 'a b c'.split())
-
-    def test_quotes(self):
-        self.assertEqual(split_quoted('a "b" c'), ['a', 'b', 'c'])
-        self.assertEqual(split_quoted('a "b c"'), ['a', 'b c'])
-        self.assertEqual(split_quoted('a "b c""d e"'), ['a', 'b cd e'])
-        self.assertEqual(split_quoted('a "b c"z"d e"'), ['a', 'b czd e'])
 
 if __name__ == '__main__':
     unittest.TextTestRunner().run(unittest.TestLoader().loadTestsFromTestCase(SplitQuotedTest))

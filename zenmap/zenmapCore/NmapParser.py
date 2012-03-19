@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -91,6 +91,7 @@ import locale
 import os
 import os.path
 import time
+import socket
 import StringIO
 import copy
 
@@ -103,8 +104,8 @@ from xml.sax.xmlreader import AttributesImpl as Attributes
 
 import zenmapCore.I18N
 from zenmapCore.UmitLogging import log
-from zenmapCore.NmapCommand import split_quoted
-from zenmapCore.NmapOptions import NmapOptions
+from zenmapCore.NmapOptions import NmapOptions, split_quoted, join_quoted
+from zenmapCore.StringPool import unique
 
 # The version of the Nmap DTD this file understands and emits.
 XML_OUTPUT_VERSION = "1.03"
@@ -150,14 +151,14 @@ class HostInfo(object):
         clone._trace = copy.deepcopy(self._trace)
 
         return clone
-    
+
     # tcpsequence is a dict of the form
     # {'index': u'203',
     #  'values': u'3637785D,35B440D1,35E9FC3B,3640DB42,355F5931,3601AE14',
     #  'difficulty': u'Good luck!'}
     def set_tcpsequence(self, sequence):
         self._tcpsequence = sequence
-    
+
     def get_tcpsequence(self):
         if self._tcpsequence:
             return self._tcpsequence
@@ -168,7 +169,7 @@ class HostInfo(object):
     #  'class': u'1000HZ'}
     def set_tcptssequence(self, sequence):
         self._tcptssequence = sequence
-    
+
     def get_tcptssequence(self):
         if self._tcptssequence:
             return self._tcptssequence
@@ -178,7 +179,7 @@ class HostInfo(object):
     # {'values': u'0,0,0,0,0,0', 'class': u'All zeros'}
     def set_ipidsequence(self, sequence):
         self._ipidsequence = sequence
-    
+
     def get_ipidsequence(self):
         if self._ipidsequence:
             return self._ipidsequence
@@ -189,15 +190,15 @@ class HostInfo(object):
     #  'osgen': u'2.6.X', 'accuracy': u'98'}
     def set_osclasses(self, classes):
         self._osclasses = classes
-    
+
     def get_osclasses(self):
         return self._osclasses
-    
+
     # osmatches is a list of dicts of the form
     # {'name': u'Linux 2.6.24', 'accuracy': u'98', 'line': u'1000'}
     def set_osmatches(self, matches):
         self._osmatches = matches
-    
+
     def get_osmatches(self):
         return self._osmatches
 
@@ -216,8 +217,8 @@ class HostInfo(object):
         osmatches = self.osmatches[:]
         osmatches.sort(cmp = lambda a, b: cmp(osmatch_key(a), osmatch_key(b)))
         return osmatches[-1]
-        
-        
+
+
     def get_best_osclass(self):
         """Return the OS class with the highest accuracy. If there is a tie, one
         of the best matches will be returned."""
@@ -241,7 +242,7 @@ class HostInfo(object):
     # but not all three elements are necessarily present.
     def set_ports_used(self, ports):
         self._ports_used = ports
-    
+
     def get_ports_used(self):
         return self._ports_used
 
@@ -249,11 +250,11 @@ class HostInfo(object):
     # {'seconds': u'1909493', 'lastboot': u'Wed Jul 2 06:48:31 2008'}
     def set_uptime(self, uptime):
         self._uptime = uptime
-    
+
     def get_uptime(self):
         if self._uptime:
             return self._uptime
-        
+
         # Avoid empty dict return
         return {"seconds":"", "lastboot":""}
 
@@ -264,7 +265,7 @@ class HostInfo(object):
     #  'service_product': u'OpenSSH', 'service_version': u'4.3'}
     def set_ports(self, ports):
         self._ports = ports
-    
+
     def get_ports(self):
         return self._ports
 
@@ -272,7 +273,7 @@ class HostInfo(object):
     # {'count': u'1709', 'state': u'filtered'}
     def set_extraports(self, port_list):
         self._extraports = port_list
-    
+
     def get_extraports(self):
         return self._extraports
 
@@ -280,7 +281,7 @@ class HostInfo(object):
     # [{'hostname': u'scanme.nmap.org', 'hostname_type': u'PTR'}]
     def set_hostnames(self, hostname_list):
         self._hostnames = hostname_list
-    
+
     def get_hostnames(self):
         return self._hostnames
 
@@ -304,17 +305,40 @@ class HostInfo(object):
     def get_ipv6(self):
         return self._ipv6
 
+    def get_addrs_for_sort(self):
+        """Return a list of addresses as opaque values sorted such that
+        1) IPv4 comes before IPv6 comes before MAC, and
+        2) addresses are sorted according to their binary values, not their
+           string representation.
+        Use this function to the the comparison key when sorting a list of
+        hosts by address."""
+        l = []
+        if self.ip:
+            l.append((1, socket.inet_aton(self.ip["addr"])))
+        if self.ipv6:
+            try:
+                l.append((1, socket.inet_pton(socket.AF_INET6, self.ipv6["addr"])))
+            except AttributeError:
+                # Windows doesn't have socket.inet_pton. Go alphabetical.
+                # Encode to a byte string for possible comparison with binary
+                # address strings (which can't be converted to unicode).
+                l.append((1, self.ipv6["addr"].encode("utf-8")))
+        if self.mac:
+            l.append((3, "".join([chr(int(x, 16)) for x in self.mac["addr"].split(":")])))
+        l.sort()
+        return l
+
     # comment is a string.
     def get_comment(self):
         return self._comment
-    
+
     def set_comment(self, comment):
         self._comment = comment
 
     # state is a string like u'up' or u'down'.
     def set_state(self, status):
         self._state = status
-    
+
     def get_state(self):
         return self._state
 
@@ -345,7 +369,7 @@ class HostInfo(object):
             state = p.get('port_state')
             if state in states:
                 count += 1
- 
+
         for extra in self.get_extraports():
             if extra['state'] in states:
                 count += int(extra['count'])
@@ -363,10 +387,10 @@ class HostInfo(object):
 
     def get_scanned_ports(self):
         scanned = 0
-        
+
         for p in self.ports:
             scanned+=1
-        
+
         for extra in self.get_extraports():
             scanned += int(extra["count"])
 
@@ -384,19 +408,19 @@ class HostInfo(object):
                              "port_state":p.get("port_state", _("Unknown")),
                              "protocol":p.get("protocol", "")})
         return services
-    
+
     def get_trace(self):
         return self._trace
-    
+
     def set_trace(self, trace):
         self._trace = trace
-    
+
     def append_trace_hop(self, hop):
         if "hops" in self._trace:
             self._trace["hops"].append(hop)
         else:
             self._trace["hops"] = [hop]
-    
+
     def set_trace_error(self, errorstr):
         self._trace["error"] = errorstr
 
@@ -423,10 +447,9 @@ class ParserBasics(object):
     def __init__ (self):
         # This flag informs us whether the XML output file is temporary (True),
         # or user specified (False). If any of them is user-specified, it
-        # doesn't get stripped out of the command string in
-        # _verify_output_options().
+        # doesn't get stripped out of the command string in set_nmap_command.
         self.xml_is_temp = True
-        
+
         self.nmap = {'nmaprun':{},\
                      'scaninfo':[],\
                      'verbose':'',\
@@ -436,29 +459,25 @@ class ParserBasics(object):
 
         self.ops = NmapOptions()
         self._nmap_output = None
-    
+
     def set_xml_is_temp(self, xml_is_temp):
         # This flag is False if a user has specified his own -oX option - in
         # which case we not should remove the -oX option from the command
         # string. A value of True means that we're using a temporary file which
-        # should be removed from the command string (see
-        # _verify_output_options()).
+        # should be removed from the command string (see set_nmap_command).
         self.xml_is_temp = xml_is_temp
-    
+
     def get_profile_name(self):
         return self.nmap['nmaprun'].get('profile_name', '')
 
     def set_profile_name(self, name):
         self.nmap['nmaprun']['profile_name'] = name
-    
-    def get_target(self):
-        return " ".join(self.ops.target_specs)
 
-    def set_target(self, target):
-        if target is None:
-            self.ops.target_specs = []
-        else:
-            self.ops.target_specs = target.split()
+    def get_targets(self):
+        return self.ops.target_specs
+
+    def set_targets(self, targets):
+        self.ops.target_specs = targets
 
     def get_nmap_output(self):
         return self._nmap_output
@@ -471,23 +490,23 @@ class ParserBasics(object):
 
     def set_debugging_level(self, level):
         self.nmap['debugging'] = level
-    
+
     def get_verbose_level (self):
         return self.nmap.get('verbose', '')
 
     def set_verbose_level(self, level):
         self.nmap['verbose'] = level
-    
+
     def get_scaninfo(self):
         return self.nmap.get('scaninfo', '')
 
     def set_scaninfo(self, info):
         self.nmap['scaninfo'] = info
-    
+
     def get_services_scanned (self):
         if self._services_scanned == None:
             return self._services_scanned
-        
+
         services = []
         for scan in self.nmap.get('scaninfo', []):
             services.append(scan['services'])
@@ -499,10 +518,13 @@ class ParserBasics(object):
         self._services_scanned = services_scanned
 
     def get_nmap_command (self):
-        return self._verify_output_options(self.nmap['nmaprun'].get('args', ''))
+        return self.ops.render_string()
 
     def set_nmap_command(self, command):
-        self.nmap['nmaprun']['args'] = self._verify_output_options(command)
+        self.ops.parse_string(command)
+        if self.xml_is_temp:
+            self.ops["-oX"] = None
+        self.nmap['nmaprun']['args'] = self.ops.render_string()
 
     def get_scan_type (self):
         types = []
@@ -519,7 +541,7 @@ class ParserBasics(object):
     def get_num_services (self):
         if self._num_services == None:
             return self._num_services
-        
+
         num = 0
         for n in self.nmap.get('scaninfo', []):
             num += int(n['numservices'])
@@ -546,7 +568,7 @@ class ParserBasics(object):
         else:
             raise Exception("Wrong date format. Date should be saved \
 in epoch format!")
-    
+
     def get_open_ports(self):
         ports = 0
 
@@ -560,12 +582,12 @@ in epoch format!")
 
         for h in self.nmap.get('hosts', []):
             ports += h.get_filtered_ports()
-        
+
         return ports
 
     def get_closed_ports(self):
         ports = 0
-        
+
         for h in self.nmap['hosts']:
             ports += h.get_closed_ports()
 
@@ -579,7 +601,7 @@ in epoch format!")
 
     def set_scanner(self, scanner):
         self.nmap['nmaprun']['scanner'] = scanner
-    
+
     def get_scanner_version (self):
         return self.nmap['nmaprun'].get('version', '')
 
@@ -621,25 +643,25 @@ in epoch format!")
 
     def set_runstats(self, stats):
         self.nmap['runstats'] = stats
-    
+
     def get_hosts_down(self):
         return int(self.nmap['runstats'].get('hosts_down', '0'))
 
     def set_hosts_down(self, down):
         self.nmap['runstats']['hosts_down'] = int(down)
-    
+
     def get_hosts_up(self):
         return int(self.nmap['runstats'].get('hosts_up', '0'))
 
     def set_hosts_up(self, up):
         self.nmap['runstats']['hosts_up'] = int(up)
-    
+
     def get_hosts_scanned(self):
         return int(self.nmap['runstats'].get('hosts_scanned', '0'))
 
     def set_hosts_scanned(self, scanned):
         self.nmap['runstats']['hosts_scanned'] = int(scanned)
-    
+
     def get_finish_time (self):
         return time.localtime(int(self.nmap['runstats'].get('finished_time',
                                                             '0')))
@@ -658,32 +680,17 @@ in epoch format!")
         scan_name = self.nmap.get("scan_name")
         if scan_name:
             return scan_name
-        if self.profile_name and self.target:
-            return _("%s on %s") % (self.profile_name, self.target)
+        if self.profile_name and self.get_targets():
+            return _("%s on %s") % (self.profile_name, join_quoted(self.get_targets()))
         return self.get_nmap_command()
 
     def set_scan_name(self, scan_name):
         self.nmap["scan_name"] = scan_name
-    
+
     def get_formatted_finish_date(self):
         return time.strftime("%B %d, %Y - %H:%M", self.get_finish_time())
 
-    def _verify_output_options(self, command):
-        """Remove and -oX options from the command stored in the XML file,
-        unless they were put there by the user."""
-        command_list = split_quoted(command)
-
-        i = 0
-        while i < len(command_list):
-            if command_list[i] == "-oX" and self.xml_is_temp:
-                del command_list[i:i + 2]
-            else:
-                i += 1
-
-        return " ".join (command_list)
-
     profile_name = property(get_profile_name, set_profile_name)
-    target = property(get_target, set_target)
     nmap_output = property(get_nmap_output, set_nmap_output)
     debugging_level = property(get_debugging_level, set_debugging_level)
     verbose_level = property(get_verbose_level, set_verbose_level)
@@ -758,7 +765,7 @@ class NmapParserSAX(ParserBasics, ContentHandler):
 
     def _parse_nmaprun(self, attrs):
         run_tag = "nmaprun"
-        
+
         if self._nmap_output is None and attrs.has_key("nmap_output"):
             self._nmap_output = attrs["nmap_output"]
         self.nmap[run_tag]["profile_name"] = attrs.get("profile_name", "")
@@ -768,9 +775,7 @@ class NmapParserSAX(ParserBasics, ContentHandler):
         self.nmap[run_tag]["version"] = attrs.get("version", "")
         self.nmap[run_tag]["xmloutputversion"] = attrs.get("xmloutputversion", "")
 
-        command_string = self.get_nmap_command()
-        command_list = command_string.split()
-        self.ops.parse(command_list[1:])
+        self.nmap_command = self.nmap[run_tag]["args"]
 
     def _parse_output(self, attrs):
         if attrs.get("type") != "interactive":
@@ -782,12 +787,12 @@ class NmapParserSAX(ParserBasics, ContentHandler):
 
     def _parse_scaninfo(self, attrs):
         dic = {}
-        
-        dic["type"] = attrs.get("type", "")
-        dic["protocol"] = attrs.get("protocol", "")
+
+        dic["type"] = unique(attrs.get("type", ""))
+        dic["protocol"] = unique(attrs.get("protocol", ""))
         dic["numservices"] = attrs.get("numservices", "")
         dic["services"] = attrs.get("services", "")
-        
+
         self.nmap["scaninfo"].append(dic)
 
     def _parse_verbose(self, attrs):
@@ -809,10 +814,10 @@ class NmapParserSAX(ParserBasics, ContentHandler):
         self.host_info.comment = attrs.get("comment", "")
 
     def _parse_host_status(self, attrs):
-        self.host_info.set_state(attrs.get("state", ""))
+        self.host_info.set_state(unique(attrs.get("state", "")))
 
     def _parse_host_address(self, attrs):
-        address_attributes = {"type":attrs.get("addrtype", ""),
+        address_attributes = {"type":unique(attrs.get("addrtype", "")),
                               "vendor":attrs.get("vendor", ""),
                               "addr":attrs.get("addr", "")}
 
@@ -828,78 +833,71 @@ class NmapParserSAX(ParserBasics, ContentHandler):
                                     "hostname_type":attrs.get("type", "")})
 
     def _parse_host_extraports(self, attrs):
-        self.list_extraports.append({"state":attrs.get("state", ""),
+        self.list_extraports.append({"state":unique(attrs.get("state", "")),
                                      "count":attrs.get("count", "")})
 
     def _parse_host_port(self, attrs):
-        self.dic_port = {"protocol":attrs.get("protocol", ""), 
-                         "portid":attrs.get("portid", "")}
+        self.dic_port = {"protocol":unique(attrs.get("protocol", "")),
+                         "portid":unique(attrs.get("portid", ""))}
 
     def _parse_host_port_state(self, attrs):
-        self.dic_port["port_state"] = attrs.get("state", "")
-        self.dic_port["reason"] = attrs.get("reason", "")
-        self.dic_port["reason_ttl"] = attrs.get("reason_ttl", "")
+        self.dic_port["port_state"] = unique(attrs.get("state", ""))
+        self.dic_port["reason"] = unique(attrs.get("reason", ""))
+        self.dic_port["reason_ttl"] = unique(attrs.get("reason_ttl", ""))
 
     def _parse_host_port_service(self, attrs):
         self.dic_port["service_name"] = attrs.get("name", "")
-        self.dic_port["service_method"] = attrs.get("method", "")
+        self.dic_port["service_method"] = unique(attrs.get("method", ""))
         self.dic_port["service_conf"] = attrs.get("conf", "")
         self.dic_port["service_product"] = attrs.get("product", "")
         self.dic_port["service_version"] = attrs.get("version", "")
         self.dic_port["service_extrainfo"] = attrs.get("extrainfo", "")
 
     def _parse_host_osmatch(self, attrs):
-        self.list_osmatch.append(self._parsing(attrs, ['name', 'accuracy', 'line']))
+        self.list_osmatch.append(self._parsing(attrs, [], ['name', 'accuracy', 'line']))
 
     def _parse_host_portused(self, attrs):
-        self.list_portused.append(self._parsing(attrs, 
-                                                ['state','proto','portid']))
+        self.list_portused.append(self._parsing(attrs, ['state', 'proto', 'portid'], []))
 
     def _parse_host_osclass(self, attrs):
-        self.list_osclass.append(self._parsing(attrs, ['type',
-                                                       'vendor',
-                                                       'osfamily',
-                                                       'osgen',
-                                                       'accuracy']))
+        self.list_osclass.append(self._parsing(attrs, ['type', 'vendor', 'osfamily', 'osgen'], ['accuracy']))
 
-    def _parsing(self, attrs, attrs_list):
+    def _parsing(self, attrs, unique_names, other_names):
         # Returns a dict with the attributes of a given tag with the
         # atributes names as keys and their respective values
         dic = {}
-        for at in attrs_list:
+        for at in unique_names:
+            dic[at] = unique(attrs.get(at, ""))
+        for at in other_names:
             dic[at] = attrs.get(at, "")
         return dic
 
     def _parse_host_uptime(self, attrs):
-        self.host_info.set_uptime(self._parsing(attrs, ["seconds", "lastboot"]))
+        self.host_info.set_uptime(self._parsing(attrs, [], ["seconds", "lastboot"]))
 
 
     def _parse_host_tcpsequence(self, attrs):
-        self.host_info.set_tcpsequence(self._parsing(attrs, ['index',
-                                                             'difficulty',
-                                                             'values']))
-    
+        self.host_info.set_tcpsequence(self._parsing(attrs, ['difficulty'], ['index', 'values']))
+
     def _parse_host_tcptssequence(self, attrs):
-        self.host_info.set_tcptssequence(self._parsing(attrs, ['class',
-                                                               'values']))
+        self.host_info.set_tcptssequence(self._parsing(attrs, ['class'], ['values']))
 
     def _parse_host_ipidsequence(self, attrs):
-        self.host_info.set_ipidsequence(self._parsing(attrs, ['class',
-                                                              'values']))
-    
+        self.host_info.set_ipidsequence(self._parsing(attrs, ['class'], ['values']))
+
     def _parse_host_trace(self, attrs):
         trace = {}
         for attr in ["proto", "port"]:
-            trace[attr] = attrs.get(attr, "")
+            trace[attr] = unique(attrs.get(attr, ""))
         self.host_info.set_trace(trace)
-    
+
     def _parse_host_trace_hop(self, attrs):
-        hop = self._parsing(attrs, ["ttl", "rtt", "ipaddr", "host"])
+        hop = self._parsing(attrs, [], ["ttl", "rtt", "ipaddr", "host"])
         self.host_info.append_trace_hop(hop)
-    
+
     def _parse_host_trace_error(self, attrs):
-        self.host_info.set_trace_error(attrs.get("errorstr", ""))
-    
+        self.host_info.set_trace_error(unique(attrs.get("errorstr", "")))
+
     def processingInstruction(self, target, data):
         if target == "xml-stylesheet":
             self.xml_stylesheet_data = data
@@ -1011,6 +1009,13 @@ class NmapParserSAX(ParserBasics, ContentHandler):
         if self.in_interactive_output:
             self.nmap_output += content
 
+    def write_text(self, f):
+        """Write the Nmap text output of this object to the file-like object
+        f."""
+        if self._nmap_output is None:
+            return
+        f.write(self.nmap_output)
+
     def write_xml(self, f):
         """Write the XML representation of this object to the file-like object
         f."""
@@ -1119,12 +1124,11 @@ class NmapParserSAX(ParserBasics, ContentHandler):
             writer.startElement("hostnames", Attributes({}))
 
             for hname in host.hostnames:
-                if type(hname) == type({}):
-                    writer.startElement("hostname",
-                            Attributes(dict(name = hname.get("hostname", ""),
-                                        type = hname.get("hostname_type", ""))))
-                    
-                    writer.endElement("hostname")
+                writer.startElement("hostname",
+                        Attributes(dict(name = hname.get("hostname", ""),
+                                    type = hname.get("hostname_type", ""))))
+
+                writer.endElement("hostname")
 
             writer.endElement("hostnames")
             # End of Hostnames element
@@ -1137,40 +1141,38 @@ class NmapParserSAX(ParserBasics, ContentHandler):
 
             ## Extraports elements
             for ext in host.get_extraports():
-                if type(ext) == type({}):
-                    writer.startElement("extraports",
-                        Attributes(dict(count = ext.get("count", ""),
-                                        state = ext.get("state", ""))))
-                    writer.endElement("extraports")
+                writer.startElement("extraports",
+                    Attributes(dict(count = ext.get("count", ""),
+                                    state = ext.get("state", ""))))
+                writer.endElement("extraports")
 
             ## Port elements
             for p in host.ports:
-                if type(p) == type({}):
-                    writer.startElement("port",
-                        Attributes(dict(portid = p.get("portid", ""),
-                                        protocol = p.get("protocol", ""))))
+                writer.startElement("port",
+                    Attributes(dict(portid = p.get("portid", ""),
+                                    protocol = p.get("protocol", ""))))
 
-                    ### Port state
-                    writer.startElement("state",
-                        Attributes(dict(state=p.get("port_state", ""),
-                                        reason=p.get("reason", ""),
-                                        reason_ttl=p.get("reason_ttl", ""))))
-                    writer.endElement("state")
+                ### Port state
+                writer.startElement("state",
+                    Attributes(dict(state=p.get("port_state", ""),
+                                    reason=p.get("reason", ""),
+                                    reason_ttl=p.get("reason_ttl", ""))))
+                writer.endElement("state")
 
-                    ### Port service info
-                    d = {}
-                    for xml_attr, member in (("conf", "service_conf"),
-                            ("method", "service_method"),
-                            ("name", "service_name"),
-                            ("product", "service_product"),
-                            ("version", "service_version"),
-                            ("extrainfo", "service_extrainfo")):
-                        if p.get(member):
-                            d[xml_attr] = p.get(member)
-                    writer.startElement("service", Attributes(d))
-                    writer.endElement("service")
+                ### Port service info
+                d = {}
+                for xml_attr, member in (("conf", "service_conf"),
+                        ("method", "service_method"),
+                        ("name", "service_name"),
+                        ("product", "service_product"),
+                        ("version", "service_version"),
+                        ("extrainfo", "service_extrainfo")):
+                    if p.get(member):
+                        d[xml_attr] = p.get(member)
+                writer.startElement("service", Attributes(d))
+                writer.endElement("service")
 
-                    writer.endElement("port")
+                writer.endElement("port")
 
             writer.endElement("ports")
             # End of Ports element
@@ -1180,34 +1182,31 @@ class NmapParserSAX(ParserBasics, ContentHandler):
             ############
             # OS element
             writer.startElement("os", Attributes({}))
-            
+
             ## Ports used elements
             for pu in host.ports_used:
-                if type(pu) == type({}):
-                    writer.startElement("portused",
-                                Attributes(dict(state = pu.get("state", ""),
-                                                proto = pu.get("proto", ""),
-                                                portid = pu.get("portid", ""))))
-                    writer.endElement("portused")
+                writer.startElement("portused",
+                            Attributes(dict(state = pu.get("state", ""),
+                                            proto = pu.get("proto", ""),
+                                            portid = pu.get("portid", ""))))
+                writer.endElement("portused")
 
             ## Osclass elements
             for oc in host.osclasses:
-                if type(oc) == type({}):
-                    writer.startElement("osclass",
-                        Attributes(dict(vendor = oc.get("vendor", ""),
-                                        osfamily = oc.get("osfamily", ""),
-                                        type = oc.get("type", ""),
-                                        osgen = oc.get("osgen", ""),
-                                        accuracy = oc.get("accuracy", ""))))
-                    writer.endElement("osclass")
+                writer.startElement("osclass",
+                    Attributes(dict(vendor = oc.get("vendor", ""),
+                                    osfamily = oc.get("osfamily", ""),
+                                    type = oc.get("type", ""),
+                                    osgen = oc.get("osgen", ""),
+                                    accuracy = oc.get("accuracy", ""))))
+                writer.endElement("osclass")
 
             ## Osmatch elements
             for om in host.osmatches:
-                if type(om) == type({}):
-                    writer.startElement("osmatch",
-                        Attributes(dict(name = om.get("name", ""),
-                                        accuracy = om.get("accuracy", ""),
-                                        line = om.get("line", ""))))
+                writer.startElement("osmatch",
+                    Attributes(dict(name = om.get("name", ""),
+                                    accuracy = om.get("accuracy", ""),
+                                    line = om.get("line", ""))))
                 writer.endElement("osmatch")
 
             writer.endElement("os")
@@ -1215,45 +1214,41 @@ class NmapParserSAX(ParserBasics, ContentHandler):
             ###################
 
             # Uptime element
-            if type(host.uptime) == type({}):
-                writer.startElement("uptime",
-                    Attributes(dict(seconds = host.uptime.get("seconds", ""),
-                                lastboot = host.uptime.get("lastboot", ""))))
-                writer.endElement("uptime")
+            writer.startElement("uptime",
+                Attributes(dict(seconds = host.uptime.get("seconds", ""),
+                            lastboot = host.uptime.get("lastboot", ""))))
+            writer.endElement("uptime")
 
             #####################
             # Sequences elementes
             ## TCP Sequence element
             # Cannot use dict() here, because of the 'class' attribute.
-            if type(host.tcpsequence) == type({}):
-                writer.startElement("tcpsequence",
-                    Attributes({"index":host.tcpsequence.get("index", ""),
-                            "difficulty":host.tcpsequence.get("difficulty", ""),
-                            "values":host.tcpsequence.get("values", "")}))
-                writer.endElement("tcpsequence")
+            writer.startElement("tcpsequence",
+                Attributes({"index":host.tcpsequence.get("index", ""),
+                        "difficulty":host.tcpsequence.get("difficulty", ""),
+                        "values":host.tcpsequence.get("values", "")}))
+            writer.endElement("tcpsequence")
 
             ## IP ID Sequence element
-            if type(host.ipidsequence) == type({}):
-                writer.startElement("ipidsequence",
-                    Attributes({"class":host.ipidsequence.get("class", ""),
-                                "values":host.ipidsequence.get("values", "")}))
-                writer.endElement("ipidsequence")
+            writer.startElement("ipidsequence",
+                Attributes({"class":host.ipidsequence.get("class", ""),
+                            "values":host.ipidsequence.get("values", "")}))
+            writer.endElement("ipidsequence")
 
             ## TCP TS Sequence element
-            if type(host.tcptssequence) == type({}):
-                writer.startElement("tcptssequence",
-                    Attributes({"class":host.tcptssequence.get("class", ""),
-                            "values":host.tcptssequence.get("values", "")}))
-                writer.endElement("tcptssequence")
+            writer.startElement("tcptssequence",
+                Attributes({"class":host.tcptssequence.get("class", ""),
+                        "values":host.tcptssequence.get("values", "")}))
+            writer.endElement("tcptssequence")
             # End of sequences elements
             ###########################
-            
+
             ## Trace element
             if len(host.trace) > 0:
                 writer.startElement("trace",
                     Attributes({"proto":host.trace.get("proto", ""),
                                 "port":host.trace.get("port", "")}))
-                
+
                 if "hops" in host.trace:
                     for hop in host.trace["hops"]:
                         writer.startElement("hop",
@@ -1262,12 +1257,12 @@ class NmapParserSAX(ParserBasics, ContentHandler):
                                         "ipaddr":hop["ipaddr"],
                                         "host":hop["host"]}))
                         writer.endElement("hop")
-                
+
                 if "error" in host.trace:
                     writer.startElement("error",
                         Attributes({"errorstr":host.trace["error"]}))
                     writer.endElement("error")
-                
+
                 writer.endElement("trace")
             # End of trace element
             ###########################
@@ -1287,13 +1282,12 @@ class NmapParserSAX(ParserBasics, ContentHandler):
 
     def _write_scaninfo(self, writer):
         for scan in self.scaninfo:
-            if type(scan) == type({}):
-                writer.startElement("scaninfo",
-                    Attributes(dict(type = scan.get("type", ""),
-                                    protocol = scan.get("protocol", ""),
-                                    numservices = scan.get("numservices", ""),
-                                    services = scan.get("services", ""))))
-                writer.endElement("scaninfo")
+            writer.startElement("scaninfo",
+                Attributes(dict(type = scan.get("type", ""),
+                                protocol = scan.get("protocol", ""),
+                                numservices = scan.get("numservices", ""),
+                                services = scan.get("services", ""))))
+            writer.endElement("scaninfo")
 
     def _write_nmaprun(self, writer):
         writer.startElement("nmaprun",
@@ -1314,7 +1308,7 @@ class NmapParserSAX(ParserBasics, ContentHandler):
 def nmap_parser_sax():
     parser = make_parser()
     nmap_parser = NmapParserSAX()
-    
+
     parser.setContentHandler(nmap_parser)
     nmap_parser.set_parser(parser)
 
@@ -1326,10 +1320,10 @@ if __name__ == '__main__':
     import sys
 
     file_to_parse = sys.argv[1]
-    
+
     np = NmapParser()
     np.parse_file(file_to_parse)
-    
+
     for host in np.hosts:
         print "%s:" % host.ip["addr"]
         print "  Comment:", repr(host.comment)

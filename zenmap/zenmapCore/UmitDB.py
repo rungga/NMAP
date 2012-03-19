@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -118,7 +118,7 @@ try:
 except:
     import os.path
     from BasePaths import base_paths
-    
+
     umitdb = os.path.join(Path.user_config_dir, base_paths["db"])
     Path.db = umitdb
 
@@ -162,9 +162,9 @@ class Table(object):
     def __init__(self, table_name):
         self.table_name = table_name
         self.table_id = "%s_id" % table_name
-        
+
         self.cursor = connection.cursor()
-    
+
     def get_item(self, item_name):
         if self.__getattribute__("_%s" % item_name):
             return self.__getattribute__("_%s" % item_name)
@@ -174,14 +174,14 @@ class Table(object):
                                                       self.__getattribute__(self.table_id))
 
         self.cursor.execute(sql)
-        
+
         self.__setattr__("_%s" % item_name, self.cursor.fetchall()[0][0])
         return self.__getattribute__("_%s" % item_name)
 
     def set_item(self, item_name, item_value):
         if item_value == self.__getattribute__("_%s" % item_name):
             return None
-        
+
         sql = "UPDATE %s SET %s = ? WHERE %s_id = %s" % (self.table_name, item_name,
                                                          self.table_name,
                                                          self.__getattribute__(self.table_id))
@@ -197,7 +197,7 @@ class Table(object):
         else:
             sql = sql[:][:-2]
             sql += ") VALUES ("
-            
+
         for v in xrange(len(kargs.values())):
             sql += "?, "
         else:
@@ -205,7 +205,7 @@ class Table(object):
             sql += ")"
 
         sql %= self.table_name
-        
+
         self.cursor.execute(sql, tuple(kargs.values()))
         connection.commit()
 
@@ -219,7 +219,7 @@ class UmitDB(object):
 
     def create_db(self):
         drop_string = ("DROP TABLE scans;",)
-        
+
         try:
             for d in drop_string:
                 self.cursor.execute(d)
@@ -228,7 +228,7 @@ class UmitDB(object):
         else:
             connection.commit()
 
-        
+
         creation_string = ("""CREATE TABLE scans (scans_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                   scan_name TEXT,
                                                   nmap_xml_output TEXT,
@@ -256,14 +256,14 @@ class UmitDB(object):
         log.debug(">>> Cleaning up data base.")
         log.debug(">>> Removing results olders than %s seconds" % save_time)
         self.cursor.execute("SELECT scans_id FROM scans WHERE date < ?", (time() - save_time,))
-        
+
         for sid in [sid[0] for sid in self.cursor.fetchall()]:
             log.debug(">>> Removing results with scans_id %s" % sid)
             self.cursor.execute("DELETE FROM scans WHERE scans_id = ?", (sid, ))
         else:
             connection.commit()
             log.debug(">>> Data base successfully cleaned up!")
-        
+
 
 class Scans(Table, object):
     def __init__(self, **kargs):
@@ -273,7 +273,7 @@ class Scans(Table, object):
         else:
             log.debug(">>> Creating new scan result entry at data base")
             fields = ["scan_name", "nmap_xml_output", "date"]
-            
+
             for k in kargs.keys():
                 if k not in fields:
                     raise Exception("Wrong table field passed to creation method. '%s'" % k)
@@ -283,7 +283,7 @@ class Scans(Table, object):
 
             if not self.verify_digest(md5(kargs["nmap_xml_output"]).hexdigest()):
                 raise Exception("XML output registered already!")
-            
+
             self.scans_id = self.insert(**kargs)
 
     def verify_digest(self, digest):
@@ -299,10 +299,10 @@ class Scans(Table, object):
 
     def get_hosts(self):
         sql = "SELECT hosts_id FROM hosts WHERE scans_id= %s" % self.scans_id
-        
+
         self.cursor.execute(sql)
         result = self.cursor.fetchall()
-        
+
         for h in result:
             yield Hosts(hosts_id=h[0])
 
@@ -331,12 +331,12 @@ class Scans(Table, object):
 
     def set_date(self, date):
         self.set_item("date", date)
-    
+
     scans_id = property(get_scans_id, set_scans_id)
     scan_name = property(get_scan_name, set_scan_name)
     nmap_xml_output = property(get_nmap_xml_output, set_nmap_xml_output)
     date = property(get_date, set_date)
-    
+
     _scans_id = None
     _scan_name = None
     _nmap_xml_output = None
@@ -359,7 +359,7 @@ verify_db()
 
 if __name__ == "__main__":
     from pprint import pprint
-    
+
     u = UmitDB()
 
     #print "Creating Data Base"
@@ -373,7 +373,7 @@ if __name__ == "__main__":
     #print s.scan_name
     #print s.nmap_xml_output
     #print s.date
-    
+
     sql = "SELECT * FROM scans;"
     u.cursor.execute(sql)
     print "Scans:",

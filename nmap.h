@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -28,7 +28,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -51,8 +51,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -89,7 +89,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.h 16586 2010-01-27 01:44:28Z fyodor $ */
+/* $Id: nmap.h 22228 2011-02-11 21:09:04Z fyodor $ */
 
 #ifndef NMAP_H
 #define NMAP_H
@@ -204,11 +204,11 @@ void *realloc();
 #include <pwd.h>
 #endif
 
-#ifndef NETINET_IN_SYSTEM_H  /* why does OpenBSD not do this? */
+#ifndef NETINET_IN_SYSTM_H  /* This guarding is needed for at least some versions of OpenBSD */
 #include <netinet/in_systm.h> /* defines n_long needed for netinet/ip.h */
-#define NETINET_IN_SYSTEM_H
+#define NETINET_IN_SYSTM_H
 #endif
-#ifndef NETINET_IP_H  /* why does OpenBSD not do this? */
+#ifndef NETINET_IP_H  /* This guarding is needed for at least some versions of OpenBSD */
 #include <netinet/ip.h> 
 #define NETINET_IP_H
 #endif
@@ -252,8 +252,8 @@ void *realloc();
 #ifndef NMAP_VERSION
 /* Edit this definition only within the quotes, because it is read from this
    file by the makefiles. */
-#define NMAP_VERSION "5.21"
-#define NMAP_NUM_VERSION "5.21.0.0"
+#define NMAP_VERSION "5.51"
+#define NMAP_NUM_VERSION "5.51.0.0"
 #endif
 
 /* User configurable #defines: */
@@ -320,6 +320,7 @@ void *realloc();
 #endif
 
 #define INITIAL_RTT_TIMEOUT 1000 /* Allow 1 second initially for packet responses */
+#define INITIAL_ARP_RTT_TIMEOUT 200 /* The initial timeout for ARP is lower */
 
 #ifndef MAX_RETRANSMISSIONS
 #define MAX_RETRANSMISSIONS 10    /* 11 probes to port at maximum */
@@ -365,9 +366,6 @@ void *realloc();
 #define DEFAULT_PING_SYN_PORT_SPEC "443"
 /* For nonroot. */
 #define DEFAULT_PING_CONNECT_PORT_SPEC "80,443"
-
-/* OS scan */
-#define OS_SCAN_DEFAULT 9
 
 /* How many syn packets do we send to TCP sequence a host? */
 #define NUM_SEQ_SAMPLES 6
@@ -428,10 +426,7 @@ void getpts_simple(const char *origexpr, int range_type,
                    unsigned short **list, int *count);
 void free_scan_lists(struct scan_lists *ports);
 
-/* socket manipulation functions */
-void init_socket(int sd);
-
-/* Renamed main so that interactive mode could preprocess when neccessary */
+/* Renamed main so that interactive mode could preprocess when necessary */
 int nmap_main(int argc, char *argv[]);
 
 void nmap_free_mem();

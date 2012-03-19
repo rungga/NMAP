@@ -55,6 +55,7 @@ DEFS = @DEFS@ -DNCAT_DATADIR="\"$(pkgdatadir)\""
 DEFS += -D_FORTIFY_SOURCE=2
 INCLS = -I. -I.. -I../nsock/include/ -I$(NBASEDIR)
 RM = rm -f
+STRIP = @STRIP@
 OPENSSL_LIBS = @OPENSSL_LIBS@
 HAVE_OPENSSL = @HAVE_OPENSSL@
 PCAP_LIBS = @PCAP_LIBS@
@@ -69,8 +70,13 @@ DESTDIR =
 
 SRCS = ncat_main.c ncat_connect.c ncat_core.c ncat_posix.c ncat_listen.c ncat_proxy.c ncat_broker.c ncat_hostmatch.c ncat_ssl.c base64.c http.c util.c sys_wrap.c
 OBJS = ncat_main.o ncat_connect.o ncat_core.o ncat_posix.o ncat_listen.o ncat_proxy.o ncat_broker.o ncat_hostmatch.o ncat_ssl.o base64.o http.o util.o sys_wrap.o
+DATAFILES =
 
+ifneq ($(HAVE_OPENSSL),)
+SRCS += http_digest.c
+OBJS += http_digest.o
 DATAFILES = certs/ca-bundle.crt
+endif
 
 TARGET = ncat
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -130,15 +136,20 @@ $(NSOCKDIR)/libnsock.a: $(NSOCKDIR)/Makefile
 
 install: $(TARGET)
 	@echo Installing Ncat;
-	$(SHTOOL) mkdir -f -p -m 755 $(DESTDIR)$(bindir) $(DESTDIR)$(pkgdatadir) $(DESTDIR)$(mandir)/man1
-	$(INSTALL) -c -m 755 -s ncat $(DESTDIR)$(bindir)/ncat
-	$(INSTALL) -c -m 644 $(DATAFILES) $(DESTDIR)$(pkgdatadir)/
+	$(SHTOOL) mkdir -f -p -m 755 $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -c -m 755 ncat $(DESTDIR)$(bindir)/ncat
+	$(STRIP) -x $(DESTDIR)$(bindir)/ncat
+	if [ -n "$(DATAFILES)" ]; then \
+		$(SHTOOL) mkdir -f -p -m 755 $(DESTDIR)$(pkgdatadir); \
+		$(INSTALL) -c -m 644 $(DATAFILES) $(DESTDIR)$(pkgdatadir)/; \
+	fi
 	$(INSTALL) -c -m 644 docs/$(TARGET).1 $(DESTDIR)$(mandir)/man1/$(TARGET).1
 
 uninstall:
 	@echo Uninstalling Ncat;
-	$(RM) -f $(bindir)/$(TARGET)
-	$(RM) -f $(mandir)/man1/$(TARGET).1
+	$(RM) -f $(DESTDIR)$(bindir)/$(TARGET)
+	$(RM) -f $(DESTDIR)$(mandir)/man1/$(TARGET).1
+	$(RM) -rf $(DESTDIR)$(pkgdatadir)/
 
 ncat_clean:
 	$(RM) -f *.o test/*.o $(TARGET) $(TEST_PROGS) makefile.dep

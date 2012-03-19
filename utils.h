@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -27,7 +27,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -50,8 +50,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: utils.h 15282 2009-08-25 18:09:19Z luis $ */
+/* $Id: utils.h 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #ifndef UTILS_H
 #define UTILS_H
@@ -175,12 +175,6 @@ int wildtest(char *wild, char *test);
 
 void nmap_hexdump(unsigned char *cp, unsigned int length);
 
-/* Compare a canonical option name (e.g. "max-scan-delay") with a
-   user-generated option such as "max_scan_delay" and returns 0 if the
-   two values are considered equivalant (for example, - and _ are
-   considered to be the same), nonzero otherwise. */
-int optcmp(const char *canonical, const char *instance);
-
 /* Scramble the contents of an array*/
 void genfry(unsigned char *arr, int elem_sz, int num_elem);
 void shortfry(unsigned short *arr, int num_elem);
@@ -204,23 +198,8 @@ void arg_parse_free(char **argv);
    str is returned. */
 char *cstring_unescape(char *str, unsigned int *len);
 
-/* This function converts zero-terminated 'txt' string to binary 'data'.
-   It is used to parse user input for ip options. Some examples of possible input
-   strings and results:
-   	'\x01*2\xA2'	-> [0x01,0x01,0xA2]	// with 'x' number is parsed in hex
-   	'\01\01\255'	-> [0x01,0x01,0xFF]	// without 'x' its in decimal
-   	'\x01\x00*2'	-> [0x01,0x00,0x00]	// '*' is copying char
-   	'R'		-> Record Route with 9 slots
-   	'S 192.168.0.1 172.16.0.1' -> Strict Route with 2 slots
-   	'L 192.168.0.1 172.16.0.1' -> Loose Route with 2 slots
-   	'T'		-> Record Timestamp with 9 slots
-   	'U'		-> Record Timestamp and Ip Address with 4 slots
-*/
-int parse_ip_options(char *txt, u8 *data, int datalen, int* firsthopoff, int* lasthopoff);
-
 void bintohexstr(char *buf, int buflen, char *src, int srclen);
 
-char* print_ip_options(u8* ipopt, int ipoptlen);
 
 #ifndef HAVE_STRERROR
 char *strerror(int errnum);

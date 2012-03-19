@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -131,37 +131,37 @@ class Hint(gtk.EventBox, object):
         self.hint_image.set_from_stock(gtk.STOCK_DIALOG_INFO, gtk.ICON_SIZE_SMALL_TOOLBAR)
 
         self.add(self.hint_image)
-        
+
         self.connect("button-press-event", self.show_hint)
 
     def show_hint(self, widget, event=None):
         hint_window = HintWindow(self.hint)
         hint_window.show_all()
-    
+
 class HintWindow(gtk.Window):
     def __init__(self, hint):
         gtk.Window.__init__(self, gtk.WINDOW_POPUP)
         self.set_position(gtk.WIN_POS_MOUSE)
         bg_color = gtk.gdk.color_parse("#fbff99")
-        
+
         self.modify_bg(gtk.STATE_NORMAL, bg_color)
 
         self.event = gtk.EventBox()
         self.event.modify_bg(gtk.STATE_NORMAL, bg_color)
         self.event.set_border_width(10)
         self.event.connect("button-press-event", self.close)
-        
+
         self.hint_label = gtk.Label(hint)
         self.hint_label.set_use_markup(True)
         self.hint_label.set_line_wrap(True)
         self.hint_label.set_alignment(0.0, 0.5)
-        
+
         self.event.add(self.hint_label)
         self.add(self.event)
 
     def close(self, widget, event=None):
         self.destroy()
-        
+
 
 class HIGEntryLabel(gtk.Label):
     """
@@ -171,7 +171,6 @@ class HIGEntryLabel(gtk.Label):
         gtk.Label.__init__(self, text)
         self.set_justify(gtk.JUSTIFY_LEFT)
         self.set_alignment(0, 0.50)
-        self.set_use_underline(True)
         self.set_use_markup(True)
         self.set_line_wrap(True)
 
@@ -182,7 +181,6 @@ class HIGDialogLabel(gtk.Label):
     def __init__(self, text=None):
         gtk.Label.__init__(self, text)
         self.set_justify(gtk.JUSTIFY_CENTER)
-        self.set_use_underline(True)
         self.set_use_markup(True)
         self.set_line_wrap(True)
 

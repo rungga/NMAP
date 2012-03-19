@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -111,24 +111,6 @@ def ipv4_compare(ip1, ip2):
     return 0
 
 
-def list_difference_update(list, difference):
-    """
-    """
-    for item in difference:
-
-        if item in list:
-            list.remove(item)
-
-
-def list_update(list, append):
-    """
-    """
-    for item in append:
-
-        if item not in list:
-            list.append(item)
-
-
 def swap(list, a, b):
     """
     """
@@ -157,28 +139,7 @@ def sort_children(children, father):
 def sort_children_by_angle(children):
     """
     """
-    if len(children) < 2:
-        return children
 
-    vector = list()
-    vector.append(children.pop())
-
-    for a in children:
-
-        theta_a = normalize_angle(a.get_draw_info('angle_from_father'))
-
-        for i in range(len(vector) -1, -1, -1):
-
-            b = vector[i]
-
-            theta_b = normalize_angle(b.get_draw_info('angle_from_father'))
-
-            if theta_b <= theta_a <= theta_b + 180:
-
-                vector.insert(i + 1, a)
-                break
-
-        else:
-            vector.insert(0, a)
-
+    vector = list(children)
+    vector.sort(key = lambda c: normalize_angle(c.get_draw_info('angle_from_father')))
     return vector

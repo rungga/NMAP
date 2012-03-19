@@ -3,6 +3,12 @@ Attempts to extract system information from the point-to-point tunneling protoco
 ]]
 -- rev 0.2 (11-14-2007)
 
+---
+-- @output
+-- PORT     STATE SERVICE VERSION
+-- 1723/tcp open  pptp    YAMAHA Corporation (Firmware: 32838)
+-- Service Info: Host: RT57i
+
 author = "Thomas Buchanan"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -12,7 +18,7 @@ categories = {"version"}
 require "comm"
 require "shortport"
 
-portrule = shortport.portnumber(1723)
+portrule = shortport.version_port_or_service(1723)
 
 action = function(host, port)
 	-- build a PPTP Start-Control-Connection-Request packet

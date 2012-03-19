@@ -21,11 +21,12 @@
 # Released under GNU GPL, read the file 'COPYING' for more information
 
 # This script relies on having an installation of MacPorts in $(LIBPREFIX),
-# configured as you wish. You need to have installed the packages py25-gtk,
-# py25-macholib-devel, py25-py2app-devel, py25-sqlite3, and py25-zlib.
+# configured as you wish. See README for instructions on how to build a
+# universal build environment. You need to have installed the packages py26-gtk
+# and py26-py2app-devel.
 
-LIBPREFIX=/opt/local-universal-10.4
-PYTHON=$LIBPREFIX/bin/python2.5
+LIBPREFIX=$HOME/macports-10.4u
+PYTHON=$LIBPREFIX/bin/python2.6
 PKG_CONFIG=$LIBPREFIX/bin/pkg-config
 APP_NAME=Zenmap
 BASE=dist/$APP_NAME.app/Contents
@@ -51,34 +52,26 @@ mkdir -p $BASE/Resources/lib/gtk-2.0/$gtk_version
 cp -R $LIBPREFIX/lib/gtk-2.0/$gtk_version/* $BASE/Resources/lib/gtk-2.0/$gtk_version/
 
 mkdir -p $BASE/Resources/etc/gtk-2.0
-sed -e "s|$LIBPREFIX|\${RESOURCES}|g" $LIBPREFIX/etc/gtk-2.0/gdk-pixbuf.loaders >> $BASE/Resources/etc/gtk-2.0/gdk-pixbuf.loaders.in
-sed -e "s|$LIBPREFIX|\${RESOURCES}|g" $LIBPREFIX/etc/gtk-2.0/gtk.immodules >> $BASE/Resources/etc/gtk-2.0/gtk.immodules.in
-
 cp $SCRIPT_DIR/gtkrc $BASE/Resources/etc/gtk-2.0/
 
 pango_version=`$PKG_CONFIG --variable=pango_module_version pango`
 echo "Copying Pango $pango_version files."
-mkdir -p $BASE/Resources/lib/pango/$pango_version/modules
-cp $LIBPREFIX/lib/pango/$pango_version/modules/*.so $BASE/Resources/lib/pango/$pango_version/modules
-
 mkdir -p $BASE/Resources/etc/pango
 cat > $BASE/Resources/etc/pango/pangorc.in <<EOF
 # This template is filled in at run time by the application.
 
-[Pango]
-ModuleFiles = \${ETC}/pango/pango.modules
 [PangoX]
 AliasFiles = \${RESOURCES}/etc/pango/pangox.aliases
 EOF
-cat > $BASE/Resources/etc/pango/pango.modules.in <<EOF
-# This template is filled in at run time by the application.
-
-EOF
-sed -e "s|$LIBPREFIX|\${RESOURCES}|g" $LIBPREFIX/etc/pango/pango.modules >> $BASE/Resources/etc/pango/pango.modules.in
 cp $LIBPREFIX/etc/pango/pangox.aliases $BASE/Resources/etc/pango/
 
 echo "Copying Fontconfig files."
 cp -R $LIBPREFIX/etc/fonts $BASE/Resources/etc/
+# Remove the dir and cachedir under $LIBPREFIX. The cachedir ~/.fontconfig remains.
+sed -i "" 's/ *<dir>'$(echo "$LIBPREFIX" | sed -e 's/\([^a-zA-Z0-9]\)/\\\1/g')'\/share\/fonts<\/dir>//g' $BASE/Resources/etc/fonts/fonts.conf
+sed -i "" '/<cachedir>'$(echo "$LIBPREFIX" | sed -e 's/\([^a-zA-Z0-9]\)/\\\1/g')'\/var\/cache\/fontconfig<\/cachedir>/d' $BASE/Resources/etc/fonts/fonts.conf
+# Disable hinting to better match the Mac GUI.
+ln -sf ../conf.avail/10-unhinted.conf $BASE/Resources/etc/fonts/conf.d
 
 echo "Renaming main Zenmap executable."
 mv $BASE/MacOS/$APP_NAME $BASE/MacOS/zenmap.bin

@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -98,23 +98,23 @@ class ScanRunDetailsPage(HIGVBox):
         HIGVBox.__init__(self)
 
         na = _('Not available')
-        
+
         # Command info
         self.command_label = HIGEntryLabel(_('Command:'))
         self.info_command_label = HIGEntryLabel(na)
-        
+
         self.nmap_version_label = HIGEntryLabel(_('Nmap Version:'))
         self.info_nmap_version_label = HIGEntryLabel(na)
-        
+
         self.verbose_label = HIGEntryLabel(_('Verbosity level:'))
         self.info_verbose_label = HIGEntryLabel(na)
-        
+
         self.debug_label = HIGEntryLabel(_('Debug level:'))
         self.info_debug_label = HIGEntryLabel(na)
 
         self.command_expander = gtk.Expander("<b>"+_("Command Info")+"</b>")
         self.command_expander.set_use_markup(True)
-        
+
         self.command_table = HIGTable()
         self.command_table.set_border_width(5)
         self.command_table.set_row_spacings(6)
@@ -123,48 +123,48 @@ class ScanRunDetailsPage(HIGVBox):
         self.command_hbox = HIGHBox()
         self.command_hbox._pack_noexpand_nofill(hig_box_space_holder())
         self.command_hbox._pack_noexpand_nofill(self.command_table)
-        
+
         self.command_table.attach(self.command_label,0,1,0,1)
         self.command_table.attach(self.info_command_label,1,2,0,1)
-        
+
         self.command_table.attach(self.nmap_version_label,0,1,1,2)
         self.command_table.attach(self.info_nmap_version_label,1,2,1,2)
-        
+
         self.command_table.attach(self.verbose_label,0,1,2,3)
         self.command_table.attach(self.info_verbose_label,1,2,2,3)
-        
+
         self.command_table.attach(self.debug_label,0,1,3,4)
         self.command_table.attach(self.info_debug_label,1,2,3,4)
-        
+
         self.command_expander.add(self.command_hbox)
         self._pack_noexpand_nofill(self.command_expander)
         self.command_expander.set_expanded(True)
-        
+
         # General info:
         self.start_label = HIGEntryLabel(_('Started on:'))
         self.info_start_label = HIGEntryLabel(na)
-        
+
         self.finished_label = HIGEntryLabel(_('Finished on:'))
         self.info_finished_label = HIGEntryLabel(na)
-        
+
         self.host_up_label = HIGEntryLabel(_('Hosts up:'))
         self.info_hosts_up_label = HIGEntryLabel(na)
-        
+
         self.host_down_label = HIGEntryLabel(_('Hosts down:'))
         self.info_hosts_down_label = HIGEntryLabel(na)
-        
+
         self.host_scanned_label = HIGEntryLabel(_('Hosts scanned:'))
         self.info_hosts_scanned_label = HIGEntryLabel(na)
-        
+
         self.open_label = HIGEntryLabel(_('Open ports:'))
         self.info_open_label = HIGEntryLabel(na)
-        
+
         self.filtered_label = HIGEntryLabel(_('Filtered ports:'))
         self.info_filtered_label = HIGEntryLabel(na)
-        
+
         self.closed_label = HIGEntryLabel(_('Closed ports:'))
         self.info_closed_label = HIGEntryLabel(na)
-        
+
         self.general_expander = gtk.Expander("<b>"+_("General Info")+"</b>")
         self.general_expander.set_use_markup(True)
 
@@ -176,37 +176,37 @@ class ScanRunDetailsPage(HIGVBox):
         self.general_hbox = HIGHBox()
         self.general_hbox._pack_noexpand_nofill(hig_box_space_holder())
         self.general_hbox._pack_noexpand_nofill(self.general_table)
-        
+
         self.general_table.attach(self.start_label,0,1,0,1)
         self.general_table.attach(self.info_start_label,1,2,0,1)
-        
+
         self.general_table.attach(self.finished_label,0,1,1,2)
         self.general_table.attach(self.info_finished_label,1,2,1,2)
-        
+
         self.general_table.attach(self.host_up_label,0,1,2,3)
         self.general_table.attach(self.info_hosts_up_label,1,2,2,3)
-        
+
         self.general_table.attach(self.host_down_label,0,1,3,4)
         self.general_table.attach(self.info_hosts_down_label,1,2,3,4)
-        
+
         self.general_table.attach(self.host_scanned_label,0,1,4,5)
         self.general_table.attach(self.info_hosts_scanned_label,1,2,4,5)
-        
+
         self.general_table.attach(self.open_label,0,1,5,6)
         self.general_table.attach(self.info_open_label,1,2,5,6)
-        
+
         self.general_table.attach(self.filtered_label,0,1,6,7)
         self.general_table.attach(self.info_filtered_label,1,2,6,7)
-        
+
         self.general_table.attach(self.closed_label,0,1,7,8)
         self.general_table.attach(self.info_closed_label,1,2,7,8)
-        
+
         self.general_expander.add(self.general_hbox)
         self._pack_noexpand_nofill(self.general_expander)
         self.general_expander.set_expanded(True)
 
         self._set_from_scan(scan)
-    
+
     def _set_from_scan(self, scan):
         """Initialize the display from a parsed scan."""
         # Command info.
@@ -228,12 +228,12 @@ class ScanRunDetailsPage(HIGVBox):
         for scaninfo in scan.get_scaninfo():
             exp = gtk.Expander('<b>%s - %s</b>' % (_('Scan Info'), scaninfo['type'].capitalize()))
             exp.set_use_markup(True)
-            
+
             display = self.make_scaninfo_display(scaninfo)
 
             exp.add(display)
             self._pack_noexpand_nofill(exp)
-             
+
     def make_scaninfo_display(self, scaninfo):
         """Return a widget displaying a scan's "scaninfo" information: type,
         protocol, number of scanned ports, and list of services."""
@@ -242,19 +242,19 @@ class ScanRunDetailsPage(HIGVBox):
         table.set_border_width(5)
         table.set_row_spacings(6)
         table.set_col_spacings(6)
-        
+
         table.attach(HIGEntryLabel(_('Scan type:')),0,1,0,1)
         table.attach(HIGEntryLabel(scaninfo['type']),1,2,0,1)
-        
+
         table.attach(HIGEntryLabel(_('Protocol:')),0,1,1,2)
         table.attach(HIGEntryLabel(scaninfo['protocol']),1,2,1,2)
-        
+
         table.attach(HIGEntryLabel(_('# scanned ports:')),0,1,2,3)
         table.attach(HIGEntryLabel(scaninfo['numservices']),1,2,2,3)
-        
+
         table.attach(HIGEntryLabel(_('Services:')),0,1,3,4)
         table.attach(self.make_services_display(scaninfo['services']),1,2,3,4)
-        
+
         hbox._pack_noexpand_nofill(hig_box_space_holder())
         hbox._pack_noexpand_nofill(table)
 
@@ -264,10 +264,10 @@ class ScanRunDetailsPage(HIGVBox):
         """Return a widget displaying a list of services like
         1-1027,1029-1033,1040,1043,1050,1058-1059,1067-1068,1076,1080"""
         combo = gtk.combo_box_new_text()
-        
+
         for i in services.split(","):
             combo.append_text(i)
-        
+
         return combo
 
 if __name__ == "__main__":

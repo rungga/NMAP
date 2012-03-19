@@ -2,7 +2,7 @@
  * util.c -- Various utility functions.                                    *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: util.c 16410 2010-01-06 05:54:55Z david $ */
+/* $Id: util.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "sys_wrap.h"
 #include "util.h"
@@ -272,18 +272,6 @@ char *mkstr(const char *start, const char *end)
     return s;
 }
 
-/* This is like strtol or atoi, but it allows digits only. No whitespace, sign,
-   or radix prefix. */
-long parse_long(const char *s, char **tail)
-{
-    if (!isdigit((int) (unsigned char) *s)) {
-        *tail = (char *) s;
-        return 0;
-    }
-
-    return strtol(s, (char **) tail, 10);
-}
-
 /* Return true if the given address is a local one. */
 int addr_is_local(const union sockaddr_u *su)
 {
@@ -389,7 +377,10 @@ int do_listen(int type, int proto)
 
     Setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option_on, sizeof(int));
 
-    Bind(sock, &srcaddr.sockaddr, (int) srcaddrlen);
+    if (bind(sock, &srcaddr.sockaddr, (int) srcaddrlen) < 0) {
+        bye("bind to %s:%hu: %s.", inet_socktop(&srcaddr),
+            inet_port(&srcaddr), socket_strerror(socket_errno()));
+    }
 
     if(type == SOCK_STREAM)
         Listen(sock, BACKLOG);
@@ -412,9 +403,13 @@ int do_connect(int type)
        nbase. */
     sock = inheritable_socket(targetss.storage.ss_family, type, 0);
 
-    if (srcaddr.storage.ss_family != AF_UNSPEC)
-        Bind(sock, &srcaddr.sockaddr, (int) srcaddrlen);
-    
+    if (srcaddr.storage.ss_family != AF_UNSPEC) {
+        if (bind(sock, &srcaddr.sockaddr, (int) srcaddrlen) < 0) {
+            bye("bind to %s:%hu: %s.", inet_socktop(&srcaddr),
+                inet_port(&srcaddr), socket_strerror(socket_errno()));
+        }
+    }
+
     if(sock != -1){
        if(connect(sock, &targetss.sockaddr, (int) targetsslen)!= -1)
           return sock;
@@ -583,18 +578,29 @@ void free_fdlist(fd_list_t *fdl)
 /*  If any changes need to be made to EOL sequences to comply with --crlf
  *  then dst will be populated with the modified src, len will be adjusted
  *  accordingly and the return will be non-zero.
+ *
+ *  state is used to keep track of line endings that span more than one call to
+ *  this function. On the first call, state should be a pointer to a int
+ *  containing 0. Thereafter, keep passing the same pointer. Separate logical
+ *  streams should use separate state pointers.
+ *
  *  Returns 0 if changes were not made - len and dst will remain untouched.
  */
-int fix_line_endings(char *src, int *len, char **dst)
+int fix_line_endings(char *src, int *len, char **dst, int *state)
 {
     int fix_count;
     int i,j;
     int num_bytes = *len;
+    int prev_state = *state;
+
+    /* *state is true iff the last byte of the previous block was \r. */
+    if (num_bytes > 0)
+        *state = (src[num_bytes - 1] == '\r');
 
     /* get count of \n without matching \r */
     fix_count = 0;
     for (i = 0; i < num_bytes; i++) {
-        if (src[i] == '\n' && (i == 0 || src[i-1] != '\r'))
+        if (src[i] == '\n' && ((i == 0) ? !prev_state : src[i-1] != '\r'))
             fix_count++;
     }
     if (fix_count <= 0 ) return 0;
@@ -604,7 +610,7 @@ int fix_line_endings(char *src, int *len, char **dst)
     j=0;
 
     for (i = 0; i < num_bytes; i++) {
-        if (src[i] == '\n' && (i == 0 || src[i-1] != '\r')) {
+        if (src[i] == '\n' && ((i == 0) ? !prev_state : src[i-1] != '\r')) {
             memcpy(*dst+j, "\r\n", 2);
             j += 2;
         } else {

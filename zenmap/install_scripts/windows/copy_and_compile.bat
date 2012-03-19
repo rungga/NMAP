@@ -1,7 +1,7 @@
 @echo off
 
 echo Setting installation variables...
-set PythonEXE=C:\Python26\python.exe
+set PythonEXE=C:\Python27\python.exe
 set DistDir=dist
 set LibraryDir=%DistDir%\py2exe
 set GTKDir=C:\GTK
@@ -29,9 +29,11 @@ mkdir %LibraryDir%\share
 mkdir %LibraryDir%\share\themes
 mkdir %LibraryDir%\lib
 
-
 echo Copying GTK files to dist directory...
 xcopy %GTKDir%\bin\*.dll %LibraryDir% /S >> %Output%
+rem intl.dll is a special case; has to be in the executable directory instead of
+rem the py2exe subdirectory.
+move /Y %LibraryDir%/intl.dll %DistDir% >> %Output%
 xcopy %GTKDir%\etc %LibraryDir%\etc /S /I >> %Output%
 xcopy %GTKDir%\lib\gtk-2.0 %LibraryDir%\lib\gtk-2.0 /S /I >> %Output%
 xcopy %GTKDir%\share\themes\Default %LibraryDir%\share\themes\Default /S /I >> %Output%
@@ -43,6 +45,11 @@ echo Compiling using py2exe...
 echo Removing the build directory...
 rd build /s /q >> %Output%
 
+rem Check that the gtkrc file was manually created so Zenmap will look pretty
+IF EXIST %DistDir%\etc\gtk-2.0\gtkrc GOTO gtkrc
+echo gtk-theme-name = "MS-Windows" > %DistDir%\py2exe\etc\gtk-2.0\gtkrc
+echo Created the missing file %DistDir%\py2exe\etc\gtk-2.0\gtkrc >> %Output%
+:gtkrc
 
 echo Done!
 

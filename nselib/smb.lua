@@ -1,4 +1,5 @@
----Implements functionality related to Server Message Block (SMB, also known 
+---
+-- Implements functionality related to Server Message Block (SMB, also known 
 -- as CIFS) traffic, which is a Windows protocol.
 --
 -- SMB traffic is normally sent to/from ports 139 or 445 of Windows systems. Other systems
@@ -21,7 +22,7 @@
 -- although a lot isn't necessary. You can pick up a lot by looking at the code. The basic
 -- login/logoff is this:
 --
---<code>
+-- <code>
 -- [connect]
 -- C->S SMB_COM_NEGOTIATE
 -- S->C SMB_COM_NEGOTIATE
@@ -35,11 +36,11 @@
 -- C->S SMB_COM_LOGOFF_ANDX
 -- S->C SMB_COM_LOGOFF_ANDX
 -- [disconnect]
---</code>
+-- </code>
 --
 -- In terms of functions here, the protocol is:
 --
---<code>
+-- <code>
 -- status, smbstate = smb.start(host)
 -- status, err      = smb.negotiate_protocol(smbstate, {})
 -- status, err      = smb.start_session(smbstate, {})
@@ -48,7 +49,7 @@
 -- status, err      = smb.tree_disconnect(smbstate)
 -- status, err      = smb.logoff(smbstate)
 -- status, err      = smb.stop(smbstate)
---</code>
+-- </code>
 --
 -- The <code>stop</code> function will automatically call tree_disconnect and logoff, 
 -- cleaning up the session, if it hasn't been done already.
@@ -96,11 +97,11 @@
 -- nmap --script=smb-<script>.nse --script-args=smbuser=ron,smbpass=iagotest2k3,smbbasic=1,smbsign=force <host>
 -- </code>
 -- 
---@args  smbbasic    Forces the authentication to use basic security, as opposed to "extended security". 
+-- @args  smbbasic    Forces the authentication to use basic security, as opposed to "extended security". 
 --                   Against most modern systems, extended security should work, but there may be cases
 --                   where you want to force basic. There's a chance that you'll get better results for 
 --                   enumerating users if you turn on basic authentication. 
---@args smbsign      Controls whether or not server signatures are checked in SMB packets. By default, on Windows,
+-- @args smbsign      Controls whether or not server signatures are checked in SMB packets. By default, on Windows,
 --                   server signatures aren't enabled or required. By default, this library will always sign 
 --                   packets if it knows how, and will check signatures if the server says to. Possible values are:
 -- * <code>force</code>:      Always check server signatures, even if server says it doesn't support them (will 
@@ -109,13 +110,13 @@
 -- * <code>ignore</code>:    Never check server signatures. Not recommended. 
 -- * <code>disable</code>:   Don't send signatures, at all, and don't check the server's. not recommended. 
 --                   More information on signatures can be found in <code>smbauth.lua</code>.
---@args smbport      Override the default port choice. If <code>smbport</code> is open, it's used. It's assumed
+-- @args smbport      Override the default port choice. If <code>smbport</code> is open, it's used. It's assumed
 --                   to be the same protocol as port 445, not port 139. Since it probably isn't possible to change
 --                   Windows' ports normally, this is mostly useful if you're bouncing through a relay or something. 
---@args randomseed   Set to a value to change the filenames/service names that are randomly generated. 
+-- @args randomseed   Set to a value to change the filenames/service names that are randomly generated. 
 --                   
---@author Ron Bowes <ron@skullsecurity.net>
---@copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @author Ron Bowes <ron@skullsecurity.net>
+-- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 -----------------------------------------------------------------------
 module(... or "smb", package.seeall)
 
@@ -130,9 +131,6 @@ command_codes = {}
 command_names = {}
 status_codes = {}
 status_names = {}
-
-local mutexes = setmetatable({}, {__mode = "k"});
---local debug_mutex = nmap.mutex("SMB-DEBUG")
 
 local TIMEOUT = 10000
 
@@ -173,68 +171,6 @@ function get_overrides_anonymous(overrides)
 	end
 end
 
-
----Returns the mutex that should be used by the current connection. This mutex attempts
--- to use the name, first, then falls back to the IP if no name was returned. 
---
---@param smbstate The SMB object associated with the connection
---@return A mutex
-local function get_mutex(smbstate)
-	local mutex_name = "SMB-"
-	local mutex
-
---	if(nmap.debugging() > 0) then
---		return debug_mutex
---	end
-
-	-- Decide whether to use the name or the ip address as the unique identifier
-	if(smbstate['name'] ~= nil) then
-		mutex_name = mutex_name .. smbstate['name']
-	else
-		mutex_name = mutex_name .. smbstate['ip']
-	end
-
-	if(mutexes[smbstate] == nil) then
-		mutex = nmap.mutex(mutex_name)
-		mutexes[smbstate] = mutex
-	else
-		mutex = mutexes[smbstate]
-	end
-
-	stdnse.print_debug(3, "SMB: Using mutex named '%s'", mutex_name)
-
-	return mutex
-end
-
----Locks the mutex being used by this host. Doesn't return until it successfully 
--- obtains a lock. 
---
---@param smbstate The SMB object associated with the connection
---@param func     A name to associate with this call (used purely for debugging
---                and logging)
-local function lock_mutex(smbstate, func)
-	local mutex
-
-	stdnse.print_debug(3, "SMB: Attempting to lock mutex [%s]", func)
-	mutex = get_mutex(smbstate)
-	mutex "lock"
-	stdnse.print_debug(3, "SMB: Mutex lock obtained [%s]", func)
-end
-
----Unlocks the mutex being used by this host.
---
---@param smbstate The SMB object associated with the connection
---@param func     A name to associate with this call (used purely for debugging
---                and logging)
-local function unlock_mutex(smbstate, func)
-	local mutex
-
-	stdnse.print_debug(3, "SMB: Attempting to release mutex [%s]", func)
-	mutex = get_mutex(smbstate)
-	mutex "done"
-	stdnse.print_debug(3, "SMB: Mutex released [%s]", func)
-end
-
 ---Convert a status number from the SMB header into a status name, returning an error message (not nil) if 
 -- it wasn't found. 
 --
@@ -261,8 +197,7 @@ end
 --  which port is best to use. This is how it decides:
 --
 -- * If port tcp/445 is open, use it for a raw connection
--- * Otherwise, if ports tcp/139 and udp/137 are open, do a NetBIOS connection. Since
---   UDP scanning isn't default, we're also ok with udp/137 in an unknown state. 
+-- * Otherwise, if ports tcp/139 and udp/137 are open, do a NetBIOS connection. Since UDP scanning isn't default, we're also ok with udp/137 in an unknown state. 
 --
 --@param host The host object. 
 --@return The port number to use, or nil if we don't have an SMB port
@@ -304,12 +239,9 @@ function disable_extended(smb)
 	smb['extended_security'] = false
 end
 
---- Begins a SMB session, automatically determining the best way to connect. Also starts a mutex
---  with mutex_id. This prevents multiple threads from making queries at the same time (which breaks
---  SMB). 
+--- Begins a SMB session, automatically determining the best way to connect. 
 --
 -- @param host The host object
--- @param overrides [optional] Overrides for various fields
 -- @return (status, smb) if the status is true, result is the newly crated smb object; 
 --         otherwise, socket is the error message. 
 function start(host)
@@ -319,6 +251,8 @@ function start(host)
 
 	state['uid']      = 0
 	state['tid']      = 0
+	state['mid']      = 1
+	state['pid']      = math.random(32766) + 1
 	state['host']     = host
 	state['ip']       = host.ip
 	state['sequence'] = -1
@@ -342,17 +276,14 @@ function start(host)
 		return false, "SMB: Couldn't find a valid port to check"
 	end
 
-	-- Initialize the accounts for logging on (note: this has to be outside the mutex, or things break)
+	-- Initialize the accounts for logging on
 	smbauth.init_account(host)
-
-	lock_mutex(state, "start(1)")
 
 	if(port ~= 139) then
 		status, state['socket'] = start_raw(host, port)
 		state['port'] = port
 
 		if(status == false) then
-			unlock_mutex(state, "start(1)")
 			return false, state['socket']
 		end
 		return true, state
@@ -361,14 +292,11 @@ function start(host)
 		status, state['socket'] = start_netbios(host, port)
 		state['port'] = port
 		if(status == false) then
-			unlock_mutex(state, "start(2)")
 			return false, state['socket']
 		end
 		return true, state
 
 	end
-
-	unlock_mutex(state, "start(3)")
 
 	return false, "SMB: Couldn't find a valid port to check"
 end
@@ -448,8 +376,7 @@ function start_ex(host, negotiate_protocol, start_session, tree_connect, create_
 	return true, smbstate
 end
 
---- Kills the SMB connection, closes the socket, and releases the mutex. Because of the mutex 
---  being released, a script HAS to call <code>stop</code> before it exits, no matter why it's exiting! 
+--- Kills the SMB connection and closes the socket. 
 --
 --  In addition to killing the connection, this function will log off the user and disconnect
 --  the connected tree, if possible.
@@ -466,8 +393,6 @@ function stop(smb)
 	if(smb['uid'] ~= 0) then
 		logoff(smb)
 	end
-
-	unlock_mutex(smb, "stop()")
 
 	stdnse.print_debug(2, "SMB: Closing socket")
 	if(smb['socket'] ~= nil) then
@@ -493,7 +418,7 @@ function start_raw(host, port)
 	local socket = nmap.new_socket()
 
 	socket:set_timeout(TIMEOUT)
-	status, err = socket:connect(host.ip, port, "tcp")
+	status, err = socket:connect(host, port, "tcp")
 
 	if(status == false) then
 		return false, "SMB: Failed to connect to host: " .. err
@@ -600,7 +525,7 @@ function start_netbios(host, port, name)
 
 		stdnse.print_debug(3, "SMB: Connecting to %s", host.ip)
 		socket:set_timeout(TIMEOUT)
-		status, err = socket:connect(host.ip, port, "tcp")
+		status, err = socket:connect(host, port, "tcp")
 		if(status == false) then
 			socket:close()
 			return false, "SMB: Failed to connect: " .. err
@@ -623,8 +548,8 @@ function start_netbios(host, port, name)
 			return false, "SMB: Failed to close socket: " .. result
 		end
 		pos, result, flags, length = bin.unpack(">CCS", result)
-		if(length == nil) then
-			return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [1]"
+		if(result == nil or length == nil) then
+			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [1]"
 		end
 	
 		-- Check for a position session response (0x82)
@@ -679,8 +604,11 @@ end
 --
 --@param smb     The smb state table. 
 --@param command The command to use.
+--@param overrides The overrides table. Keep in mind that overriding things like flags is generally a very bad idea, unless you know what you're doing. 
 --@return A binary string containing the packed packet header. 
-local function smb_encode_header(smb, command)
+local function smb_encode_header(smb, command, overrides)
+	-- Make sure we have an overrides array
+	overrides = overrides or {}
 
 	-- Used for the header
 	local sig = string.char(0xFF) .. "SMB"
@@ -695,7 +623,7 @@ local function smb_encode_header(smb, command)
 	if(nmap.registry.args.smbsign ~= "disable") then
 		flags2 = bit.bor(flags2, 0x0004) -- SMB_FLAGS2_SECURITY_SIGNATURE
 	end
-		
+	
 
 	if(smb['extended_security'] == true) then
 		flags2 = bit.bor(flags2, 0x0800) -- SMB_EXTENDED_SECURITY
@@ -712,16 +640,16 @@ local function smb_encode_header(smb, command)
 				sig:byte(3),  -- Header
 				sig:byte(4),  -- Header
 				command,      -- Command
-				0,            -- status
-				flags,        -- flags
-				flags2,       -- flags2
-				0,            -- extra (pid_high)
-				0,            -- extra (signature)
-				0,            -- extra (unused)
-				smb['tid'],   -- tid
-				12345,        -- pid
-				smb['uid'],   -- uid
-				0             -- mid
+				(overrides['status'] or 0),        -- status
+				(overrides['flags'] or flags),     -- flags
+				(overrides['flags2'] or flags2),   -- flags2
+				(overrides['pid_high'] or 0),      -- extra (pid_high)
+				(overrides['signature'] or 0),     -- extra (signature)
+				(overrides['extra'] or 0),         -- extra (unused)
+				(overrides['tid'] or smb['tid']),  -- tid
+				(overrides['pid'] or smb['pid']),  -- pid
+				(overrides['uid'] or smb['uid']),  -- uid
+				(overrides['mid'] or smb['mid'])   -- mid
 			)
 
 	return header
@@ -734,9 +662,13 @@ end
 -- This is automatically done by <code>smb_send</code>. 
 -- 
 -- @param parameters The parameters section. 
+-- @param overrides The overrides table. The only thing possible to override here is the length. 
 -- @return The encoded parameters. 
-local function smb_encode_parameters(parameters)
-	return bin.pack("<CA", string.len(parameters) / 2, parameters)
+local function smb_encode_parameters(parameters, overrides)
+	-- Make sure we have an overrides array
+	overrides = overrides or {}
+	
+	return bin.pack("<CA", (overrides['parameters_length'] or (string.len(parameters) / 2)), parameters)
 end
 
 --- Converts a string containing the data section into the encoded data string. 
@@ -746,9 +678,13 @@ end
 -- This is automatically done by <code>smb_send</code>. 
 --
 -- @param data The data section. 
+-- @param overrides The overrides table. The only thing possible to override here is the length. 
 -- @return The encoded data.
-local function smb_encode_data(data)
-	return bin.pack("<SA", string.len(data), data)
+local function smb_encode_data(data, overrides)
+	-- Make sure we have an overrides array
+	overrides = overrides or {}
+
+	return bin.pack("<SA", (overrides['data_length'] or string.len(data)), data)
 end
 
 ---Sign the message, if possible. This is done by replacing the signature with the sequence
@@ -821,11 +757,14 @@ end
 --@param header     The header, encoded with <code>smb_get_header</code>.
 --@param parameters The parameters.
 --@param data       The data.
+--@param overrides  Overrides table. 
 --@return (result, err) If result is false, err is the error message. Otherwise, err is
 --        undefined
-function smb_send(smb, header, parameters, data)
-    local encoded_parameters = smb_encode_parameters(parameters)
-    local encoded_data       = smb_encode_data(data)
+function smb_send(smb, header, parameters, data, overrides)
+	overrides = overrides or {}
+
+    local encoded_parameters = smb_encode_parameters(parameters, overrides)
+    local encoded_data       = smb_encode_data(data, overrides)
 	local body               = header .. encoded_parameters .. encoded_data
 	local attempts           = 5
 	local status, err
@@ -884,7 +823,7 @@ function smb_read(smb, read_data)
 	-- The NetBIOS header is 24 bits, big endian
 	pos, netbios_length   = bin.unpack(">I", result)
 	if(netbios_length == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [2]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [2]"
 	end
 	-- Make the length 24 bits
 	netbios_length = bit.band(netbios_length, 0x00FFFFFF)
@@ -927,32 +866,32 @@ function smb_read(smb, read_data)
 	-- The header is 32 bytes.
 	pos, header   = bin.unpack("<A32", result, pos)
 	if(header == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [3]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [3]"
 	end
 
 	-- The parameters length is a 1-byte value.
 	pos, parameter_length = bin.unpack("<C",     result, pos)
 	if(parameter_length == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [4]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [4]"
 	end
 
 	-- Double the length parameter, since parameters are two-byte values. 
 	pos, parameters       = bin.unpack(string.format("<A%d", parameter_length*2), result, pos)
 	if(parameters == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [5]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [5]"
 	end
 
 	-- The data length is a 2-byte value. 
 	pos, data_length      = bin.unpack("<S",     result, pos)
 	if(data_length == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [6]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [6]"
 	end
 
 	-- Read that many bytes of data.
 	if(read_data == nil or read_data == true) then
 		pos, data             = bin.unpack(string.format("<A%d", data_length),        result, pos)
 		if(data == nil) then
-			return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [7]"
+			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [7]"
 		end
 	else
 		data = nil
@@ -998,7 +937,7 @@ function negotiate_protocol(smb, overrides)
 	local pos
 	local header1, header2, header3, ehader4, command, status, flags, flags2, pid_high, signature, unused, pid, mid
 
-	header     = smb_encode_header(smb, command_codes['SMB_COM_NEGOTIATE'])
+	header     = smb_encode_header(smb, command_codes['SMB_COM_NEGOTIATE'], overrides)
 
 	-- Make sure we have overrides
 	overrides = overrides or {}
@@ -1019,7 +958,7 @@ function negotiate_protocol(smb, overrides)
 
 	-- Send the negotiate request
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_NEGOTIATE")
-	local result, err = smb_send(smb, header, parameters, data)
+	local result, err = smb_send(smb, header, parameters, data, overrides)
 	if(status == false) then
 		return false, err
 	end
@@ -1041,8 +980,8 @@ function negotiate_protocol(smb, overrides)
 	end
 
 	-- Check if we fell off the packet (if that happened, the last parameter will be nil)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [8]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [8]"
 	end
 
 	-- Since this is the first response seen, check any necessary flags here
@@ -1053,12 +992,12 @@ function negotiate_protocol(smb, overrides)
 	-- Parse the parameter section
 	pos, smb['dialect'] = bin.unpack("<S", parameters)
 	if(smb['dialect'] == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [9]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [9]"
 	end
 
 	-- Check if we ran off the packet
 	if(smb['dialect'] == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [10]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [10]"
 	end
 	-- Check if the server didn't like our requested protocol
 	if(smb['dialect'] ~= 0) then
@@ -1066,8 +1005,8 @@ function negotiate_protocol(smb, overrides)
 	end
 
 	pos, smb['security_mode'], smb['max_mpx'], smb['max_vc'], smb['max_buffer'], smb['max_raw_buffer'], smb['session_key'], smb['capabilities'], smb['time'], smb['timezone'], smb['key_length'] = bin.unpack("<CSSIIIILsC", parameters, pos)
-	if(smb['capabilities'] == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [11]"
+	if(smb['security_mode'] == nil or smb['capabilities'] == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [11]"
 	end
 	-- Some broken implementations of SMB don't send these variables
 	if(smb['time'] == nil) then
@@ -1096,17 +1035,17 @@ function negotiate_protocol(smb, overrides)
 	if(smb['extended_security'] == true) then
 		pos, smb['server_challenge'] = bin.unpack(string.format("<A%d", smb['key_length']), data)
 		if(smb['server_challenge'] == nil) then
-			return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [12]"
+			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [12]"
 		end
 
 		pos, smb['server_guid'] = bin.unpack("<A16", data, pos)
 		if(smb['server_guid'] == nil) then
-			return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [12]"
+			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [12]"
 		end
 	else
 		pos, smb['server_challenge'] = bin.unpack(string.format("<A%d", smb['key_length']), data)
 		if(smb['server_challenge'] == nil) then
-			return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [12]"
+			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [12]"
 		end
 	
 		-- Get the domain as a Unicode string
@@ -1116,13 +1055,13 @@ function negotiate_protocol(smb, overrides)
 	
 		pos, ch, dummy = bin.unpack("<CC", data, pos)
 --		if(dummy == nil) then
---			return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [13]"
+--			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [13]"
 --		end
 		while ch ~= nil and ch ~= 0 do
 			smb['domain'] = smb['domain'] .. string.char(ch)
 			pos, ch, dummy = bin.unpack("<CC", data, pos)
-			if(dummy == nil) then
-				return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [14]"
+			if(ch == nil or dummy == nil) then
+				return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [14]"
 			end
 		end
 	
@@ -1139,7 +1078,7 @@ function negotiate_protocol(smb, overrides)
 end
 
 
-function start_session_basic(smb, log_errors, overrides)
+local function start_session_basic(smb, log_errors, overrides)
 	local i, err
 	local status, result
 	local header, parameters, data, domain
@@ -1148,8 +1087,9 @@ function start_session_basic(smb, log_errors, overrides)
 	local andx_command, andx_reserved, andx_offset, action
 	local os, lanmanager
 	local username, domain, password, password_hash, hash_type
+	local busy_count = 0
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_SESSION_SETUP_ANDX'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_SESSION_SETUP_ANDX'], overrides)
 
 	-- Get the first account, unless they overrode it
 	if(overrides ~= nil and overrides['username'] ~= nil) then
@@ -1175,7 +1115,7 @@ function start_session_basic(smb, log_errors, overrides)
 					0x0000,             -- ANDX -- next offset
 					0xFFFF,             -- Max buffer size
 					0x0001,             -- Max multiplexes
-					0x0000,             -- Virtual circuit num
+					0x0001,             -- Virtual circuit num
 					smb['session_key'], -- The session key
 					#lanman,            -- ANSI/Lanman password length
 					#ntlm,              -- Unicode/NTLM password length
@@ -1195,7 +1135,7 @@ function start_session_basic(smb, log_errors, overrides)
 
 		-- Send the session setup request
 		stdnse.print_debug(2, "SMB: Sending SMB_COM_SESSION_SETUP_ANDX")
-		result, err = smb_send(smb, header, parameters, data)
+		result, err = smb_send(smb, header, parameters, data, overrides)
 		if(result == false) then
 			return false, err
 		end
@@ -1209,8 +1149,8 @@ function start_session_basic(smb, log_errors, overrides)
 		-- Check if we were allowed in
 		pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
 
-		if(mid == nil) then
-			return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [17]"
+		if(header1 == nil or mid == nil) then
+			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [17]"
 		end
 
 		-- Check if we're successful
@@ -1218,14 +1158,14 @@ function start_session_basic(smb, log_errors, overrides)
 
 			-- Parse the parameters
 			pos, andx_command, andx_reserved, andx_offset, action = bin.unpack("<CCSS", parameters)
-			if(action == nil) then
-				return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [18]"
+			if(andx_command == nil or action == nil) then
+				return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [18]"
 			end
 
 			-- Parse the data
 			pos, os, lanmanager, domain = bin.unpack("<zzz", data)
-			if(domain == nil) then
-				return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [19]"
+			if(os == nil or domain == nil) then
+				return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [19]"
 			end
 		
 			-- Fill in the smb object and smb string
@@ -1256,17 +1196,30 @@ function start_session_basic(smb, log_errors, overrides)
 			return true
 
 		else
-			-- This username failed, print a warning and keep going
-			if(log_errors == nil or log_errors == true) then
-				stdnse.print_debug(1, "SMB: Login as %s\\%s failed (%s)", domain, stdnse.string_or_blank(username), get_status_name(status))
-			end
+			-- Check if we got the error NT_STATUS_REQUEST_NOT_ACCEPTED
+			if(status == 0xc00000d0) then
+				busy_count = busy_count + 1
 
-			-- Go to the next account
-			if(overrides == nil or overrides['username'] == nil) then
-				smbauth.next_account(smb['host'])
-				result, username, domain, password, password_hash, hash_type = smbauth.get_account(smb['host'])
+				if(busy_count > 9) then
+					return false, "SMB: ERROR: Server has too many active connections; giving up."
+				end
+
+				local backoff = math.random() * 10
+				stdnse.print_debug(1, "SMB: Server has too many active connections; pausing for %s seconds.", math.floor(backoff * 100) / 100)
+				stdnse.sleep(backoff)
 			else
-				result = false
+				-- This username failed, print a warning and keep going
+				if(log_errors == nil or log_errors == true) then
+					stdnse.print_debug(1, "SMB: Login as %s\\%s failed (%s)", domain, stdnse.string_or_blank(username), get_status_name(status))
+				end
+
+				-- Go to the next account
+				if(overrides == nil or overrides['username'] == nil) then
+					smbauth.next_account(smb['host'])
+					result, username, domain, password, password_hash, hash_type = smbauth.get_account(smb['host'])
+				else
+					result = false
+				end
 			end
 		end
 	end
@@ -1275,10 +1228,10 @@ function start_session_basic(smb, log_errors, overrides)
 		stdnse.print_debug(1, "SMB: ERROR: %s", username)
 	end
 
-	return false, get_status_name(status)
+	return false, username
 end
 
-function start_session_extended(smb, log_errors, overrides)
+local function start_session_extended(smb, log_errors, overrides)
 	local i
 	local status, status_name, result, err
 	local header, parameters, data
@@ -1287,6 +1240,10 @@ function start_session_extended(smb, log_errors, overrides)
 	local andx_command, andx_reserved, andx_offset, action, security_blob_length
 	local os, lanmanager
 	local username, domain, password, password_hash, hash_type
+	local busy_count = 0
+
+	-- Set a default status_name, in case everything fails
+	status_name = "An unknown error has occurred"
 
 	-- Get the first account, unless they overrode it
 	if(overrides ~= nil and overrides['username'] ~= nil) then
@@ -1298,6 +1255,9 @@ function start_session_extended(smb, log_errors, overrides)
 		hash_type     = overrides['hash_type']
 	else
 		result, username, domain, password, password_hash, hash_type = smbauth.get_account(smb['host'])
+		if(not(result)) then
+			return result, username
+		end
 	end
 
 	while result ~= false do
@@ -1315,7 +1275,7 @@ function start_session_extended(smb, log_errors, overrides)
 				return false, string.format("SMB: ERROR: Security blob: %s", security_blob)
 			end
 	
-			header     = smb_encode_header(smb, command_codes['SMB_COM_SESSION_SETUP_ANDX'])
+			header     = smb_encode_header(smb, command_codes['SMB_COM_SESSION_SETUP_ANDX'], overrides)
 			-- Parameters
 			parameters = bin.pack("<CCSSSSISII", 
 						0xFF,               -- ANDX -- no further commands
@@ -1323,7 +1283,7 @@ function start_session_extended(smb, log_errors, overrides)
 						0x0000,             -- ANDX -- next offset
 						0xFFFF,             -- Max buffer size
 						0x0001,             -- Max multiplexes
-						0x0000,             -- Virtual circuit num
+						0x0001,             -- Virtual circuit num
 						smb['session_key'], -- The session key
 						#security_blob,     -- Security blob length
 						0x00000000,         -- Reserved
@@ -1340,7 +1300,7 @@ function start_session_extended(smb, log_errors, overrides)
 	
 			-- Send the session setup request
 			stdnse.print_debug(2, "SMB: Sending SMB_COM_SESSION_SETUP_ANDX")
-			result, err = smb_send(smb, header, parameters, data)
+			result, err = smb_send(smb, header, parameters, data, overrides)
 			if(result == false) then
 				return false, err
 			end
@@ -1353,8 +1313,8 @@ function start_session_extended(smb, log_errors, overrides)
 		
 			-- Check if we were allowed in
 			pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-			if(mid == nil) then
-				return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [17]"
+			if(header1 == nil or mid == nil) then
+				return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [17]"
 				end
 			smb['uid'] = uid
 
@@ -1365,15 +1325,15 @@ function start_session_extended(smb, log_errors, overrides)
 			if(status_name == "NT_STATUS_OK" or status_name == "NT_STATUS_MORE_PROCESSING_REQUIRED") then
 				-- Parse the parameters
 				pos, andx_command, andx_reserved, andx_offset, action, security_blob_length = bin.unpack("<CCSSS", parameters)
-				if(security_blob_length == nil) then
-					return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [18]"
+				if(andx_command == nil or security_blob_length == nil) then
+					return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [18]"
 				end
 				smb['is_guest']   = bit.band(action, 1)
 		
 				-- Parse the data
 				pos, security_blob, os, lanmanager = bin.unpack(string.format("<A%dzz", security_blob_length), data)
-				if(lanmanager == nil) then
-					return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [19]"
+				if(security_blob == nil or lanmanager == nil) then
+					return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [19]"
 				end
 				smb['os']         = os
 				smb['lanmanager'] = lanmanager
@@ -1404,21 +1364,38 @@ function start_session_extended(smb, log_errors, overrides)
 			end -- Should we parse the parameters/data?
 		until status_name ~= "NT_STATUS_MORE_PROCESSING_REQUIRED"
 
-		-- Display a message to the user, and try the next account
-		if(log_errors == nil or log_errors == true) then
-			stdnse.print_debug(1, "SMB: Extended login as %s\\%s failed (%s)", domain, stdnse.string_or_blank(username), status_name)
+		-- Check if we got the error NT_STATUS_REQUEST_NOT_ACCEPTED
+		if(status == 0xc00000d0) then
+			busy_count = busy_count + 1
+
+			if(busy_count > 9) then
+				return false, "SMB: ERROR: Server has too many active connections; giving up."
+			end
+
+			local backoff = math.random() * 10
+			stdnse.print_debug(1, "SMB: Server has too many active connections; pausing for %s seconds.", math.floor(backoff * 100) / 100)
+			stdnse.sleep(backoff)
+		else
+			-- Display a message to the user, and try the next account
+			if(log_errors == nil or log_errors == true) then
+				stdnse.print_debug(1, "SMB: Extended login as %s\\%s failed (%s)", domain, stdnse.string_or_blank(username), status_name)
+			end
+
+			-- Go to the next account
+			if(overrides == nil or overrides['username'] == nil) then
+				smbauth.next_account(smb['host'])
+				result, username, domain, password, password_hash, hash_type = smbauth.get_account(smb['host'])
+				if(not(result)) then
+					return false, username
+				end
+			else
+				result = false
+			end
 		end
 
-		-- Reset the user id and security_blob
+		-- Reset the user id
 		smb['uid'] = 0
 
-		-- Go to the next account
-		if(overrides == nil or overrides['username'] == nil) then
-			smbauth.next_account(smb['host'])
-			result, username, domain, password, password_hash, hash_type = smbauth.get_account(smb['host'])
-		else
-			result = false
-		end
 	end -- Loop over the accounts
 	
 	if(log_errors == nil or log_errors == true) then
@@ -1483,7 +1460,7 @@ function tree_connect(smb, path, overrides)
 	-- Make sure we have overrides
 	overrides = overrides or {}
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_TREE_CONNECT_ANDX'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_TREE_CONNECT_ANDX'], overrides)
 	parameters = bin.pack("<CCSSS", 
 					0xFF,   -- ANDX no further commands
 					0x00,   -- ANDX reserved
@@ -1499,7 +1476,7 @@ function tree_connect(smb, path, overrides)
 
 	-- Send the tree connect request
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_TREE_CONNECT_ANDX")
-	result, err = smb_send(smb, header, parameters, data)
+	result, err = smb_send(smb, header, parameters, data, overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -1513,8 +1490,8 @@ function tree_connect(smb, path, overrides)
 	-- Check if we were allowed in
     local uid, tid
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [20]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [20]"
 	end
 
 	if(status ~= 0) then
@@ -1533,17 +1510,19 @@ end
 
 --- Disconnects a tree session. Should be called before logging off and disconnecting. 
 --@param smb    The SMB object associated with the connection
+--@param overrides THe overrides table
 --@return (status, result) If status is false, result is an error message. If status is true, 
 --              the disconnect was successful. 
-function tree_disconnect(smb)
+function tree_disconnect(smb, overrides)
+	overrides = overrides or {}
 	local header
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_TREE_DISCONNECT'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_TREE_DISCONNECT'], overrides)
 
 	-- Send the tree disconnect request
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_TREE_DISCONNECT")
-	local result, err = smb_send(smb, header, "", "")
+	local result, err = smb_send(smb, header, "", "", overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -1557,8 +1536,8 @@ function tree_disconnect(smb)
 	-- Check if there was an error
     local uid, tid, pos
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [21]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [21]"
 	end
 	if(status ~= 0) then
 		return false, get_status_name(status)
@@ -1573,13 +1552,15 @@ end
 ---Logs off the current user. Strictly speaking this isn't necessary, but it's the polite thing to do. 
 --
 --@param smb    The SMB object associated with the connection
+--@param overrides THe overrides table
 --@return (status, result) If statis is false, result is an error message. If status is true, 
 --              the logoff was successful. 
-function logoff(smb)
+function logoff(smb, overrides)
+	overrides = overrides or {}
 	local header, parameters, data
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_LOGOFF_ANDX'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_LOGOFF_ANDX'], overrides)
 
 	-- Parameters are a blank ANDX block
 	parameters = bin.pack("<CCS", 
@@ -1590,7 +1571,7 @@ function logoff(smb)
 
 	-- Send the tree disconnect request
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_LOGOFF_ANDX")
-	local result, err = smb_send(smb, header, parameters, "")
+	local result, err = smb_send(smb, header, parameters, "", overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -1609,8 +1590,8 @@ function logoff(smb)
 	-- Check if there was an error
     local uid, tid, pos
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [22]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [22]"
 	end
 
 	if(status == 0xc0000022) then
@@ -1640,58 +1621,75 @@ function create_file(smb, path, overrides)
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 	local andx_command, andx_reserved, andx_offset
 	local oplock_level, fid, create_action, created, last_access, last_write, last_change, attributes, allocation_size, end_of_file, filetype, ipc_state, is_directory
+	local error_count = 0
 
-	-- Make sure we have overrides
-	overrides = overrides or {}
+	repeat
+		local mutex = nmap.mutex(smb['host'])
+		mutex "lock"
+	
+		-- Make sure we have overrides
+		overrides = overrides or {}
+	
+		header = smb_encode_header(smb, command_codes['SMB_COM_NT_CREATE_ANDX'], overrides)
+		parameters = bin.pack("<CCSCSIIILIIIIIC", 
+						0xFF,   -- ANDX no further commands
+						0x00,   -- ANDX reserved
+						0x0000, -- ANDX offset
+						0x00,   -- Reserved
+						string.len(path), -- Path length
+						(overrides['file_create_flags']            or 0x00000016),         -- Create flags
+						(overrides['file_create_root_fid']         or 0x00000000),         -- Root FID
+						(overrides['file_create_access_mask']      or 0x02000000),         -- Access mask
+						(overrides['file_create_allocation_size']  or 0x0000000000000000), -- Allocation size
+						(overrides['file_create_attributes']       or 0x00000000),         -- File attributes
+						(overrides['file_create_share_attributes'] or 0x00000007),         -- Share attributes
+						(overrides['file_create_disposition']      or 0x00000000),         -- Disposition
+						(overrides['file_create_options']          or 0x00000000),         -- Create options
+						(overrides['file_create_impersonation']    or 0x00000002),         -- Impersonation
+						(overrides['file_create_security_flags']   or 0x01)                -- Security flags
+					)
+	
+		data = bin.pack("z", path)
+	
+		-- Send the create file
+		stdnse.print_debug(2, "SMB: Sending SMB_COM_NT_CREATE_ANDX")
+		local result, err = smb_send(smb, header, parameters, data, overrides)
+		if(result == false) then
+			mutex "done"
+			return false, err
+		end
+	
+		-- Read the result
+		status, header, parameters, data = smb_read(smb, false)
+		mutex "done"
+		if(status ~= true) then
+			return false, header
+		end
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_NT_CREATE_ANDX'])
-	parameters = bin.pack("<CCSCSIIILIIIIIC", 
-					0xFF,   -- ANDX no further commands
-					0x00,   -- ANDX reserved
-					0x0000, -- ANDX offset
-					0x00,   -- Reserved
-					string.len(path), -- Path length
-					(overrides['file_create_flags']            or 0x00000016),         -- Create flags
-					(overrides['file_create_root_fid']         or 0x00000000),         -- Root FID
-					(overrides['file_create_access_mask']      or 0x02000000),         -- Access mask
-					(overrides['file_create_allocation_size']  or 0x0000000000000000), -- Allocation size
-					(overrides['file_create_attributes']       or 0x00000000),         -- File attributes
-					(overrides['file_create_share_attributes'] or 0x00000007),         -- Share attributes
-					(overrides['file_create_disposition']      or 0x00000000),         -- Disposition
-					(overrides['file_create_options']          or 0x00000000),         -- Create options
-					(overrides['file_create_impersonation']    or 0x00000002),         -- Impersonation
-					(overrides['file_create_security_flags']   or 0x01)                -- Security flags
-				)
+		-- Check if we were allowed in
+	    local uid, tid
+		pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
+		if(header1 == nil or mid == nil) then
+			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [23]"
+		end
+		if(status == 0xc00000ac) then
+			error_count = error_count + 1
+			if(error_count > 10) then
+				return false, "SMB: ERROR: Server returned NT_STATUS_PIPE_NOT_AVAILABLE too many times; giving up."
+			end
+			stdnse.print_debug(1, "WARNING: Server refused connection with NT_STATUS_PIPE_NOT_AVAILABLE; trying again")
+			stdnse.sleep(.2)
+		end
+	until (status ~= 0xc00000ac)
 
-	data = bin.pack("z", path)
-
-	-- Send the create file
-	stdnse.print_debug(2, "SMB: Sending SMB_COM_NT_CREATE_ANDX")
-	local result, err = smb_send(smb, header, parameters, data)
-	if(result == false) then
-		return false, err
-	end
-
-	-- Read the result
-	status, header, parameters, data = smb_read(smb, false)
-	if(status ~= true) then
-		return false, header
-	end
-
-	-- Check if we were allowed in
-    local uid, tid
-	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [23]"
-	end
 	if(status ~= 0) then
 		return false, get_status_name(status)
 	end
 
 	-- Parse the parameters
 	pos, andx_command, andx_reserved, andx_offset, oplock_level, fid, create_action, created, last_access, last_write, last_change, attributes, allocation_size, end_of_file, filetype, ipc_state, is_directory = bin.unpack("<CCSCSILLLLILLSSC", parameters)
-	if(is_directory == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [24]"
+	if(andx_command == nil or is_directory == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [24]"
 	end
 
 	-- Fill in the smb table
@@ -1717,9 +1715,11 @@ end
 --@param smb    The SMB object associated with the connection
 --@param offset The offset to read from (ignored if it's a pipe)
 --@param count  The maximum number of bytes to read
+--@param overrides The overrides table
 --@return (status, result) If status is false, result is an error message. Otherwise, result is a table
 --        containing a lot of different elements. 
-function read_file(smb, offset, count)
+function read_file(smb, offset, count, overrides)
+	overrides = overrides or {}
 	local header, parameters, data
 	local pos
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
@@ -1727,7 +1727,7 @@ function read_file(smb, offset, count)
 	local remaining, data_compaction_mode, reserved_1, data_length_low, data_offset, data_length_high, reserved_2, reserved_3
 	local response = {}
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_READ_ANDX'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_READ_ANDX'], overrides)
 	parameters = bin.pack("<CCSSISSISI",
 					0xFF,   -- ANDX no further commands
 					0x00,   -- ANDX reserved
@@ -1745,7 +1745,7 @@ function read_file(smb, offset, count)
 
 	-- Send the create file
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_READ_ANDX")
-	local result, err = smb_send(smb, header, parameters, data)
+	local result, err = smb_send(smb, header, parameters, data, overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -1760,8 +1760,8 @@ function read_file(smb, offset, count)
     local uid, tid
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
 	
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [25]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [25]"
 	end
 	if(status ~= 0) then
 		return false, get_status_name(status)
@@ -1769,8 +1769,8 @@ function read_file(smb, offset, count)
 
 	-- Parse the parameters
 	pos, andx_command, andx_reserved, andx_offset, remaining, data_compaction_mode, reserved_1, data_length_low, data_offset, data_length_high, reserved_2, reserved_3 = bin.unpack("<CCSSSSSSISI", parameters)
-	if(reserved_3 == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [26]"
+	if(andx_command == nil or reserved_3 == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [26]"
 	end
 
 	response['remaining']   = remaining
@@ -1806,16 +1806,18 @@ end
 --@param smb        The SMB object associated with the connection
 --@param write_data The data to write
 --@param offset     The offset to write it to (ignored for pipes)
+--@param overrides  The overrides table
 --@return (status, result) If status is false, result is an error message. Otherwise, result is a table
 --        containing a lot of different elements, the most important one being 'fid', the handle to the opened file. 
-function write_file(smb, write_data, offset)
+function write_file(smb, write_data, offset, overrides)
+	overrides = overrides or {}
 	local header, parameters, data
 	local pos
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 	local andx_command, andx_reserved, andx_offset
 	local response = {}
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_WRITE_ANDX'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_WRITE_ANDX'], overrides)
 	parameters = bin.pack("<CCSSIISSSSSI",
 					0xFF,   -- ANDX no further commands
 					0x00,   -- ANDX reserved
@@ -1835,7 +1837,7 @@ function write_file(smb, write_data, offset)
 
 	-- Send the create file
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_WRITE_ANDX")
-	local result, err = smb_send(smb, header, parameters, data)
+	local result, err = smb_send(smb, header, parameters, data, overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -1850,8 +1852,8 @@ function write_file(smb, write_data, offset)
     local uid, tid
 	-- Check if we were allowed in
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [27]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [27]"
 	end
 	if(status ~= 0) then
 		return false, get_status_name(status)
@@ -1861,7 +1863,7 @@ function write_file(smb, write_data, offset)
     local count_reserved, count_high, remaining, count_low
 	pos, andx_command, andx_reserved, andx_offset, count_low, remaining, count_high, count_reserved  = bin.unpack("<CCSSSSS", parameters)
 	if(count_reserved == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [28]"
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [28]"
 	end
 
 	response['count_low']  = count_low
@@ -1875,15 +1877,17 @@ end
 --- This sends a SMB request to close a file (or a pipe). 
 --
 --@param smb        The SMB object associated with the connection
+--@param overrides  The overrides table
 --@return (status, result) If status is false, result is an error message. Otherwise, result is undefined. 
-function close_file(smb)
+function close_file(smb, overrides)
+	overrides = overrides or {}
 	local header, parameters, data
 	local pos
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 	local andx_command, andx_reserved, andx_offset
 	local response = {}
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_CLOSE'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_CLOSE'], overrides)
 	parameters = bin.pack("<SI",
 					smb['fid'], -- FID
 					0xFFFFFFFF  -- Last write (unspecified)
@@ -1893,7 +1897,7 @@ function close_file(smb)
 
 	-- Send the close file
 	stdnse.print_debug(2, "SMB: Sending SMB_CLOSE")
-	local result, err = smb_send(smb, header, parameters, data)
+	local result, err = smb_send(smb, header, parameters, data, overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -1907,8 +1911,8 @@ function close_file(smb)
 	-- Check if the close was successful
     local uid, tid
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [27]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [27]"
 	end
 	if(status ~= 0) then
 		return false, get_status_name(status)
@@ -1922,14 +1926,16 @@ end
 --
 --@param smb    The SMB object associated with the connection
 --@param path   The path of the file to delete
+--@param overrides The overrides table
 --@return (status, result) If status is false, result is an error message. Otherwise, result is undefined. 
-function delete_file(smb, path)
+function delete_file(smb, path, overrides)
+	overrides = overrides or {}
 	local header, parameters, data
 	local pos
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 	local andx_command, andx_reserved, andx_offset
 
-	header = smb_encode_header(smb, command_codes['SMB_COM_DELETE'])
+	header = smb_encode_header(smb, command_codes['SMB_COM_DELETE'], overrides)
 	parameters = bin.pack("<S",
 					0x0027 -- Search attributes (0x27 = include read only, hidden, system, and archive)
 				)
@@ -1940,7 +1946,7 @@ function delete_file(smb, path)
 
 	-- Send the close file
 	stdnse.print_debug(2, "SMB: Sending SMB_CLOSE")
-	local result, err = smb_send(smb, header, parameters, data)
+	local result, err = smb_send(smb, header, parameters, data, overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -1954,8 +1960,8 @@ function delete_file(smb, path)
 	-- Check if the close was successful
     local uid, tid
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [27]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [27]"
 	end
 	if(status ~= 0) then
 		return false, get_status_name(status)
@@ -1979,9 +1985,11 @@ end
 --@param pipe [optional]      The pipe to transact on. Default: "\PIPE\". 
 --@param no_setup [optional]  If set, the 'setup' is set to 0 and some parameters are left off. This occurs while
 --                            using the LANMAN Remote API. Default: false. 
+--@param overrides            The overrides table
 --@return (status, result) If status is false, result is an error message. Otherwise, result is a table 
 --        containing 'parameters' and 'data', representing the parameters and data returned by the server. 
-function send_transaction_named_pipe(smb, function_parameters, function_data, pipe, no_setup)
+function send_transaction_named_pipe(smb, function_parameters, function_data, pipe, no_setup, overrides)
+	overrides = overrides or {}
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 	local header, parameters, data
 	local parameter_offset = 0
@@ -1996,7 +2004,7 @@ function send_transaction_named_pipe(smb, function_parameters, function_data, pi
 	end
 
 	-- Header is 0x20 bytes long (not counting NetBIOS header).
-	header = smb_encode_header(smb, command_codes['SMB_COM_TRANSACTION']) -- 0x25 = SMB_COM_TRANSACTION
+	header = smb_encode_header(smb, command_codes['SMB_COM_TRANSACTION'], overrides) -- 0x25 = SMB_COM_TRANSACTION
 
 	-- 0x20 for SMB header, 0x01 for parameters header, 0x20 for parameters length, 0x02 for data header, 0x07 for "\PIPE\"
 	if(function_parameters) then
@@ -2048,7 +2056,7 @@ function send_transaction_named_pipe(smb, function_parameters, function_data, pi
 
 	-- Send the transaction request
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_TRANSACTION")
-	local result, err = smb_send(smb, header, parameters, data)
+	local result, err = smb_send(smb, header, parameters, data, overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -2062,8 +2070,8 @@ function send_transaction_named_pipe(smb, function_parameters, function_data, pi
 	-- Check if it worked
     local uid, tid, pos
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [29]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [29]"
 	end
 	if(status ~= 0) then
 		if(status_names[status] == nil) then
@@ -2075,8 +2083,8 @@ function send_transaction_named_pipe(smb, function_parameters, function_data, pi
 
 	-- Parse the parameters
 	pos, total_word_count, total_data_count, reserved1, parameter_count, parameter_offset, parameter_displacement, data_count, data_offset, data_displacement, setup_count, reserved2 = bin.unpack("<SSSSSSSSSCC", parameters)
-	if(reserved2 == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [30]"
+	if(total_word_count == nil or reserved2 == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [30]"
 	end
 
 	-- Convert the parameter/data offsets into something more useful (the offset into the data section)
@@ -2095,7 +2103,8 @@ function send_transaction_named_pipe(smb, function_parameters, function_data, pi
 	return true, response
 end
 
-function send_transaction_waitnamedpipe(smb, priority, pipe)
+function send_transaction_waitnamedpipe(smb, priority, pipe, overrides)
+	overrides = overrides or {}
 	local header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, pid, mid 
 	local header, parameters, data
 	local parameter_offset, data_offset
@@ -2104,7 +2113,7 @@ function send_transaction_waitnamedpipe(smb, priority, pipe)
 	local padding = ""
 
 	-- Header is 0x20 bytes long (not counting NetBIOS header).
-	header = smb_encode_header(smb, command_codes['SMB_COM_TRANSACTION']) -- 0x25 = SMB_COM_TRANSACTION
+	header = smb_encode_header(smb, command_codes['SMB_COM_TRANSACTION'], overrides) -- 0x25 = SMB_COM_TRANSACTION
 
 	-- Parameters are 0x20 bytes long. 
 	parameters = bin.pack("<SSSSCCSISSSSSCCSS",
@@ -2134,7 +2143,7 @@ function send_transaction_waitnamedpipe(smb, priority, pipe)
 
 	-- Send the transaction request
 	stdnse.print_debug(2, "SMB: Sending SMB_COM_TRANSACTION (WaitNamedPipe)")
-	local result, err = smb_send(smb, header, parameters, data)
+	local result, err = smb_send(smb, header, parameters, data, overrides)
 	if(result == false) then
 		return false, err
 	end
@@ -2148,8 +2157,8 @@ function send_transaction_waitnamedpipe(smb, priority, pipe)
 	-- Check if it worked
     local uid, tid, pos
 	pos, header1, header2, header3, header4, command, status, flags, flags2, pid_high, signature, unused, tid, pid, uid, mid = bin.unpack("<CCCCCICSSlSSSSS", header)
-	if(mid == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [31]"
+	if(header1 == nil or mid == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [31]"
 	end
 	if(status ~= 0) then
 		if(status_names[status] == nil) then
@@ -2161,8 +2170,8 @@ function send_transaction_waitnamedpipe(smb, priority, pipe)
 
 	-- Parse the parameters
 	pos, total_word_count, total_data_count, reserved1, parameter_count, parameter_offset, parameter_displacement, data_count, data_offset, data_displacement, setup_count, reserved2 = bin.unpack("<SSSSSSSSSCC", parameters)
-	if(reserved2 == nil) then
-		return false, "SMB: ERROR: Ran off the end of SMB packet; likely due to server truncation [32]"
+	if(total_word_count == nil or reserved2 == nil) then
+		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [32]"
 	end
 
 	return true, response
@@ -2177,14 +2186,23 @@ end
 --@param overrides  A table of override values that's passed to the smb functions. 
 --@param encoded    Set to 'true' if the file is encoded (xor'ed with 0xFF), It will be decoded before upload. Default: false
 --@return (status, err) If status is false, err is an error message. Otherwise, err is undefined. 
-require 'nsedebug'
 function file_upload(host, localfile, share, remotefile, overrides, encoded)
 	local status, err, smbstate
 	local chunk = 1024
 
-	local filename = nmap.fetchfile(localfile)
-	if(filename == nil) then
-		return false, "Couldn't find the file"
+	-- Attempt to open a handle to the file without adding a path to it
+	local handle = io.open(localfile, "r")
+
+	-- If the open failed, try to search for the file
+	if(not(handle)) then
+		stdnse.print_debug(1, "Couldn't open %s directly, searching Nmap's paths...", localfile)
+		local filename = nmap.fetchfile(localfile)
+
+		-- Check if it was found
+		if(filename == nil) then
+			return false, string.format("Couldn't find the file to upload (%s)", localfile)
+		end
+		handle = io.open(filename, "r")
 	end
 
 	-- Create the SMB session
@@ -2193,10 +2211,9 @@ function file_upload(host, localfile, share, remotefile, overrides, encoded)
 		return false, smbstate
 	end
 
-	local handle = io.open(filename, "r")
-	local data = handle:read(chunk)
 
 	local i = 0
+	local data = handle:read(chunk)
 	while(data ~= nil and #data > 0) do
 
 		if(encoded) then
@@ -2340,7 +2357,7 @@ end
 --
 --@param host          The host object
 --@param share         The share to read it from (eg, C$). 
---@param fo;es         A list of files to look for; it is relative to the share's root.
+--@param files         A list of files to look for; it is relative to the share's root.
 --@param overrides     [optional] Override various fields in the SMB packets. 
 --@return status: A true/false value indicating success
 --@return count:  The number of files that existed, or an error message if status is 'false'
@@ -2449,7 +2466,7 @@ function share_anonymous_can_write(host, share)
 			return false, err
 		end
 
-		if(err == "NT_STATUS_ACCESS_DENIED") then
+		if(err == "NT_STATUS_ACCESS_DENIED" or err == "NT_STATUS_INVALID_PARAMETER") then
 			return true, false
 		end
 
@@ -2488,7 +2505,7 @@ function share_user_can_write(host, share)
 			return false, err
 		end
 
-		if(err == "NT_STATUS_ACCESS_DENIED") then
+		if(err == "NT_STATUS_ACCESS_DENIED" or err == "NT_STATUS_INVALID_PARAMETER") then
 			return true, false
 		end
 
@@ -2611,7 +2628,6 @@ end
 -- bad, because it means we cannot tell whether or not a share exists). 
 --
 --@param host     The host object
---@param share    The share to test
 --@return (status, result) If status is false, result is an error message. Otherwise, result is a boolean value: 
 --        true if the file was successfully written, false if it was not. 
 function share_host_returns_proper_error(host)
@@ -2665,7 +2681,7 @@ end
 ---Get all the details we can about the share. These details are stored in a table and returned. 
 --
 --@param host   The host object.
---@param shares An array of shares to check.
+--@param share An array of shares to check.
 --@return (status, result) If status is false, result is an error message. Otherwise, result is a boolean value: 
 --        true if the file was successfully written, false if it was not. 
 function share_get_details(host, share)
@@ -2764,7 +2780,7 @@ function share_get_list(host)
 		extra = string.format("ERROR: Enumerating shares failed, guessing at common ones (%s)", shares)
 
 		-- Take some common share names I've seen (thanks to Brandon Enright for most of these, except the last few)
-		shares = {"IPC$", "ADMIN$", "TEST", "TEST$", "HOME", "HOME$", "PUBLIC", "PRINT", "PRINT$", "GROUPS", "USERS", "MEDIA", "SOFTWARE", "XSERVE", "NETLOGON", "INFO", "PROGRAMS", "FILES", "WWW", "STMP", "TMP", "DATA", "BACKUP", "DOCS", "HD", "WEBSERVER", "WEB DOCUMENTS", "SHARED", "DESKTOP", "MY DOCUMENTS", "PORN", "PRON", "PR0N"}
+		shares = {"IPC$", "ADMIN$", "TEST", "TEST$", "HOME", "HOME$", "PUBLIC", "PRINT", "PRINT$", "GROUPS", "USERS", "MEDIA", "SOFTWARE", "XSERVE", "NETLOGON", "INFO", "PROGRAMS", "FILES", "WWW", "STMP", "TMP", "DATA", "BACKUP", "DOCS", "HD", "WEBSERVER", "WEB DOCUMENTS", "SHARED", "DESKTOP", "MY DOCUMENTS", "PORN", "PRON", "PR0N", "PICTURES", "BACKUP" }
 
 		-- Try every alphabetic share, with and without a trailing '$'
 		for i = string.byte("A", 1), string.byte("Z", 1), 1 do

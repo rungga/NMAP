@@ -4,6 +4,11 @@ Detects the UDP IAX2 service.
 The script sends an Inter-Asterisk eXchange (IAX) Revision 2 Control Frame POKE request and checks for a proper response.  This protocol is used to enable VoIP connections between servers as well as client-server communication.
 ]]
 
+---
+-- @output
+-- PORT     STATE  SERVICE VERSION
+-- 4569/udp closed iax2
+
 author = "Ferdy Riphagen"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -13,7 +18,7 @@ categories = {"version"}
 require "comm"
 require "shortport"
 
-portrule = shortport.portnumber(4569, "udp")
+portrule = shortport.version_port_or_service(4569, nil, "udp")
 
 action = function(host, port)
  	-- see http://www.cornfed.com/iax.pdf for all options.

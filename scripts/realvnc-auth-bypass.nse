@@ -2,10 +2,16 @@ description = [[
 Checks if a VNC server is vulnerable to the RealVNC authentication bypass
 (CVE-2006-2369).
 ]]
-author = "Brandon Enright" 
+author = "Brandon Enright"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
-categories = {"default", "vuln", "safe"}
+---
+-- @output
+-- PORT     STATE SERVICE VERSION
+-- 5900/tcp open  vnc     VNC (protocol 3.8)
+-- |_realvnc-auth-bypass: Vulnerable
+
+categories = {"auth", "default", "vuln", "safe"}
 
 require "shortport"
 
@@ -16,11 +22,11 @@ action = function(host, port)
 	local result
 	local status = true
 
-	socket:connect(host.ip, port.number, port.protocol)
+	socket:connect(host, port)
 	
 	status, result = socket:receive_lines(1)
 
-	if (result == "TIMEOUT") then
+	if (not status) then
 		socket:close()
 		return
 	end
@@ -28,28 +34,18 @@ action = function(host, port)
 	socket:send("RFB 003.008\n")
 	status, result = socket:receive_bytes(2)
 
-	if (result == "TIMEOUT") then
+	if (not status or result ~= "\001\002") then
 		socket:close()
 		return
 	end
-
-	if (result ~= "\001\002") then
-		socket:close()
-		return
-	end	
 
 	socket:send("\001")
 	status, result = socket:receive_bytes(4)
 
-	if (result == "TIMEOUT") then
+	if (not status or result ~= "\000\000\000\000") then
 		socket:close()
 		return
 	end
-
-	if (result ~= "\000\000\000\000") then
-		socket:close()
-		return
-	end	
 
 	socket:close()
 

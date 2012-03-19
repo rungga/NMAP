@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -117,8 +117,11 @@ from zenmapCore.UmitConf import CommandProfile, ProfileNotFound, is_maemo
 from zenmapCore.NmapParser import NmapParser
 from zenmapCore.Paths import Path, get_extra_executable_search_paths
 from zenmapCore.UmitLogging import log
-from zenmapCore.NmapOptions import NmapOptions
+from zenmapCore.NmapOptions import NmapOptions, split_quoted, join_quoted
 import zenmapCore.I18N
+
+# How often the live output view refreshes, in milliseconds.
+NMAP_OUTPUT_REFRESH_INTERVAL = 1000
 
 class ScanInterface(HIGVBox):
     """ScanInterface contains the scan toolbar and the scan results. Each
@@ -169,6 +172,9 @@ class ScanInterface(HIGVBox):
         self.service_view_selection = self.scan_result.get_service_selection()
         self.host_view_selection.connect('changed', self.host_selection_changed)
         self.service_view_selection.connect('changed', self.service_selection_changed)
+        host_page = self.scan_result.scan_result_notebook.open_ports.host
+        host_page.host_view.get_selection().connect('changed', self.service_host_selection_changed)
+        self.host_view_selection.connect('changed', self.host_selection_changed)
 
         self.scan_result.scan_result_notebook.nmap_output.connect("changed", self._displayed_scan_change_cb)
         self.scan_result.scan_result_notebook.scans_list.remove_button.connect("clicked", self._remove_scan_cb)
@@ -291,31 +297,22 @@ class ScanInterface(HIGVBox):
             self.command_toolbar.command_entry.connect('changed', self._command_entry_changed)
 
     def _command_entry_changed(self, editable):
-        command_string = self.command_toolbar.get_command()
-        command_list = command_string.split()
         ops = NmapOptions()
-        ops.parse(command_list[1:])
+        ops.parse_string(self.command_toolbar.get_command())
 
         # Set the target and profile without propagating the "changed" signal
         # back to the command entry.
-        self.set_target_quiet(" ".join(ops.target_specs))
+        self.set_target_quiet(join_quoted(ops.target_specs))
         self.set_profile_name_quiet("")
 
     def _target_entry_changed(self, editable):
         target_string = self.toolbar.get_selected_target()
-        targets = target_string.split()
+        targets = split_quoted(target_string)
 
-        command_string = self.command_toolbar.get_command()
-        command_list = command_string.split()
-        if len(command_list) == 0:
-            command_list = ["nmap"]
         ops = NmapOptions()
-        ops.parse(command_list[1:])
+        ops.parse_string(self.command_toolbar.get_command())
         ops.target_specs = targets
-
-        command_string = command_list[0] + " " + ops.render_string()
-
-        self.set_command_quiet(command_string)
+        self.set_command_quiet(ops.render_string())
 
     def _profile_entry_changed(self, widget):
         """Update the command based on the contents of the target and profile
@@ -331,23 +328,18 @@ class ScanInterface(HIGVBox):
         if command_string == "":
             command_string = self.command_toolbar.get_command()
 
-        command_list = command_string.split()
-        if len(command_list) == 0:
-            command_list = ["nmap"]
         ops = NmapOptions()
-        ops.parse(command_list[1:])
+        ops.parse_string(command_string)
 
         # Use the targets from the command entry, if there are any, otherwise
         # use any targets from the profile.
-        targets = target_string.split()
+        targets = split_quoted(target_string)
         if len(targets) > 0:
             ops.target_specs = targets
         else:
-            self.toolbar.set_selected_target(" ".join(ops.target_specs))
+            self.toolbar.set_selected_target(join_quoted(ops.target_specs))
 
-        command_string = command_list[0] + " " + ops.render_string()
-
-        self.set_command_quiet(command_string)
+        self.set_command_quiet(ops.render_string())
 
     def set_command_quiet(self, command_string):
         """Set the command used by this scan interface, ignoring any further
@@ -453,7 +445,6 @@ or type the nmap command you would like to execute."),
         profile = CommandProfile()
         profile_name = command.profile
 
-        parsed.target = command.target
         parsed.profile_name = profile_name
         parsed.nmap_command = command.command
 
@@ -480,7 +471,6 @@ or type the nmap command you would like to execute."),
         Schedule a timer to refresh the output and check the scan for
         completion."""
         command_execution = NmapCommand(command)
-        command_execution.target = target
         command_execution.profile = profile
 
         try:
@@ -522,7 +512,7 @@ or type the nmap command you would like to execute."),
         self.scan_result.refresh_nmap_output()
 
         # Add a timeout function
-        self.verify_thread_timeout_id = gobject.timeout_add(2000, self.verify_execution)
+        self.verify_thread_timeout_id = gobject.timeout_add(NMAP_OUTPUT_REFRESH_INTERVAL, self.verify_execution)
 
     def verify_execution(self):
         """This is a callback that is called periodically to refresh the output
@@ -602,6 +592,7 @@ There was an error while parsing the XML file generated from the scan:
         self.inventory.add_scan(parsed, filename=filename)
         self.update_ui()
         i = self.scans_store.add_scan(parsed)
+        log.info("scans_store.add_scan")
         self.scan_result.scan_result_notebook.nmap_output.set_active_iter(i)
         self.scan_result.change_to_ports_hosts_tab()
 
@@ -621,11 +612,11 @@ There was an error while parsing the XML file generated from the scan:
         """Update the "Target" and "Profile" entries based on the contents of a
         parsed scan."""
         command = parsed.get_nmap_command()
-        target = parsed.get_target()
+        targets = parsed.get_targets()
         profile_name = parsed.get_profile_name()
 
         self.set_command_quiet(parsed.get_nmap_command() or "")
-        self.set_target_quiet(target or "")
+        self.set_target_quiet(join_quoted(targets))
         self.set_profile_name_quiet(profile_name or "")
 
     def update_ui(self):
@@ -704,34 +695,37 @@ There was an error while parsing the XML file generated from the scan:
             if self.services.has_key(key):
                 serv_objs.append(self.services[key])
 
+        # Each element of serv_objs is a list of port dicts.
         if len(serv_objs) == 1:
             self.set_single_service_host(serv_objs[0])
         else:
             servs = []
             for s in serv_objs:
-                servs.append({"service_name":s[0]["service_name"],
-                    "hosts":s})
+                servs.append({"service_name":s[0]["service_name"], "ports": s})
             self.set_multiple_service_host(servs)
-
-        hosts = []
-        for serv in serv_objs:
-            for h in serv:
-                # Prevent from adding a host more then once
-                if h["host"] not in hosts:
-                    hosts.append(h["host"])
-        self.switch_host_details(self.build_host_details(hosts))
 
     def host_selection_changed(self, widget):
         self.refresh_port_output()
         # Switch nmap output to show first host occourrence
         model, selection = self.host_view_selection.get_selected_rows()
-        if len(selection) > 0:
-            self.go_to_host(model[0][2])
+        for path in selection:
+            self.go_to_host(model[path][2])
+            break
 
     def service_selection_changed(self, widget):
         self.refresh_host_output()
         # Change scan tab to "Ports/Hosts"
         self.scan_result.change_to_ports_hosts_tab()
+
+    def service_host_selection_changed(self, selection):
+        """This is the callback called when the view is in "Services" mode and
+        the user changes the selection among the many hosts displayed for a
+        given service."""
+        model, selection = selection.get_selected_rows()
+        host_objs = []
+        for path in selection:
+            host_objs.append(model.get_value(model.get_iter(path), 2))
+        self.switch_host_details(self.build_host_details(host_objs))
 
     def switch_host_details(self, pages):
         """Switch the "Host Details" view to show the ScanHostDetailsPages in
@@ -744,8 +738,7 @@ There was an error while parsing the XML file generated from the scan:
 
         for p in pages:
             p.set_expanded(False)
-            if p not in vbox:
-                vbox._pack_noexpand_nofill(p)
+            vbox._pack_noexpand_nofill(p)
         if len(pages) == 1:
             pages[0].set_expanded(True)
         vbox.show_all()
@@ -777,14 +770,23 @@ There was an error while parsing the XML file generated from the scan:
         host_page = self.scan_result.scan_result_notebook.open_ports.host
         host_page.switch_port_to_list_store()
 
+        host_page.freeze()
         host_page.clear_port_list()
         for p in host.ports:
-            host_page.add_port([self.findout_service_icon(p),
-                                int(p.get('portid', '0')),
-                                p.get('protocol', ''),
-                                p.get('port_state', ''),
-                                p.get('service_name', ''),
-                                get_version_string(p)])
+            host_page.add_to_port_list(p)
+        host_page.thaw()
+
+    def set_single_service_host(self, service):
+        """Change the "Ports / Hosts" tab to show the hosts associated with the
+        single named service."""
+        host_page = self.scan_result.scan_result_notebook.open_ports.host
+        host_page.switch_host_to_list_store()
+
+        host_page.freeze()
+        host_page.clear_host_list()
+        for p in service:
+            host_page.add_to_host_list(p["host"], p)
+        host_page.thaw()
 
     def set_multiple_host_port(self, host_list):
         """Change the "Ports / Hosts" tab to show the port output for all of the
@@ -792,77 +794,26 @@ There was an error while parsing the XML file generated from the scan:
         for each is contained in an expander."""
         host_page = self.scan_result.scan_result_notebook.open_ports.host
         host_page.switch_port_to_tree_store()
+
+        host_page.freeze()
         host_page.clear_port_tree()
-
         for host in host_list:
-            parent = host_page.port_tree.append(None,
-                [host.get_hostname(), None, 0,'','','',''])
-            for p in host.get_ports():
-                host_page.port_tree.append(parent, \
-                            ['',
-                             self.findout_service_icon(p),
-                             int(p.get('portid', "0")),
-                             p.get('protocol', ''),
-                             p.get('port_state', ""),
-                             p.get('service_name', _("Unknown")),
-                             get_version_string(p)])
-
-    def set_single_service_host(self, service):
-        """Change the "Ports / Hosts" tab to show the hosts associated with the
-        single named service."""
-        host_page = self.scan_result.scan_result_notebook.open_ports.host
-        host_page.switch_host_to_list_store()
-        host_page.clear_host_list()
-
-        for h in service:
-            host_page.add_host([self.findout_service_icon(h),
-                                h.get('hostname', ''),
-                                int(h.get('portid', '0')),
-                                h.get('protocol', ''),
-                                h.get('port_state', ''),
-                                get_version_string(h)])
+            host_page.add_to_port_tree(host)
+        host_page.thaw()
 
     def set_multiple_service_host(self, service_list):
         """Change the "Ports / Hosts" tab to show the hosts associated with each
         of the services in service_list. Each element of service_list must be a
-        dict with the keys "service_name" and "hosts". When multiple services
+        dict with the keys "service_name" and "ports". When multiple services
         are selected, the hosts for each are contained in an expander."""
         host_page = self.scan_result.scan_result_notebook.open_ports.host
         host_page.switch_host_to_tree_store()
+
+        host_page.freeze()
         host_page.clear_host_tree()
-
-        for host in service_list:
-            parent = host_page.host_tree.append(None, [host['service_name'],
-                                                       '','',0,'','', ''])
-            for h in host['hosts']:
-                host_page.host_tree.append(parent, \
-                                           ['',
-                                            self.findout_service_icon(h),
-                                            h["hostname"],
-                                            int(h.get('portid', "0")),
-                                            h.get('protocol', ""),
-                                            h.get('port_state', _("Unknown")),
-                                            get_version_string(h)])
-
-    def findout_service_icon(self, port_info):
-        if port_info["port_state"] in ["open", "open|filtered"]:
-            return gtk.STOCK_YES
-        else:
-            return gtk.STOCK_NO
-
-def get_version_string(d):
-    """Get a human-readable version string from the dict d. The keys used in d
-    are "service_product", "service_version", and "service_extrainfo" (all are
-    optional). This produces a string like "OpenSSH 4.3p2 Debian 9etch2
-    (protocol 2.0)"."""
-    result = []
-    if d.get("service_product"):
-        result.append(d["service_product"])
-    if d.get("service_version"):
-        result.append(d["service_version"])
-    if d.get("service_extrainfo"):
-        result.append("(" + d["service_extrainfo"] + ")")
-    return " ".join(result)
+        for service in service_list:
+            host_page.add_to_host_tree(service["service_name"], service["ports"])
+        host_page.thaw()
 
 class ScanResult(gtk.HPaned):
     """This is the pane that has the "Host"/"Service" column (ScanHostsView) on

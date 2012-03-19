@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -108,7 +108,7 @@ class CrashReport(HIGWindow):
         gtk.Window.__init__(self)
         self.set_title(_('Crash Report'))
         self.set_position(gtk.WIN_POS_CENTER_ALWAYS)
-        
+
         self.response_id = False
 
         self._create_widgets()
@@ -121,7 +121,7 @@ class CrashReport(HIGWindow):
     def _create_widgets(self):
         self.vbox = HIGVBox()
         self.button_box = gtk.HButtonBox()
-        
+
         self.email_label = gtk.Label(_("""\
 An email address is optional. Sometimes we use it to get more information. If \
 you provide an email address your report will be marked private so only \
@@ -165,13 +165,13 @@ the report to remove any identifying information such as your home directory.\
 
         self.hbox.set_border_width(12)
         self.vbox.set_border_width(6)
-        
+
         self.table.attach_label(gtk.Label(_("Summary")), 0, 1, 0, 1)
         self.table.attach_entry(self.summary_entry, 1, 2, 0, 1)
 
         self.table.attach_entry(self.description_label, 0, 2, 1, 2)
         self.table.attach_entry(self.description_scrolled, 0, 2, 2, 3)
-        
+
         self.table.attach(self.email_label, 0, 2, 3, 4)
         self.table.attach_label(gtk.Label(_("Email")), 0, 1, 4, 5)
         self.table.attach_entry(self.email_entry, 1, 2, 4, 5)
@@ -181,7 +181,7 @@ the report to remove any identifying information such as your home directory.\
         self.button_box.set_layout(gtk.BUTTONBOX_END)
         self.button_box.pack_start(self.btn_ok)
         self.button_box.pack_start(self.btn_cancel)
-        
+
         self.vbox._pack_noexpand_nofill(self.hbox)
         self.vbox._pack_expand_fill(self.table)
         self.vbox._pack_noexpand_nofill(self.button_box)
@@ -264,5 +264,5 @@ if __name__ == "__main__":
     c = CrashReport("Sumariu", "Descricao")
     c.show_all()
     c.connect("delete-event", lambda x, y: gtk.main_quit())
-    
+
     gtk.main()

@@ -1,5 +1,5 @@
 description = [[ 
-Extract published applications from the ICA Browser service
+Extracts a list of published applications from the ICA Browser service.
 ]]
 
 ---
@@ -20,7 +20,7 @@ Extract published applications from the ICA Browser service
 -- Created 11/24/2009 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 11/25/2009 - v0.2 - fixed multiple packet response bug
 
-author = "Patrik Karlsson <patrik@cqure.net>"
+author = "Patrik Karlsson"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
@@ -118,7 +118,7 @@ action = function(host, port)
 
 	try = nmap.new_try(function() socket:close() end)
 
-	try( socket:connect(host.ip, port.number, port.protocol) )
+	try( socket:connect(host, port) )
 
 	-- send the two first packets and never look back
 	repeat

@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -103,7 +103,7 @@ class BugReport(gtk.Window, object):
         gtk.Window.__init__(self)
         self.set_title(_('How to Report a Bug'))
         self.set_position(gtk.WIN_POS_CENTER_ALWAYS)
-        
+
         self._create_widgets()
         self._pack_widgets()
         self._connect_widgets()
@@ -111,14 +111,14 @@ class BugReport(gtk.Window, object):
     def _create_widgets(self):
         self.vbox = HIGVBox()
         self.button_box = gtk.HButtonBox()
-        
+
         self.text = gtk.Label()
 
         self.btn_ok = gtk.Button(stock=gtk.STOCK_OK)
 
     def _pack_widgets(self):
         self.vbox.set_border_width(6)
-        
+
         self.text.set_line_wrap(True)
         self.text.set_markup(_("""\
 <big><b>How to report a bug</b></big>
@@ -146,7 +146,7 @@ http://nmap.org/data/HACKING. Patches may be sent to nmap-dev \
 
         self.button_box.set_layout(gtk.BUTTONBOX_END)
         self.button_box.pack_start(self.btn_ok)
-        
+
         self.vbox._pack_noexpand_nofill(self.button_box)
         self.add(self.vbox)
 
@@ -161,5 +161,5 @@ if __name__ == "__main__":
     w = BugReport()
     w.show_all()
     w.connect("delete-event", lambda x, y: gtk.main_quit())
-    
+
     gtk.main()

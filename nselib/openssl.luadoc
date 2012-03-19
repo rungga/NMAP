@@ -1,4 +1,5 @@
---- OpenSSL bindings.
+---
+-- OpenSSL bindings.
 --
 -- This module is a wrapper for OpenSSL functions that provide encryption and
 -- decryption, hashing, and multiprecision integers.
@@ -95,6 +96,12 @@ function bignum_pseudo_rand(bits)
 -- @return bignum.
 function bignum_mod_exp(a, p, m)
 
+--- Returns the bignum which is the result of <code>a+b</code>
+-- @param a bignum
+-- @param b bignum
+-- @return bignum
+function bignum_add(a, b)
+
 --- Returns a string containing random data.
 -- @param bytes Length of the returned string in bytes.
 -- @return Random string.
@@ -104,11 +111,6 @@ function rand_bytes(bytes)
 -- @param bytes Length of the returned string in bytes.
 -- @return Pseudorandom string.
 function rand_pseudo_bytes(bytes)
-
---- Returns the MD2 digest of a string.
--- @param message String to digest.
--- @return MD2 digest.
-function md2(message)
 
 --- Returns the MD4 digest of a string.
 -- @param message String to digest.

@@ -6,6 +6,11 @@ Tries to log into a POP3 account by guessing usernames and passwords.
 -- @args pop3loginmethod The login method to use: <code>"USER"</code>
 -- (default), <code>"SASL-PLAIN"</code>, <code>"SASL-LOGIN"</code>,
 -- <code>"SASL-CRAM-MD5"</code>, or <code>"APOP"</code>.
+--
+-- @output
+-- PORT    STATE SERVICE
+-- 110/tcp open  pop3
+-- | pop3-brute: root : password
 
 author = "Philip Pickering"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -85,7 +90,7 @@ action = function(host, port)
 	 elseif (perror == pop3.err.userError) then
 	    currPw = nil
 	 else
-            local socstatus = socket:connect(host.ip, port.number, bopt)
+            local socstatus = socket:connect(host, port, bopt)
 	    if not socstatus 
 	       then return
                else _, line = socket:receive()

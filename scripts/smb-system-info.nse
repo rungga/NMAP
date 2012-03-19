@@ -11,7 +11,7 @@ If you know of more information stored in the Windows registry that could be int
 post a message to the nmap-dev mailing list and I (Ron Bowes) will add it to my todo list. 
 Adding new checks to this is extremely easy. 
 
-WARNING: I have experienced crashes in regsvc.exe while making registry calls
+WARNING: I have experienced crashes in <code>regsvc.exe</code> while making registry calls
 against a fully patched Windows 2000 system; I've fixed the issue that caused it,
 but there's no guarantee that it (or a similar vuln in the same code) won't show
 up again. Since the process automatically restarts, it doesn't negatively impact
@@ -68,21 +68,20 @@ end
 --@return Status (true or false).
 --@return The value (if status is true) or an error string (if status is false).
 local function reg_get_value(smbstate, handle, key, value)
-
 	-- Open the key
-	status, openkey_result = msrpc.winreg_openkey(smbstate, handle, key)
+	local status, openkey_result = msrpc.winreg_openkey(smbstate, handle, key)
     if(status == false) then
         return false, openkey_result
     end
 
 	-- Query the value
-	status, queryvalue_result = msrpc.winreg_queryvalue(smbstate, openkey_result['handle'], value)
+	local status, queryvalue_result = msrpc.winreg_queryvalue(smbstate, openkey_result['handle'], value)
     if(status == false) then
         return false, queryvalue_result
     end
 
 	-- Close the key
-	status, closekey_result = msrpc.winreg_closekey(smbstate, openkey_result['handle'], value)
+	local status, closekey_result = msrpc.winreg_closekey(smbstate, openkey_result['handle'], value)
     if(status == false) then
         return false, closekey_result
     end
@@ -95,20 +94,20 @@ local function get_info_registry(host)
 	local result = {}
 
 	-- Create the SMB session
-	status, smbstate = msrpc.start_smb(host, msrpc.WINREG_PATH)
+	local status, smbstate = msrpc.start_smb(host, msrpc.WINREG_PATH)
 	if(status == false) then
 		return false, smbstate
 	end
 
     -- Bind to WINREG service
-    status, bind_result = msrpc.bind(smbstate, msrpc.WINREG_UUID, msrpc.WINREG_VERSION, nil)
+    local status, bind_result = msrpc.bind(smbstate, msrpc.WINREG_UUID, msrpc.WINREG_VERSION, nil)
     if(status == false) then
         msrpc.stop_smb(smbstate)
         return false, bind_result
     end
 
 	-- Open HKEY_LOCAL_MACHINE
-    status, openhklm_result = msrpc.winreg_openhklm(smbstate)
+    local status, openhklm_result = msrpc.winreg_openhklm(smbstate)
     if(status == false) then
         msrpc.stop_smb(smbstate)
         return false, openhklm_result
@@ -116,7 +115,7 @@ local function get_info_registry(host)
 
 	-- Processor information
 	result['status-number_of_processors'], result['number_of_processors']   = reg_get_value(smbstate, openhklm_result['handle'], "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", "NUMBER_OF_PROCESSORS")
-	if(status == false) then
+	if(result['status-number_of_processors'] == false) then
 		result['number_of_processors'] = 0
 	end
 	result['status-os'], result['os']                                         = reg_get_value(smbstate, openhklm_result['handle'], "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", "OS")
@@ -177,7 +176,7 @@ end
 
 action = function(host)
 
-	status, result = get_info_registry(host)
+	local status, result = get_info_registry(host)
 
 	if(status == false) then
 		return stdnse.format_output(false, result)

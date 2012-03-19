@@ -2,7 +2,7 @@
  * ncat_connect.c -- Ncat connect mode.                                    *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,8 +85,9 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_connect.c 16410 2010-01-06 05:54:55Z david $ */
+/* $Id: ncat_connect.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
+#include "base64.h"
 #include "nsock.h"
 #include "ncat.h"
 #include "util.h"
@@ -113,11 +114,18 @@ struct conn_state {
     nsock_iod sock_nsi;
     nsock_iod stdin_nsi;
     nsock_event_id idle_timer_event_id;
+    int crlf_state;
 };
 
-static struct conn_state cs;
+static struct conn_state cs = {
+    NULL,
+    NULL,
+    0,
+    0
+};
 
 static void connect_handler(nsock_pool nsp, nsock_event evt, void *data);
+static void post_connect(nsock_pool nsp, nsock_iod iod);
 static void read_stdin_handler(nsock_pool nsp, nsock_event evt, void *data);
 static void read_socket_handler(nsock_pool nsp, nsock_event evt, void *data);
 static void write_socket_handler(nsock_pool nsp, nsock_event evt, void *data);
@@ -233,6 +241,220 @@ static void connect_report(nsock_iod nsi)
     }
 }
 
+/* Just like inet_socktop, but it puts IPv6 addresses in square brackets. */
+static const char *sock_to_url(const union sockaddr_u *su)
+{
+    static char buf[INET6_ADDRSTRLEN + 32];
+    const char *host_str;
+    unsigned short port;
+
+    host_str = inet_socktop(su);
+    port = inet_port(su);
+    if (su->storage.ss_family == AF_INET)
+        Snprintf(buf, sizeof(buf), "%s:%hu", host_str, port);
+    else if (su->storage.ss_family == AF_INET6)
+        Snprintf(buf, sizeof(buf), "[%s]:%hu]", host_str, port);
+    else
+        bye("Unknown address family in sock_to_url_host.");
+
+    return buf;
+}
+
+static int append_connect_request_line(char **buf, size_t *size, size_t *offset,
+    const union sockaddr_u *su)
+{
+    return strbuf_sprintf(buf, size, offset, "CONNECT %s HTTP/1.0\r\n",
+        sock_to_url(su));
+}
+
+static char *http_connect_request(const union sockaddr_u *su, int *n)
+{
+    char *buf = NULL;
+    size_t size = 0, offset = 0;
+
+    append_connect_request_line(&buf, &size, &offset, su);
+    strbuf_append_str(&buf, &size, &offset, "\r\n");
+    *n = offset;
+
+    return buf;
+}
+
+static char *http_connect_request_auth(const union sockaddr_u *su, int *n,
+    struct http_challenge *challenge)
+{
+    char *buf = NULL;
+    size_t size = 0, offset = 0;
+
+    append_connect_request_line(&buf, &size, &offset, su);
+    strbuf_append_str(&buf, &size, &offset, "Proxy-Authorization:");
+    if (challenge->scheme == AUTH_BASIC) {
+        char *auth_str;
+
+        auth_str = b64enc((unsigned char *) o.proxy_auth, strlen(o.proxy_auth));
+        strbuf_sprintf(&buf, &size, &offset, " Basic %s\r\n", auth_str);
+        free(auth_str);
+#if HAVE_HTTP_DIGEST
+    } else if (challenge->scheme == AUTH_DIGEST) {
+        char *proxy_auth;
+        char *username, *password;
+        char *response_hdr;
+
+        /* Split up the proxy auth argument. */
+        proxy_auth = Strdup(o.proxy_auth);
+        username = strtok(proxy_auth, ":");
+        password = strtok(NULL, ":");
+        if (password == NULL) {
+            free(proxy_auth);
+            return NULL;
+        }
+        response_hdr = http_digest_proxy_authorization(challenge,
+            username, password, "CONNECT", sock_to_url(&httpconnect));
+        if (response_hdr == NULL) {
+            free(proxy_auth);
+            return NULL;
+        }
+        strbuf_append_str(&buf, &size, &offset, response_hdr);
+        free(proxy_auth);
+        free(response_hdr);
+#endif
+    } else {
+        bye("Unknown authentication type.");
+    }
+    strbuf_append_str(&buf, &size, &offset, "\r\n");
+    *n = offset;
+
+    return buf;
+}
+
+/* Return a usable socket descriptor after proxy negotiation, or -1 on any
+   error. If any bytes are received through the proxy after negotiation, they
+   are written to stdout. */
+static int do_proxy_http(void)
+{
+    struct socket_buffer sockbuf;
+    char *request;
+    char *status_line, *header;
+    char *remainder;
+    size_t len;
+    int sd, code;
+    int n;
+
+    sd = do_connect(SOCK_STREAM);
+    if (sd == -1) {
+        loguser("Proxy connection failed: %s.\n", socket_strerror(socket_errno()));
+        return -1;
+    }
+
+    status_line = NULL;
+    header = NULL;
+
+    /* First try a request with no authentication. */
+    request = http_connect_request(&httpconnect, &n);
+    if (send(sd, request, n, 0) < 0) {
+        loguser("Error sending proxy request: %s.\n", socket_strerror(socket_errno()));
+        free(request);
+        return -1;
+    }
+    free(request);
+
+    socket_buffer_init(&sockbuf, sd);
+
+    if (http_read_status_line(&sockbuf, &status_line) != 0) {
+        loguser("Error reading proxy response Status-Line.\n");
+        goto bail;
+    }
+    code = http_parse_status_line_code(status_line);
+    logdebug("Proxy returned status code %d.\n", code);
+    free(status_line);
+    status_line = NULL;
+    if (http_read_header(&sockbuf, &header) != 0) {
+        loguser("Error reading proxy response header.\n");
+        goto bail;
+    }
+
+    if (code == 407 && o.proxy_auth != NULL) {
+        struct http_header *h;
+        struct http_challenge challenge;
+
+        close(sd);
+        sd = -1;
+
+        if (http_parse_header(&h, header) != 0) {
+            loguser("Error parsing proxy response header.\n");
+            goto bail;
+        }
+        free(header);
+        header = NULL;
+
+        if (http_header_get_proxy_challenge(h, &challenge) == NULL) {
+            loguser("Error getting Proxy-Authenticate challenge.\n");
+            http_header_free(h);
+            goto bail;
+        }
+        http_header_free(h);
+
+        sd = do_connect(SOCK_STREAM);
+        if (sd == -1) {
+            loguser("Proxy reconnection failed: %s.\n", socket_strerror(socket_errno()));
+            goto bail;
+        }
+
+        request = http_connect_request_auth(&httpconnect, &n, &challenge);
+        if (request == NULL) {
+            loguser("Error building Proxy-Authorization header.\n");
+            http_challenge_free(&challenge);
+            goto bail;
+        }
+        logdebug("Reconnection header:\n%s", request);
+        if (send(sd, request, n, 0) < 0) {
+            loguser("Error sending proxy request: %s.\n", socket_strerror(socket_errno()));
+            free(request);
+            http_challenge_free(&challenge);
+            goto bail;
+        }
+        free(request);
+        http_challenge_free(&challenge);
+
+        socket_buffer_init(&sockbuf, sd);
+
+        if (http_read_status_line(&sockbuf, &status_line) != 0) {
+            loguser("Error reading proxy response Status-Line.\n");
+            goto bail;
+        }
+        code = http_parse_status_line_code(status_line);
+        logdebug("Proxy returned status code %d.\n", code);
+        free(status_line);
+        status_line = NULL;
+        if (http_read_header(&sockbuf, &header) != 0) {
+            loguser("Error reading proxy response header.\n");
+            goto bail;
+        }
+    }
+
+    free(header);
+    header = NULL;
+
+    if (code != 200) {
+        loguser("Proxy returned status code %d.\n", code);
+        return -1;
+    }
+
+    remainder = socket_buffer_remainder(&sockbuf, &len);
+    Write(STDOUT_FILENO, remainder, len);
+
+    return sd;
+
+bail:
+    if (sd != -1)
+        close(sd);
+    if (status_line != NULL)
+        free(status_line);
+    if (header != NULL)
+        free(header);
+
+    return -1;
+}
+
 int ncat_connect(void) {
     nsock_pool mypool;
     nsock_event_id ev;
@@ -244,7 +466,10 @@ int ncat_connect(void) {
 
     if (o.debug > 1)
         /* A trace level of 1 still gives you an awful lot. */
-        nsp_settrace(mypool, 1, nsock_gettimeofday());
+        nsp_settrace(mypool, stderr, 1, nsock_gettimeofday());
+
+    /* Allow connections to broadcast addresses. */
+    nsp_setbroadcast(mypool, 1);
 
 #ifdef HAVE_OPENSSL
     set_ssl_ctx_options((SSL_CTX *)nsp_ssl_init(mypool));
@@ -256,6 +481,9 @@ int ncat_connect(void) {
         cs.sock_nsi = nsi_new(mypool, NULL);
         if (cs.sock_nsi == NULL)
             bye("Failed to create nsock_iod.");
+
+        if (nsi_set_hostname(cs.sock_nsi, o.target) == -1)
+            bye("Failed to set hostname on iod.");
 
         if (srcaddr.storage.ss_family != AF_UNSPEC)
             nsi_set_localaddr(cs.sock_nsi, &srcaddr.storage, srcaddrlen);
@@ -310,58 +538,31 @@ int ncat_connect(void) {
     } else {
         /* A proxy connection. */
         static int connect_socket;
-        static char *proxy_request;
-        char *headerbuf;
-        char *statusbuf ;
-        struct socket_buffer stateful_buf;
         int len;
         char* line;
         size_t n;
 
-        connect_socket = do_connect(SOCK_STREAM);
-        if (connect_socket == -1) {
-            loguser("Proxy connection failed: %s.\n", socket_strerror(socket_errno()));
-            return 1;
-        }
-
-        socket_buffer_init(&stateful_buf, connect_socket);
-
-        if (o.verbose) {
-            loguser("Connected to proxy %s:%hu\n", inet_socktop(&targetss),
-                inet_port(&targetss));
-        }
-
         if (httpconnect.storage.ss_family != AF_UNSPEC) {
-            int code;
-
-            proxy_request = http_proxy_client_request(o.proxy_auth);
-            len = strlen(proxy_request);
-            if (send(connect_socket, proxy_request, len, 0) < 0) {
-                loguser("Error sending proxy request: %s.\n", socket_strerror(socket_errno()));
+            connect_socket = do_proxy_http();
+            if (connect_socket == -1)
                 return 1;
-            }
-            if (http_read_status_line(&stateful_buf, &statusbuf) != 0) {
-                loguser("Error reading proxy response Status-Line.\n");
-                return 1;
-            }
-            if (o.debug > 1)
-                logdebug("Status-Line: %s", statusbuf);
-
-            code = http_parse_status_line_code(statusbuf);
-            free(statusbuf);
-            if (code != 200) {
-                loguser("Proxy returned status code %d.\n", code);
-                return 1;
-            }
-
-            if (http_read_header(&stateful_buf, &headerbuf) != 0) {
-                loguser("Error reading proxy response header.\n");
-                return 1;
-            }
-            free(headerbuf);
         } else if (socksconnect.storage.ss_family != AF_UNSPEC) {
+            struct socket_buffer stateful_buf;
             struct socks4_data socks4msg;
-            char socksbuf[7];
+            char socksbuf[8];
+
+            connect_socket = do_connect(SOCK_STREAM);
+            if (connect_socket == -1) {
+                loguser("Proxy connection failed: %s.\n", socket_strerror(socket_errno()));
+                return 1;
+            }
+
+            socket_buffer_init(&stateful_buf, connect_socket);
+
+            if (o.verbose) {
+                loguser("Connected to proxy %s:%hu\n", inet_socktop(&targetss),
+                    inet_port(&targetss));
+            }
 
             /* Fill the socks4_data struct */
             zmem(&socks4msg, sizeof(socks4msg));
@@ -378,9 +579,9 @@ int ncat_connect(void) {
                 loguser("Error sending proxy request: %s.\n", socket_strerror(socket_errno()));
                 return 1;
             }
-            /* The size of the socks4 response is 7 bytes. So read exactly
-               7 bytes from the buffer */
-            if (socket_buffer_readcount(&stateful_buf, socksbuf, 7) < 0) {
+            /* The size of the socks4 response is 8 bytes. So read exactly
+               8 bytes from the buffer */
+            if (socket_buffer_readcount(&stateful_buf, socksbuf, 8) < 0) {
                 loguser("Error: short reponse from proxy.\n");
                 return 1;
             }
@@ -388,13 +589,13 @@ int ncat_connect(void) {
                 loguser("Proxy connection failed.\n");
                 return 1;
             }
-        }
 
-        /* Clear out whatever is left in the socket buffer which may be
-           already sent by proxy server along with http response headers. */
-        line = socket_buffer_remainder(&stateful_buf, &n);
-        /* Write the leftover data to stdout. */
-        Write(STDOUT_FILENO, line, n);
+            /* Clear out whatever is left in the socket buffer which may be
+               already sent by proxy server along with http response headers. */
+            line = socket_buffer_remainder(&stateful_buf, &n);
+            /* Write the leftover data to stdout. */
+            Write(STDOUT_FILENO, line, n);
+        }
 
         /* Once the proxy negotiation is done, Nsock takes control of the
            socket. */
@@ -404,15 +605,7 @@ int ncat_connect(void) {
         if ((cs.stdin_nsi = nsi_new2(mypool, 0, NULL)) == NULL)
             bye("Failed to create stdin nsiod.");
 
-        if (o.sendonly == 0) {
-            /* socket event? */
-            nsock_read(mypool, cs.sock_nsi, read_socket_handler, -1, NULL);
-        }
-
-        if (o.recvonly == 0) {
-            /* stdin-fd event? */
-            nsock_readbytes(mypool, cs.stdin_nsi, read_stdin_handler, -1, NULL, 0);
-        }
+        post_connect(mypool, cs.sock_nsi);
     }
 
     /* connect */
@@ -420,8 +613,9 @@ int ncat_connect(void) {
 
     if (o.verbose) {
         struct timeval end_time;
+        double time;
         gettimeofday(&end_time, NULL);
-        double time = TIMEVAL_MSEC_SUBTRACT(end_time, start_time) / 1000.0;
+        time = TIMEVAL_MSEC_SUBTRACT(end_time, start_time) / 1000.0;
         loguser("%lu bytes sent, %lu bytes received in %.2f seconds.\n",
             nsi_get_write_count(cs.sock_nsi),
             nsi_get_read_count(cs.sock_nsi), time);
@@ -464,13 +658,20 @@ static void connect_handler(nsock_pool nsp, nsock_event evt, void *data)
     if ((cs.stdin_nsi = nsi_new2(nsp, 0, NULL)) == NULL)
         bye("Failed to create stdin nsiod.");
 
+    post_connect(nsp, nse_iod(evt));
+}
+
+/* Handle --exec if appropriate, otherwise start the initial read events and set
+   the idle timeout. */
+static void post_connect(nsock_pool nsp, nsock_iod iod)
+{
     /* Command to execute. */
     if (o.cmdexec) {
         struct fdinfo info;
 
-        info.fd = nsi_getsd(nse_iod(evt));
+        info.fd = nsi_getsd(iod);
 #ifdef HAVE_OPENSSL
-        info.ssl = (SSL *) nsi_getssl(nse_iod(evt));
+        info.ssl = (SSL *) nsi_getssl(iod);
 #endif
         /* Convert Nsock's non-blocking socket to an ordinary blocking one. It's
            possible for a program to write fast enough that it will get an
@@ -530,7 +731,7 @@ static void read_stdin_handler(nsock_pool nsp, nsock_event evt, void *data)
         ncat_delay_timer(o.linedelay);
 
     if (o.crlf) {
-        if (fix_line_endings(buf, &nbytes, &tmp))
+        if (fix_line_endings(buf, &nbytes, &tmp, &cs.crlf_state))
             buf = tmp;
     }
 

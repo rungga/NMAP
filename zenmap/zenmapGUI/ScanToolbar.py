@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -106,10 +106,10 @@ class ScanCommandToolbar(HIGHBox):
 
         self.command_label = HIGEntryLabel(_("Command:"))
         self.command_entry = gtk.Entry()
-        
+
         self._pack_noexpand_nofill(self.command_label)
         self._pack_expand_fill(self.command_entry)
-        
+
     def get_command(self):
         """Retrieve command entry"""
         return self.command_entry.get_text().decode("UTF-8")
@@ -123,13 +123,13 @@ class ScanCommandToolbar(HIGHBox):
 
 class ScanToolbar(HIGHBox):
     """
-    This function regards the Scanning Toolbar, which includes 
+    This function regards the Scanning Toolbar, which includes
     the Target and Profile editable fields/dropdown boxes, as well as
     the Scan button and assigns events and and actions associated with
     each.
     """
     def __init__(self):
-        """Initialize Scan Toolbar, including Events, and packing all 
+        """Initialize Scan Toolbar, including Events, and packing all
         of the GUI elements in layout"""
         HIGHBox.__init__(self)
 
@@ -143,10 +143,10 @@ class ScanToolbar(HIGHBox):
 
         self._pack_noexpand_nofill(self.target_label)
         self._pack_expand_fill(self.target_entry)
-        
+
         self._pack_noexpand_nofill(self.profile_label)
         self._pack_expand_fill(self.profile_entry)
-        
+
         self._pack_noexpand_nofill(self.scan_button)
         self._pack_noexpand_nofill(self.cancel_button)
 
@@ -157,24 +157,24 @@ class ScanToolbar(HIGHBox):
                         lambda x: self.profile_entry.grab_focus())
         self.profile_entry.child.connect('activate',
                         lambda x: self.scan_button.clicked())
-        
+
     def _create_target(self):
         """Create a target and update the list"""
         self.target_label = HIGEntryLabel(_("Target:"))
         self.target_entry = TargetCombo()
-        
+
         self.update_target_list()
 
     def _create_profile(self):
         """Create new profile and update list"""
         self.profile_label = HIGEntryLabel(_('Profile:'))
         self.profile_entry = ProfileCombo()
-        
+
         self.update()
 
     def update_target_list(self):
         self.target_entry.update()
-        
+
     def add_new_target(self, target):
         self.target_entry.add_new_target(target)
 
@@ -188,7 +188,7 @@ class ScanToolbar(HIGHBox):
 
     def update(self):
         self.profile_entry.update()
-    
+
     def set_profiles(self, profiles):
         """Modify profile"""
         self.profile_entry.set_profiles(profiles)

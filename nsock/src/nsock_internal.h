@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -18,15 +18,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -55,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_internal.h 15192 2009-08-20 21:36:58Z david $ */
+/* $Id: nsock_internal.h 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #ifndef NSOCK_INTERNAL_H
 #define NSOCK_INTERNAL_H
@@ -102,8 +102,6 @@
 #ifndef IPPROTO_SCTP
 #define IPPROTO_SCTP 132
 #endif
-
-#include "nsock_utils.h"
 
 /*********      STRUCTURES   **************/
 
@@ -162,6 +160,8 @@ struct readinfo {
 };
 
 struct writeinfo {
+  struct sockaddr_storage dest;
+  size_t destlen;
   int written_so_far; /* Number of bytes successfully written */
 };
 
@@ -182,8 +182,10 @@ typedef struct  {
   unsigned long next_iod_serial; /* Serial # of next iod to be created */
   int errnum; /* If nsock_loop() returns NSOCK_LOOP_ERROR, this is where we
 		describe the error (errnum fashion) */
-  int tracelevel; /* Trace/debug level - set by nsp_settrace.  If positive, trace logs are printted to
-		     stdout */
+  int tracelevel; /* Trace/debug level - set by nsp_settrace. If positive,
+                     trace logs are printted to tracefile. */
+  FILE *tracefile;
+  int broadcast; /* If true, new sockets will have SO_BROADCAST set */
   /* This time is subtracted from the current time for trace reports */
   struct timeval tracebasetime; 
 
@@ -239,6 +241,10 @@ struct msiod {
 					     this msiod from the
 					     allocated list when
 					     neccessary */
+
+  /* Used for SSL Server Name Indication. */
+  char *hostname;
+
 #if HAVE_OPENSSL
   SSL *ssl; /* An SSL connection (or NULL if none) */
   SSL_SESSION *ssl_session; /* SSL SESSION ID (or NULL if none) */

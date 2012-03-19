@@ -10,7 +10,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(nsock_core.c)
 
 dnl use nsock_config.h instad of -D macros
-AC_CONFIG_HEADER(nsock_config.h)
+AC_CONFIG_HEADER(../include/nsock_config.h)
 
 dnl Host specific hacks
 AC_CANONICAL_HOST
@@ -98,6 +98,15 @@ if test "$user_localdirs" = 1; then
    fi
 fi
 
+pcap_enabled=yes
+AC_ARG_WITH(pcap,
+  AC_HELP_STRING([--disable-pcap], [Disable pcap functions.]),
+  [ pcap_enabled="$withval" ])
+
+if test "$pcap_enabled" != "no"; then
+  AC_DEFINE(HAVE_PCAP)
+fi
+
 dnl Checks for programs.
 AC_PROG_CC
  if test -n "$GCC"; then
@@ -122,6 +131,7 @@ AC_CHECK_FUNC(nanosleep, , AC_CHECK_LIB(posix4, nanosleep))
 
 dnl Checks for header files.
 AC_HEADER_STDC
+AC_CHECK_HEADERS(net/bpf.h sys/ioctl.h)
 
 # We test whether they specified openssl desires explicitly
 use_openssl="yes"
@@ -183,9 +193,15 @@ OPENSSL_LIBS=
 if test "$use_openssl" = "yes"; then
   AC_DEFINE(HAVE_OPENSSL)
   OPENSSL_LIBS="-lssl -lcrypto"
+  LIBS="$LIBS $OPENSSL_LIBS"
 fi
 
 AC_SUBST(OPENSSL_LIBS)
+
+AC_MSG_CHECKING([for SSL_set_tlsext_host_name])
+AC_TRY_LINK([#include <openssl/ssl.h>], [SSL_set_tlsext_host_name(NULL, NULL)],
+  [AC_MSG_RESULT([yes]); AC_DEFINE(HAVE_SSL_SET_TLSEXT_HOST_NAME)],
+  [AC_MSG_RESULT([no])])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 

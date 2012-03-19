@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
- 
+
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -126,7 +126,7 @@ def mo_find(result, dirname, fnames):
         p = os.path.join(dirname, f)
         if os.path.isfile(p) and f.endswith(".mo"):
             files.append(p)
-        
+
     if files:
         result.append((dirname, files))
 
@@ -143,7 +143,7 @@ data_files = [ (pixmaps_dir, glob(os.path.join(pixmaps_dir, '*.gif')) +
                             [os.path.join(config_dir, 'scan_profile.usp')] +
                             [os.path.join(config_dir, APP_NAME + '_version')]),
 
-               (misc_dir, glob(os.path.join(misc_dir, '*.xml'))), 
+               (misc_dir, glob(os.path.join(misc_dir, '*.xml'))),
 
                (docs_dir, [os.path.join(docs_dir, 'help.html')])]
 
@@ -192,7 +192,7 @@ def path_strip_prefix(path, prefix):
 
 class my_install(install):
     def finalize_options(self):
-	# Ubuntu's python2.6-2.6.4-0ubuntu3 package changes sys.prefix in
+        # Ubuntu's python2.6-2.6.4-0ubuntu3 package changes sys.prefix in
         # install.finalize_options when sys.prefix is "/usr/local" (our
         # default). Because we need the unchanged value later, remember it here.
         self.saved_prefix = self.prefix
@@ -317,7 +317,7 @@ for dir in dirs:
         ucontent = ufile.readlines()
         ufile.close()
 
-	# Insert our custom import after the first non-comment line.
+        # Insert our custom import after the first non-comment line.
         re_sys = re.compile("^#")
         uline = 0
         for line in ucontent:
@@ -355,7 +355,9 @@ for dir in dirs:
                              "DOCS_DIR": os.path.join(self.saved_prefix, docs_dir),
                              "LOCALE_DIR": os.path.join(self.saved_prefix, locale_dir),
                              "MISC_DIR": os.path.join(self.saved_prefix, misc_dir),
-                             "PIXMAPS_DIR": os.path.join(self.saved_prefix, pixmaps_dir)}
+                             "PIXMAPS_DIR": os.path.join(self.saved_prefix, pixmaps_dir),
+                             # See $(nmapdatadir) in nmap/Makefile.in.
+                             "NMAPDATADIR": os.path.join(self.saved_prefix, "share", "nmap"),}
 
         # Find and read the Paths.py file.
         pcontent = ""
@@ -528,20 +530,12 @@ if 'py2exe' in sys.argv:
         'console': [{"script": "../ndiff/ndiff", "description": "Nmap scan comparison tool"}],
         'options': {"py2exe": {
             "compressed": 1,
-            "optimize":2,
-            "packages":"encodings",
-            "includes" : "\
-pango,\
-atk,\
-gobject,\
-pickle,\
-bz2,\
-encodings,\
-encodings.*,\
-cairo,\
-pangocairo,\
-atk\
-"}}
+            "optimize": 2,
+            "packages": ["encodings"],
+            "includes": ["pango", "atk", "gobject", "gio", "pickle", "bz2", "encodings", "encodings.*", "cairo", "pangocairo"],
+            "dll_excludes": ["USP10.dll", "NSI.dll", "MSIMG32.dll", "DNSAPI.dll"]
+            }
+        }
     }
 
     setup_args.update(WINDOWS_SETUP_ARGS)

@@ -8,7 +8,6 @@
 #include <openssl/crypto.h>
 #include <openssl/bn.h>
 #include <openssl/rand.h>
-#include <openssl/md2.h>
 #include <openssl/md4.h>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
@@ -100,6 +99,19 @@ static int l_bignum_mod_exp( lua_State *L ) /** bignum_mod_exp( BIGNUM a, BIGNUM
   BN_CTX_init( ctx );
   BN_mod_exp( result, a->bn, p->bn, m->bn, ctx );
   BN_CTX_free( ctx );
+  bignum_data_t * data = (bignum_data_t *) lua_newuserdata( L, sizeof(bignum_data_t));
+  luaL_getmetatable( L, "BIGNUM" );
+  lua_setmetatable( L, -2 );
+  data->bn = result;
+  return 1;
+}
+
+static int l_bignum_add( lua_State *L ) /** bignum_add( BIGNUM a, BIGNUM b ) */
+{
+  bignum_data_t * a = (bignum_data_t *) luaL_checkudata(L, 1, "BIGNUM");
+  bignum_data_t * b = (bignum_data_t *) luaL_checkudata(L, 2, "BIGNUM");
+  BIGNUM * result = BN_new();
+  BN_add( result, a->bn, b->bn );
   bignum_data_t * data = (bignum_data_t *) lua_newuserdata( L, sizeof(bignum_data_t));
   luaL_getmetatable( L, "BIGNUM" );
   lua_setmetatable( L, -2 );
@@ -203,16 +215,6 @@ static int l_rand_pseudo_bytes( lua_State *L ) /** rand_pseudo_bytes( number byt
   RAND_pseudo_bytes( result, len );
   lua_pushlstring( L, (char *) result, len );
   free( result );
-  return 1;
-}
-
-static int l_md2(lua_State *L)     /** md2(string s) */
-{
-  size_t len;
-  const unsigned char *s = (unsigned char *) luaL_checklstring( L, 1, &len );
-  unsigned char digest[16];
- 
-  lua_pushlstring( L, (char *) MD2( s, len, digest ), 16 );
   return 1;
 }
 
@@ -348,22 +350,39 @@ static int l_encrypt(lua_State *L) /** encrypt( string algorithm, string key, st
   const EVP_CIPHER * evp_cipher = EVP_get_cipherbyname( algorithm );
   if (!evp_cipher) return luaL_error( L, "Unknown cipher algorithm: %s", algorithm );
 
-  size_t data_len;
-  const unsigned char *key = (unsigned char *) luaL_checkstring( L, 2 );
-  const unsigned char *iv = (unsigned char *) luaL_optstring( L, 3, "" );
+  size_t key_len, iv_len, data_len;
+  const unsigned char *key = (unsigned char *) luaL_checklstring( L, 2, &key_len );
+  const unsigned char *iv = (unsigned char *) luaL_optlstring( L, 3, "", &iv_len );
   const unsigned char *data = (unsigned char *) luaL_checklstring( L, 4, &data_len );
   int padding = lua_toboolean( L, 5 );
+  if (iv[0] == '\0')
+    iv = NULL;
 
   EVP_CIPHER_CTX cipher_ctx;
   EVP_CIPHER_CTX_init( &cipher_ctx );   
+
+  /* First create the cipher context, then set the key length and padding, and
+     check the iv length. Below we set the key and iv. */
+  if (!(
+      EVP_EncryptInit_ex( &cipher_ctx, evp_cipher, NULL, NULL, NULL ) &&
+      EVP_CIPHER_CTX_set_key_length( &cipher_ctx, key_len ) &&
+      EVP_CIPHER_CTX_set_padding( &cipher_ctx, padding ))) {
+    unsigned long e = ERR_get_error();
+    return luaL_error( L, "OpenSSL error %d in %s: function %s: %s", e, ERR_lib_error_string(e), 
+                       ERR_func_error_string(e), ERR_reason_error_string(e));
+  }
+
+  if (iv != NULL && (int) iv_len != EVP_CIPHER_CTX_iv_length( &cipher_ctx )) {
+    return luaL_error( L, "Length of iv is %d; should be %d",
+      (int) iv_len, EVP_CIPHER_CTX_iv_length( &cipher_ctx ));
+  }
 
   int out_len, final_len;
   unsigned char * out = (unsigned char *) malloc( data_len + EVP_MAX_BLOCK_LENGTH );
   if (!out) return luaL_error( L, "Couldn't allocate memory.");
 
   if (!(
-      EVP_EncryptInit_ex( &cipher_ctx, evp_cipher, NULL, key, *iv ? iv : NULL ) &&
-      EVP_CIPHER_CTX_set_padding( &cipher_ctx, padding ) &&
+      EVP_EncryptInit_ex( &cipher_ctx, NULL, NULL, key, iv ) &&
       EVP_EncryptUpdate( &cipher_ctx, out, &out_len, data, data_len ) &&
       EVP_EncryptFinal_ex( &cipher_ctx, out + out_len, &final_len ) )) {
     EVP_CIPHER_CTX_cleanup( &cipher_ctx );
@@ -387,22 +406,37 @@ static int l_decrypt(lua_State *L) /** decrypt( string algorithm, string key, st
   const EVP_CIPHER * evp_cipher = EVP_get_cipherbyname( algorithm );
   if (!evp_cipher) return luaL_error( L, "Unknown cipher algorithm: %s", algorithm );
 
-  size_t data_len;
-  const unsigned char *key = (unsigned char *) luaL_checkstring( L, 2 );
-  const unsigned char *iv = (unsigned char *) luaL_optstring( L, 3, "" );
+  size_t key_len, iv_len, data_len;
+  const unsigned char *key = (unsigned char *) luaL_checklstring( L, 2, &key_len );
+  const unsigned char *iv = (unsigned char *) luaL_optlstring( L, 3, "", &iv_len );
   const unsigned char *data = (unsigned char *) luaL_checklstring( L, 4, &data_len );
   int padding = lua_toboolean( L, 5 );
+  if (iv[0] == '\0')
+    iv = NULL;
 
   EVP_CIPHER_CTX cipher_ctx;
   EVP_CIPHER_CTX_init( &cipher_ctx );   
+
+  if (!(
+      EVP_DecryptInit_ex( &cipher_ctx, evp_cipher, NULL, NULL, NULL ) &&
+      EVP_CIPHER_CTX_set_key_length( &cipher_ctx, key_len ) &&
+      EVP_CIPHER_CTX_set_padding( &cipher_ctx, padding ))) {
+    unsigned long e = ERR_get_error();
+    return luaL_error( L, "OpenSSL error %d in %s: function %s: %s", e, ERR_lib_error_string(e), 
+                       ERR_func_error_string(e), ERR_reason_error_string(e));
+  }
+
+  if (iv != NULL && (int) iv_len != EVP_CIPHER_CTX_iv_length( &cipher_ctx )) {
+    return luaL_error( L, "Length of iv is %d; should be %d",
+      (int) iv_len, EVP_CIPHER_CTX_iv_length( &cipher_ctx ));
+  }
 
   int out_len, final_len;
   unsigned char * out = (unsigned char *) malloc( data_len );
   if (!out) return luaL_error( L, "Couldn't allocate memory.");
 
   if (!(
-      EVP_DecryptInit_ex( &cipher_ctx, evp_cipher, NULL, key, *iv ? iv : NULL ) &&
-      EVP_CIPHER_CTX_set_padding( &cipher_ctx, padding ) &&
+      EVP_DecryptInit_ex( &cipher_ctx, NULL, NULL, key, iv ) &&
       EVP_DecryptUpdate( &cipher_ctx, out, &out_len, data, data_len ) &&
       EVP_DecryptFinal_ex( &cipher_ctx, out + out_len, &final_len ) )) {
     EVP_CIPHER_CTX_cleanup( &cipher_ctx );
@@ -466,10 +500,10 @@ static const struct luaL_reg openssllib[] = {
   { "bignum_bn2bin", l_bignum_bn2bin },
   { "bignum_bn2dec", l_bignum_bn2dec },
   { "bignum_bn2hex", l_bignum_bn2hex },
+  { "bignum_add", l_bignum_add },
   { "bignum_mod_exp", l_bignum_mod_exp },
   { "rand_bytes", l_rand_bytes },
   { "rand_pseudo_bytes", l_rand_pseudo_bytes },
-  { "md2", l_md2 },
   { "md4", l_md4 },
   { "md5", l_md5 },
   { "sha1", l_sha1 },

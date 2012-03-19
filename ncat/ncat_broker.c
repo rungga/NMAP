@@ -2,7 +2,7 @@
  * ncat_broker.c -- --broker and --chat modes.                             *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_broker.c 16410 2010-01-06 05:54:55Z david $ */
+/* $Id: ncat_broker.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "ncat.h"
 
@@ -123,6 +123,7 @@ static int listen_socket;
 static int conn_count = 0;
 /* Has stdin seen EOF? */
 static int stdin_eof = 0;
+static int crlf_state = 0;
 
 static void handle_connection(void);
 static void read_and_broadcast(int recv_socket);
@@ -335,7 +336,7 @@ static void read_and_broadcast(int recv_fd)
 	    }
 
 	    if (o.crlf)
-		fix_line_endings((char *) buf, &n, &tempbuf);
+		fix_line_endings((char *) buf, &n, &tempbuf, &crlf_state);
 
 	    pending = 0;
 	} else {

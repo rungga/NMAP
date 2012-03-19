@@ -1,4 +1,4 @@
-$Id: HACKING 12446 2009-03-07 03:28:42Z fyodor $
+$Id: HACKING 17641 2010-05-23 17:42:44Z luis $
 
 Nmap HACKING
 ------------
@@ -13,16 +13,17 @@ it.  This also allows you to audit the software for security holes
 Source code also allows you to port Nmap to new platforms, fix bugs,
 and add new features.  You are highly encouraged to send your changes
 to nmap-dev@insecure.org for possible incorporation into the main
-distribution.  By sending these changes to Fyodor or one the
-insecure.org development mailing lists, it is assumed that you are
-offering Fyodor the unlimited, non-exclusive right to reuse, modify,
-and relicense the code.  This is important because the inability to
-relicense code has caused devastating problems for other Free Software
-projects (such as KDE and NASM).  Nmap will always be available Open
-Source.  If you wish to specify special license conditions of your
-contributions, just say so when you send them.
+distribution.  By sending these changes to Fyodor or one of the
+Insecure.Org development mailing lists, it is assumed that you are
+offering the Nmap Project (Insecure.Com LLC) unlimited, non-exclusive
+right to reuse, modify, and relicense the code.  This is important
+because the inability to relicense code has caused devastating
+problems for other Free Software projects (such as KDE and NASM).
+Nmap will always be available Open Source.  If you wish to specify
+special license conditions of your contributions, just say so when you
+send them.
 
-Nmap is a community project and has already benefitted greatly from
+Nmap is a community project and has already benefited greatly from
 outside contributors (for examples, see the CHANGELOG at
 http://nmap.org/changelog.html).  Bugfixes, and portability changes
 will almost always be accepted.  Even if you do not have time to track
@@ -36,9 +37,6 @@ might want to subscribe to that mailing list as well -- send a blank
 email to nmap-dev-subscribe@insecure.org .  While you are at it, you
 might also want to subscribe to nmap-hackers via the same mechanism.
 Web archives of those lists are at http://lists.insecure.org .
-
-If you are not ready to send details of your feature to the whole
-list, you can always start by mailing fyodor@insecure.org .
 
 Some ideas of useful contributions/projects
 -------------------------------------------
@@ -62,7 +60,7 @@ How to make code contributions
 
 The preferred mechanism for submitted changes is unified diffs against
 the latest development release version of Nmap.  Please send them to
-fyodor@insecure.org or nmap-dev@insecure.org .  
+nmap-dev@insecure.org .  
 
 To make a unified diff, please follow these instructions:
 
@@ -71,13 +69,13 @@ To make a unified diff, please follow these instructions:
 
 2. Rename your source tree:
     cd ..
-    mv nmap-2.54BETA4 nmap-2.54BETA4-snazzy-feature
+    mv nmap-5.21 nmap-5.21-snazzy-feature
 
 3. Unpack the original Nmap source alongside it:
-    tar xzf nmap-2.54BETA4.tgz
+    tar xzf nmap-5.21.tgz
 
 4. Generate the diffs:
-   diff -urNb nmap-2.54BETA4 nmap-2.54BETA4-snazzy-feature > nmap.patch
+   diff -urNb nmap-5.21 nmap-5.21-snazzy-feature > nmap.patch
 
 5. Check the patch and remove any unnecessary patches from the file.
 

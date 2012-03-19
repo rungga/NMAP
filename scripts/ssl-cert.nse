@@ -91,7 +91,7 @@ action = function(host, port)
             return nil
         end
     else
-        local status, error = s:connect(host.ip, port.number, "ssl")
+        local status, error = s:connect(host, port, "ssl")
         
         if not status then
             if nmap.verbosity() > 0 then
@@ -111,6 +111,11 @@ action = function(host, port)
 
     if nmap.verbosity() > 0 then
         lines[#lines + 1] = "Issuer: " .. stringify_name(cert.issuer)
+    end
+
+    if nmap.verbosity() > 0 then
+        lines[#lines + 1] = "Public Key type: " .. cert.pubkey.type
+        lines[#lines + 1] = "Public Key bits: " .. cert.pubkey.bits
     end
 
     lines[#lines + 1] = "Not valid before: " ..
@@ -188,7 +193,7 @@ function starttls_negotiate(host, port)
     -- Works for SMTP (25) and SMTP Submission (587)
 
     -- Open a standard TCP socket
-    local status, error = s:connect(host.ip, port.number, "tcp")  
+    local status, error = s:connect(host, port, "tcp")  
         
     if not status then   
         return nil

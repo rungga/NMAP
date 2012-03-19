@@ -1,7 +1,17 @@
 #include "nsock.h"
 #include "nsock_internal.h"
-#include "nsock_pcap.h"
+
 #include <limits.h>
+#if HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+#if HAVE_NET_BPF_H
+#include <net/bpf.h>
+#endif
+
+#include "nsock_pcap.h"
+
+extern struct timeval nsock_tod;
 
 #if HAVE_PCAP
 static int nsock_pcap_get_l3_offset(pcap_t *pt, int *dl);
@@ -25,14 +35,15 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod,
 	mspool *ms = (mspool *) nsp;
 	mspcap *mp = (mspcap *) nsi->pcap;
 	static char errorbuf[128];
-	
-	if(mp) return "nsock-pcap: this nsi already has pcap device opened";
-	
-	mp = (mspcap *)safe_malloc(sizeof(mspcap));
-	nsi->pcap = (void*)mp;
-	
 	char err0r[PCAP_ERRBUF_SIZE];
-	
+	/* packet filter string */
+	char bpf[4096];
+	va_list ap;
+	int failed, datalink;
+	char *e;
+
+	gettimeofday(&nsock_tod, NULL);
+
 	#ifdef PCAP_CAN_DO_SELECT
 	  #if PCAP_BSD_SELECT_HACK
 	    /* MacOsX reports error if to_ms is too big (like INT_MAX) with error
@@ -45,10 +56,9 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod,
 	#else
 	int to_ms = 1;
 	#endif
-
-	/* packet filter string */
-	char bpf[4096];
-	va_list ap;
+	if(mp) return "nsock-pcap: this nsi already has pcap device opened";
+	mp = (mspcap *)safe_malloc(sizeof(mspcap));
+	nsi->pcap = (void*)mp;
 	
 	va_start(ap, bpf_fmt);
 	if(Vsnprintf(bpf, sizeof(bpf), bpf_fmt, ap) >= (int) sizeof(bpf)){
@@ -61,7 +71,7 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod,
   		nsock_trace(ms, "PCAP requested on device '%s' with berkeley filter '%s' (promisc=%i snaplen=%i to_ms=%i) (IOD #%li)", 
   		pcap_device,bpf, promisc, snaplen, to_ms, nsi->id);
 
-	int failed = 0;
+	failed = 0;
 	do {
 		mp->pt = pcap_open_live((char*)pcap_device, snaplen, promisc, to_ms, err0r);
 		if (mp->pt)	/* okay, opened!*/ 
@@ -71,7 +81,7 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod,
 			fprintf(stderr,
 	"Call to pcap_open_live(%s, %d, %d, %d) failed three times. Reported error: %s\n"
 	"There are several possible reasons for this, depending on your operating system:\n"
-	"LINUX: If you are getting Socket type not supported, try modprobe af_packet or recompile your kernel with SOCK_PACKET enabled.\n"
+	"LINUX: If you are getting Socket type not supported, try modprobe af_packet or recompile your kernel with PACKET enabled.\n"
 	"*BSD:  If you are getting device not configured, you need to recompile your kernel with Berkeley Packet Filter support.  If you are getting No such file or directory, try creating the device (eg cd /dev; MAKEDEV <device>; or use mknod).\n"
 	"*WINDOWS:  Nmap only supports ethernet interfaces on Windows for most operations because Microsoft disabled raw sockets as of Windows XP SP2.  Depending on the reason for this error, it is possible that the --unprivileged command-line argument will help.\n"
 	"SOLARIS:  If you are trying to scan localhost and getting '/dev/lo0: No such file or directory', complain to Sun.  I don't think Solaris can support advanced localhost scans.  You can probably use \"-PN -sT localhost\" though.\n\n", 
@@ -84,19 +94,15 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod,
 		sleep(4* failed);
 	}while(1);
 
-	char *e = nsock_pcap_set_filter(mp->pt, pcap_device, bpf);
+	e = nsock_pcap_set_filter(mp->pt, pcap_device, bpf);
 	if(e) return e;
 	
 	
 	#ifdef WIN32
 	/* We want any responses back ASAP */
 	pcap_setmintocopy(mp->pt, 1);
-	
-	/* If there are no packets left to read exit after to_ms miliseconds*/
-	PacketSetReadTimeout(mp->pt->adapter, to_ms);
 	#endif
 	
-	int datalink;
 	mp->l3_offset = nsock_pcap_get_l3_offset(mp->pt, &datalink);
 	mp->snaplen = snaplen;
 	mp->datalink = datalink;
@@ -107,6 +113,20 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod,
 	mp->pcap_desc = -1;
 	#endif
 	mp->readsd_count = 0;
+
+	/* Without setting this ioctl, some systems (BSDs, though it depends on
+	   the release) will buffer packets in non-blocking mode and only
+	   return them in a bunch when the buffer is full. Setting the ioctl
+	   makes each one be delivered immediately. This is how Linux works by
+	   default. See the comments surrounding the ssetting of BIOCIMMEDIATE
+	   in libpcap/pcap-bpf.c. */
+#ifdef BIOCIMMEDIATE
+	if (mp->pcap_desc != -1) {
+		int immediate = 1;
+		if (ioctl(mp->pcap_desc, BIOCIMMEDIATE, &immediate) < 0)
+			fatal("Cannot set BIOCIMMEDIATE on pcap descriptor");
+	}
+#endif
 
 	/* Set device non-blocking */
 	if(pcap_setnonblock(mp->pt, 1, err0r) < 0){
@@ -280,6 +300,9 @@ int do_actual_pcap_read(msevent *nse)
 	
 	nsock_pcap npp;
 	nsock_pcap *n;
+	struct pcap_pkthdr *pkt_header;
+	const unsigned char *pkt_data = NULL;
+	int rc;
 	memset(&npp, 0, sizeof(nsock_pcap));
 	
 	if (nse->iod->nsp->tracelevel > 2)
@@ -288,9 +311,7 @@ int do_actual_pcap_read(msevent *nse)
 
 	assert( FILESPACE_LENGTH(&(nse->iobuf)) == 0 );
 	
-	struct pcap_pkthdr *pkt_header;
-        const unsigned char *pkt_data = NULL;
-	int rc = pcap_next_ex(mp->pt, &pkt_header, &pkt_data);
+	rc = pcap_next_ex(mp->pt, &pkt_header, &pkt_data);
 	switch(rc){
 	case 1: /* read good packet  */
 		#ifdef PCAP_RECV_TIMEVAL_VALID
@@ -330,6 +351,9 @@ void nse_readpcap(nsock_event nsee,
 	msevent *nse = (msevent *)nsee;
 	msiod  *iod = nse->iod;
 	mspcap *mp = (mspcap *) iod->pcap;
+
+	size_t l2l;
+	size_t l3l;
 	
 	nsock_pcap *n = (nsock_pcap *) FILESPACE_STR(&(nse->iobuf));
 	if(FILESPACE_LENGTH(&(nse->iobuf)) < sizeof(nsock_pcap)){
@@ -341,8 +365,8 @@ void nse_readpcap(nsock_event nsee,
 		return;
 	}
 	
-	size_t l2l = MIN(mp->l3_offset, n->caplen);
-	size_t l3l = MAX(0, n->caplen-mp->l3_offset);
+	l2l = MIN(mp->l3_offset, n->caplen);
+	l3l = MAX(0, n->caplen-mp->l3_offset);
 	
 	if(l2_data) *l2_data = n->packet;
 	if(l2_len ) *l2_len  = l2l;
