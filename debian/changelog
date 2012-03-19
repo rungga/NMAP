@@ -1,6 +1,8 @@
 nmap (5.51-0kali1) UNRELEASED; urgency=low
 
   * New upstream release.
+  * Update debian/name.files and debian/zenmap.files to install all the
+    new files and drop references to removed files.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Mon, 19 Mar 2012 15:54:36 +0000
 
