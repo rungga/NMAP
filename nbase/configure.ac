@@ -2,7 +2,7 @@ dnl # -*- mode: fundamental; -*-
 dnl # Autoconf configuration file for Nbase
 dnl #
 dnl # Process this file with autoconf to produce a configure script.
-dnl # $Id: configure.ac 15005 2009-08-13 21:54:55Z fyodor $
+dnl # $Id: configure.ac 17970 2010-06-10 03:11:17Z david $
 
 # Because nbase is usually distributed with Nmap, the necessary files
 # config.guess, config.guess, and install-sh are not distributed with
@@ -70,8 +70,25 @@ esac
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS( string.h getopt.h strings.h sys/param.h sys/time.h unistd.h errno.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h sys/stat.h net/if.h netdb.h sys/wait.h fcntl.h sys/resource.h inttypes.h)
+AC_CHECK_HEADERS( string.h getopt.h strings.h sys/param.h sys/time.h unistd.h errno.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h sys/stat.h netdb.h sys/wait.h fcntl.h sys/resource.h inttypes.h)
 AC_HEADER_TIME
+dnl A special check required for <net/if.h> on Darwin. See
+dnl http://www.gnu.org/software/autoconf/manual/html_node/Header-Portability.html.
+AC_CHECK_HEADERS([sys/socket.h])
+AC_CHECK_HEADERS([net/if.h], [], [],
+[#include <stdio.h>
+#ifdef STDC_HEADERS
+# include <stdlib.h>
+# include <stddef.h>
+#else
+# ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+# endif
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+# include <sys/socket.h>
+#endif
+])
 
 AC_MSG_CHECKING(for __attribute__)
 AC_CACHE_VAL(ac_cv___attribute__, [

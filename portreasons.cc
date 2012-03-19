@@ -3,7 +3,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -90,23 +90,25 @@
  * Written by Eddie Bell <ejlbell@gmail.com> 2007
  */
 
-#include <iostream>
 #include "nmap.h"
 #include "portlist.h"
 #include "NmapOps.h"
 #include "portreasons.h"
 #include "Target.h"
+#include "xml.h"
 #ifdef WIN32
 #include "winfix.h"
 #endif
+
+#include <iostream>
 
 extern NmapOps o;
 class PortList;
 
 /* Possible plural and singular reasons */
 const char *reason_text[ER_MAX+1]={ 
-        "reset", "conn-refused", "syn-ack", "syn-ack",  "udp-response",
-        "proto-response", "perm-denied",
+        "reset", "conn-refused", "syn-ack", "syn-ack", "split-handshake-syn",
+        "udp-response", "proto-response", "perm-denied",
         "net-unreach", "host-unreach", "proto-unreach",
         "port-unreach", "echo-reply", "unknown", "unknown", "dest-unreach",
         "source-quench", "net-prohibited", "host-prohibited", "unknown", 
@@ -118,8 +120,8 @@ const char *reason_text[ER_MAX+1]={
 };
 
 const char *reason_pl_text[ER_MAX+1]={ 
-        "resets", "conn-refused", "syn-acks", "syn-acks",  "udp-responses",
-        "proto-responses", "perm-denieds",
+        "resets", "conn-refused", "syn-acks", "syn-acks", "split-handshake-syns",
+        "udp-responses", "proto-responses", "perm-denieds",
         "net-unreaches", "host-unreaches", "proto-unreaches",
         "port-unreaches", "echo-replies", "unknowns", "unknowns", "dest-unreaches",
         "source-quenches", "net-prohibiteds", "host-prohibiteds", "unknowns", 
@@ -345,9 +347,13 @@ void print_xml_state_summary(PortList *Ports, int state) {
 		return;
 	
 	while(currentr != NULL) {
-		if(currentr->count > 0)
-			log_write(LOG_XML, "<extrareasons reason=\"%s\" count=\"%d\"/>\n",
-			  reason_str(currentr->reason_id, currentr->count), currentr->count);
+		if(currentr->count > 0) {
+			xml_open_start_tag("extrareasons");
+			xml_attribute("reason", "%s", reason_str(currentr->reason_id, currentr->count));
+			xml_attribute("count", "%d", currentr->count);
+			xml_close_empty_tag();
+			xml_newline();
+		}
 		currentr = currentr->next;
 	}
     state_reason_summary_dinit(reason_head);

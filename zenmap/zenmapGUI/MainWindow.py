@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -116,6 +116,7 @@ from zenmapCore.Paths import Path
 from zenmapCore.RecentScans import recent_scans
 from zenmapCore.UmitLogging import log
 import zenmapCore.I18N
+import zenmapGUI.Print
 from zenmapCore.UmitConf import SearchConfig, is_maemo
 from zenmapCore.NetworkInventory import FilteredNetworkInventory
 
@@ -139,6 +140,15 @@ else:
             HIGMainWindow.__init__(self)
             self.vbox = gtk.VBox()
 
+def can_print():
+    """Return true if we have printing operations (PyGTK 2.10 or later) or false
+    otherwise."""
+    try:
+        gtk.PrintOperation
+    except AttributeError:
+        return False
+    else:
+        return True
 
 class ScanWindow(UmitScanWindow):
     def __init__(self):
@@ -149,17 +159,17 @@ class ScanWindow(UmitScanWindow):
         self.scan_interface = ScanInterface()
 
         self.main_accel_group = gtk.AccelGroup()
-        
+
         self.add_accel_group(self.main_accel_group)
-        
+
         # self.vbox is a container for the menubar and the scan interface
         self.add(self.vbox)
-        
+
         self.connect ('delete-event', self._exit_cb)
         self._create_ui_manager()
         self._create_menubar()
         self._create_scan_interface()
-        
+
         self._results_filechooser_dialog = None
         self._about_dialog = None
 
@@ -167,86 +177,93 @@ class ScanWindow(UmitScanWindow):
         """Creates the UI Manager and a default set of actions, and builds
         the menus using those actions."""
         self.ui_manager = gtk.UIManager()
-        
+
         # See info on ActionGroup at:
         # * http://www.pygtk.org/pygtk2reference/class-gtkactiongroup.html
         # * http://www.gtk.org/api/2.6/gtk/GtkActionGroup.html
         self.main_action_group = gtk.ActionGroup('MainActionGroup')
-        
+
         # See info on Action at:
         # * http://www.pygtk.org/pygtk2reference/class-gtkaction.html
         # * http://www.gtk.org/api/2.6/gtk/GtkAction.html
-        
+
         # Each action tuple can go from 1 to six fields, example:
         # ('Open Scan Results',      -> Name of the action
-        #   gtk.STOCK_OPEN,          -> 
-        #   _('_Open Scan Results'), -> 
+        #   gtk.STOCK_OPEN,          ->
+        #   _('_Open Scan Results'), ->
         #   None,
         #   _('Open the results of a previous scan'),
-        #   lambda x: True) 
-        
+        #   lambda x: True)
+
         # gtk.STOCK_ABOUT is only available in PyGTK 2.6 and later.
         try:
             about_icon = gtk.STOCK_ABOUT
         except:
             about_icon = None
-        
+
         self.main_actions = [ \
             # Top level
-            ('Scan', None, _('Sc_an'), None), 
-            
+            ('Scan', None, _('Sc_an'), None),
+
             ('Save Scan',
                 gtk.STOCK_SAVE,
                 _('_Save Scan'),
                 None,
                 _('Save current scan results'),
                 self._save_scan_results_cb),
-            
+
             ('Save All Scans to Directory',
                 gtk.STOCK_SAVE,
                 _('Save All Scans to _Directory'),
                 "<Control><Alt>s",
                 _('Save all scans into a directory'),
                 self._save_to_directory_cb),
-            
+
             ('Open Scan',
                 gtk.STOCK_OPEN,
                 _('_Open Scan'),
                 None,
                 _('Open the results of a previous scan'),
                 self._load_scan_results_cb),
-            
+
             ('Append Scan',
                 gtk.STOCK_ADD,
                 _('_Open Scan in This Window'),
                 None,
                 _('Append a saved scan to the list of scans in this window.'),
                 self._append_scan_results_cb),
-                    
-            
-            ('Tools', None, _('_Tools'), None), 
-            
+
+
+            ('Tools', None, _('_Tools'), None),
+
             ('New Window',
                 gtk.STOCK_NEW,
                 _('_New Window'),
                 "<Control>N",
                 _('Open a new scan window'),
                 self._new_scan_cb),
-            
+
             ('Close Window',
                 gtk.STOCK_CLOSE,
                 _('Close Window'),
                 "<Control>w",
                 _('Close this scan window'),
                 self._exit_cb),
-            
+
+            ('Print...',
+                gtk.STOCK_PRINT,
+                _('Print...'),
+                None,
+                _('Print the current scan'),
+                self._print_cb),
+
             ('Quit',
                 gtk.STOCK_QUIT,
                 _('Quit'),
                 "<Control>q",
                 _('Quit the application'),
                 self._quit_cb),
-            
+
             ('New Profile',
                 gtk.STOCK_JUSTIFY_LEFT,
                 _('New _Profile or Command'),
@@ -267,25 +284,25 @@ class ScanWindow(UmitScanWindow):
                 '<Control>l',
                 _('Search for host by criteria'),
                 self._filter_cb),
-            
+
             ('Edit Profile',
                 gtk.STOCK_PROPERTIES,
                 _('_Edit Selected Profile'),
                 '<Control>e',
                 _('Edit selected scan profile'),
                 self._edit_scan_profile_cb),
-            
+
             # Top Level
             ('Profile', None, _('_Profile'), None),
-            
+
             ('Compare Results',
                 gtk.STOCK_DND_MULTIPLE,
                 _('Compare Results'),
                 "<Control>D",
                 _('Compare Scan Results using Diffies'),
                 self._load_diff_compare_cb),
-            
-            
+
+
             # Top Level
             ('Help', None, _('_Help'), None),
 
@@ -296,7 +313,7 @@ class ScanWindow(UmitScanWindow):
                 _("Report a bug"),
                 self._show_bug_report
                 ),
-            
+
             ('About',
                 about_icon,
                 _('_About'),
@@ -304,7 +321,7 @@ class ScanWindow(UmitScanWindow):
                 _("About %s") % APP_DISPLAY_NAME,
                 self._show_about_cb
                 ),
-            
+
             ('Show Help',
                 gtk.STOCK_HELP,
                 _('_Help'),
@@ -312,16 +329,16 @@ class ScanWindow(UmitScanWindow):
                 _('Shows the application help'),
                 self._help_cb),
             ]
-        
+
         # See info on UIManager at:
-        # * http://www.pygtk.org/pygtk2reference/class-gtkuimanager.html        
+        # * http://www.pygtk.org/pygtk2reference/class-gtkuimanager.html
         # * http://www.gtk.org/api/2.6/gtk/GtkUIManager.html
-        
+
         # UIManager supports UI "merging" and "unmerging". So, suppose there's
         # no scan running or scan results opened, we should have a minimal
         # interface. When we one scan running, we should "merge" the scan UI.
         # When we get multiple tabs opened, we might merge the tab UI.
-        
+
         # This is the default, minimal UI
         self.default_ui = """<menubar>
         <menu action='Scan'>
@@ -332,6 +349,13 @@ class ScanWindow(UmitScanWindow):
             <separator/>
             <menuitem action='Save Scan'/>
             <menuitem action='Save All Scans to Directory'/>
+        """
+        if can_print():
+            self.default_ui += """
+            <separator/>
+            <menuitem action='Print...'/>
+            """
+        self.default_ui += """
             <separator/>
             <menuitem action='Close Window'/>
             <menuitem action='Quit'/>
@@ -342,29 +366,29 @@ class ScanWindow(UmitScanWindow):
             <menuitem action='Search Scan'/>
             <menuitem action='Filter Hosts'/>
          </menu>
-        
+
         <menu action='Profile'>
             <menuitem action='New Profile'/>
             <menuitem action='Edit Profile'/>
         </menu>
-        
+
         <menu action='Help'>
             <menuitem action='Show Help'/>
             <menuitem action='Report a bug'/>
             <menuitem action='About'/>
         </menu>
-        
+
         </menubar>
         """
-        
+
         self.get_recent_scans()
-        
+
         self.main_action_group.add_actions(self.main_actions)
-        
+
         for action in self.main_action_group.list_actions():
             action.set_accel_group(self.main_accel_group)
             action.connect_accelerator()
-        
+
         self.ui_manager.insert_action_group(self.main_action_group, 0)
         self.ui_manager.add_ui_from_string(self.default_ui)
 
@@ -387,7 +411,7 @@ class ScanWindow(UmitScanWindow):
         function is called to load each of the selected scans into a new window."""
         for result in results:
             self._load(self.get_empty_interface(), parsed_result = results[result][1])
-    
+
     def _append_search_result(self, results):
         """This function is passed as an argument to the SearchWindow.__init__ method.
         When the user selects scans in the search window and clicks on \"Append\", this
@@ -418,17 +442,17 @@ class ScanWindow(UmitScanWindow):
                 scan = scan.replace('\n','')
                 new_rscan = (scan, None, scan, None, scan, self._load_recent_scan)
                 new_rscan_xml += "<menuitem action=%s/>\n" % xml.sax.saxutils.quoteattr(scan)
-                
+
                 self.main_actions.append(new_rscan)
         else:
             new_rscan_xml += "<separator />\n"
-        
+
         self.default_ui %= new_rscan_xml
-    
+
     def _create_menubar(self):
         # Get and pack the menubar
         menubar = self.ui_manager.get_widget('/menubar')
-        
+
         if is_maemo():
             menu = gtk.Menu()
             for child in menubar.get_children():
@@ -444,6 +468,8 @@ class ScanWindow(UmitScanWindow):
 
     def _create_scan_interface(self):
         self.scan_interface.scan_result.scan_result_notebook.scans_list.append_button.connect("clicked", self._append_scan_results_cb)
+        self.scan_interface.scan_result.scan_result_notebook.nmap_output.connect("changed", self._displayed_scan_change_cb)
+        self._displayed_scan_change_cb(None)
         self.scan_interface.show_all()
         self.vbox.pack_start(self.scan_interface, True, True, 0)
 
@@ -451,19 +477,19 @@ class ScanWindow(UmitScanWindow):
         """Show a load file chooser and return the filename chosen."""
         if self._results_filechooser_dialog is None:
             self._results_filechooser_dialog = ResultsFileChooserDialog(title = title)
-        
+
         filename = None
         response = self._results_filechooser_dialog.run()
         if response == gtk.RESPONSE_OK:
             filename = self._results_filechooser_dialog.get_filename()
         elif response == RESPONSE_OPEN_DIRECTORY:
             filename = self._results_filechooser_dialog.get_filename()
-            
+
             # Check if the selected filename is a directory. If not, we take only the
             # directory part of the path, omitting the actual name of the selected file.
             if filename is not None and not os.path.isdir(filename):
                 filename = os.path.dirname(filename)
-        
+
         self._results_filechooser_dialog.hide()
         return filename
 
@@ -477,7 +503,7 @@ class ScanWindow(UmitScanWindow):
                 self._load_directory(scan_interface, filename)
             else:
                 self._load(scan_interface, filename)
-    
+
     def _append_scan_results_cb(self, p):
         """'Append Scan' callback function. Displays a file chooser dialog and appends the
         scan from the selected file into the current window."""
@@ -487,7 +513,17 @@ class ScanWindow(UmitScanWindow):
                 self._load_directory(self.scan_interface, filename)
             else:
                 self._load(self.scan_interface, filename)
-    
+
+    def _displayed_scan_change_cb(self, widget):
+        """Called when the currently shown scan output is changed."""
+        # Set the Print... menu item sensitive if there is something to print.
+        widget = self.ui_manager.get_widget("/ui/menubar/Scan/Print...")
+        if widget is None:
+            # Don't have a Print menu item for lack of support.
+            return
+        entry = self.scan_interface.scan_result.scan_result_notebook.nmap_output.get_active_entry()
+        widget.set_sensitive(entry is not None)
+
     def _load_recent_scan(self, widget):
         """A helper function for loading a recent scan directly from the menu."""
         self._load(self.get_empty_interface(), widget.get_name())
@@ -509,7 +545,7 @@ class ScanWindow(UmitScanWindow):
                                        secondary_text=str(e))
                 alert.run()
                 alert.destroy()
-                return 
+                return
             scan_interface.saved_filename = filename
         elif parsed_result:
             # Load scan result from parsed object
@@ -520,7 +556,7 @@ class ScanWindow(UmitScanWindow):
             if os.path.isdir(os.path.join(directory,file)):
                 continue
             self._load(scan_interface, filename = os.path.join(directory, file))
-    
+
     def _save_scan_results_cb(self, widget):
         """'Save Scan' callback function. If it's OK to save the scan, it displays a
         'Save File' dialog and saves the scan. If not, it displays an appropriate
@@ -546,7 +582,7 @@ first."""))
             alert.run()
             alert.destroy()
             return
-        
+
         # If there's more than one scan in the inventory, display a warning dialog saying
         # that only the most recent scan will be saved
         selected = 0
@@ -577,10 +613,10 @@ first."""))
             else:
                 dlg.destroy()
                 return
-        
+
         # Show the dialog to choose the path to save scan result
         self._save_results_filechooser_dialog = \
-            SaveResultsFileChooserDialog(title=_('Save Scan'))    
+            SaveResultsFileChooserDialog(title=_('Save Scan'))
         # Supply a default file name if this scan was previously saved.
         if self.scan_interface.saved_filename:
             self._save_results_filechooser_dialog.set_filename(self.scan_interface.saved_filename)
@@ -590,14 +626,15 @@ first."""))
         filename = None
         if (response == gtk.RESPONSE_OK):
             filename = self._save_results_filechooser_dialog.get_filename()
+            format = self._save_results_filechooser_dialog.get_format()
             # add .xml to filename if there is no other extension
             if filename.find('.') == -1:
                 filename += ".xml"
-            self._save(self.scan_interface, filename, selected)
-            
+            self._save(self.scan_interface, filename, selected, format)
+
         self._save_results_filechooser_dialog.destroy()
         self._save_results_filechooser_dialog = None
-    
+
     def _save_to_directory_cb(self, widget):
         if self.scan_interface.empty:
             alert = HIGAlertDialog(message_format=_('Nothing to save'),
@@ -618,20 +655,20 @@ This scan has not been run yet. Start the scan with the "Scan" button first.'))
             alert.run()
             alert.destroy()
             return
-        
+
         # We have multiple scans in our network inventory, so we need to display a directory
         # chooser dialog
         dir_chooser = SaveToDirectoryChooserDialog(title=_("Choose a directory to save scans into"))
         if dir_chooser.run() == gtk.RESPONSE_OK:
             self._save_all(self.scan_interface, dir_chooser.get_filename())
         dir_chooser.destroy()
-    
+
     def _show_about_cb(self, widget):
         if self._about_dialog is None:
             self._about_dialog = About()
             self._about_dialog.connect("response", lambda dialog, response: dialog.hide())
         self._about_dialog.present()
-    
+
     def _save_all(self, scan_interface, directory):
         """Saves all scans in saving_page's inventory to a given directory.
         Displays an alert dialog if the save fails."""
@@ -651,13 +688,13 @@ This scan has not been run yet. Start the scan with the "Scan" button first.'))
             for filename in filenames:
                 recent_scans.add_recent_scan(filename)
             recent_scans.save()
-    
-    def _save(self, scan_interface, saved_filename, selected_index):
+
+    def _save(self, scan_interface, saved_filename, selected_index, format = "xml"):
         """Saves the scan into a file with a given filename. Displays an alert
         dialog if the save fails."""
         log.debug(">>> File being saved: %s" % saved_filename)
         try:
-            scan_interface.inventory.save_to_file(saved_filename, selected_index)
+            scan_interface.inventory.save_to_file(saved_filename, selected_index, format)
             scan_interface.inventory.get_scans()[selected_index].unsaved = False
         except (OSError, IOError), e:
             alert = HIGAlertDialog(message_format=_('Can\'t save file'),
@@ -669,10 +706,11 @@ This scan has not been run yet. Start the scan with the "Scan" button first.'))
 
             log.debug(">>> Changes on page? %s" % scan_interface.changed)
             log.debug(">>> File saved at: %s" % scan_interface.saved_filename)
-            
-            # Saving recent scan information
-            recent_scans.add_recent_scan(saved_filename)
-            recent_scans.save()
+
+            if format == "xml":
+                # Saving recent scan information
+                recent_scans.add_recent_scan(saved_filename)
+                recent_scans.save()
 
     def get_empty_interface(self):
         """Return this window if it is empty, otherwise create and return a new
@@ -686,17 +724,17 @@ This scan has not been run yet. Start the scan with the "Scan" button first.'))
         w = zenmapGUI.App.new_window()
         w.show_all()
         return w
-    
+
     def _new_scan_profile_cb(self, p):
         pe = ProfileEditor(command=self.scan_interface.command_toolbar.command, deletable=False)
         pe.set_scan_interface(self.scan_interface)
         pe.show_all()
-    
+
     def _edit_scan_profile_cb(self, p):
         pe = ProfileEditor(profile_name=self.scan_interface.toolbar.selected_profile,deletable=True,overwrite=True)
         pe.set_scan_interface(self.scan_interface)
         pe.show_all()
-    
+
     def _help_cb(self, action):
         show_help()
 
@@ -708,79 +746,86 @@ This scan has not been run yet. Start the scan with the "Scan" button first.'))
             log.debug("Found changes on closing window")
             dialog = HIGDialog(buttons=(_('Close anyway').encode('utf-8'), gtk.RESPONSE_CLOSE,
                             gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
-            
+
             alert = HIGEntryLabel('<b>%s</b>' % _("Unsaved changes"))
-            
+
             text = HIGEntryLabel(_('The given scan has unsaved changes.\n\
 What do you want to do?'))
             hbox = HIGHBox()
             hbox.set_border_width(5)
             hbox.set_spacing(12)
-            
+
             vbox = HIGVBox()
             vbox.set_border_width(5)
             vbox.set_spacing(12)
-            
+
             image = gtk.Image()
             image.set_from_stock(gtk.STOCK_DIALOG_QUESTION,gtk.ICON_SIZE_DIALOG)
-            
+
             vbox.pack_start(alert)
             vbox.pack_start(text)
             hbox.pack_start(image)
             hbox.pack_start(vbox)
-            
+
             dialog.vbox.pack_start(hbox)
             dialog.vbox.show_all()
-            
+
             response = dialog.run()
             dialog.destroy()
-            
+
             if response == gtk.RESPONSE_CANCEL:
                 return True
 
             search_config = SearchConfig()
             if search_config.store_results:
                 self.store_result(self.scan_interface)
-            
+
         elif self.scan_interface.num_scans_running() > 0:
             log.debug("Trying to close a window with a running scan")
             dialog = HIGDialog(buttons=(_('Close anyway').encode('utf-8'), gtk.RESPONSE_CLOSE,
                                         gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL))
-            
+
             alert = HIGEntryLabel('<b>%s</b>' % _("Trying to close"))
-            
+
             text = HIGEntryLabel(_('The window you are trying to close has a scan \
 running at the background.\nWhat do you want to do?'))
             hbox = HIGHBox()
             hbox.set_border_width(5)
             hbox.set_spacing(12)
-            
+
             vbox = HIGVBox()
             vbox.set_border_width(5)
             vbox.set_spacing(12)
-            
+
             image = gtk.Image()
             image.set_from_stock(gtk.STOCK_DIALOG_WARNING, gtk.ICON_SIZE_DIALOG)
-            
+
             vbox.pack_start(alert)
             vbox.pack_start(text)
             hbox.pack_start(image)
             hbox.pack_start(vbox)
-            
+
             dialog.vbox.pack_start(hbox)
             dialog.vbox.show_all()
-            
+
             response = dialog.run()
             dialog.destroy()
-            
+
             if response == gtk.RESPONSE_CLOSE:
                 self.scan_interface.kill_all_scans()
             elif response == gtk.RESPONSE_CANCEL:
                 return True
-        
+
         self.destroy()
 
         return False
+
+    def _print_cb(self, *args):
+        """Show a print dialog."""
+        entry = self.scan_interface.scan_result.scan_result_notebook.nmap_output.get_active_entry()
+        if entry is None:
+            return False
+        zenmapGUI.Print.run_print_operation(self.scan_interface.inventory, entry)
 
     def _quit_cb(self, *args):
         """Close all open windows."""
@@ -797,17 +842,17 @@ running at the background.\nWhat do you want to do?'))
         # key = Scan name
         # value = nmap output in string format
         dic = {}
-        
+
         for parsed in self.scan_interface.inventory.get_scans():
             if parsed.scan_name:
                 scan_name = parsed.scan_name
             else:
                 scan_name = parsed.get_nmap_command()
-        
+
             dic[scan_name] = parsed
-        
+
         self.diff_window = DiffWindow(dic)
-        
+
         self.diff_window.show_all()
 
 def show_help():

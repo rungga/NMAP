@@ -1,9 +1,11 @@
-description = [[ Attempts to guess valid credentials for the Citrix PN Web Agent XML Service.
-The XML service authenticates against the local Windows server or the Active Directory.
+description = [[
+Attempts to guess valid credentials for the Citrix PN Web Agent XML
+Service. The XML service authenticates against the local Windows server
+or the Active Directory.
 
-CAUTION: This script makes no attempt of preventing account lockout. 
-	     If the password list contains more passwords than the lockout-threshold
-		 accounts WILL be locked.
+This script makes no attempt of preventing account lockout. If the
+password list contains more passwords than the lockout-threshold
+accounts will be locked.
 ]]
 
 ---
@@ -17,8 +19,6 @@ CAUTION: This script makes no attempt of preventing account lockout.
 -- |   Joe:password => Must change password at next logon
 -- |   Luke:summer => Login was successful
 -- |_  Jane:secret => Account is disabled
---
----
 
 -- Version 0.2
 
@@ -99,7 +99,7 @@ function create_result_from_table(accounts)
 		result = result .. "  " .. account.username .. ":" .. account.password .. " => " .. account.message .. "\n"
 	end
 	
-	return " \n" .. result
+	return "\n" .. result
 end
 
 action = function(host, port)

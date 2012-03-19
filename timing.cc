@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -29,7 +29,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -52,8 +52,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -90,11 +90,12 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: timing.cc 12955 2009-04-15 00:37:03Z fyodor $ */
+/* $Id: timing.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #include "timing.h"
 #include "NmapOps.h"
 #include "utils.h"
+#include "xml.h"
 
 extern NmapOps o;
 
@@ -590,9 +591,14 @@ bool ScanProgressMeter::printStats(double perc_done,
       floor(time_left_s / 60.0 / 60.0),
       floor(fmod(time_left_s / 60.0, 60.0)),
       floor(fmod(time_left_s, 60.0)));
-  log_write(LOG_XML, "<taskprogress task=\"%s\" time=\"%lu\" percent=\"%.2f\" remaining=\"%.f\" etc=\"%lu\" />\n",
-      scantypestr, (unsigned long) now->tv_sec,
-      perc_done * 100, time_left_s, (unsigned long) last_est.tv_sec);
+  xml_open_start_tag("taskprogress");
+  xml_attribute("task", "%s", scantypestr);
+  xml_attribute("time", "%lu", (unsigned long) now->tv_sec);
+  xml_attribute("percent", "%.2f", perc_done * 100);
+  xml_attribute("remaining", "%.f", time_left_s);
+  xml_attribute("etc", "%lu", (unsigned long) last_est.tv_sec);
+  xml_close_empty_tag();
+  xml_newline();
   log_flush(LOG_STDOUT|LOG_XML);
  
   return true;
@@ -620,22 +626,28 @@ bool ScanProgressMeter::beginOrEndTask(const struct timeval *now, const char *ad
   tm = localtime(&tv_sec);
   if (beginning) {
     log_write(LOG_STDOUT, "Initiating %s at %02d:%02d", scantypestr, tm->tm_hour, tm->tm_min);
-    log_write(LOG_XML, "<taskbegin task=\"%s\" time=\"%lu\"", scantypestr, (unsigned long) now->tv_sec);
+    xml_open_start_tag("taskbegin");
+    xml_attribute("task", "%s", scantypestr);
+    xml_attribute("time", "%lu", (unsigned long) now->tv_sec);
     if (additional_info) {
       log_write(LOG_STDOUT, " (%s)", additional_info);
-      log_write(LOG_XML, " extrainfo=\"%s\"", additional_info);
+      xml_attribute("extrainfo", "%s", additional_info);
     }
     log_write(LOG_STDOUT, "\n");
-    log_write(LOG_XML, " />\n");
+    xml_close_empty_tag();
+    xml_newline();
   } else {
     log_write(LOG_STDOUT, "Completed %s at %02d:%02d, %.2fs elapsed", scantypestr, tm->tm_hour, tm->tm_min, TIMEVAL_MSEC_SUBTRACT(*now, begin) / 1000.0);
-    log_write(LOG_XML, "<taskend task=\"%s\" time=\"%lu\"", scantypestr, (unsigned long) now->tv_sec);
+    xml_open_start_tag("taskend");
+    xml_attribute("task", "%s", scantypestr);
+    xml_attribute("time", "%lu", (unsigned long) now->tv_sec);
     if (additional_info) {
       log_write(LOG_STDOUT, " (%s)", additional_info);
-      log_write(LOG_XML, " extrainfo=\"%s\"", additional_info);
+      xml_attribute("extrainfo", "%s", additional_info);
     }
     log_write(LOG_STDOUT, "\n");
-    log_write(LOG_XML, " />\n");
+    xml_close_empty_tag();
+    xml_newline();
   }
   log_flush(LOG_STDOUT|LOG_XML);
   return true;

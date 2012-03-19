@@ -10,6 +10,8 @@ use File::Temp qw/ tempfile /;
 use URI::Escape;
 use Data::Dumper;
 use Socket;
+use Digest::MD5 qw/md5_hex/;
+use POSIX ":sys_wait_h";
 
 use IPC::Open3;
 use strict;
@@ -45,7 +47,10 @@ sub ncat {
 }
 
 sub ncat_server {
-	return ncat($HOST, $PORT, "-l", @_);
+	my @ret = ncat($HOST, $PORT, "-l", @_);
+	# Give it a moment to start up.
+	select(undef, undef, undef, 0.1);
+	return @ret;
 }
 
 sub ncat_client {
@@ -184,11 +189,26 @@ sub server_client_test_tcp_ssl {
 	server_client_test_multi(["tcp", "tcp ssl"], @_);
 }
 
-# Set up a proxy running on $PROXY_PORT and connect a client to it. Start a
-# server listening on $PORT for the convenience of having something for the
-# proxy to connect to. The proxy is controlled through the variables
+# Set up a proxy running on $PROXY_PORT. Start a server on $PORT and connect a
+# client to the server through the proxy. The proxy is controlled through the
+# variables
 #   $p_pid, $p_out, and $p_in.
 sub proxy_test {
+	my $desc = shift;
+	my $proxy_args = shift;
+	my $server_args = shift;
+	my $client_args = shift;
+	my $code = shift;
+	($p_pid, $p_out, $p_in) = ncat(($HOST, $PROXY_PORT, "-l", "--proxy-type", "http"), @$proxy_args);
+	($s_pid, $s_out, $s_in) = ncat(($HOST, $PORT, "-l"), @$server_args);
+	($c_pid, $c_out, $c_in) = ncat(($HOST, $PORT, "--proxy", "$HOST:$PROXY_PORT"), @$client_args);
+	test($desc, $code);
+	kill_children;
+}
+
+# Like proxy_test, but connect the client directly to the proxy so you can
+# control the proxy interaction.
+sub proxy_test_raw {
 	my $desc = shift;
 	my $proxy_args = shift;
 	my $server_args = shift;
@@ -199,6 +219,44 @@ sub proxy_test {
 	($c_pid, $c_out, $c_in) = ncat(($HOST, $PROXY_PORT), @$client_args);
 	test($desc, $code);
 	kill_children;
+}
+
+sub proxy_test_multi {
+	my $specs = shift;
+	my $desc = shift;
+	my $proxy_args_ref = shift;
+	my $server_args_ref = shift;
+	my $client_args_ref = shift;
+	my $code = shift;
+	my $outer_xfail = $xfail;
+	local $xfail;
+
+	for my $spec (@$specs) {
+		my @proxy_args = @$proxy_args_ref;
+		my @server_args = @$server_args_ref;
+		my @client_args = @$client_args_ref;
+
+		$xfail = $outer_xfail;
+		for my $proto (split(/ /, $spec)) {
+			if ($proto eq "tcp") {
+				# Nothing needed.
+			} elsif ($proto eq "udp") {
+				push @server_args, ("--udp");
+				push @client_args, ("--udp");
+			} elsif ($proto eq "sctp") {
+				push @server_args, ("--sctp");
+				push @client_args, ("--sctp");
+			} elsif ($proto eq "ssl") {
+				push @server_args, ("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem");
+				push @client_args, ("--ssl");
+			} elsif ($proto eq "xfail") {
+				$xfail = 1;
+			} else {
+				die "Unknown protocol $proto";
+			}
+		}
+		proxy_test("$desc ($spec)", [@proxy_args], [@server_args], [@client_args], $code);
+	}
 }
 
 sub max_conns_test {
@@ -488,6 +546,21 @@ sub {
 };
 kill_children;
 
+server_client_test_tcp_sctp_ssl "Debug messages go to stderr",
+["-vvv"], ["-vvv"], sub {
+	my $resp;
+
+	syswrite($c_in, "abc\n");
+	close($c_in);
+	$resp = timeout_read($s_out) or die "Read timeout";
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+	syswrite($s_in, "abc\n");
+	close($s_in);
+	$resp = timeout_read($c_out) or die "Read timeout";
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
 # Test that the server closes its output stream after a client disconnects.
 # This is for uses like
 #   ncat -l | tar xzvf -
@@ -505,6 +578,43 @@ server_client_test_tcp_sctp_ssl "Server sends EOF after client disconnect",
 	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
 	$resp = timeout_read($s_out);
 	!defined($resp) or die "Server didn't send EOF";
+};
+kill_children;
+
+# Test that connections default to non-persistent without --keep-open.
+
+($s_pid, $s_out, $s_in) = ncat_server();
+test "Server accepts only one connection without --keep-open",
+sub {
+	my $resp;
+
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+	kill "TERM", $c_pid;
+	while (waitpid($c_pid, 0) > 0) {
+	}
+	sleep 1;
+	# -1 because children are automatically reaped; 0 means it's still running.
+	waitpid($s_pid, WNOHANG) == -1 or die "Server still running";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--exec", "/bin/cat");
+test "Server with --exec accepts only one connection without --keep-open",
+sub {
+	my $resp;
+
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($c_out);
+	$resp eq "abc\n" or die "Client got back \"$resp\", not \"abc\\n\"";
+	kill "TERM", $c_pid;
+	while (waitpid($c_pid, 0) > 0) {
+	}
+	sleep 1;
+	waitpid($s_pid, WNOHANG) == -1 or die "Server still running";
 };
 kill_children;
 
@@ -527,6 +637,40 @@ sub {
 };
 kill_children;
 
+($s_pid, $s_out, $s_in) = ncat_server("--keep-open", "--exec", "/bin/cat");
+test "--keep-open --exec",
+sub {
+	my $resp;
+
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+	syswrite($c1_in, "abc\n");
+	$resp = timeout_read($c1_out);
+	$resp eq "abc\n" or die "Client 1 got back \"$resp\", not \"abc\\n\"";
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client();
+	syswrite($c2_in, "abc\n");
+	$resp = timeout_read($c2_out);
+	$resp eq "abc\n" or die "Client 2 got back \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--keep-open", "--udp", "--exec", "/bin/cat");
+test "--keep-open --exec (udp)",
+sub {
+	my $resp;
+
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client("--udp");
+	syswrite($c1_in, "abc\n");
+	$resp = timeout_read($c1_out);
+	$resp eq "abc\n" or die "Client 1 got back \"$resp\", not \"abc\\n\"";
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client("--udp");
+	syswrite($c2_in, "abc\n");
+	$resp = timeout_read($c2_out);
+	$resp eq "abc\n" or die "Client 2 got back \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
 # Test --exec and --sh-exec.
 
 server_client_test_all "--exec",
@@ -543,6 +687,13 @@ server_client_test_all "--sh-exec",
 	$resp eq "ABC\n" or die "Client received " . d($resp) . ", not " . d("ABC\n");
 };
 
+server_client_test_all "--exec, quits instantly",
+["--exec", "/bin/echo abc"], [], sub {
+	syswrite($c_in, "test\n");
+	my $resp = timeout_read($c_out) or die "Read timeout";
+	$resp eq "abc\n" or die "Client received " . d($resp) . ", not " . d("abc\n");
+};
+
 server_client_test_all "--sh-exec with -C",
 ["--sh-exec", "/usr/bin/perl -e '\$|=1;while(<>){tr/a-z/A-Z/;print}'", "-C"], [], sub {
 	syswrite($c_in, "abc\n");
@@ -550,24 +701,42 @@ server_client_test_all "--sh-exec with -C",
 	$resp eq "ABC\r\n" or die "Client received " . d($resp) . ", not " . d("ABC\r\n");
 };
 
+proxy_test "--exec through proxy",
+[], [], ["--exec", "/bin/echo abc"], sub {
+	my $resp = timeout_read($s_out) or die "Read timeout";
+	$resp eq "abc\n" or die "Server received " . d($resp) . ", not " . d("abc\n");
+};
+
+# Do a syswrite and then a delay to force separate reads in the subprocess.
+sub delaywrite {
+	my ($handle, $data) = @_;
+	my $delay = 0.1;
+	syswrite($handle, $data);
+	select(undef, undef, undef, $delay);
+}
+
 server_client_test_all "-C translation on input",
 ["-C"], ["-C"], sub {
 	my $resp;
-	my $expected = "\r\na\r\nb\r\n---\r\nc\r\nd\r\n---e\r\n\r\nf\r\n";
+	my $expected = "\r\na\r\nb\r\n---\r\nc\r\nd\r\n---e\r\n\r\nf\r\n---\r\n";
 
-	syswrite($c_in, "\na\nb\n");
-	syswrite($c_in, "---");
-	syswrite($c_in, "\r\nc\r\nd\r\n");
-	syswrite($c_in, "---");
-	syswrite($c_in, "e\n\nf\n");
+	delaywrite($c_in, "\na\nb\n");
+	delaywrite($c_in, "---");
+	delaywrite($c_in, "\r\nc\r\nd\r\n");
+	delaywrite($c_in, "---");
+	delaywrite($c_in, "e\n\nf\n");
+	delaywrite($c_in, "---\r");
+	delaywrite($c_in, "\n");
 	$resp = timeout_read($s_out) or die "Read timeout";
 	$resp eq $expected or die "Server received " . d($resp) . ", not " . d($expected);
 
-	syswrite($s_in, "\na\nb\n");
-	syswrite($s_in, "---");
-	syswrite($s_in, "\r\nc\r\nd\r\n");
-	syswrite($s_in, "---");
-	syswrite($s_in, "e\n\nf\n");
+	delaywrite($s_in, "\na\nb\n");
+	delaywrite($s_in, "---");
+	delaywrite($s_in, "\r\nc\r\nd\r\n");
+	delaywrite($s_in, "---");
+	delaywrite($s_in, "e\n\nf\n");
+	delaywrite($s_in, "---\r");
+	delaywrite($s_in, "\n");
 	$resp = timeout_read($c_out) or die "Read timeout";
 	$resp eq $expected or die "Client received " . d($resp) . ", not " . d($expected);
 };
@@ -578,9 +747,9 @@ server_client_test_all "-C server no translation on output",
 	my $resp;
 	my $expected = "\na\nb\n---\r\nc\r\nd\r\n";
 
-	syswrite($c_in, "\na\nb\n");
-	syswrite($c_in, "---");
-	syswrite($c_in, "\r\nc\r\nd\r\n");
+	delaywrite($c_in, "\na\nb\n");
+	delaywrite($c_in, "---");
+	delaywrite($c_in, "\r\nc\r\nd\r\n");
 	$resp = timeout_read($s_out) or die "Read timeout";
 	$resp eq $expected or die "Server received " . d($resp) . ", not " . d($expected);
 };
@@ -591,9 +760,9 @@ server_client_test_tcp_sctp_ssl "-C client no translation on output",
 	my $resp;
 	my $expected = "\na\nb\n---\r\nc\r\nd\r\n";
 
-	syswrite($s_in, "\na\nb\n");
-	syswrite($s_in, "---");
-	syswrite($s_in, "\r\nc\r\nd\r\n");
+	delaywrite($s_in, "\na\nb\n");
+	delaywrite($s_in, "---");
+	delaywrite($s_in, "\r\nc\r\nd\r\n");
 	$resp = timeout_read($c_out) or die "Read timeout";
 	$resp eq $expected or die "Client received " . d($resp) . ", not " . d($expected);
 };
@@ -602,7 +771,7 @@ kill_children;
 # Test that both reads and writes reset the idle counter, and that the client
 # properly exits after the timeout expires.
 server_client_test "idle timeout",
-[], ["-i", "3000"], sub {
+[], ["-i", "3000ms"], sub {
 	my $resp;
 
 	syswrite($c_in, "abc\n");
@@ -866,7 +1035,7 @@ server_client_test "HTTP CONNECT IPv6 address, good request",
 };
 
 # Try accessing an IPv6 server with a proxy that uses -4, should fail.
-proxy_test "HTTP CONNECT IPv4-only proxy",
+proxy_test_raw "HTTP CONNECT IPv4-only proxy",
 ["-4"], ["-6"], ["-4"], sub {
 	my $req = http_request("CONNECT", "[$IPV6_ADDR]:$PORT");
 	syswrite($c_in, $req);
@@ -876,7 +1045,7 @@ proxy_test "HTTP CONNECT IPv4-only proxy",
 };
 
 # Try accessing an IPv4 server with a proxy that uses -6, should fail.
-proxy_test "HTTP CONNECT IPv6-only proxy",
+proxy_test_raw "HTTP CONNECT IPv6-only proxy",
 ["-6"], ["-4"], ["-6"], sub {
 	my $req = http_request("CONNECT", "$HOST:$PORT");
 	syswrite($c_in, $req);
@@ -887,7 +1056,7 @@ proxy_test "HTTP CONNECT IPv6-only proxy",
 
 {
 local $xfail = 1;
-proxy_test "HTTP CONNECT IPv4 client, IPv6 server",
+proxy_test_raw "HTTP CONNECT IPv4 client, IPv6 server",
 [], ["-6"], ["-4"], sub {
 	my $req = http_request("CONNECT", "[$IPV6_ADDR]:$PORT");
 	syswrite($c_in, $req);
@@ -897,16 +1066,151 @@ proxy_test "HTTP CONNECT IPv4 client, IPv6 server",
 };
 }
 
+# HTTP Digest functions.
+sub H {
+	return md5_hex(shift);
+}
+sub KD {
+	my ($s, $d) = @_;
+	return H("$s:$d");
+}
+sub digest_response {
+	# Assume MD5 algorithm.
+	my ($user, $pass, $realm, $method, $uri, $nonce, $qop, $nc, $cnonce) = @_;
+	my $A1 = "$user:$realm:$pass";
+	my $A2 = "$method:$uri";
+	if ($qop) {
+		return KD(H($A1), "$nonce:$nc:$cnonce:$qop:" . H($A2));
+	} else {
+		return KD(H($A1), "$nonce:" . H($A2));
+	}
+}
+# Parse Proxy-Authenticate or Proxy-Authorization. Return ($scheme, %attrs).
+sub parse_proxy_header {
+	my $s = shift;
+	my $scheme;
+	my %attrs;
+
+	if ($s =~ m/^\s*(\w+)/) {
+		$scheme = $1;
+	}
+	while ($s =~ m/(\w+)\s*=\s*(?:"([^"]*)"|(\w+))/g) {
+		$attrs{$1} = $2 || $3;
+	}
+
+	return ($scheme, %attrs);
+}
+
+server_client_test "HTTP proxy client prefers Digest auth",
+["-k"], ["--proxy", "$HOST:$PORT", "--proxy-auth", "user:pass", "--proxy-type", "http"],
+sub {
+	my $nonce = "0123456789abcdef";
+	my $realm = "realm";
+	my $req = timeout_read($s_out);
+	$req or die "No initial request from client";
+	syswrite($s_in, "HTTP/1.0 407 Authentication Required\r\
+Proxy-Authenticate: Basic realm=\"$realm\"\r\
+Proxy-Authenticate: Digest realm=\"$realm\", nonce=\"$nonce\", qop=\"auth\"\r\n\r\n");
+	$req = timeout_read($s_out);
+	$req or die "No followup request from client";
+	$req = HTTP::Request->parse($req);
+	foreach my $hdr ($req->header("Proxy-Authorization")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		if ($scheme eq "Basic") {
+			die "Client used Basic auth when Digest was available";
+		}
+	}
+	return 1;
+};
+
+server_client_test "HTTP proxy client prefers Digest auth, comma-separated",
+["-k"], ["--proxy", "$HOST:$PORT", "--proxy-auth", "user:pass", "--proxy-type", "http"],
+sub {
+	my $nonce = "0123456789abcdef";
+	my $realm = "realm";
+	my $req = timeout_read($s_out);
+	$req or die "No initial request from client";
+	syswrite($s_in, "HTTP/1.0 407 Authentication Required\r\
+Proxy-Authenticate: Basic realm=\"$realm\", Digest realm=\"$realm\", nonce=\"$nonce\", qop=\"auth\"\r\n\r\n");
+	$req = timeout_read($s_out);
+	$req or die "No followup request from client";
+	$req = HTTP::Request->parse($req);
+	foreach my $hdr ($req->header("Proxy-Authorization")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		if ($scheme eq "Basic") {
+			die "Client used Basic auth when Digest was available";
+		}
+	}
+	return 1;
+};
+
+server_client_test "HTTP proxy Digest client auth",
+["-k"], ["--proxy", "$HOST:$PORT", "--proxy-auth", "user:pass", "--proxy-type", "http"],
+sub {
+	my $nonce = "0123456789abcdef";
+	my $realm = "realm";
+	my $req = timeout_read($s_out);
+	$req or die "No initial request from client";
+	syswrite($s_in, "HTTP/1.0 407 Authentication Required\r\
+Proxy-Authenticate: Digest realm=\"$realm\", nonce=\"$nonce\", qop=\"auth\", opaque=\"abcd\"\r\n\r\n");
+	$req = timeout_read($s_out);
+	$req or die "No followup request from client";
+	$req = HTTP::Request->parse($req);
+	foreach my $hdr ($req->header("Proxy-Authorization")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		die "no qop" if not $attrs{"qop"};
+		die "no nonce" if not $attrs{"nonce"};
+		die "no uri" if not $attrs{"uri"};
+		die "no nc" if not $attrs{"nc"};
+		die "no cnonce" if not $attrs{"cnonce"};
+		die "no response" if not $attrs{"response"};
+		die "no opaque" if not $attrs{"opaque"};
+		die "qop mismatch" if $attrs{"qop"} ne "auth";
+		die "nonce mismatch" if $attrs{"nonce"} ne $nonce;
+		die "opaque mismatch" if $attrs{"opaque"} ne "abcd";
+		my $expected = digest_response("user", "pass", $realm, "CONNECT", $attrs{"uri"}, $nonce, "auth", $attrs{"nc"}, $attrs{"cnonce"});
+		die "auth mismatch: $attrs{response} but expected $expected" if $attrs{"response"} ne $expected;
+		return 1;
+	}
+	die "No Proxy-Authorization: Digest in client request";
+};
+
+server_client_test "HTTP proxy Digest client auth, no qop",
+["-k"], ["--proxy", "$HOST:$PORT", "--proxy-auth", "user:pass", "--proxy-type", "http"],
+sub {
+	my $nonce = "0123456789abcdef";
+	my $realm = "realm";
+	my $req = timeout_read($s_out);
+	$req or die "No initial request from client";
+	syswrite($s_in, "HTTP/1.0 407 Authentication Required\r\
+Proxy-Authenticate: Digest realm=\"$realm\", nonce=\"$nonce\", opaque=\"abcd\"\r\n\r\n");
+	$req = timeout_read($s_out);
+	$req or die "No followup request from client";
+	$req = HTTP::Request->parse($req);
+	foreach my $hdr ($req->header("Proxy-Authorization")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		die "no nonce" if not $attrs{"nonce"};
+		die "no uri" if not $attrs{"uri"};
+		die "no response" if not $attrs{"response"};
+		die "no opaque" if not $attrs{"opaque"};
+		die "nonce mismatch" if $attrs{"nonce"} ne $nonce;
+		die "opaque mismatch" if $attrs{"opaque"} ne "abcd";
+		die "nc present" if $attrs{"nc"};
+		die "cnonce present" if $attrs{"cnonce"};
+		my $expected = digest_response("user", "pass", $realm, "CONNECT", $attrs{"uri"}, $nonce, undef, undef, undef);
+		die "auth mismatch: $attrs{response} but expected $expected" if $attrs{"response"} ne $expected;
+		return 1;
+	}
+	die "No Proxy-Authorization: Digest in client request";
+};
+
 # Check that the proxy relays in both directions.
 proxy_test "HTTP CONNECT proxy relays",
 [], [], [], sub {
-	my $req = http_request("CONNECT", "$HOST:$PORT");
-	syswrite($c_in, $req);
-	my $resp = timeout_read($c_out) or die "Read timeout";
-	my $code = HTTP::Response->parse($resp)->code;
-	$code == 200 or die "Expected response code 200, got $code";
 	syswrite($c_in, "abc\n");
-	$resp = timeout_read($s_out) or die "Read timeout";
+	my $resp = timeout_read($s_out) or die "Read timeout";
 	$resp eq "abc\n" or die "Proxy relayed \"$resp\", not \"abc\\n\"";
 	syswrite($s_in, "def\n");
 	$resp = timeout_read($c_out) or die "Read timeout";
@@ -950,7 +1254,7 @@ server_client_test "HTTP CONNECT client, server sends header",
 # request and body are combined in one send. Section 3.3 of the CONNECT spec
 # explicitly allows the client to send data before the connection is
 # established.
-proxy_test "HTTP CONNECT server doesn't consume anything after request",
+proxy_test_raw "HTTP CONNECT server doesn't consume anything after request",
 [], [], [], sub {
 	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\nUser-Agent: ncat-test\r\n\r\nabc\n");
 	my $resp = timeout_read($c_out) or die "Read timeout";
@@ -1003,7 +1307,7 @@ server_client_test "HTTP GET path only",
 	$code == 400 or die "Expected response code 400, got $code";
 };
 
-proxy_test "HTTP GET absolute URI",
+proxy_test_raw "HTTP GET absolute URI",
 [], [], [], sub {
 	my $req = http_request("GET", "http://$HOST:$PORT/");
 	syswrite($c_in, $req);
@@ -1012,7 +1316,7 @@ proxy_test "HTTP GET absolute URI",
 	$resp =~ /^GET \/ HTTP\/1\./ or die "Proxy sent \"$resp\"";
 };
 
-proxy_test "HTTP GET absolute URI, no path",
+proxy_test_raw "HTTP GET absolute URI, no path",
 [], [], [], sub {
 	my $req = http_request("GET", "http://$HOST:$PORT");
 	syswrite($c_in, $req);
@@ -1021,7 +1325,7 @@ proxy_test "HTTP GET absolute URI, no path",
 	$resp =~ /^GET \/ HTTP\/1\./ or die "Proxy sent \"$resp\"";
 };
 
-proxy_test "HTTP GET percent escape",
+proxy_test_raw "HTTP GET percent escape",
 [], [], [], sub {
 	my $req = http_request("GET", "http://$HOST:$PORT/%41");
 	syswrite($c_in, $req);
@@ -1030,7 +1334,7 @@ proxy_test "HTTP GET percent escape",
 	uri_unescape($resp) =~ /^GET \/A HTTP\/1\./ or die "Proxy sent \"$resp\"";
 };
 
-proxy_test "HTTP GET remove Connection header fields",
+proxy_test_raw "HTTP GET remove Connection header fields",
 [], [], [], sub {
 	my $req = "GET http://$HOST:$PORT/ HTTP/1.0\r\nKeep-Alive: 300\r\nOne: 1\r\nConnection: keep-alive, two, close\r\nTwo: 2\r\nThree: 3\r\n\r\n";
 	syswrite($c_in, $req);
@@ -1043,7 +1347,7 @@ proxy_test "HTTP GET remove Connection header fields",
 	$resp->header("Three") eq "3" or die "Proxy modified Three header field";
 };
 
-proxy_test "HTTP GET combine multiple headers with the same name",
+proxy_test_raw "HTTP GET combine multiple headers with the same name",
 [], [], [], sub {
 	my $req = "GET http://$HOST:$PORT/ HTTP/1.0\r\nConnection: keep-alive\r\nKeep-Alive: 300\r\nConnection: two\r\nOne: 1\r\nConnection: close\r\nTwo: 2\r\nThree: 3\r\n\r\n";
 	syswrite($c_in, $req);
@@ -1079,7 +1383,7 @@ server_client_test "HTTP GET IPv6 request loop",
 	$code == 403 or die "Expected response code 403, got $code";
 };
 
-proxy_test "HTTP HEAD absolute URI",
+proxy_test_raw "HTTP HEAD absolute URI",
 [], [], [], sub {
 	my $req = http_request("HEAD", "http://$HOST:$PORT/");
 	syswrite($c_in, $req);
@@ -1089,7 +1393,7 @@ proxy_test "HTTP HEAD absolute URI",
 	$resp->method eq "HEAD" or die "Proxy sent \"" . $resp->method . "\"";
 };
 
-proxy_test "HTTP POST",
+proxy_test_raw "HTTP POST",
 [], [], [], sub {
 	my $req = "POST http://$HOST:$PORT/ HTTP/1.0\r\nContent-Length: 4\r\n\r\nabc\n";
 	syswrite($c_in, $req);
@@ -1100,7 +1404,7 @@ proxy_test "HTTP POST",
 	$resp->content eq "abc\n" or die "Proxy sent \"" . $resp->content . "\"";
 };
 
-proxy_test "HTTP POST short Content-Length",
+proxy_test_raw "HTTP POST short Content-Length",
 [], [], [], sub {
 	my $req = "POST http://$HOST:$PORT/ HTTP/1.0\r\nContent-Length: 2\r\n\r\nabc\n";
 	syswrite($c_in, $req);
@@ -1111,7 +1415,7 @@ proxy_test "HTTP POST short Content-Length",
 	$resp->content eq "ab" or die "Proxy sent \"" . $resp->content . "\"";
 };
 
-proxy_test "HTTP POST long Content-Length",
+proxy_test_raw "HTTP POST long Content-Length",
 [], [], [], sub {
 	my $req = "POST http://$HOST:$PORT/ HTTP/1.0\r\nContent-Length: 10\r\n\r\nabc\n";
 	syswrite($c_in, $req);
@@ -1122,7 +1426,7 @@ proxy_test "HTTP POST long Content-Length",
 	$resp->content eq "abc\n" or die "Proxy sent \"" . $resp->content . "\"";
 };
 
-proxy_test "HTTP POST chunked transfer encoding",
+proxy_test_raw "HTTP POST chunked transfer encoding",
 [], [], [], sub {
 	my $req = "POST http://$HOST:$PORT/ HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nabc\n0\r\n";
 	syswrite($c_in, $req);
@@ -1156,8 +1460,10 @@ server_client_test "HTTP proxy unknown method",
 # 0x7E respectively, printing characters with many bits set.
 for my $auth ("", "a", "a:", ":a", "user:sss", "user:ssss", "user:sssss", "user:~~~", "user:~~~~", "user:~~~~~") {
 server_client_test "HTTP proxy auth base64 encoding: \"$auth\"",
-[], ["--proxy", "$HOST:$PORT", "--proxy-type", "http", "--proxy-auth", $auth], sub {
+["-k"], ["--proxy", "$HOST:$PORT", "--proxy-type", "http", "--proxy-auth", $auth], sub {
 	my $resp = timeout_read($s_out) or die "Read timeout";
+	syswrite($s_in, "HTTP/1.0 407 Auth\r\nProxy-Authenticate: Basic realm=\"Ncat\"\r\n\r\n");
+	$resp = timeout_read($s_out) or die "Read timeout";
 	my $auth_header = HTTP::Response->parse($resp)->header("Proxy-Authorization") or die "Proxy client didn't send Proxy-Authorization header field";
 	my ($b64_auth) = ($auth_header =~ /^Basic (.*)/) or die "No auth data in \"$auth_header\"";
 	my $dec_auth = decode_base64($b64_auth);
@@ -1165,7 +1471,7 @@ server_client_test "HTTP proxy auth base64 encoding: \"$auth\"",
 };
 }
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server auth challenge",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy server auth challenge",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1178,7 +1484,7 @@ sub {
 	$auth or die "Proxy server didn't send Proxy-Authenticate header field";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server correct auth",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy server correct auth",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1191,7 +1497,7 @@ sub {
 	$code == 200 or die "Expected response code 200, got $code";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server wrong user",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy Basic wrong user",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1204,7 +1510,7 @@ sub {
 	$code == 407 or die "Expected response code 407, got $code";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server wrong pass",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy Basic wrong pass",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1217,12 +1523,12 @@ sub {
 	$code == 407 or die "Expected response code 407, got $code";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server correct auth, different case",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy Basic correct auth, different case",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
 	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\n");
-	syswrite($c_in, "pROXY-aUTHORIZATION: Basic " . encode_base64("user:pass") . "\r\n");
+	syswrite($c_in, "pROXY-aUTHORIZATION: BASIC " . encode_base64("user:pass") . "\r\n");
 	syswrite($c_in, "\r\n");
 	my $resp = timeout_read($c_out) or die "Read timeout";
 	$resp = HTTP::Response->parse($resp);
@@ -1230,8 +1536,186 @@ sub {
 	$code == 200 or die "Expected response code 200, got $code";
 };
 
+
+($s_pid, $s_out, $s_in) = ncat_server("--proxy-type", "http", "--proxy-auth", "user:pass");
+test "HTTP proxy Digest wrong user",
+sub {
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\n\r\n");
+	my $resp = timeout_read($c_out);
+	$resp or die "No response from server";
+	$resp = HTTP::Response->parse($resp);
+	foreach my $hdr ($resp->header("Proxy-Authenticate")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		die "no nonce" if not $attrs{"nonce"};
+		die "no realm" if not $attrs{"realm"};
+		my ($c_pid, $c_out, $c_in) = ncat_client();
+		my $response = digest_response("xxx", "pass", $attrs{"realm"}, "CONNECT", "$HOST:$PORT", $attrs{"nonce"}, undef, undef, undef);
+		syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\
+Proxy-Authorization: Digest username=\"xxx\", realm=\"$attrs{realm}\", nonce=\"$attrs{nonce}\", uri=\"$HOST:$PORT\", response=\"$response\"\r\n\r\n");
+		$resp = timeout_read($c_out);
+		$resp or die "No response from server";
+		$resp = HTTP::Response->parse($resp);
+		my $code = $resp->code;
+		$resp->code == 407 or die "Expected response code 407, got $code";
+		return 1;
+	}
+	die "No Proxy-Authenticate: Digest in server response";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--proxy-type", "http", "--proxy-auth", "user:pass");
+test "HTTP proxy Digest wrong pass",
+sub {
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\n\r\n");
+	my $resp = timeout_read($c_out);
+	$resp or die "No response from server";
+	$resp = HTTP::Response->parse($resp);
+	foreach my $hdr ($resp->header("Proxy-Authenticate")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		die "no nonce" if not $attrs{"nonce"};
+		die "no realm" if not $attrs{"realm"};
+		my ($c_pid, $c_out, $c_in) = ncat_client();
+		my $response = digest_response("user", "xxx", $attrs{"realm"}, "CONNECT", "$HOST:$PORT", $attrs{"nonce"}, undef, undef, undef);
+		syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\
+Proxy-Authorization: Digest username=\"user\", realm=\"$attrs{realm}\", nonce=\"$attrs{nonce}\", uri=\"$HOST:$PORT\", response=\"$response\"\r\n\r\n");
+		$resp = timeout_read($c_out);
+		$resp or die "No response from server";
+		$resp = HTTP::Response->parse($resp);
+		my $code = $resp->code;
+		$resp->code == 407 or die "Expected response code 407, got $code";
+		return 1;
+	}
+	die "No Proxy-Authenticate: Digest in server response";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--proxy-type", "http", "--proxy-auth", "user:pass");
+test "HTTP proxy Digest correct auth",
+sub {
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\n\r\n");
+	my $resp = timeout_read($c_out);
+	$resp or die "No response from server";
+	$resp = HTTP::Response->parse($resp);
+	foreach my $hdr ($resp->header("Proxy-Authenticate")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		die "no nonce" if not $attrs{"nonce"};
+		die "no realm" if not $attrs{"realm"};
+		my ($c_pid, $c_out, $c_in) = ncat_client();
+		my $response = digest_response("user", "pass", $attrs{"realm"}, "CONNECT", "$HOST:$PORT", $attrs{"nonce"}, "auth", "00000001", "abcdefg");
+		syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\
+Proxy-Authorization: Digest username=\"user\", realm=\"$attrs{realm}\", nonce=\"$attrs{nonce}\", uri=\"$HOST:$PORT\", qop=\"auth\", nc=\"00000001\", cnonce=\"abcdefg\", response=\"$response\"\r\n\r\n");
+		$resp = timeout_read($c_out);
+		$resp or die "No response from server";
+		$resp = HTTP::Response->parse($resp);
+		my $code = $resp->code;
+		$resp->code == 200 or die "Expected response code 200, got $code";
+		return 1;
+	}
+	die "No Proxy-Authenticate: Digest in server response";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--proxy-type", "http", "--proxy-auth", "user:pass");
+test "HTTP proxy Digest correct auth, no qop",
+sub {
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\n\r\n");
+	my $resp = timeout_read($c_out);
+	$resp or die "No response from server";
+	$resp = HTTP::Response->parse($resp);
+	foreach my $hdr ($resp->header("Proxy-Authenticate")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		die "no nonce" if not $attrs{"nonce"};
+		die "no realm" if not $attrs{"realm"};
+		my ($c_pid, $c_out, $c_in) = ncat_client();
+		my $response = digest_response("user", "pass", $attrs{"realm"}, "CONNECT", "$HOST:$PORT", $attrs{"nonce"}, undef, undef, undef);
+		syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\
+Proxy-Authorization: Digest username=\"user\", realm=\"$attrs{realm}\", nonce=\"$attrs{nonce}\", uri=\"$HOST:$PORT\", response=\"$response\"\r\n\r\n");
+		$resp = timeout_read($c_out);
+		$resp or die "No response from server";
+		$resp = HTTP::Response->parse($resp);
+		my $code = $resp->code;
+		$resp->code == 200 or die "Expected response code 200, got $code";
+		return 1;
+	}
+	die "No Proxy-Authenticate: Digest in server response";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--proxy-type", "http", "--proxy-auth", "user:pass");
+test "HTTP proxy Digest missing fields",
+sub {
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\n\r\n");
+	my $resp = timeout_read($c_out);
+	$resp or die "No response from server";
+	$resp = HTTP::Response->parse($resp);
+	foreach my $hdr ($resp->header("Proxy-Authenticate")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		my ($c_pid, $c_out, $c_in) = ncat_client();
+		my $response = digest_response("user", "pass", $attrs{"realm"}, "CONNECT", "$HOST:$PORT", $attrs{"nonce"}, undef, undef, undef);
+		syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\
+Proxy-Authorization: Digest username=\"user\", nonce=\"$attrs{nonce}\", response=\"$response\"\r\n\r\n");
+		$resp = timeout_read($c_out);
+		$resp or die "No response from server";
+		$resp = HTTP::Response->parse($resp);
+		my $code = $resp->code;
+		$resp->code == 407 or die "Expected response code 407, got $code";
+		return 1;
+	}
+	die "No Proxy-Authenticate: Digest in server response";
+};
+kill_children;
+
+{
+local $xfail = 1;
+($s_pid, $s_out, $s_in) = ncat_server("--proxy-type", "http", "--proxy-auth", "user:pass");
+test "HTTP proxy Digest prevents replay",
+sub {
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "CONNECT $HOST:$PORT HTTP/1.0\r\n\r\n");
+	my $resp = timeout_read($c_out);
+	$resp or die "No response from server";
+	$resp = HTTP::Response->parse($resp);
+	foreach my $hdr ($resp->header("Proxy-Authenticate")) {
+		my ($scheme, %attrs) = parse_proxy_header($hdr);
+		next if $scheme ne "Digest";
+		die "no nonce" if not $attrs{"nonce"};
+		die "no realm" if not $attrs{"realm"};
+		my ($c_pid, $c_out, $c_in) = ncat_client();
+		my $response = digest_response("user", "pass", $attrs{"realm"}, "CONNECT", "$HOST:$PORT", $attrs{"nonce"}, "auth", "00000001", "abcdefg");
+		my $req = "CONNECT $HOST:$PORT HTTP/1.0\r\
+Proxy-Authorization: Digest username=\"user\", realm=\"$attrs{realm}\", nonce=\"$attrs{nonce}\", uri=\"$HOST:$PORT\", qop=\"auth\", nc=\"00000001\", cnonce=\"abcdefg\", response=\"$response\"\r\n\r\n";
+		syswrite($c_in, $req);
+		$resp = timeout_read($c_out);
+		$resp or die "No response from server";
+		$resp = HTTP::Response->parse($resp);
+		my $code = $resp->code;
+		$resp->code == 200 or die "Expected response code 200, got $code";
+		syswrite($c_in, $req);
+		$resp = timeout_read($c_out);
+		if ($resp) {
+			$resp = HTTP::Response->parse($resp);
+			$code = $resp->code;
+			$resp->code == 407 or die "Expected response code 407, got $code";
+		}
+		return 1;
+	}
+	die "No Proxy-Authenticate: Digest in server response";
+};
+kill_children;
+}
+
 # Test that header field values can be split across lines with LWS.
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server LWS",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy server LWS",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1244,7 +1728,7 @@ sub {
 	$code == 200 or die "Expected response code 200, got $code";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server LWS",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy server LWS",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1257,7 +1741,7 @@ sub {
 	$code == 200 or die "Expected response code 200, got $code";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server no auth",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy server no auth",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1270,7 +1754,7 @@ sub {
 	$code != 200 or die "Got unexpected 200 response";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server broken auth",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy server broken auth",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1283,7 +1767,7 @@ sub {
 	$code != 200 or die "Got unexpected 200 response";
 };
 
-server_client_test_multi ["tcp", "tcp ssl xfail"], "HTTP proxy server extra auth",
+server_client_test_multi ["tcp", "tcp ssl"], "HTTP proxy server extra auth",
 ["--proxy-type", "http", "--proxy-auth", "user:pass"],
 [],
 sub {
@@ -1454,6 +1938,25 @@ sub {
 };
 kill_children;
 
+{
+local $xfail = 1;
+($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem");
+test "SSL server doesn't block during handshake",
+sub {
+	my $resp;
+
+	# Connect without SSL so the handshake isn't completed.
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+	syswrite($c1_in, "abc\n");
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client("--ssl");
+	syswrite($c2_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+}
+
 ($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem");
 test "SSL verification, correct domain name",
 sub {
@@ -1502,11 +2005,15 @@ for my $count (0, 1, 10) {
 	max_conns_test_tcp_ssl("--max-conns $count --broker", ["--broker"], [], $count);
 }
 
-max_conns_test_all("--max-conns 0 with exec", ["--exec", "/bin/cat"], [], 0);
+max_conns_test_all("--max-conns 0 --keep-open with exec", ["--keep-open", "--exec", "/bin/cat"], [], 0);
 for my $count (1, 10) {
 	max_conns_test_multi(["tcp", "sctp", "udp xfail", "tcp ssl", "sctp ssl"],
-		"--max-conns $count with exec", ["--exec", "/bin/cat"], [], $count);
+		"--max-conns $count --keep-open with exec", ["--keep-open", "--exec", "/bin/cat"], [], $count);
 }
+
+# Without --keep-open, just make sure that --max-conns 0 disallows any connection.
+max_conns_test_all("--max-conns 0", [], [], 0);
+max_conns_test_all("--max-conns 0 with exec", ["--exec", "/bin/cat"], [], 0);
 
 print "$num_expected_failures expected failures.\n" if $num_expected_failures > 0;
 print "$num_unexpected_passes unexpected passes.\n" if $num_unexpected_passes > 0;

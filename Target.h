@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -28,7 +28,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -51,8 +51,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -89,13 +89,14 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: Target.h 16578 2010-01-26 23:03:21Z david $ */
+/* $Id: Target.h 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #ifndef TARGET_H
 #define TARGET_H
 
 #include "nmap.h"
 #include "FingerPrintResults.h"
+#include "libnetutil/netutil.h"
 
 #ifndef NOLUA
 #include "nse_main.h"
@@ -212,8 +213,8 @@ class Target {
      that information here.  directlyConnected() will abort if it hasn't
      been set yet.  */
   void setDirectlyConnected(bool connected);
-  bool directlyConnected();
-  int directlyConnectedOrUnset(); /* 1-directly connected, 0-no, -1-we don't know*/
+  bool directlyConnected() const;
+  int directlyConnectedOrUnset() const; /* 1-directly connected, 0-no, -1-we don't know*/
 
   /* If the host is NOT directly connected, you can set the next hop
      value here. It is OK to pass in a sockaddr_in or sockaddr_in6
@@ -223,6 +224,9 @@ class Target {
      next_hop was filled in.  It might be false, for example, if
      next_hop has never been set */
   bool nextHop(struct sockaddr_storage *next_hop, size_t *next_hop_len);
+
+  void setMTU(int devmtu);
+  int MTU(void);
 
   /* Sets the interface type to one of: 
      devt_ethernet, devt_loopback, devt_p2p, devt_other
@@ -263,8 +267,8 @@ class Target {
    qualifier, while the full name may include it (e.g. "eth1:1").  If
    these are non-null, they will overwrite the stored version */
   void setDeviceNames(const char *name, const char *fullname);
-  const char *deviceName();
-  const char *deviceFullName();
+  const char *deviceName() const;
+  const char *deviceFullName() const;
 
   int osscanPerformed(void);
   void osscanSetFlag(int flag);
@@ -317,7 +321,8 @@ class Target {
   struct host_timeout_nfo htn;
   devtype interface_type;
   char devname[32];
-	char devfullname[32];
+  char devfullname[32];
+  int mtu;
   /* 0 (OS_NOTPERF) if os detection not performed
    * 1 (OS_PERF) if os detection performed 
    * 2 (OS_PERF_UNREL) if an unreliable os detection has been performed */

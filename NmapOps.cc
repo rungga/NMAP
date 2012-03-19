@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -27,7 +27,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -50,8 +50,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOps.cc 16467 2010-01-15 05:39:25Z david $ */
+/* $Id: NmapOps.cc 22066 2011-01-27 21:49:15Z david $ */
 #include "nmap.h"
 #include "nbase.h"
 #include "NmapOps.h"
@@ -157,7 +157,7 @@ const struct in_addr *NmapOps::v4sourceip() {
 
 // Number of milliseconds since getStartTime().  The current time is an
 // optional argument to avoid an extra gettimeofday() call.
-int NmapOps::TimeSinceStartMS(struct timeval *now) {
+int NmapOps::TimeSinceStartMS(const struct timeval *now) {
   struct timeval tv;
   if (!now)
     gettimeofday(&tv, NULL);
@@ -219,7 +219,6 @@ void NmapOps::Initialize() {
   spoofsource = 0;
   fastscan = 0;
   device[0] = '\0';
-  interactivemode = 0;
   ping_group_sz = PING_GROUP_SZ;
   nogcc = 0;
   generate_random_ips = 0;
@@ -258,7 +257,7 @@ void NmapOps::Initialize() {
   pingtype = PINGTYPE_UNKNOWN;
   listscan = allowall = ackscan = bouncescan = connectscan = 0;
   rpcscan = nullscan = xmasscan = fragscan = synscan = windowscan = 0;
-  maimonscan = idlescan = finscan = udpscan = ipprotscan;
+  maimonscan = idlescan = finscan = udpscan = ipprotscan = 0;
   noportscan = noresolve = 0;
   sctpinitscan = 0;
   sctpcookieechoscan = 0;
@@ -292,6 +291,9 @@ void NmapOps::Initialize() {
   log_errors = false;
   resolve_all = 0;
   dns_servers = NULL;
+  numhosts_scanned = 0;
+  numhosts_up = 0;
+  numhosts_scanning = 0;
   noninteractive = false;
   current_scantype = STYPE_UNKNOWN;
   ipoptions = NULL;
@@ -302,9 +304,12 @@ void NmapOps::Initialize() {
   topportlevel = -1;
 #ifndef NOLUA
   script = 0;
+  scriptargs = NULL;
   scriptversion = 0;
   scripttrace = 0;
   scriptupdatedb = 0;
+  scripthelp = false;
+  chosenScripts.clear();
 #endif
   memset(&sourcesock, 0, sizeof(sourcesock));
   sourcesocklen = 0;
@@ -357,15 +362,15 @@ dialog where you can start NPF if you have administrator privileges.";
     if (isr00t && af() == AF_INET)
       synscan++;
     else connectscan++;
-    //    if (verbose) error("No TCP, UDP, SCTP or ICMP scantype specified, assuming %s scan. Use -sP if you really don't want to portscan (and just want to see what hosts are up).", synscan? "SYN Stealth" : "vanilla tcp connect()");
+    //    if (verbose) error("No TCP, UDP, SCTP or ICMP scantype specified, assuming %s scan. Use -sn if you really don't want to portscan (and just want to see what hosts are up).", synscan? "SYN Stealth" : "vanilla tcp connect()");
   }
 
   if (pingtype != PINGTYPE_NONE && spoofsource) {
-    error("WARNING:  If -S is being used to fake your source address, you may also have to use -e <interface> and -PN .  If you are using it to specify your real source address, you can ignore this warning.");
+    error("WARNING:  If -S is being used to fake your source address, you may also have to use -e <interface> and -Pn .  If you are using it to specify your real source address, you can ignore this warning.");
   }
 
   if (pingtype != PINGTYPE_NONE && idlescan) {
-    error("WARNING: Many people use -PN w/Idlescan to prevent pings from their true IP.  On the other hand, timing info Nmap gains from pings can allow for faster, more reliable scans.");
+    error("WARNING: Many people use -Pn w/Idlescan to prevent pings from their true IP.  On the other hand, timing info Nmap gains from pings can allow for faster, more reliable scans.");
     sleep(2); /* Give ppl a chance for ^C :) */
   }
 
@@ -394,7 +399,7 @@ dialog where you can start NPF if you have administrator privileges.";
  }
 
  if (noportscan && (TCPScan() || UDPScan() || SCTPScan() || ipprotscan)) {
-   fatal("-sL and -sP (skip port scan) are not valid with any other scan types");
+   fatal("-sL and -sn (skip port scan) are not valid with any other scan types");
  }
 
  if (af() == AF_INET6 && (pingtype & (PINGTYPE_ICMP_PING|PINGTYPE_ICMP_MASK|PINGTYPE_ICMP_TS))) {
@@ -434,7 +439,7 @@ dialog where you can start NPF if you have administrator privileges.";
   }
   
   if (bouncescan && pingtype != PINGTYPE_NONE) 
-    log_write(LOG_STDOUT, "Hint: if your bounce scan target hosts aren't reachable from here, remember to use -PN so we don't try and ping them prior to the scan\n");
+    log_write(LOG_STDOUT, "Hint: if your bounce scan target hosts aren't reachable from here, remember to use -Pn so we don't try and ping them prior to the scan\n");
   
   if (ackscan+bouncescan+connectscan+finscan+idlescan+maimonscan+nullscan+synscan+windowscan+xmasscan > 1)
     fatal("You specified more than one type of TCP scan.  Please choose only one of -sA, -b, -sT, -sF, -sI, -sM, -sN, -sS, -sW, and -sX");
@@ -459,7 +464,7 @@ dialog where you can start NPF if you have administrator privileges.";
 #endif
   
   if (osscan && noportscan) {
-    fatal("WARNING:  OS Scan is unreliable without a port scan.  You need to use a scan type along with it, such as -sS, -sT, -sF, etc instead of -sP");
+    fatal("WARNING:  OS Scan is unreliable without a port scan.  You need to use a scan type along with it, such as -sS, -sT, -sF, etc instead of -sn");
   }
 
   if (osscan && ipprotscan) {
@@ -495,7 +500,7 @@ dialog where you can start NPF if you have administrator privileges.";
   }
   
   if (af() == AF_INET6 && (generate_random_ips|numdecoys|osscan|bouncescan|fragscan|ackscan|finscan|idlescan|ipprotscan|maimonscan|nullscan|synscan|udpscan|windowscan|xmasscan|sctpinitscan|sctpcookieechoscan)) {
-    fatal("Sorry -- IPv6 support is currently only available for connect() scan (-sT), ping scan (-sP), and list scan (-sL).  OS detection, random targets and decoys are also not supported with IPv6.  Further support is under consideration.");
+    fatal("Sorry -- IPv6 support is currently only available for connect() scan (-sT), ping scan (-sn), and list scan (-sL).  OS detection, random targets and decoys are also not supported with IPv6.  Further support is under consideration.");
   }
 
   /* Prevent performance values from getting out of whack */

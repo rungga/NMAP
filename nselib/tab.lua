@@ -1,34 +1,39 @@
---- Arrange output into tables.
+---
+-- Arrange output into tables.
 --
 -- This module provides NSE scripts with a way to output structured tables
 -- similar to what <code>NmapOutputTable.cc</code> provides.
 --
 -- Example usage:
 -- <code>
--- local t = tab.new(2)
+-- local t = tab.new()
 -- tab.add(t, 1, 'A1')
 -- tab.add(t, 2, 'A2')
 -- tab.nextrow(t)
 -- tab.add(t, 1, 'BBBBBBBBB1')
 -- tab.add(t, 2, 'BBB2')
+-- tab.nextrow(t)
+-- tab.addrow(t, 'C1', 'C2')
 -- tab.dump(t)
 -- </code>
+--
+-- <code>tab.add</code> works on the bottom-most row until
+-- <code>tab.nextrow</code> is called. Think of <code>tab.nextrow</code> as
+-- typing Enter at the end of a line. <code>tab.addrow</code> adds a whole row
+-- at a time and calls <code>tab.nextrow</code> automatically.
+--
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
-module(... or "tab",package.seeall)
+module(... or "tab", package.seeall)
 
 require('strbuf')
 
---- Create and return a new table with a given number of columns and
--- the row counter set to 1.
--- @param cols The number of columns the table will hold.
+--- Create and return a new table.
 -- @return A new table.
-function new(cols)
-	assert(cols > 0)
-	local table ={}
+function new()
+	local table = {}
 
-	table['cols'] = cols
-	table['rows'] = 1
+	table.current_row = 1
 	setmetatable(table, {__tostring=dump})
 	return table
 end
@@ -42,21 +47,12 @@ end
 -- @param c The column position at which to add the item.
 function add(t, c, v)
 	assert(t)
-	assert(v)
-	assert(t['rows'])
-	assert(t['cols'])
 	assert(type(v) == "string")
 
-	if c < 1 or c > t['cols'] then
-		return false
-	end
-
 	-- add a new row if one doesn't exist
-	if t[t['rows']] == nil then
-		t[t['rows']] = {}
-	end
+	t[t.current_row] = t[t.current_row] or {}
 
-	t[t['rows']][c] = v
+	t[t.current_row][c] = v
 	return true
 end
 
@@ -67,10 +63,10 @@ end
 -- @param t The table.
 -- @param ... The elements to add to the row.
 function addrow(t, ...)
-	for i=1, select("#", ...) do
-		add( t, i, tostring( ( select(i, ...)) ) )
+	for i = 1, select("#", ...) do
+		add(t, i, tostring((select(i, ...))))
 	end
-	nextrow( t )
+	nextrow(t)
 end
 
 --- Move on to the next row in the table. If this is not called
@@ -79,8 +75,9 @@ end
 -- @param t The table.
 function nextrow(t)
 	assert(t)
-	assert(t['rows'])
-	t['rows'] = t['rows'] + 1
+	assert(t.current_row)
+	t[t.current_row] = t[t.current_row] or {}
+	t.current_row = t.current_row + 1
 end
 
 --- Return a formatted string representation of the table.
@@ -90,36 +87,38 @@ end
 -- @param t The table.
 function dump(t)
 	assert(t)
-	assert(t['rows'])
-	assert(t['cols'])
 
-	local col_len = {}	
-	local table = strbuf.new()
-	local len
+	local column_width = {}	
+	local num_columns = {}
+	local buf = strbuf.new()
 
-	-- find largest string in column
-	for i=1, t['cols'] do
-		local max = 0
-		for x=1, t['rows'] do
-			if t[x] == nil then t[x] = {} end
-			if t[x][i] ~= nil and string.len(t[x][i]) > max then
-				max = string.len(t[x][i])
+	-- find widest element in each column
+	for i, row in ipairs(t) do
+		num_columns[i] = 0
+		for x, elem in pairs(row) do
+			local elem_width = string.len(elem)
+			if not column_width[x] or elem_width > column_width[x] then
+				column_width[x] = elem_width
+			end
+			if x > num_columns[i] then
+				num_columns[i] = x
 			end
 		end
-		col_len[i] = max+2
 	end
 
-	-- build table with padding so all column elements line up
-	for i=1,t['rows'] do
-		for x=1, t['cols'] do
-			if t[i][x] ~= nil then
-				local length = string.len(t[i][x])
-				table = table .. t[i][x]
-				table = table .. string.rep(' ', col_len[x]-length)
+	-- build buf with padding so all column elements line up
+	for i, row in ipairs(t) do
+		local text_row = {}
+		for x = 1, num_columns[i] do
+			local elem = row[x] or ""
+			if x < num_columns[i] then
+				text_row[#text_row + 1] = elem .. string.rep(" ", column_width[x] - #elem)
+			else
+				text_row[#text_row + 1] = elem
 			end
 		end
-		table = table .. "\n"
+		buf = buf .. table.concat(text_row, "  ") .. "\n"
 	end
 
-	return strbuf.dump(table)
+	return strbuf.dump(buf)
 end

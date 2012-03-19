@@ -28,7 +28,7 @@
     </cmdsynopsis>
   </refsynopsisdiv>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-description">
     <title>Description</title>
 
     <para>
@@ -60,7 +60,7 @@
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-options">
     <title>Options Summary</title>
 
     <variablelist>
@@ -109,7 +109,7 @@
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-example">
     <title>Example</title>
 
     <para>
@@ -121,11 +121,11 @@
     </para>
 
 <screen>
-# nmap -F scanme.nmap.org -oX scanme-1.xml
-# nmap --script=html-title scanme.nmap.org -oX scanme-2.xml
-$ ndiff -v scanme-1.xml scanme-2.xml
--Nmap 4.90RC2 at 2009-07-16 13:29
-+Nmap 4.90RC2 at 2009-07-16 13:33
+# <userinput>nmap -F scanme.nmap.org -oX scanme-1.xml</userinput>
+# <userinput>nmap --script=html-title scanme.nmap.org -oX scanme-2.xml</userinput>
+$ <userinput>ndiff -v scanme-1.xml scanme-2.xml</userinput>
+-Nmap 5.35DC1 at 2010-07-16 12:09
++Nmap 5.35DC1 at 2010-07-16 12:13
 
  scanme.nmap.org (64.13.134.52):
  Host is up.
@@ -147,7 +147,7 @@ $ ndiff -v scanme-1.xml scanme-2.xml
     at the beginning of a line. We can see from the output that the scan
     without the <option>-F</option> fast scan option found two
     additional ports: 70 and 31337. The
-    <filename>html-title.nse</filename> script produced some additional
+    <filename>html-title</filename> script produced some additional
     output for port 80. From the port counts, we may infer that the fast
     scan scanned 100 ports (95 filtered, 3 open, and 2 closed), while
     the normal scan scanned 1000 (993 filtered, 3 open, and 4 closed).
@@ -160,12 +160,12 @@ $ ndiff -v scanme-1.xml scanme-2.xml
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-output">
     <title>Output</title>
 
     <para>
     There are two output modes: text and XML. Text output is the
-    default, and is also selected with the <option>--text</option>
+    default, and can also be selected with the <option>--text</option>
     option. Text output resembles a unified diff of Nmap's normal
     terminal output. Each line is preceded by a character indicating
     whether and how it changed. <literal>-</literal> means that the line
@@ -177,9 +177,9 @@ $ ndiff -v scanme-1.xml scanme-2.xml
     </para>
 
     <para>
-    <xref linkend="ndiff-man-ex-text-output"/> is an example of text
-    output. Here, port 80 on the host
-    <literal>photos-cache-snc1.facebook.com</literal> gained a service
+    <xref linkend="ndiff-man-ex-text-output" xrefstyle="select: label nopage"/>
+    is an example of text output. Here, port 80 on the host
+    photos-cache-snc1.facebook.com gained a service
     version (<computeroutput>lighttpd 1.5.0</computeroutput>). The host
     at 69.63.179.25 changed its reverse DNS name. The host at
     69.63.184.145 was completely absent in the first scan but came up in
@@ -228,11 +228,11 @@ $ ndiff -v scanme-1.xml scanme-2.xml
     </para>
 
     <para>
-    <xref linkend="ndiff-man-ex-xml-output"/> shows the XML diff of the
-    same scans shown above in
+    <xref linkend="ndiff-man-ex-xml-output" xrefstyle="select: label nopage"/>
+    shows the XML diff of the same scans shown above in
     <xref linkend="ndiff-man-ex-text-output" xrefstyle="select: label"/>.
     Notice how port 80 of
-    <literal>photos-cache-snc1.facebook.com</literal> is enclosed in
+    photos-cache-snc1.facebook.com is enclosed in
     <varname>portdiff</varname> tags. For 69.63.179.25, the old hostname
     is in <varname>a</varname> tags and the new is in
     <varname>b</varname>. For the new host 69.63.184.145, there is a
@@ -244,8 +244,7 @@ $ ndiff -v scanme-1.xml scanme-2.xml
     <example id="ndiff-man-ex-xml-output">
       <title>Ndiff XML output</title>
 <screen>
-<![CDATA[
-<?xml version="1.0" encoding="UTF-8"?>
+<![CDATA[<?xml version="1.0" encoding="UTF-8"?>
 <nmapdiff version="1">
   <scandiff>
     <hostdiff>
@@ -297,32 +296,32 @@ $ ndiff -v scanme-1.xml scanme-2.xml
             <extraports count="98" state="filtered"/>
             <port portid="80" protocol="tcp">
               <state state="open"/>
-              <service name="http" product="Apache httpd" version="1.3.41.fb1"/>
+              <service name="http" product="Apache httpd"
+                       version="1.3.41.fb1"/>
             </port>
             <port portid="443" protocol="tcp">
               <state state="open"/>
-              <service name="http" product="Apache httpd" tunnel="ssl" version="1.3.41.fb1"/>
+              <service name="http" product="Apache httpd" tunnel="ssl"
+                       version="1.3.41.fb1"/>
             </port>
           </ports>
         </host>
       </b>
     </hostdiff>
   </scandiff>
-</nmapdiff>
-]]>
-</screen>
+</nmapdiff>]]></screen>
     </example>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-periodic">
     <title>Periodic Diffs</title>
 
     <para>
     Using Nmap, Ndiff, cron, and a shell script, it's possible to scan a
     network daily and get email reports of the state of the network and
     changes since the previous scan.
-    <xref linkend="ndiff-man-ex-cron"/> shows the script that ties it
-    together.
+    <xref linkend="ndiff-man-ex-cron" xrefstyle="select: label nopage"/>
+    shows the script that ties it together.
     </para>
 
     <example id="ndiff-man-ex-cron">
@@ -355,7 +354,7 @@ ln -sf scan-$date.xml scan-prev.xml
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-exit-code">
     <title>Exit Code</title>
 
     <para>
@@ -370,7 +369,7 @@ ln -sf scan-$date.xml scan-prev.xml
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-bugs">
     <title>Bugs</title>
     <para>
     Report bugs to the <citetitle>nmap-dev</citetitle> mailing list at
@@ -378,7 +377,7 @@ ln -sf scan-$date.xml scan-prev.xml
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-history">
     <title>History</title>
 
     <para>
@@ -388,12 +387,12 @@ ln -sf scan-$date.xml scan-prev.xml
     in Perl and C++, but the summer ended shortly after it was decided
     to rewrite the program in Python for the sake of Windows (and
     Zenmap) compatibility. This Python version was written by David
-    Fifield.  James Levine <ulink url="http://seclists.org/nmap-hackers/2000/0315.html">released</ulink> a Perl script named Ndiff with
+    Fifield.  James Levine <ulink url="http://seclists.org/nmap-hackers/2000/315">released</ulink> a Perl script named Ndiff with
     similar functionality in 2000.
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-authors">
     <title>Authors</title>
 
     <para>
@@ -404,7 +403,7 @@ ln -sf scan-$date.xml scan-prev.xml
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 id="ndiff-man-web">
     <title>Web site</title>
 
     <para>

@@ -9,7 +9,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -31,7 +31,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -54,8 +54,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -92,7 +92,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.h 16098 2009-11-16 08:36:58Z david $ */
+/* $Id: output.h 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #ifndef OUTPUT_H
 #define OUTPUT_H
@@ -112,9 +112,28 @@
 
 #define LOG_NAMES {"normal", "machine", "$Cr!pT |<!dd!3", "XML"}
 
+#define PCAP_OPEN_ERRMSG "Call to pcap_open_live() failed three times. "\
+"There are several possible reasons for this, depending on your operating "\
+"system:\nLINUX: If you are getting Socket type not supported, try "\
+"modprobe af_packet or recompile your kernel with PACKET enabled.\n "\
+ "*BSD:  If you are getting device not configured, you need to recompile "\
+ "your kernel with Berkeley Packet Filter support.  If you are getting "\
+ "No such file or directory, try creating the device (eg cd /dev; "\
+ "MAKEDEV <device>; or use mknod).\n*WINDOWS:  Nmap only supports "\
+ "ethernet interfaces on Windows for most operations because Microsoft "\
+ "disabled raw sockets as of Windows XP SP2.  Depending on the reason for "\
+ "this error, it is possible that the --unprivileged command-line argument "\
+ "will help.\nSOLARIS:  If you are trying to scan localhost or the "\
+ "address of an interface and are getting '/dev/lo0: No such file or "\
+ "directory' or 'lo0: No DLPI device found', complain to Sun.  I don't "\
+ "think Solaris can support advanced localhost scans.  You can probably "\
+ "use \"-Pn -sT localhost\" though.\n\n"
+
 #include "portlist.h"
 #include "nmap.h"
 #include "global_structures.h"
+
+#include <string>
 
 #ifdef WIN32
 /* Display a warning that a device is not Ethernet and so raw sockets
@@ -173,6 +192,10 @@ void output_ports_to_machine_parseable_output(struct scan_lists *ports,
 					      int tcpscan, int udpscan,
 					      int sctpscan, int protscan);
 
+/* Return a std::string containing all n strings separated by whitespace, and
+   individually quoted if needed. */
+std::string join_quoted(const char * const strings[], unsigned int n);
+
 /* Similar to output_ports_to_machine_parseable_output, this function
    outputs the XML version, which is scaninfo records of each scan
    requested and the ports which it will scan for */
@@ -196,7 +219,12 @@ void printosscanoutput(Target *currenths);
    service scan (if it was performed) */
 void printserviceinfooutput(Target *currenths);
 
+#ifndef NOLUA
+/* Use this function to report NSE_PRE_SCAN and NSE_POST_SCAN results */
+void printscriptresults(ScriptResults *scriptResults, stype scantype);
+
 void printhostscriptresults(Target *currenths);
+#endif
 
 /* Print a table with traceroute hops. */
 void printtraceroute(Target *currenths);
@@ -211,6 +239,10 @@ int print_iflist(void);
 /* Prints a status message while the program is running */
 void printStatusMessage();
 
+void print_xml_finished_open(time_t timep, const struct timeval *tv);
+
+void print_xml_hosts();
+
 /* Prints the statistics and other information that goes at the very end
    of an Nmap run */
 void printfinaloutput();
@@ -219,5 +251,4 @@ void printfinaloutput();
    were found. */
 void printdatafilepaths();
 
-char* xml_convert (const char* str);
 #endif /* OUTPUT_H */

@@ -4,7 +4,7 @@
  * connections from the nsock parallel socket event library                *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -16,15 +16,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_connect.c 14576 2009-07-25 20:59:32Z venkat $ */
+/* $Id: nsock_connect.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -64,6 +64,68 @@
 #include <string.h>
 
 extern struct timeval nsock_tod;
+
+/* Create the actual socket (nse->iod->sd) underlying the iod. This
+   unblocks the socket, binds to the localaddr address, sets IP options,
+   and sets the broadcast flag. Trying to change these functions after
+   making this call will not have an effect. This function needs to be
+   called before you try to read or write on the iod. */
+static int nsock_make_socket(mspool *ms, msiod *iod, int family, int proto) {
+  /* inheritable_socket is from nbase */
+  iod->sd = (int) inheritable_socket(family,
+    (proto == IPPROTO_UDP) ? SOCK_DGRAM : SOCK_STREAM, proto);
+  if (iod->sd == -1) {
+    perror("Socket troubles");
+    return -1;
+  }
+
+  unblock_socket(iod->sd);
+
+  iod->lastproto = proto;
+
+  if (iod->locallen) {
+    int one = 1;
+    setsockopt(iod->sd, SOL_SOCKET, SO_REUSEADDR, (const char *) &one, sizeof(one));
+    if (bind(iod->sd, (struct sockaddr *) &iod->local, (int) iod->locallen) == -1) {
+      if (ms->tracelevel > 0)
+        nsock_trace(ms, "Bind to %s failed (IOD #%li)", 
+                    inet_ntop_ez(&iod->local, iod->locallen), iod->id);
+    }
+  }
+
+  if (iod->ipoptslen && family == AF_INET) {
+    if (setsockopt(iod->sd, IPPROTO_IP, IP_OPTIONS, (const char *) iod->ipopts, iod->ipoptslen) == -1) {
+      if (ms->tracelevel > 0)
+        nsock_trace(ms, "Setting of IP options failed (IOD #%li)", iod->id);
+    }
+  }
+
+  if (ms->broadcast) {
+    if (setsockopt(iod->sd, SOL_SOCKET, SO_BROADCAST, (const char *)&(ms->broadcast), sizeof(int)) == -1) {
+      if (ms->tracelevel > 0)
+        nsock_trace(ms, "Setting of SO_BROADCAST failed (IOD #%li)", iod->id);
+    }
+  }
+
+  return iod->sd;
+}
+
+int nsock_setup_udp(nsock_pool nsp, nsock_iod ms_iod, int af) {
+  mspool *ms = (mspool *) nsp;
+  msiod *nsi = (msiod *) ms_iod;
+
+  assert(nsi->state == NSIOD_STATE_INITIAL || nsi->state == NSIOD_STATE_UNKNOWN);
+
+  gettimeofday(&nsock_tod, NULL);
+
+  if (ms->tracelevel > 0)
+    nsock_trace(ms, "UDP unconnected socket (IOD #%li)", nsi->id);
+
+  if (nsock_make_socket(ms, nsi, af, IPPROTO_UDP) == -1)
+    return -1;
+
+  return nsi->sd;
+}
 
 /* This does the actual logistics of requesting a TCP connection.  It is
  * shared by nsock_connect_tcp and nsock_connect_ssl */
@@ -78,15 +140,9 @@ void nsock_connect_internal(mspool *ms, msevent *nse, int proto,
   msiod *iod = nse->iod;
 
   /* Now it is time to actually attempt the connection */
-  /* inheritable_socket is from nbase */
-  iod->sd = (int) inheritable_socket(sin->sin_family,
-	            (proto == IPPROTO_UDP) ? SOCK_DGRAM : SOCK_STREAM, proto);
-  if (iod->sd == -1) {
-    perror("Socket troubles");
+  if (nsock_make_socket(ms, iod, ss->ss_family, proto) == -1) {
     nse->event_done = 1; nse->status = NSE_STATUS_ERROR; nse->errnum = socket_errno();
   } else { 
-    unblock_socket(iod->sd);
-    
     if (sin->sin_family == AF_INET) {
       sin->sin_port = htons(port);
     } else {
@@ -101,24 +157,6 @@ void nsock_connect_internal(mspool *ms, msevent *nse, int proto,
     assert(sslen <= sizeof(iod->peer));
     memcpy(&iod->peer, ss, sslen);
     iod->peerlen = sslen;
-    iod->lastproto = proto;
-
-    if (iod->locallen) {
-      int one = 1;
-      setsockopt(iod->sd, SOL_SOCKET, SO_REUSEADDR, (const char *) &one, sizeof(one));
-      if (bind(iod->sd, (struct sockaddr *) &iod->local, (int) iod->locallen) == -1) {
-        if (ms->tracelevel > 0)
-          nsock_trace(ms, "Bind to %s failed (IOD #%li) EID %li", 
-                      inet_ntop_ez(&iod->local, iod->locallen), iod->id, nse->id);
-      }
-    }
-
-    if (iod->ipoptslen && ss->ss_family == AF_INET) {
-      if (setsockopt(iod->sd, IPPROTO_IP, IP_OPTIONS, (const char *) iod->ipopts, iod->ipoptslen) == -1) {
-        if (ms->tracelevel > 0)
-          nsock_trace(ms, "Setting of IP options failed (IOD #%li) EID %li", iod->id, nse->id);
-      }
-    }
 
     if (connect(iod->sd, (struct sockaddr *) ss, sslen) == -1) {
       int err = socket_errno();

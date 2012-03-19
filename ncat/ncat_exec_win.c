@@ -2,7 +2,7 @@
  * ncat_exec_win.c -- Windows-specific subprocess execution.               *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -91,6 +91,17 @@
 
 #include "ncat.h"
 
+/* This structure holds information about a subprocess with redirected input
+   and output handles. */
+struct subprocess_info {
+    HANDLE proc;
+    struct fdinfo fdn;
+    HANDLE child_in_r;
+    HANDLE child_in_w;
+    HANDLE child_out_r;
+    HANDLE child_out_w;
+};
+
 /* A list of subprocesses, so we can kill them when the program exits. */
 static HANDLE subprocesses[DEFAULT_MAX_CONNS];
 static int subprocess_max_index = 0;
@@ -116,17 +127,6 @@ static void (*pseudo_sigchld_handler)(void) = NULL;
 /* Simulates blocking of SIGCHLD while the handler runs. Also prevents
    concurrent modification of pseudo_sigchld_handler. */
 static HANDLE pseudo_sigchld_mutex = NULL;
-
-/* This structure holds information about a subprocess with redirected input
-   and output handles. */
-struct subprocess_info {
-    HANDLE proc;
-    struct fdinfo fdn;
-    HANDLE child_in_r;
-    HANDLE child_in_w;
-    HANDLE child_out_r;
-    HANDLE child_out_w;
-};
 
 /* Run a child process, redirecting its standard file handles to a socket
    descriptor. Return the child's PID or -1 on error. */
@@ -265,6 +265,10 @@ static int run_command_redirected(char *cmdexec, struct subprocess_info *info) {
         return -1;
     }
 
+    /* Close hThread here because we have no use for it. hProcess is closed in
+       subprocess_info_close. */
+    CloseHandle(pi.hThread);
+
     info->proc = pi.hProcess;
 
     return pi.dwProcessId;
@@ -360,6 +364,7 @@ static DWORD WINAPI subprocess_thread_func(void *data) {
     OVERLAPPED overlap = { 0 };
     HANDLE events[3];
     DWORD ret;
+    int crlf_state = 0;
 
     info = (struct subprocess_info *) data;
 
@@ -404,14 +409,22 @@ static DWORD WINAPI subprocess_thread_func(void *data) {
                 wbuf = pipe_buffer;
                 n_r = n;
                 if (o.crlf) {
-                    if (fix_line_endings((char *) pipe_buffer, &n_r, &crlf))
+                    if (fix_line_endings((char *) pipe_buffer, &n_r, &crlf, &crlf_state))
                         wbuf = crlf;
                 }
+                /* The above call to WSAEventSelect puts the socket in
+                   non-blocking mode, but we want this send to block, not
+                   potentially return WSAEWOULDBLOCK. We call block_socket, but
+                   first we must clear out the select event. */
+                WSAEventSelect(info->fdn.fd, events[0], 0);
+                block_socket(info->fdn.fd);
                 nwritten = ncat_send(&info->fdn, wbuf, n_r);
                 if (crlf != NULL)
                     free(crlf);
                 if (nwritten != n_r)
                     break;
+                /* Restore the select event (and non-block the socket again.) */
+                WSAEventSelect(info->fdn.fd, events[0], FD_READ | FD_CLOSE);
                 /* Queue another ansychronous read. */
                 ReadFile(info->child_out_r, pipe_buffer, sizeof(pipe_buffer), NULL, &overlap);
             } else {

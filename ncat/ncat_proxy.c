@@ -2,7 +2,7 @@
  * ncat_proxy.c -- HTTP proxy server.                                      *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_proxy.c 15802 2009-10-10 02:41:06Z david $ */
+/* $Id: ncat_proxy.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "base64.h"
 #include "http.h"
@@ -106,12 +106,13 @@ static void proxyreaper(int signo)
 #endif
 
 /* send a '\0'-terminated string. */
-static int send_string(int sock, const char *s)
+static int send_string(struct fdinfo *fdn, const char *s)
 {
-    return send(sock, s, strlen(s), 0);
+    return fdinfo_send(fdn, s, strlen(s));
 }
 
 static void http_server_handler(int c);
+static int send_proxy_authenticate(struct fdinfo *fdn, int stale);
 static char *http_code2str(int code);
 
 static void fork_handler(int s, int c);
@@ -121,11 +122,14 @@ static int handle_connect(struct socket_buffer *client_sock,
 static int handle_method(struct socket_buffer *client_sock,
     struct http_request *request);
 
+static int check_auth(const struct http_request *request,
+    const struct http_credentials *credentials, int *stale);
+
 /*
  * Simple forking HTTP proxy. It is an HTTP/1.0 proxy with knowledge of
  * HTTP/1.1. (The things lacking for HTTP/1.1 are the chunked transfer encoding
  * and the expect mechanism.) The proxy supports the CONNECT, GET, HEAD, and
- * POST methods. It supports Basic authentication of clients (use the
+ * POST methods. It supports Basic and Digest authentication of clients (use the
  * --proxy-auth option).
  *
  * HTTP/1.1 is defined in RFC 2616. Many comments refer to that document.
@@ -148,11 +152,20 @@ static int handle_method(struct socket_buffer *client_sock,
 int ncat_http_server(void)
 {
     int c, s;
-    size_t sslen;
+    socklen_t sslen;
     union sockaddr_u conn;
 
 #ifndef WIN32
     Signal(SIGCHLD, proxyreaper);
+#endif
+
+#if HAVE_HTTP_DIGEST
+    http_digest_init_secret();
+#endif
+
+#ifdef HAVE_OPENSSL
+    if (o.ssl)
+        setup_ssl_listen();
 #endif
 
     s = do_listen(SOCK_STREAM, IPPROTO_TCP);
@@ -160,7 +173,7 @@ int ncat_http_server(void)
     for (;;) {
         sslen = sizeof(conn.storage);
 
-        c = accept(s, &conn.sockaddr, (socklen_t *) &sslen);
+        c = accept(s, &conn.sockaddr, &sslen);
 
         if (c == -1) {
             if (errno == EINTR)
@@ -248,13 +261,24 @@ static void http_server_handler(int c)
     char *buf;
 
     socket_buffer_init(&sock, c);
+#if HAVE_OPENSSL
+    if (o.ssl) {
+        sock.fdn.ssl = new_ssl(sock.fdn.fd);
+        if (SSL_accept(sock.fdn.ssl) != 1) {
+            loguser("Failed SSL connection: %s\n",
+                ERR_error_string(ERR_get_error(), NULL));
+            fdinfo_close(&sock.fdn);
+            return;
+        }
+    }
+#endif
 
     code = http_read_request_line(&sock, &buf);
     if (code != 0) {
         if (o.verbose)
             logdebug("Error reading Request-Line.\n");
-        send_string(c, http_code2str(code));
-        Close(c);
+        send_string(&sock.fdn, http_code2str(code));
+        fdinfo_close(&sock.fdn);
         return;
     }
     if (o.debug > 1)
@@ -264,8 +288,8 @@ static void http_server_handler(int c)
     if (code != 0) {
         if (o.verbose)
             logdebug("Error parsing Request-Line.\n");
-        send_string(c, http_code2str(code));
-        Close(c);
+        send_string(&sock.fdn, http_code2str(code));
+        fdinfo_close(&sock.fdn);
         return;
     }
 
@@ -273,8 +297,8 @@ static void http_server_handler(int c)
         if (o.debug > 1)
             logdebug("Bad method: %s.\n", request.method);
         http_request_free(&request);
-        send_string(c, http_code2str(405));
-        Close(c);
+        send_string(&sock.fdn, http_code2str(405));
+        fdinfo_close(&sock.fdn);
         return;
     }
 
@@ -283,8 +307,8 @@ static void http_server_handler(int c)
         if (o.verbose)
             logdebug("Error reading header.\n");
         http_request_free(&request);
-        send_string(c, http_code2str(code));
-        Close(c);
+        send_string(&sock.fdn, http_code2str(code));
+        fdinfo_close(&sock.fdn);
         return;
     }
     if (o.debug > 1)
@@ -295,35 +319,34 @@ static void http_server_handler(int c)
         if (o.verbose)
             logdebug("Error parsing header.\n");
         http_request_free(&request);
-        send_string(c, http_code2str(code));
-        Close(c);
+        send_string(&sock.fdn, http_code2str(code));
+        fdinfo_close(&sock.fdn);
         return;
     }
 
     /* Check authentication. */
     if (o.proxy_auth) {
-        char *auth;
-        int ret;
+        struct http_credentials credentials;
+        int ret, stale;
 
-        auth = http_header_get_first(request.header, "Proxy-Authorization");
-        if (auth == NULL) {
-            /* No authentication sent. */
+        if (http_header_get_proxy_credentials(request.header, &credentials) == NULL) {
+            /* No credentials or a parsing error. */
+            send_proxy_authenticate(&sock.fdn, 0);
             http_request_free(&request);
-            send_string(c, http_code2str(407));
-            Close(c);
+            fdinfo_close(&sock.fdn);
             return;
         }
 
-        ret = http_check_auth_basic(o.proxy_auth, auth);
-        free(auth);
+        ret = check_auth(&request, &credentials, &stale);
+        http_credentials_free(&credentials);
         if (!ret) {
             /* Password doesn't match. */
-            http_request_free(&request);
             /* RFC 2617, section 1.2: "If a proxy does not accept the
                credentials sent with a request, it SHOULD return a 407 (Proxy
                Authentication Required). */
-            send_string(c, http_code2str(407));
-            Close(c);
+            send_proxy_authenticate(&sock.fdn, stale);
+            http_request_free(&request);
+            fdinfo_close(&sock.fdn);
             return;
         }
     }
@@ -340,12 +363,12 @@ static void http_server_handler(int c)
     http_request_free(&request);
 
     if (code != 0) {
-        send_string(c, http_code2str(code));
-        Close(c);
+        send_string(&sock.fdn, http_code2str(code));
+        fdinfo_close(&sock.fdn);
         return;
     }
 
-    Close(c);
+    fdinfo_close(&sock.fdn);
 }
 
 static int handle_connect(struct socket_buffer *client_sock,
@@ -381,7 +404,7 @@ static int handle_connect(struct socket_buffer *client_sock,
         return 504;
     }
 
-    send_string(client_sock->sd, http_code2str(200));
+    send_string(&client_sock->fdn, http_code2str(200));
 
     /* Clear out whatever is left in the socket buffer. The client may have
        already sent the first part of its request to the origin server. */
@@ -393,16 +416,16 @@ static int handle_connect(struct socket_buffer *client_sock,
         return 0;
     }
 
-    maxfd = client_sock->sd < s ? s : client_sock->sd;
+    maxfd = client_sock->fdn.fd < s ? s : client_sock->fdn.fd;
     FD_ZERO(&m);
-    FD_SET(client_sock->sd, &m);
+    FD_SET(client_sock->fdn.fd, &m);
     FD_SET(s, &m);
 
     errno = 0;
 
     while (!socket_errno() || socket_errno() == EINTR) {
         char buf[DEFAULT_TCP_BUF_LEN];
-        int len, numready;
+        int len, rc, numready;
 
         r = m;
 
@@ -410,28 +433,37 @@ static int handle_connect(struct socket_buffer *client_sock,
 
         zmem(buf, sizeof(buf));
 
-        if (FD_ISSET(client_sock->sd, &r)) {
-            if ((len = recv(client_sock->sd, buf, sizeof(buf), 0)) < 0)
-                continue;
+        if (FD_ISSET(client_sock->fdn.fd, &r)) {
+            do {
+                do {
+                    len = fdinfo_recv(&client_sock->fdn, buf, sizeof(buf));
+                } while (len == -1 && socket_errno() == EINTR);
+                if (len <= 0)
+                    goto end;
 
-            if (!len)
-                break;
-
-            if (send(s, buf, len, 0) < 0)
-                continue;
+                do {
+                    rc = send(s, buf, len, 0);
+                } while (rc == -1 && socket_errno() == EINTR);
+                if (rc == -1)
+                    goto end;
+            } while (fdinfo_pending(&client_sock->fdn));
         }
 
         if (FD_ISSET(s, &r)) {
-            if ((len = recv(s, buf, sizeof(buf), 0)) < 0)
-                continue;
+            do {
+                len = recv(s, buf, sizeof(buf), 0);
+            } while (len == -1 && socket_errno() == EINTR);
+            if (len <= 0)
+                goto end;
 
-            if (!len)
-                break;
-
-            if (send(client_sock->sd, buf, len, 0) < 0)
-                continue;
+            do {
+                rc = fdinfo_send(&client_sock->fdn, buf, len);
+            } while (rc == -1 && socket_errno() == EINTR);
+            if (rc == -1)
+                goto end;
         }
     }
+end:
 
     close(s);
 
@@ -490,7 +522,7 @@ static int handle_method(struct socket_buffer *client_sock,
 
     code = do_transaction(request, client_sock, &server_sock);
 
-    close(server_sock.sd);
+    fdinfo_close(&server_sock.fdn);
 
     if (code != 0)
         return code;
@@ -548,7 +580,7 @@ static int do_transaction(struct http_request *request,
 
     /* Send the request to the server. */
     request_str = http_request_to_string(request, &len);
-    n = send(server_sock->sd, request_str, len, 0);
+    n = send(server_sock->fdn.fd, request_str, len, 0);
     free(request_str);
     if (n < 0)
         return 504;
@@ -560,7 +592,7 @@ static int do_transaction(struct http_request *request,
         if (n == 0)
             break;
         request->bytes_transferred += n;
-        n = send(server_sock->sd, buf, n, 0);
+        n = send(server_sock->fdn.fd, buf, n, 0);
         if (n < 0)
             return 504;
     }
@@ -618,7 +650,7 @@ static int do_transaction(struct http_request *request,
 
     /* Send the response to the client. */
     response_str = http_response_to_string(&response, &len);
-    n = send(client_sock->sd, response_str, len, 0);
+    n = fdinfo_send(&client_sock->fdn, response_str, len);
     free(response_str);
     if (n < 0) {
         http_response_free(&response);
@@ -639,7 +671,7 @@ static int do_transaction(struct http_request *request,
         if (n <= 0)
             break;
         response.bytes_transferred += n;
-        n = send(client_sock->sd, buf, n, 0);
+        n = fdinfo_send(&client_sock->fdn, buf, n);
         if (n < 0)
             break;
     }
@@ -647,6 +679,35 @@ static int do_transaction(struct http_request *request,
     http_response_free(&response);
 
     return 0;
+}
+
+/* Send a 407 Proxy Authenticate Required response. */
+static int send_proxy_authenticate(struct fdinfo *fdn, int stale)
+{
+    char *buf = NULL;
+    size_t size = 0, offset = 0;
+    int n;
+
+    strbuf_append_str(&buf, &size, &offset, "HTTP/1.0 407 Proxy Authentication Required\r\n");
+    strbuf_append_str(&buf, &size, &offset, "Proxy-Authenticate: Basic realm=\"Ncat\"\r\n");
+#if HAVE_HTTP_DIGEST
+    {
+        char *hdr;
+
+        hdr = http_digest_proxy_authenticate("Ncat", stale);
+        strbuf_sprintf(&buf, &size, &offset, "Proxy-Authenticate: %s\r\n", hdr);
+        free(hdr);
+    }
+#endif
+    strbuf_append_str(&buf, &size, &offset, "\r\n");
+
+    if (o.debug > 1)
+        logdebug("RESPONSE:\n%s", buf);
+
+    n = send_string(fdn, buf);
+    free(buf);
+
+    return n;
 }
 
 static char *http_code2str(int code)
@@ -665,11 +726,6 @@ static char *http_code2str(int code)
 HTTP/1.0 405 Method Not Allowed\r\n\
 Allow: CONNECT, GET, HEAD, POST\r\n\
 \r\n";
-    case 407:
-        return "\
-HTTP/1.0 407 Proxy Authentication Required\r\n\
-Proxy-Authenticate: Basic realm=\"Ncat\"\r\n\
-\r\n";
     case 413:
         return "HTTP/1.0 413 Request Entity Too Large\r\n\r\n";
     case 501:
@@ -683,77 +739,86 @@ Proxy-Authenticate: Basic realm=\"Ncat\"\r\n\
     return NULL;
 }
 
-/*
- * Return an HTTP/1.1 CONNECT proxy request to send to an HTTP proxy server. If
- * proxy_auth is NULL, HTTP Proxy-Authorization headers are not included in the
- * request.
- */
-char *http_proxy_client_request(char *proxy_auth)
+/* userpass is a user:pass string (the argument to --proxy-auth). value is the
+   value of the Proxy-Authorization header field. Returns 0 on authentication
+   failure and nonzero on success. *stale is set to 1 if HTTP Digest credentials
+   are valid but out of date. */
+static int check_auth(const struct http_request *request,
+    const struct http_credentials *credentials, int *stale)
 {
-    char *b64_auth;
-    static char proxy_request[DEFAULT_BUF_LEN];
-    int pos;
-    const char *proxyhost;
-    char hostbuf[INET6_ADDRSTRLEN + 9]; /* [ + address + ] + : + port + \0 */
-    const char *host = inet_socktop(&httpconnect);
-    unsigned short port = inet_port(&httpconnect);
-    char *s6s = o.af == AF_INET6 ? "[" : "", *s6e = o.af == AF_INET6 ? "]" : "";
+    if (o.proxy_auth == NULL)
+        return 1;
 
-    if (port)
-        Snprintf(hostbuf, sizeof hostbuf, "%s%s%s:%hu", s6s, host, s6e, port);
-    else
-        Snprintf(hostbuf, sizeof hostbuf, "%s%s%s", s6s, host, s6e);
+    *stale = 0;
 
-    proxyhost = inet_socktop(&targetss);
+    if (credentials->scheme == AUTH_BASIC) {
+        char *expected;
+        int cmp;
 
-    if (o.debug)
-        logdebug("Proxy CONNECT target: %s\n", hostbuf);
+        if (credentials->u.basic == NULL)
+            return 0;
 
-    pos = Snprintf(proxy_request, sizeof(proxy_request),
-                   "CONNECT %s HTTP/1.1\r\n", hostbuf);
+        /* We don't decode the received password, we encode the expected
+           password and compare the encoded strings. */
+        expected = b64enc((unsigned char *) o.proxy_auth, strlen(o.proxy_auth));
+        cmp = strcmp(expected, credentials->u.basic);
+        free(expected);
 
-    if (proxy_auth != NULL) {
-        b64_auth = b64enc((unsigned char *) proxy_auth, strlen((char *)proxy_auth));
-
-        if (o.debug)
-            logdebug("Proxy auth (base64enc): %s\n", b64_auth);
-
-        pos += Snprintf(proxy_request + pos, sizeof(proxy_request) - pos,
-                        "Proxy-Authorization: Basic %s\r\n", b64_auth);
-
-        free(b64_auth);
+        return cmp == 0;
     }
+#if HAVE_HTTP_DIGEST
+    else if (credentials->scheme == AUTH_DIGEST) {
+        char *username, *password;
+        char *proxy_auth;
+        struct timeval nonce_tv, now;
+        int nonce_age;
+        int ret;
 
-    Snprintf(proxy_request + pos, sizeof(proxy_request) - pos,
-             "Host: %s\r\n\r\n", proxyhost);
+        /* Split up the proxy auth argument. */
+        proxy_auth = Strdup(o.proxy_auth);
+        username = strtok(proxy_auth, ":");
+        password = strtok(NULL, ":");
+        if (password == NULL) {
+            free(proxy_auth);
+            return 0;
+        }
+        ret = http_digest_check_credentials(username, "Ncat", password,
+            request->method, credentials);
+        free(proxy_auth);
 
-    return (proxy_request);
-}
+        if (!ret)
+            return 0;
 
-/*
- * Handle SOCKS4 CD field error reporting. Return the error message to be used
- * in the final Ncat output. (It's final because these are all fatal errors.)
- *
- * See: http://archive.socks.permeo.com/protocol/socks4.protocol
- *
- * These error messages are taken verbatim from socks4.protocol (above)
- */
-char *socks4_error(char cd)
-{
-    switch (cd) {
-        case SOCKS_CONN_REF:
-            return "request rejected or failed";
-            break;
+        /* The nonce checks out as one we issued and it matches what we expect
+           given the credentials. Now check if it's too old. */
+        if (credentials->u.digest.nonce == NULL
+            || http_digest_nonce_time(credentials->u.digest.nonce, &nonce_tv) == -1)
+            return 0;
+        gettimeofday(&now, NULL);
+        if (TIMEVAL_AFTER(nonce_tv, now))
+            return 0;
+        nonce_age = TIMEVAL_SEC_SUBTRACT(now, nonce_tv);
 
-        case SOCKS_CONN_IDENT:
-            return "request rejected because SOCKS4 server cannot connect to identd";
-            break;
+        if (nonce_age > HTTP_DIGEST_NONCE_EXPIRY) {
+            if (o.verbose)
+                loguser("Nonce is %d seconds old; rejecting.\n", nonce_age);
+            *stale = 1;
+            return 0;
+        }
 
-        case SOCKS_CONN_IDENTDIFF:
-            return "request rejected because SOCKS4 client and identd reported different userid's";
-            break;
+        /* To prevent replays, here we should additionally check against a list
+           of recently used nonces, where "recently used nonce" is one that has
+           been used to successfully authenticate within the last
+           HTTP_DIGEST_NONCE_EXPIRY seconds. (Older than that and we don't need
+           to keep it in the list, because the expiry test above will catch it.
+           This isn't supported because the fork-and-process architecture of the
+           proxy server makes it hard for us to change state in the parent
+           process from here in the child. */
 
-        default:
-            return "Invalid SOCKS4 error code. Broken SOCKS4 implementation?";
+        return 1;
+    }
+#endif
+    else {
+        return 0;
     }
 }

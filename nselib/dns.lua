@@ -1,5 +1,32 @@
---- Simple DNS library supporting packet creation, encoding, decoding,
+---
+-- Simple DNS library supporting packet creation, encoding, decoding,
 -- and querying.
+--
+-- The most common interface to this module are the <code>query</code> and
+-- <code>reverse</code> functions. <code>query</code> performs a DNS query,
+-- and <code>reverse</code> prepares an ip address to have a reverse query
+-- performed. 
+--
+-- <code>query</code> takes two options - a domain name to look up and an
+-- optional table of options. For more information on the options table, 
+-- see the documentation for <code>query</code>. 
+--
+-- Example usage:
+-- <code>
+--  -- After this call, <code>status</code> is <code>true</code> and <code>result</code> is <code>"72.14.204.104"</code>
+--  local status, result = dns.query('www.google.ca')
+--
+--  -- After this call, <code>status</code> is <code>false</code> and <code>result</code> is <code>"No such name"</code>
+--  local status, result = dns.query('www.google.abc')
+--
+--  -- After this call, <code>status</code> is <code>true</code> and <code>result</code> is the table <code>{"72.14.204.103", "72.14.204.104", "72.14.204.147", "72.14.204.99"}</code>
+--  local status, result = dns.query('www.google.ca', {retAll=true})
+--
+--  -- After this call, <code>status</code> is <code>true</code> and <code>result</code> is the <code>"2001:19f0:0:0:0:dead:beef:cafe"</code>
+--  local status, result = dns.query('irc.ipv6.efnet.org', {dtype='AAAA'})
+--</code>
+--
+--
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
 module(... or "dns", package.seeall)
@@ -30,6 +57,11 @@ types = {
    ANY = 255
 }
 
+CLASS = {
+	IN = 1,
+	ANY = 255
+}
+
 
 ---
 -- Repeatedly sends UDP packets to host, waiting for an answer.
@@ -38,21 +70,51 @@ types = {
 -- @param port Port to connect to.
 -- @param timeout Number of ms to wait for a response.
 -- @param cnt Number of tries.
+-- @param multiple If true, keep reading multiple responses until timeout.
 -- @return Status (true or false).
 -- @return Response (if status is true).
-local function sendPackets(data, host, port, timeout, cnt)
-   local socket = nmap.new_socket()
-   socket:set_timeout(timeout)
-   socket:connect(host, port, "udp")
+local function sendPackets(data, host, port, timeout, cnt, multiple)
+   local socket = nmap.new_socket("udp")
+   local responses = {}
 
-   for i = 1, cnt do 
-      socket:send(data)
+   socket:set_timeout(timeout)
+
+   if ( not(multiple) ) then
+      socket:connect( host, port, "udp" )
+   end
+
+   for i = 1, cnt do
+      local status, err
+
+      if ( multiple ) then
+         status, err = socket:sendto(host, port, data)
+      else
+         status, err = socket:send(data)
+      end
+
+      if (not(status)) then return false, err end
+
       local response
-      local status, response = socket:receive_bytes(1)
-      
-      if (status) then
+
+      if ( multiple ) then
+         while(true) do
+            status, response = socket:receive()
+            if( not(status) ) then break end
+
+            local status, _, _, ip, _ = socket:get_info()
+            table.insert(responses, { data = response, peer = ip } )
+         end
+      else     
+         status, response = socket:receive()
+         if ( status ) then
+            local status, _, _, ip, _ = socket:get_info()
+            table.insert(responses, { data = response, peer = ip } )
+         end
+      end
+
+      if (#responses>0) then
          socket:close()
-         return true, response
+         return true, responses
       end
    end
    socket:close()
@@ -67,7 +129,13 @@ end
 local function gotAnswer(rPkt)
    -- have we even got answers?
    if #rPkt.answers > 0 then
-      
+
+      -- some MDNS implementation incorrectly return an empty question section
+      -- if this is the case return true
+      if rPkt.questions[1] == nil then
+        return true
+      end
+
       -- are those answers not just cnames?
       if rPkt.questions[1].dtype == types.A then
          for _, v in ipairs(rPkt.answers) do
@@ -101,7 +169,7 @@ local function getAuthDns(rPkt)
       if #rPkt.answers == 0 then
          return false 
       else
-         if #rPkt.answers[1].dtype == types.CNAME then
+         if rPkt.answers[1].dtype == types.CNAME then
             return {cname = rPkt.answers[1].domain}
          end
       end
@@ -116,10 +184,46 @@ local function getAuthDns(rPkt)
          end
          if #hosts > 0 then return hosts end
       end
-      local next = query(rPkt.auth[1].domain, {dtype = "A" })
+      local status, next = query(rPkt.auth[1].domain, {dtype = "A" })
       return next
    end
    return false
+end
+
+local function processResponse( response, dname, dtype, options )
+
+    local rPkt = decode(response)
+    -- is it a real answer?
+    if gotAnswer(rPkt) then
+       if (options.retPkt) then 
+          return true, rPkt
+       else
+          return findNiceAnswer(dtype, rPkt, options.retAll)
+       end
+    else -- if not, ask the next server in authority
+
+       local next_server = getAuthDns(rPkt)
+       
+       -- if we got a CNAME, ask for the CNAME
+       if type(next_server) == 'table' and next_server.cname then
+          options.tries = options.tries - 1
+          return query(next_server.cname, options)
+       end
+
+       -- only ask next server in authority, if 
+       -- we got an auth dns and
+       -- it isn't the one we just asked
+       if next_server and next_server ~= options.host and options.tries > 1 then 
+          options.host = next_server
+          options.tries = options.tries - 1
+          return query(dname, options) 
+       end
+    end
+    
+    -- nothing worked
+    stdnse.print_debug(1, "dns.query() failed to resolve the requested query%s%s", dname and ": " or ".", dname or "")
+    return false, "No Answers" 
+    
 end
 
 ---
@@ -133,16 +237,17 @@ end
 -- * <code>retAll</code>: Return all answers, not just the first.
 -- * <code>retPkt</code>: Return the packet instead of using the answer-fetching mechanism.
 -- * <code>norecurse</code> If true, do not set the recursion (RD) flag.
--- @return True if a dns response was received and contained an answer of the requested type,
---  or the decoded dns response was requested (retPkt) and is being returned - or False otherwise.
--- @return String answer of the requested type, Table of answers or a String error message of one of the following:
+-- * <code>multiple</code> If true, expects multiple hosts to respond to multicast request
+-- @return <code>true</code> if a dns response was received and contained an answer of the requested type,
+--  or the decoded dns response was requested (retPkt) and is being returned - or <code>false</code> otherwise.
+-- @return String answer of the requested type, table of answers or a String error message of one of the following:
 --  "No Such Name", "No Servers", "No Answers", "Unable to handle response"
 function query(dname, options)
    if not options then options = {} end
 
-   local dtype, host, port, tries = options.dtype, options.host, options.port, options.tries
+   local dtype, host, port = options.dtype, options.host, options.port
 
-   if not tries then tries = 10 end -- don't get into an infinite loop
+   if not options.tries then options.tries = 10 end -- don't get into an infinite loop
 
    if not options.sendCount then options.sendCount = 2 end
    
@@ -174,7 +279,7 @@ function query(dname, options)
 
    local data = encode(pkt)
 
-   local status, response = sendPackets(data, host, port, options.timeout, options.sendCount)
+   local status, response = sendPackets(data, host, port, options.timeout, options.sendCount, options.multiple)
 
 
    -- if working with know nameservers, try the others
@@ -186,37 +291,18 @@ function query(dname, options)
 
    -- if we got any response:
    if status then
-      local rPkt = decode(response)
-      -- is it a real answer?
-      if gotAnswer(rPkt) then
-         if (options.retPkt) then 
-            return true, rPkt
-         else
-            return findNiceAnswer(dtype, rPkt, options.retAll)
-         end
-      else -- if not, ask the next server in authority
-
-         local next_server = getAuthDns(rPkt)
-         
-         -- if we got a CNAME, ask for the CNAME
-         if type(next_server) == 'table' and next_server.cname then
-            options.tries = tries - 1
-            return query(next_server.cname, options)
-         end
-
-         -- only ask next server in authority, if 
-         -- we got an auth dns and
-         -- it isn't the one we just asked
-         if next_server and next_server ~= host and tries > 1 then 
-            options.host = next_server
-            options.tries = tries - 1
-            return query(dname, options) 
-         end
-      end
-      
-      -- nothing worked
-      stdnse.print_debug(1, "dns.query() failed to resolve the requested query%s%s", dname and ": " or ".", dname or "")
-      return false, "No Answers" 
+    if ( options.multiple ) then
+        local multiresponse = {}
+        for _, r in ipairs( response ) do
+            local status, presponse = processResponse( r.data, dname, dtype, options )
+            if( status ) then
+                table.insert( multiresponse, { ['output']=presponse, ['peer']=r.peer } )
+            end
+        end
+        return true, multiresponse
+    else
+      return processResponse( response[1].data, dname, dtype, options)
+    end
    else
       stdnse.print_debug(1, "dns.query() got zero responses attempting to resolve query%s%s", dname and ": " or ".", dname or "")
       return false, "No Answers"
@@ -261,11 +347,9 @@ function reverse(ip)
    return table.concat(ipReverse, ".") .. arpa
 end
 
----
 -- Table for answer fetching functions.
 local answerFetcher = {}
 
----
 -- Answer fetcher for TXT records.
 -- @param dec Decoded DNS response.
 -- @param retAll If true, return all entries, not just the first.
@@ -280,7 +364,11 @@ answerFetcher[types.TXT] = function(dec, retAll)
       return false, "No Answers"   
    else
       for _, v in ipairs(dec.answers) do
-         if v.data then table.insert(answers, string.sub(v.data, 2)) end
+         if v.TXT and v.TXT.text then 
+            for _, v in ipairs( v.TXT.text ) do
+               table.insert(answers, v)
+            end
+         end
       end
    end
    if #answers == 0 then
@@ -290,7 +378,6 @@ answerFetcher[types.TXT] = function(dec, retAll)
    return true, answers  
 end
 
----
 -- Answer fetcher for A records
 -- @param dec Decoded DNS response.
 -- @param retAll If true, return all entries, not just the first.
@@ -314,7 +401,6 @@ answerFetcher[types.A] = function(dec, retAll)
 end
 
 
----
 -- Answer fetcher for CNAME records.
 -- @param dec Decoded DNS response.
 -- @param retAll If true, return all entries, not just the first.
@@ -336,7 +422,7 @@ answerFetcher[types.CNAME] = function(dec, retAll)
       stdnse.print_debug(1, "dns.answerFetcher found no records of the required type: NS, PTR or CNAME")
       return false, "No Answers"
    end
-   return true, answers   	
+   return true, answers
 end
 
 -- Answer fetcher for MX records.
@@ -373,8 +459,31 @@ answerFetcher[types.MX] = function(dec, retAll)
    return true, answers
 end
 
+-- Answer fetcher for SRV records.
+-- @param dec Decoded DNS response.
+-- @param retAll If true, return all entries, not just the first.
+-- @return True if one or more answers of the required type were found - otherwise false.
+-- @return String first dns SRV record or Table of SRV records or String Error message.
+--  Note that the format of a returned SRV answer is "priority:weight:port:target" where zero
+--  or more IP addresses may be present.
+answerFetcher[types.SRV] = function(dec, retAll)
+  local srv, ip, answers = {}, {}, {}
+  for _, ans in ipairs(dec.answers) do
+    if ans.dtype == types.SRV then
+      if not retAll then
+        return true, ("%s:%s:%s:%s"):format( ans.SRV.prio, ans.SRV.weight, ans.SRV.port, ans.SRV.target )
+      end
+      table.insert( answers, ("%s:%s:%s:%s"):format( ans.SRV.prio, ans.SRV.weight, ans.SRV.port, ans.SRV.target ) )
+    end
+  end
+  if #answers == 0 then
+     stdnse.print_debug(1, "dns.answerFetcher found no records of the required type: SRV")
+     return false, "No Answers"
+  end
+ 
+  return true, answers
+end
 
----
 -- Answer fetcher for NS records.
 -- @name answerFetcher[types.NS]
 -- @class function
@@ -383,7 +492,6 @@ end
 -- @return String first Domain entry or Table of domain entries or String Error message.
 answerFetcher[types.NS] = answerFetcher[types.CNAME]
 
----
 -- Answer fetcher for PTR records.
 -- @name answerFetcher[types.PTR]
 -- @class function
@@ -393,7 +501,6 @@ answerFetcher[types.NS] = answerFetcher[types.CNAME]
 -- @return String first Domain entry or Table of domain entries or String Error message.
 answerFetcher[types.PTR] = answerFetcher[types.CNAME]
 
----
 -- Answer fetcher for AAAA records.
 -- @param dec Decoded DNS response.
 -- @param retAll If true, return all entries, not just the first.
@@ -417,9 +524,9 @@ answerFetcher[types.AAAA] = function(dec, retAll)
 end
 
 
----
--- Calls the answer fetcher for <code>dtype</code> or returns an error code in
+---Calls the answer fetcher for <code>dtype</code> or returns an error code in
 -- case of a "no such name" error.
+--
 -- @param dtype DNS resource record type.
 -- @param dec Decoded DNS response.
 -- @param retAll If true, return all entries, not just the first.
@@ -442,6 +549,153 @@ function findNiceAnswer(dtype, dec, retAll)
    end
 end
 
+-- Table for additional fetching functions.
+-- Some servers return their answers in the additional section. The
+-- findNiceAdditional function with its relevant additionalFetcher functions
+-- addresses this. This unfortunately involved some code duplication (because
+-- of current design of the dns library) from the answerFetchers to the
+-- additionalFetchers.
+local additionalFetcher = {}
+
+-- Additional fetcher for TXT records.
+-- @param dec Decoded DNS response.
+-- @param retAll If true, return all entries, not just the first.
+-- @return True if one or more answers of the required type were found - otherwise false.
+-- @return String first dns TXT record or Table of TXT records or String Error message.
+additionalFetcher[types.TXT] = function(dec, retAll)
+   local answers = {}
+   if not retAll and dec.add[1].data then
+      return string.sub(dec.add[1].data, 2)
+   elseif not retAll then
+      stdnse.print_debug(1, "dns.aditionalFetcher found no records of the required type: TXT")
+      return false, "No Answers"   
+   else
+      for _, v in ipairs(dec.add) do
+         if v.TXT and v.TXT.text then 
+            for _, v in ipairs( v.TXT.text ) do
+               table.insert(answers, v)
+            end
+         end
+      end
+   end
+   if #answers == 0 then
+      stdnse.print_debug(1, "dns.answerFetcher found no records of the required type: TXT")
+      return false, "No Answers"
+   end
+   return true, answers  
+end
+
+-- Additional fetcher for A records
+-- @param dec Decoded DNS response.
+-- @param retAll If true, return all entries, not just the first.
+-- @return True if one or more answers of the required type were found - otherwise false.
+-- @return String first dns A record or Table of A records or String Error message.
+additionalFetcher[types.A] = function(dec, retAll)
+   local answers = {}
+   for _, ans in ipairs(dec.add) do
+      if ans.dtype == types.A then
+         if not retAll then
+            return true, ans.ip
+         end
+         table.insert(answers, ans.ip)
+      end
+   end
+   if not retAll or #answers == 0 then
+      stdnse.print_debug(1, "dns.answerFetcher found no records of the required type: A")
+      return false, "No Answers"
+   end
+   return true, answers
+end
+
+
+-- Additional fetcher for SRV records.
+-- @param dec Decoded DNS response.
+-- @param retAll If true, return all entries, not just the first.
+-- @return True if one or more answers of the required type were found - otherwise false.
+-- @return String first dns SRV record or Table of SRV records or String Error message.
+--  Note that the format of a returned SRV answer is "priority:weight:port:target" where zero
+--  or more IP addresses may be present.
+additionalFetcher[types.SRV] = function(dec, retAll)
+  local srv, ip, answers = {}, {}, {}
+  for _, ans in ipairs(dec.add) do
+    if ans.dtype == types.SRV then
+      if not retAll then
+        return true, ("%s:%s:%s:%s"):format( ans.SRV.prio, ans.SRV.weight, ans.SRV.port, ans.SRV.target )
+      end
+      table.insert( answers, ("%s:%s:%s:%s"):format( ans.SRV.prio, ans.SRV.weight, ans.SRV.port, ans.SRV.target ) )
+    end
+  end
+  if #answers == 0 then
+     stdnse.print_debug(1, "dns.answerFetcher found no records of the required type: SRV")
+     return false, "No Answers"
+  end
+
+  return true, answers
+end
+
+
+-- Additional fetcher for AAAA records.
+-- @param dec Decoded DNS response.
+-- @param retAll If true, return all entries, not just the first.
+-- @return True if one or more answers of the required type were found - otherwise false.
+-- @return String first dns AAAA record or Table of AAAA records or String Error message.
+additionalFetcher[types.AAAA] = function(dec, retAll)
+   local answers = {}
+   for _, ans in ipairs(dec.add) do
+      if ans.dtype == types.AAAA then
+         if not retAll then
+            return true, ans.ipv6
+         end
+         table.insert(answers, ans.ipv6)
+      end
+   end
+   if not retAll or #answers == 0 then
+      stdnse.print_debug(1, "dns.answerFetcher found no records of the required type: AAAA")
+      return false, "No Answers"
+   end
+   return true, answers
+end
+
+---
+-- Calls the answer fetcher for <code>dtype</code> or returns an error code in
+-- case of a "no such name" error.
+-- @param dtype DNS resource record type.
+-- @param dec Decoded DNS response.
+-- @param retAll If true, return all entries, not just the first.
+-- @return True if one or more answers of the required type were found - otherwise false.
+-- @return Answer according to the answer fetcher for <code>dtype</code> or an Error message.
+function findNiceAdditional(dtype, dec, retAll) 
+   if (#dec.add > 0) then
+      if additionalFetcher[dtype] then 
+         return additionalFetcher[dtype](dec, retAll)
+      else 
+         stdnse.print_debug(1, "dns.findNiceAdditional() does not have an additionalFetcher for dtype %s",
+            (type(dtype) == 'string' and dtype) or type(dtype) or "nil")
+         return false, "Unable to handle response"
+      end
+   elseif (dec.flags.RC3 and dec.flags.RC4) then
+      return false, "No Such Name"
+   else
+      stdnse.print_debug(1, "dns.findNiceAdditional() found zero answers in a response, but got an unexpected flags.replycode")
+      return false, "No Answers"
+   end
+end
+
+--
+-- Encodes a FQDN
+-- @param fqdn containing the fully qualified domain name
+-- @return encQ containing the encoded value
+local function encodeFQDN(fqdn)
+	if ( not(fqdn) or #fqdn == 0 ) then return end
+	
+	local parts = stdnse.strsplit("%.", fqdn)
+	local encQ = ""
+    for _, part in ipairs(parts) do
+       encQ = encQ .. bin.pack("p", part)
+    end
+	encQ = encQ .. string.char(0)
+	return encQ
+end
 
 ---
 -- Encodes the question part of a DNS request.
@@ -451,14 +705,28 @@ local function encodeQuestions(questions)
    if type(questions) ~= "table" then return nil end
    local encQ = ""
    for _, v in ipairs(questions) do
-      local parts = stdnse.strsplit("%.", v.dname)
-      for _, part in ipairs(parts) do
-         encQ = encQ .. bin.pack("p", part)
-      end
-      encQ = encQ .. string.char(0)
+      encQ = encQ .. encodeFQDN(v.dname)
       encQ = encQ .. bin.pack(">SS", v.dtype, v.class)
    end
    return encQ
+end
+
+---
+-- Encodes the zone part of a DNS request.
+-- @param questions Table of questions.
+-- @return Encoded question string.
+local function encodeZones(zones)
+	return encodeQuestions(zones)
+end
+
+local function encodeUpdates(updates)
+   if type(updates) ~= "table" then return nil end
+   local encQ = ""
+   for _, v in ipairs(updates) do
+      encQ = encQ .. encodeFQDN(v.dname)
+      encQ = encQ .. bin.pack(">SSISA", v.dtype, v.class, v.ttl, #v.data, v.data)
+   end
+   return encQ	
 end
 
 ---
@@ -497,8 +765,21 @@ end
 function encode(pkt)
    if type(pkt) ~= "table" then return nil end
    local encFlags = encodeFlags(pkt.flags)
-   local encQs = encodeQuestions(pkt.questions)
-   local encStr = bin.pack(">SBS4", pkt.id, encFlags, #pkt.questions, #pkt.answers, #pkt.auth, #pkt.additional) .. encQs
+   local data = encodeQuestions(pkt.questions)
+   local qorzlen = #pkt.questions
+   local aorplen = #pkt.answers
+   local aorulen = #pkt.auth
+
+   if ( #pkt.questions < 1 ) then
+      -- The packet has no questions, assume we're dealing with an update
+      data = encodeZones( pkt.zones )
+      qorzlen = #pkt.zones
+
+      aorulen = #pkt.updates
+      data = data .. encodeUpdates( pkt.updates )
+   end
+
+   local encStr = bin.pack(">SBS4", pkt.id, encFlags, qorzlen, aorplen, aorulen, #pkt.additional) .. data
    return encStr
 end
 
@@ -570,7 +851,6 @@ end
 -- Table of functions to decode resource records
 local decoder = {}
 
----
 -- Decodes IP of A record, puts it in <code>entry.ip</code>.
 -- @param entry RR in packet.
 decoder[types.A] = function(entry)
@@ -580,7 +860,6 @@ decoder[types.A] = function(entry)
    entry.ip = table.concat(ip, ".")
 end
 
----
 -- Decodes IP of AAAA record, puts it in <code>entry.ipv6</code>.
 -- @param entry RR in packet.
 decoder[types.AAAA] = function(entry)
@@ -594,7 +873,6 @@ decoder[types.AAAA] = function(entry)
    entry.ipv6 = table.concat(ip, ":")
 end
 
----
 -- Decodes SSH fingerprint record, puts it in <code>entry.SSHFP</code> as
 -- defined in RFC 4255.
 --
@@ -609,7 +887,6 @@ decoder[types.SSHFP] = function(entry)
 end
 
 
----
 -- Decodes SOA record, puts it in <code>entry.SOA</code>.
 --
 -- <code>entry.SOA</code> has the fields <code>mname</code>, <code>rname</code>,
@@ -634,7 +911,6 @@ decoder[types.SOA] = function(entry, data, pos)
       = bin.unpack(">I5", data, np)
 end
 
----
 -- Decodes records that consist only of one domain, for example CNAME, NS, PTR.
 -- Puts result in <code>entry.domain</code>.
 -- @param entry RR in packet.
@@ -646,7 +922,6 @@ local function decDomain(entry, data, pos)
       _, entry.domain = decStr(data, np)
    end
 
----
 -- Decodes CNAME records.
 -- Puts result in <code>entry.domain</code>.
 -- @name decoder[types.CNAME]
@@ -656,7 +931,6 @@ local function decDomain(entry, data, pos)
 -- @param pos Position in packet after RR.
 decoder[types.CNAME] = decDomain
 
----
 -- Decodes NS records.
 -- Puts result in <code>entry.domain</code>.
 -- @name decoder[types.NS]
@@ -666,7 +940,6 @@ decoder[types.CNAME] = decDomain
 -- @param pos Position in packet after RR.
 decoder[types.NS] = decDomain
 
----
 -- Decodes PTR records.
 -- Puts result in <code>entry.domain</code>.
 -- @name decoder[types.PTR]
@@ -676,7 +949,6 @@ decoder[types.NS] = decDomain
 -- @param pos Position in packet after RR.
 decoder[types.PTR] = decDomain
 
----
 -- Decodes TXT records.
 -- Puts result in <code>entry.domain</code>.
 -- @name decoder[types.TXT]
@@ -684,9 +956,28 @@ decoder[types.PTR] = decDomain
 -- @param entry RR in packet.
 -- @param data Complete encoded DNS packet.
 -- @param pos Position in packet after RR.
-decoder[types.TXT] = function () end
+decoder[types.TXT] = 
+  function (entry, data, pos) 
+    
+    local len = entry.data:len()
+    local np = pos - #entry.data
+        local txt_len
+    local txt
 
----
+    if len > 0 then
+      entry.TXT = {}
+      entry.TXT.text = {}
+    end
+
+    while len > 0 do
+      np, txt_len = bin.unpack("C", data, np)
+      np, txt = bin.unpack("A" .. txt_len, data, np )
+      len = len - txt_len - 1
+      table.insert( entry.TXT.text, txt )
+    end
+
+  end
+
 -- Decodes MX record, puts it in <code>entry.MX</code>.
 --
 -- <code>entry.MX</code> has the fields <code>pref</code> and
@@ -703,6 +994,22 @@ decoder[types.MX] =
       _, entry.MX.server = decStr(data, np)
    end
 
+-- Decodes SRV record, puts it in <code>entry.SRV</code>.
+--
+-- <code>entry.SRV</code> has the fields <code>prio</code>,
+-- <code>weight</code>, <code>port</code> and 
+-- <code>target</code>.
+-- @param entry RR in packet.
+-- @param data Complete encoded DNS packet.
+-- @param pos Position in packet after RR.
+decoder[types.SRV] =
+  function(entry, data, pos)
+    local np = pos - #entry.data
+    local _
+    entry.SRV = {}
+    np, entry.SRV.prio, entry.SRV.weight, entry.SRV.port = bin.unpack(">S>S>S", data, np)
+    np, entry.SRV.target = decStr(data, np)
+  end
 
 ---
 -- Decodes returned resource records (answer, authority, or additional part).
@@ -778,14 +1085,20 @@ function decode(data)
    -- for now, don't decode the flags
    pkt.flags = decodeFlags(encFlags)
 
-   pos, pkt.questions = decodeQuestions(data, cnt.q, pos)
-
-   pos, pkt.answers = decodeRR(data, cnt.a, pos)
-
-   pos, pkt.auth = decodeRR(data, cnt.auth, pos)
-
-   pos, pkt.add = decodeRR(data, cnt.add, pos)
-
+   --  
+   -- check whether this is an update response or not
+   -- a quick fix to allow decoding of non updates and not break for updates
+   -- the flags are enough for the current code to determine whether an update was successful or not
+   -- 
+   local strflags=encodeFlags(pkt.flags)
+   if ( strflags:sub(1,4) == "1010" ) then
+      return pkt
+   else
+      pos, pkt.questions = decodeQuestions(data, cnt.q, pos)
+      pos, pkt.answers = decodeRR(data, cnt.a, pos)
+      pos, pkt.auth = decodeRR(data, cnt.auth, pos)
+      pos, pkt.add = decodeRR(data, cnt.add, pos)
+   end
    return pkt
 end
 
@@ -799,6 +1112,8 @@ function newPacket()
    pkt.flags = {}
    pkt.flags.RD = true
    pkt.questions = {}
+   pkt.zones = {}
+   pkt.updates = {}
    pkt.answers = {}
    pkt.auth = {}
    pkt.additional = {}
@@ -817,7 +1132,7 @@ function addQuestion(pkt, dname, dtype)
    local q = {}
    q.dname = dname
    q.dtype = dtype
-   q.class = 1
+   q.class = CLASS.IN
    table.insert(pkt.questions, q)
    return pkt
 end
@@ -827,4 +1142,132 @@ get_default_timeout = function()
   local timeout = {[0] = 10000, 7000, 5000, 4000, 4000, 4000}
   return timeout[nmap.timing_level()] or 4000
 end
+
+--- 
+-- Adds a zone to a DNS packet table
+-- @param pkt Table representing DNS packet.
+-- @param dname Domain name to be asked.
+function addZone(pkt, dname)
+   if ( type(pkt) ~= "table" ) or (type(pkt.updates) ~= "table") then return nil end
+   table.insert(pkt.zones, { dname=dname, dtype=types.SOA, class=CLASS.IN })
+   return pkt
+end
+
+--- 
+-- Adds a update to a DNS packet table
+-- @param pkt Table representing DNS packet.
+-- @param dname Domain name to be asked.
+-- @param dtype to be updated
+-- @param ttl the time-to-live of the record
+-- @param data type specific data
+function addUpdate(pkt, dname, dtype, ttl, data, class)
+   if ( type(pkt) ~= "table" ) or (type(pkt.updates) ~= "table") then return nil end
+   table.insert(pkt.updates, { dname=dname, dtype=dtype, class=class, ttl=ttl, data=(data or "") } )
+   return pkt		
+end
+
+
+--- Adds a record to the Zone
+-- @param dname containing the hostname to add
+-- @param options A table containing any of the following fields:
+-- * <code>dtype</code>: Desired DNS record type (default: <code>"A"</code>).
+-- * <code>host</code>: DNS server to be queried (default: DNS servers known to Nmap).
+-- * <code>timeout</code>: The time to wait for a response
+-- * <code>sendCount</code>: The number of send attempts to perform
+-- * <code>zone</code>: If not supplied deduced from hostname
+-- * <code>data</code>: Table or string containing update data (depending on record type):
+--   A     - String containing the IP address
+--   CNAME - String containing the FQDN 
+--   MX    - Table containing <code>pref</code>, <code>mx</code>
+--   SRV   - Table containing <code>prio</code>, <code>weight</code>, <code>port</code>, <code>target</code>
+--
+-- @return status true on success false on failure
+-- @return msg containing the error message
+--
+-- Examples
+--
+-- Adding different types of records to a server
+--  * update( "www.cqure.net", { host=host, port=port, dtype="A", data="10.10.10.10" } )
+--	* update( "alias.cqure.net", { host=host, port=port, dtype="CNAME", data="www.cqure.net" } )
+--	* update( "cqure.net", { host=host, port=port, dtype="MX", data={ pref=10, mx="mail.cqure.net"} })
+--	* update( "_ldap._tcp.cqure.net", { host=host, port=port, dtype="SRV", data={ prio=0, weight=100, port=389, target="ldap.cqure.net" } } )
+--
+-- Removing the above records by setting an empty data and a ttl of zero
+--   * update( "www.cqure.net", { host=host, port=port, dtype="A", data="", ttl=0 } )
+--	 * update( "alias.cqure.net", { host=host, port=port, dtype="CNAME", data="", ttl=0 } )
+--	 * update( "cqure.net", { host=host, port=port, dtype="MX", data="", ttl=0 } )
+--	 * update( "_ldap._tcp.cqure.net", { host=host, port=port, dtype="SRV", data="", ttl=0 } )
+--
+function update(dname, options)
+	local options = options or {}
+	local pkt = newPacket()
+	local flags = pkt.flags
+	local host, port = options.host, options.port
+	local timeout = ( type(options.timeout) == "number" ) and options.timeout or get_default_timeout()
+	local sendcount = options.sendCount or 2
+	local dtype = ( type(options.dtype) == "string" ) and types[options.dtype] or types.A
+	local updata = options.data
+	local ttl = options.ttl or 86400
+	local zone = options.zone or dname:match("^.-%.(.+)$")
+	local class = CLASS.IN
+
+	assert(host, "dns.update needs a valid host in options")
+	assert(port, "dns.update needs a valid port in options")
+	
+	if ( options.zone ) then dname = dname .. "." .. options.zone end
+
+	if ( not(zone) and not( dname:match("^.-%..+") ) ) then
+		return false, "hostname needs to be supplied as FQDN"
+	end
+   
+	flags.RD = false
+	flags.OC1, flags.OC2, flags.OC3, flags.OC4 = false, true, false, true
+	
+	-- If ttl is zero and updata is string and zero length or nil, assume delete record
+	if ( ttl == 0 and ( ( type(updata) == "string" and #updata == 0 ) or not(updata) ) ) then
+		class = CLASS.ANY
+		updata = ""
+		if ( types.MX == dtype and not(options.zone) ) then zone=dname end
+		if ( types.SRV == dtype and not(options.zone) ) then
+			zone=dname:match("^_.-%._.-%.(.+)$")
+		end
+	-- if not, let's try to update the zone
+	else
+		if ( dtype == types.A ) then
+			updata = updata and bin.pack(">I", ipOps.todword(updata)) or ""
+		elseif( dtype == types.CNAME ) then
+			updata = encodeFQDN(updata)
+		elseif( dtype == types.MX ) then
+			assert( not( type(updata) ~= "table" ), "dns.update expected options.data to be a table")
+			if ( not(options.zone) ) then zone = dname end
+			local data = bin.pack(">S", updata.pref)
+			data = data .. encodeFQDN(updata.mx)
+			updata = data
+		elseif ( dtype == types.SRV ) then
+			assert( not( type(updata) ~= "table" ), "dns.update expected options.data to be a table")
+			local data = bin.pack(">SSS", updata.prio, updata.weight, updata.port )
+			data = data .. encodeFQDN(updata.target)
+			updata = data
+			zone = options.zone or dname:match("^_.-%._.-%.(.+)$")
+		else
+			return false, "Unsupported record type"
+		end
+	end
+	
+	pkt = addZone(pkt, zone)
+	pkt = addUpdate(pkt, dname, dtype, ttl, updata, class)
+	
+	local data = encode(pkt)
+	local status, response = sendPackets(data, host, port, timeout, sendcount, false)
+	
+	if ( status ) then
+		local decoded = decode(response[1].data)
+		local flags=encodeFlags(decoded.flags)
+		if (flags:sub(-4) == "0000") then
+			return true
+		end
+	end
+	return false
+end
+
 

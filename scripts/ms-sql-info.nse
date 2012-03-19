@@ -3,6 +3,8 @@ Attempts to extract information from Microsoft SQL Server instances.
 ]]
 -- rev 1.0 (2007-06-09)
 -- rev 1.1 (2009-12-06 - Added SQL 2008 identification T Sellers)
+-- rev 1.2 (2010-10-03 - Added Broadcast support <patrik@cqure.net>)
+-- rev 1.3 (2010-10-10 - Added prerule and newtargets support <patrik@cqure.net>)
 
 author = "Thomas Buchanan"
 
@@ -10,238 +12,159 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "intrusive"}
 
-require('stdnse')
-require "shortport"
-require("strbuf")
+---
+-- @output
+-- PORT     STATE SERVICE  REASON
+-- 1434/udp open  ms-sql-m script-set
+-- | ms-sql-info: Discovered Microsoft SQL Server 2008 Express Edition
+-- |   Server name: MAC-MINI
+-- |   Server version: 10.0.2531.0 (SP1)
+-- |   Instance name: SQLEXPRESS
+-- |   TCP Port: 1433
+-- |_    Could not retrieve actual version information
+--
 
+require("shortport")
+require("target")
+require("mssql")
+
+prerule = function() return false end
 portrule = shortport.portnumber({1433, 1434}, "udp", {"open", "open|filtered"})
 
-action = function(host, port)
 
-	-- create the socket used for our connection
-	local socket = nmap.new_socket()
+local parse_version = function(ver_str)
+
+	local version = {}
+	version.full = ver_str
+	version.product_long = ver_str:match("(Microsoft.-)\n") or ""
+	version.product = ver_str:match("^(Microsoft SQL Server %w-)%s") or ""
+	version.edition = ver_str:match("\n.-\n.-\n%s*(.-%sEdition)%s") or ""
+	version.edition_long = ver_str:match("\n.-\n.-\n%s*(.-Build.-)\n") or ""
+	version.version = ver_str:match("^Microsoft.-%-.-([%.%d+]+)") or ""
+	version.level   = ver_str:match("^Microsoft.-%((.+)%)%s%-") or ""
+	version.windows = ver_str:match(" on%s(.*)\n$") or ""
+	version.real = true
 	
-	-- set a reasonable timeout value
-	socket:set_timeout(5000)
-	
-	-- do some exception handling / cleanup
-	local catch = function()
-		socket:close()
-	end
-	
-	local try = nmap.new_try(catch)
-	
-	-- try to login to MS SQL network service, and obtain the real version information
-	-- MS SQL 2000 does not report the correct version in the data sent in response to UDP probe (see below)
-	local get_real_version = function(dst, dstPort)
-	  
-	  local outcome
-	  local payload =  strbuf.new()
-	  
-	  local stat, resp
-	  
-	  -- build a TDS packet - type 0x12
-	  -- copied from packet capture of osql connection
-	  payload = payload .. "\018\001\000\047\000\000\001\000\000\000"
-	  payload = payload .. "\026\000\006\001\000\032\000\001\002\000"
-	  payload = payload .. "\033\000\001\003\000\034\000\004\004\000"
-	  payload = payload .. "\038\000\001\255\009\000\011\226\000\000"
-	  payload = payload .. "\000\000\120\023\000\000\000"
-	  
-	  socket = nmap.new_socket()
-	  
-	  -- connect to the server using the tcpPort captured from the UDP probe
-	  try(socket:connect(dst, dstPort, "tcp"))
-	  
-	  try(socket:send(strbuf.dump(payload)))
-	  
-	  -- read in any response we might get
-	  stat, resp = socket:receive_bytes(1)
-	  
-	  if string.match(resp, "^\004") then
+	return true, version
+end
+
+local function retrieve_version_as_user( info, user, pass )
+
+	local helper, status
+	local SQL_DB = "master"
+
+	if ( info.servername and info.port ) then
+		local hosts
+		status, hosts = nmap.resolve(info.servername, nmap.address_family())
 		
-	    -- build a login packet to send to SQL server
-	    -- username = sa, blank password
-	    -- for information about packet structure, see http://www.freetds.org/tds.html
-	    
-	    local query = strbuf.new()
-	    query = query .. "\016\001\000\128\000\000\001\000" -- TDS packet header
-	    query = query .. "\120\000\000\000\002\000\009\114" -- Login packet header = length, version
-	    query = query .. "\000\000\000\000\000\000\000\007" -- Login packet header continued = size, client version
-	    query = query .. "\140\018\000\000\000\000\000\000" -- Login packet header continued = Client PID, Connection ID
-	    query = query .. "\224\003\000\000\104\001\000\000" -- Login packet header continued = Option Flags 1 & 2, status flag, reserved flag, timezone
-	    query = query .. "\009\004\000\000\094\000\004\000" -- Login packet (Collation), then start offsets & lengths (client name, client length)
-	    query = query .. "\102\000\002\000\000\000\000\000" -- Login packet, offsets & lengths = username offset, username length, password offset, password length
-	    query = query .. "\106\000\004\000\114\000\000\000" -- Login packet, offsets & lengths = app name offset, app name length, server name offset, server name length
-	    query = query .. "\000\000\000\000\114\000\003\000" -- Login packet, offsets & lengths = unknown offset, unknown length, library name offset, library name length
-	    query = query .. "\120\000\000\000\120\000\000\000" -- Login packet, offsets & lengths = locale offset, locale length, database name offset, database name length
-	    query = query .. "\000\000\000\000\000\000\000\000" -- Login packet, MAC address + padding
-	    query = query .. "\000\000\000\000\000\000\000\000" -- Login packet, padding
-	    query = query .. "\000\000\000\000\000\000\078\000" -- Login packet, padding + start of client name (N)
-	    query = query .. "\077\000\065\000\080\000\115\000" -- Login packet = rest of client name (MAP) + username (s)
-	    query = query .. "\097\000\078\000\077\000\065\000" -- Login packet = username (a), app name (NMA)
-	    query = query .. "\080\000\078\000\083\000\069\000" -- Login packet = app name (P), library name (NSE)
-	    
-	    -- send the packet down the wire
-	    try(socket:send(strbuf.dump(query)))
-	    
-	    -- read in any response we might get
-	    stat, resp = socket:receive_bytes(1)
-	  
-	    -- successful response to login packet should contain the string "SQL Server"
-	    -- however, the string is UCS2 encoded, so we have to add the \000 characters
-	    if string.match(resp, "S\000Q\000L\000") then
-		  outcome = "\n    sa user appears to have blank password"
-		  
-		  strbuf.clear(query)
-		  -- since we have a successful login, send a query that will tell us what version the server is really running
-		  query = query .. "\001\001\000\044\000\000\001\000" -- TDS Query packet
-		  query = query .. "\083\000\069\000\076\000\069\000" -- SELE
-		  query = query .. "\067\000\084\000\032\000\064\000" -- CT @
-		  query = query .. "\064\000\086\000\069\000\082\000" -- @VER
-		  query = query .. "\083\000\073\000\079\000\078\000" -- SION
-		  query = query .. "\013\000\010\000"
-		  
-		  -- send the packet down the wire
-		  try(socket:send(strbuf.dump(query)))
-	      
-		  -- read in any response we might get
-		  stat, resp = socket:receive_bytes(1)
-		  
-		  -- strip out the embedded \000 characters
-		  local banner = string.gsub(resp, "%z", "")
-		  outcome = outcome .. "\n     " .. string.match(banner, "(Microsoft.-)\n")
-		  outcome = outcome .. "\n" .. string.match(banner, "\n.-\n.-\n(.-Build.-)\n")
-	    end
-	    
-	    try(socket:close())
-	    
-	  end -- if string.match(response, "^\004")
-	  
-	  if outcome == nil then
-	    outcome = "\n    Could not retrieve actual version information"
-	  end
-	  
-	  return outcome
-	end -- get_real_version(dst, dstPort)
-	
-	-- connect to the potential SQL server
-	try(socket:connect(host.ip, port.number, "udp"))
-	
-	-- send a magic packet
-	-- details here:  http://www.codeproject.com/cs/database/locate_sql_servers.asp
-	try(socket:send("\002"))
-	
-	local status
-	local response
-	
-	-- read in any response we might get
-	status, response = socket:receive_bytes(1)
-	
-	try(socket:close())
-
-	if (not status) then
-		return
-	end
-
-	if (response == "TIMEOUT") then
-		return
-	end
-	
-	-- since we got something back, the port is definitely open
-	nmap.set_port_state(host, port, "open")
-	
-	local result
-	
-	-- create a lua table to hold some information
-	local serverInfo = {}
-			
-	-- do some pattern matching to exract certain key elements from the response
-	-- the data comes back as a long semicolon separated list
-	
-	-- A single server can have multiple instances, which are separated by a double semicolon
-	-- cycle through each instance
-	local count = 1
-	for instance in string.gmatch(response, "(.-;;)") do
-	  result = instance
-	  serverInfo[count] = {}
-	  serverInfo[count].name = string.match(instance, "ServerName;(.-);")
-	  serverInfo[count].instanceName = string.match(instance, "InstanceName;(.-);")
-	  serverInfo[count].clustered = string.match(instance, "IsClustered;(.-);")
-	  serverInfo[count].version = string.match(instance, "Version;(.-);")
-	  serverInfo[count].tcpPort = string.match(instance, ";tcp;(.-);")
-	  serverInfo[count].namedPipe = string.match(instance, ";np;(.-);")
-	  count = count + 1
-	end
-	
-	-- do some heuristics on the version to see if we can match the major releases
-	if string.match(serverInfo[1].version, "^6%.0") then
-	  result = "Discovered Microsoft SQL Server 6.0"
-	elseif string.match(serverInfo[1].version, "^6%.5") then
-	  result = "Discovered Microsoft SQL Server 6.5"
-	elseif string.match(serverInfo[1].version, "^7%.0") then
-	  result = "Discovered Microsoft SQL Server 7.0"
-	elseif string.match(serverInfo[1].version, "^8%.0") then
-	  result = "Discovered Microsoft SQL Server 2000"
-	elseif string.match(serverInfo[1].version, "^9%.0") then
-	  -- The Express Edition of MS SQL Server 2005 has a default instance name of SQLEXPRESS
-	  for _,instance in ipairs(serverInfo) do
-	    if string.match(instance.instanceName, "SQLEXPRESS") then
-	      result = "Discovered Microsoft SQL Server 2005 Express Edition"
-	    end
-	  end
-	  if result == nil then
-	    result = "Discovered Microsoft SQL Server 2005"
-	  end
-	elseif string.match(serverInfo[1].version, "^10%.0") then
-	  -- The Express Edition of MS SQL Server 2008 has a default instance name of SQLEXPRESS
-	  for _,instance in ipairs(serverInfo) do
-	    if string.match(instance.instanceName, "SQLEXPRESS") then
-	      result = "Discovered Microsoft SQL Server 2008 Express Edition"
-	    end
-	  end
-	  if result == nil then
-	    result = "Discovered Microsoft SQL Server 2008"
-	  end
+		if ( status ) then
+			local err
+			for _, host in ipairs( hosts ) do
+				helper = mssql.Helper:new()
+				status, err = helper:Connect(host, info.port)
+				if ( status ) then break end
+			end
+			-- we failed to connect to all of the resolved hostnames,
+			-- fall back to sql browser ip
+			if ( not(status) ) then
+				helper = mssql.Helper:new()
+				status, err = helper:Connect( info.ip, info.port )
+			end
+		else
+			-- resolve wasn't successful, fall back to browser service ip
+			stdnse.print_debug(3, "ERROR: Failed to resolve the hostname %s", info.servername)
+			helper = mssql.Helper:new()
+			status, err = helper:Connect( info.ip, info.port )
+		end
 	else
-	  result = "Discovered Microsoft SQL Server"
-	end
-	if serverInfo[1].name ~= nil then
-	  result = result .. "\n  Server name: " .. serverInfo[1].name
-	end
-	if serverInfo[1].version ~= nil then
-	  result = result .. "\n  Server version: " .. serverInfo[1].version
-	  -- Check for some well known release versions of SQL Server 2005
-	  --  for more info, see http://support.microsoft.com/kb/321185
-	  if string.match(serverInfo[1].version, "9.00.3042") then
-	    result = result .. " (SP2)"
-	  elseif string.match(serverInfo[1].version, "9.00.3043") then
-	    result = result .. " (SP2)"
-	  elseif string.match(serverInfo[1].version, "9.00.2047") then
-	    result = result .. " (SP1)"
-	  elseif string.match(serverInfo[1].version, "9.00.1399") then
-	    result = result .. " (RTM)"
-	  -- Check for versions of SQL Server 2008
-	  elseif string.match(serverInfo[1].version, "10.0.1075") then
-	    result = result .. " (CTP)"
-	  elseif string.match(serverInfo[1].version, "10.0.1600") then
-	    result = result .. " (RTM)"
-	  elseif string.match(serverInfo[1].version, "10.0.2531") then
-	    result = result .. " (SP1)"		
-	  end
-	end
-	for _,instance in ipairs(serverInfo) do
-	  if instance.instanceName ~= nil then
-	    result = result .. "\n  Instance name: " .. instance.instanceName
-	  end
-	  if instance.tcpPort ~= nil then
-	    result = result .. "\n  TCP Port: " .. instance.tcpPort
-		result = result .. get_real_version(host.ip, instance.tcpPort)
-	  end
-    end
+		-- we're missing either the servername or the port
+		return false, "ERROR: Either servername or tcp port is missing"
+	end	
 	
+	if ( not(status) ) then return false, "ERROR: Failed to connect to server" end
+	
+	status, result = helper:Login( user, pass, SQL_DB, info.servername )
+	if ( not(status) ) then
+		stdnse.print_debug(3, "%s: login failed, reason: %s", SCRIPT_NAME, result )
+		return status, "Could not retrieve actual version information"
+	end
+
+	local query = "SELECT @@version ver"
+	status, result = helper:Query( query )
+	if ( not(status) ) then
+		stdnse.print_debug(3, "%s: query failed, reason: %s", SCRIPT_NAME, result )
+		return status, "Could not retrieve actual version information"
+	end
+
+	helper:Disconnect()
+
+	if ( result.rows ) then	return parse_version( result.rows[1][1] ) end
+end
+
+local function process_response( serverInfo )
+	
+	local SQL_USER, SQL_PASS = "sa", ""
+	local TABLE_DATA = {
+		["Server name"] = "info.servername",
+		["Server version"] = "version.version",
+		["Server edition"] = "version.edition_long",
+		["Clustered"] = "info.clustered",
+		["Named pipe"] = "info.pipe",
+		["Tcp port"] = "info.port",
+	}
+
+	local result = {}
+	
+	for _, info in pairs(serverInfo) do
+		local result_part = {}
+
+		-- The browser service could point to instances on other IP's
+		-- therefore the correct behavior should be to connect to the
+		-- servername returned for the instance rather than the browser IP.
+		-- In case this fails, due to name resolution or something else, fall
+		-- back to the browser service IP.
+		local status, version = retrieve_version_as_user(info, SQL_USER, SQL_PASS)
+		
+		if (status) then
+			if ( version.edition ) then
+				version.product = version.product .. " " .. version.edition
+			end
+			version.version = version.version .. (" (%s)"):format(version.level)
+		else
+			status, version = mssql.Util.DecodeBrowserInfoVersion(info)
+		end
+
+		-- format output
+		for topic, varname in pairs(TABLE_DATA) do
+			local func = loadstring( "return " .. varname )
+			setfenv(func, setmetatable({ info=info; version=version; }, {__index = _G}))
+			local result = func()
+			if ( result ) then
+				table.insert( result_part, ("%s: %s"):format(topic, result) )
+			end
+		end
+		result_part.name = version.product
+		
+		if ( version.real ) then
+			table.insert(result_part, "WARNING: Database was accessible as SA with empty password!")
+		end
+		
+		table.insert(result, { name = "Instance: " .. info.name, result_part } )
+	end
 	return result
-	
+end
+
+
+action = function( host, port )
+
+	local status, response = mssql.Helper.Discover( host, port )
+	if ( not(status) ) then return end
+
+	local result, serverInfo = process_response( response[host.ip] )
+	if ( not(result) ) then return end
+
+	nmap.set_port_state( host, port, "open")
+	return stdnse.format_output( true, result )
 end
 
 

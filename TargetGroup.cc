@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -29,7 +29,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -52,8 +52,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -90,13 +90,17 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: TargetGroup.cc 16120 2009-11-18 01:17:59Z david $ */
+/* $Id: TargetGroup.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
+#include "tcpip.h"
 #include "TargetGroup.h"
 #include "NmapOps.h"
 #include "nmap_error.h"
+#include "global_structures.h"
 
 extern NmapOps o;
+
+NewTargets *NewTargets::new_targets;
 
 TargetGroup::TargetGroup() {
   Initialize();
@@ -159,7 +163,6 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
   char *r,*s, *target_net;
   char *addy[5];
   char *hostexp = strdup(target_expr);
-  struct hostent *target;
   namedhost = 0;
 
   if (targets_type != TYPE_NONE)
@@ -187,17 +190,12 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
       
       *s = '\0';  /* Make sure target_net is terminated before the /## */
       s++;        /* Point s at the netmask */
-      if (!isdigit((int) (unsigned char) *s)) {
+      netmask_long = parse_long(s, (char**) &tail);
+      if (*tail != '\0' || tail == s || netmask_long < 0 || netmask_long > 32) {
         error("Illegal netmask value, must be /0 - /32 .  Assuming /32 (one host)");
-        netmask = 32;
-      } else {
-        netmask_long = strtol(s, (char**) &tail, 10);
-        if (*tail != '\0' || tail == s || netmask_long < 0 || netmask_long > 32) {
-          error("Illegal netmask value, must be /0 - /32 .  Assuming /32 (one host)");
           netmask = 32;
-        } else
+      } else
           netmask = (u32) netmask_long;
-      }
     } else
       netmask = 32;
     resolvedname = hostexp;
@@ -208,35 +206,37 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
         break;
       }
     if (netmask != 32 || namedhost) {
-      struct in_addr addr;
+      struct addrinfo *addrs, *addr;
+      struct sockaddr_storage ss;
+      size_t sslen;
 
       targets_type = IPV4_NETMASK;
-      if (!inet_pton(AF_INET, target_net, &(addr))) {
-        if ((target = gethostbyname(target_net))) {
-          int count=0;
-
-          memcpy(&(addr), target->h_addr_list[0], sizeof(addr));
-
-          while (target->h_addr_list[count]) {
-            struct sockaddr_storage ss;
-            struct sockaddr_in *sin = (struct sockaddr_in *) &ss;
-
-            sin->sin_family = AF_INET;
-            sin->sin_addr = addr;
-            resolvedaddrs.push_back(ss);
-            count++;
-          }
-
-          if (count > 1 && o.verbose > 1)
-             error("Warning: Hostname %s resolves to %d IPs. Using %s.", target_net, count, inet_ntoa(*((struct in_addr *)target->h_addr_list[0])));
-        } else {
-          error("Failed to resolve given hostname/IP: %s.  Note that you can't use '/mask' AND '1-4,7,100-' style IP ranges", target_net);
-          free(hostexp);
-          return 1;
+      addrs = resolve_all(target_net, AF_INET);
+      for (addr = addrs; addr != NULL; addr = addr->ai_next) {
+        if (addr->ai_family != AF_INET)
+          continue;
+        if (addr->ai_addrlen < sizeof(ss)) {
+          memcpy(&ss, addr->ai_addr, addr->ai_addrlen);
+          resolvedaddrs.push_back(ss);
         }
-      } 
+      }
+      freeaddrinfo(addrs);
+
+      if (resolvedaddrs.empty()) {
+        error("Failed to resolve given hostname/IP: %s.  Note that you can't use '/mask' AND '1-4,7,100-' style IP ranges", target_net);
+        free(hostexp);
+        return 1;
+      } else {
+        ss = *resolvedaddrs.begin();
+        sslen = sizeof(ss);
+      }
+
+      if (resolvedaddrs.size() > 1 && o.verbose > 1)
+        error("Warning: Hostname %s resolves to %lu IPs. Using %s.", target_net, (unsigned long)resolvedaddrs.size(), inet_ntop_ez(&ss, sslen));
+
       if (netmask) {
-        unsigned long longtmp = ntohl(addr.s_addr);
+        struct sockaddr_in *sin = (struct sockaddr_in *) &ss;
+        unsigned long longtmp = ntohl(sin->sin_addr.s_addr);
         startaddr.s_addr = longtmp & (unsigned long) (0 - (1<<(32 - netmask)));
         endaddr.s_addr = longtmp | (unsigned long)  ((1<<(32 - netmask)) - 1);
       } else {
@@ -308,28 +308,46 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
     }
   else {
 #if HAVE_IPV6
-    int rc = 0;
+    struct addrinfo *addrs, *addr;
+    struct sockaddr_storage ss;
+    size_t sslen;
+
     assert(af == AF_INET6);
     if (strchr(hostexp, '/')) {
       fatal("Invalid host expression: %s -- slash not allowed.  IPv6 addresses can currently only be specified individually", hostexp);
     }
+    resolvedname = hostexp;
+    if (strchr(hostexp, ':') == NULL)
+      namedhost = 1;
+
     targets_type = IPV6_ADDRESS;
-    struct addrinfo hints;
-    struct addrinfo *result = NULL;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = PF_INET6;
-    rc = getaddrinfo(hostexp, NULL, &hints, &result);
-    if (rc != 0 || result == NULL) {
-      error("Failed to resolve given IPv6 hostname/IP: %s.  Note that you can't use '/mask' or '[1-4,7,100-]' style ranges for IPv6.  Error code %d: %s", hostexp, rc, gai_strerror(rc));
-      free(hostexp);
-      if (result) freeaddrinfo(result);
-      return 1;
+    addrs = resolve_all(hostexp, AF_INET6);
+    for (addr = addrs; addr != NULL; addr = addr->ai_next) {
+      if (addr->ai_family != AF_INET6)
+        continue;
+      if (addr->ai_addrlen < sizeof(ss)) {
+        memcpy(&ss, addr->ai_addr, addr->ai_addrlen);
+        resolvedaddrs.push_back(ss);
+      }
     }
-    assert(result->ai_addrlen == sizeof(struct sockaddr_in6));
-    struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) result->ai_addr;
-    memcpy(&ip6, sin6, sizeof(struct sockaddr_in6));
+    freeaddrinfo(addrs);
+
+    if (resolvedaddrs.empty()) {
+      error("Failed to resolve given IPv6 hostname/IP: %s.  Note that you can't use '/mask' or '[1-4,7,100-]' style ranges for IPv6.", hostexp);
+      free(hostexp);
+      return 1;
+    } else {
+      ss = *resolvedaddrs.begin();
+      sslen = sizeof(ss);
+    }
+
+    if (resolvedaddrs.size() > 1 && o.verbose > 1)
+      error("Warning: Hostname %s resolves to %lu IPs. Using %s.", hostexp, (unsigned long)resolvedaddrs.size(), inet_ntop_ez(&ss, sslen));
+
+    assert(sizeof(ip6) <= sslen);
+    memcpy(&ip6, &ss, sizeof(ip6));
+
     ipsleft = 1;
-    freeaddrinfo(result);
 #else // HAVE_IPV6
     fatal("IPv6 not supported on your platform");
 #endif // HAVE_IPV6
@@ -535,21 +553,17 @@ int TargetGroup::return_last_host() {
    netmask. */
 bool TargetGroup::is_resolved_address(const struct sockaddr_storage *ss)
 {
-  const struct sockaddr_in *sin, *sin_resolved;
   struct sockaddr_storage resolvedaddr;
 
-  if (targets_type != IPV4_NETMASK || ss->ss_family != AF_INET
-      || resolvedaddrs.empty()) {
+  if (resolvedaddrs.empty())
     return false;
-  }
+  /* We only have a single distinguished address for these target types.
+     IPV4_RANGES doesn't, for example. */
+  if (!(targets_type == IPV4_NETMASK || targets_type == IPV6_ADDRESS))
+    return false;
   resolvedaddr = *resolvedaddrs.begin();
-  if (resolvedaddr.ss_family != AF_INET)
-    return false;
 
-  sin = (struct sockaddr_in *) ss;
-  sin_resolved = (struct sockaddr_in *) &resolvedaddr;
-
-  return sin->sin_addr.s_addr == sin_resolved->sin_addr.s_addr;
+  return sockaddr_storage_cmp(&resolvedaddr, ss) == 0;
 }
 
 /* Return a string of the name or address that was resolved for this group. */
@@ -563,6 +577,105 @@ const char *TargetGroup::get_resolved_name(void)
 const std::list<struct sockaddr_storage> &TargetGroup::get_resolved_addrs(void)
 {
   return resolvedaddrs;
+}
+
+/* debug level for the adding target is: 3 */
+NewTargets *NewTargets::get (void) {
+  if (new_targets)
+    return new_targets;
+  new_targets = new NewTargets();
+  return new_targets;
+}
+
+NewTargets::NewTargets (void) {
+  Initialize();
+}
+
+void NewTargets::Initialize (void) {
+  history.clear();
+  while(!queue.empty())
+    queue.pop();
+}
+
+/* This private method is used to push new targets to the
+ * queue. It returns the number of targets in the queue. */
+unsigned long NewTargets::push (const char *target) {
+  std::pair<std::set<std::string>::iterator, bool> pair_iter;
+  std::string tg(target);
+
+  if (tg.length() > 0) {
+    /* save targets in the scanned history here (NSE side). */
+    pair_iter = history.insert(tg);
+
+    /* A new target */
+    if (pair_iter.second == true) {
+      /* push target onto the queue for future scans */
+      queue.push(tg);
+
+      if (o.debugging > 2)
+        log_write(LOG_PLAIN, "New Targets: target %s pushed onto the queue.\n",
+          tg.c_str());
+    } else {
+      if (o.debugging > 2)
+        log_write(LOG_PLAIN, "New Targets: target %s is already in the queue.\n",
+          tg.c_str());
+      /* Return 1 when the target is already in the history cache,
+       * this will prevent returning 0 when the target queue is
+       * empty since no target was added. */
+      return 1;
+    }
+  }
+
+  return queue.size();
+}
+
+/* Reads a target from the queue and return it to be pushed
+ * onto Nmap scan queue */
+std::string NewTargets::read (void) {
+  std::string str;
+
+  /* check to see it there are targets in the queue */
+  if (!new_targets->queue.empty()) {
+    str = new_targets->queue.front();
+    new_targets->queue.pop();
+  }
+
+  return str;
+}
+
+void NewTargets::clear (void) {
+  new_targets->history.clear();
+}
+
+unsigned long NewTargets::get_number (void) {
+  return new_targets->history.size();
+}
+
+unsigned long NewTargets::get_scanned (void) {
+  return new_targets->history.size() - new_targets->queue.size();
+}
+
+unsigned long NewTargets::get_queued (void) {
+  return new_targets->queue.size();
+}
+
+/* This is the function that is used by nse_nmaplib.cc to add
+ * new targets.
+ * Returns the number of targets in the queue on success, or 0 on
+ * failures or when the queue is empty. */
+unsigned long NewTargets::insert (const char *target) {
+  if (*target) {
+    if (new_targets == NULL) {
+      error("ERROR: to add targets run with -sC or --script options.");
+      return 0;
+    }
+    if (o.current_scantype == SCRIPT_POST_SCAN) {
+      error("ERROR: adding targets is disabled in the Post-scanning phase.");
+      return 0;
+    }
+  }
+
+  return new_targets->push(target);
 }
 
 /* Lookahead is the number of hosts that can be

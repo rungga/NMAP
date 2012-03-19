@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -26,7 +26,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -49,8 +49,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -87,7 +87,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_winunix.h 12956 2009-04-15 00:37:23Z fyodor $ */
+/* $Id: nbase_winunix.h 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #ifndef NBASE_WINUNIX_H
 #define NBASE_WINUNIX_H
@@ -104,8 +104,30 @@
 #undef NTDDI_VERSION
 #define NTDDI_VERSION NTDDI_WIN2KSP4
 
+/* Winsock defines its own error codes that are analogous to but
+   different from those in <errno.h>. The error macros have similar
+   names, for example
+     EINTR -> WSAEINTR
+     ECONNREFUSED -> WSAECONNREFUSED
+   But the values are different. The errno codes are small integers,
+   while the Winsock codes start at 10000 or so.
+   http://msdn.microsoft.com/en-us/library/ms737828(v=VS.85).aspx
+
+   Later in this file there is a block of code that defines the errno
+   names to their Winsock equivalents, so that you can write code using
+   the errno names only, and have it still work on Windows. However this
+   causes some problems that are worked around in the following few
+   lines. First, we prohibit the inclusion of <errno.h>, so that the
+   only error codes visible are those we explicitly define in this file.
+   This will cause a compilation error if someone uses a code we're not
+   yet aware of instead of using an incompatible value at runtime.
+   Second, because <errno.h> is not defined, the C++0x header
+   <system_error> doesn't compile, so we pretend not to have C++0x to
+   avoid it. */
 #define _INC_ERRNO  /* suppress errno.h */
 #define _ERRNO_H_ /* Also for errno.h suppresion */
+#define _SYSTEM_ERROR_
+#define _HAS_CPP0X 0
 
 /* Suppress winsock.h */
 #define _WINSOCKAPI_

@@ -2,7 +2,7 @@
  * ncat_core.c -- Contains option defintions and miscellaneous functions.  *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 16410 2010-01-06 05:54:55Z david $ */
+/* $Id: ncat_core.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "ncat.h"
 #include "util.h"
@@ -202,6 +202,38 @@ int resolve(char *hostname, unsigned short port,
   return 1;
 }
 
+int fdinfo_close(struct fdinfo *fdn)
+{
+#ifdef HAVE_OPENSSL
+    if (o.ssl && fdn->ssl != NULL) {
+        SSL_shutdown(fdn->ssl);
+        SSL_free(fdn->ssl);
+        fdn->ssl = NULL;
+    }
+#endif
+
+    return close(fdn->fd);
+}
+
+/* Do a recv on an fdinfo, without other side effects. */
+int fdinfo_recv(struct fdinfo *fdn, char *buf, size_t size)
+{
+#ifdef HAVE_OPENSSL
+    if (o.ssl && fdn->ssl)
+        return SSL_read(fdn->ssl, buf, size);
+#endif
+    return recv(fdn->fd, buf, size, 0);
+}
+
+int fdinfo_pending(struct fdinfo *fdn)
+{
+#ifdef HAVE_OPENSSL
+    if (o.ssl && fdn->ssl)
+        return SSL_pending(fdn->ssl);
+#endif
+    return 0;
+}
+
 /* Read from a client socket into buf, returning the number of bytes read, or -1
    on an error. This takes care of delays, Telnet negotiation, and logging.
 
@@ -218,12 +250,7 @@ int ncat_recv(struct fdinfo *fdn, char *buf, size_t size, int *pending)
 
     *pending = 0;
 
-#ifdef HAVE_OPENSSL
-    if (o.ssl && fdn->ssl)
-        n = SSL_read(fdn->ssl, buf, size);
-    else
-#endif
-        n = recv(fdn->fd, buf, size, 0);
+    n = fdinfo_recv(fdn, buf, size);
 
     if (n <= 0)
 	return n;
@@ -234,19 +261,16 @@ int ncat_recv(struct fdinfo *fdn, char *buf, size_t size, int *pending)
         dotelnet(fdn->fd, (unsigned char *) buf, n);
     ncat_log_recv(buf, n);
 
-#ifdef HAVE_OPENSSL
     /* SSL can buffer our input, so doing another select() won't necessarily
        work for us. Indicate to the caller that this function must be called
        again to get more data. */
-    if (o.ssl && fdn->ssl)
-        *pending = SSL_pending(fdn->ssl);
-#endif
+    *pending = fdinfo_pending(fdn);
 
     return n;
 }
 
-/* Do a send to a client, without any logging or other side effects. */
-static int ncat_send_primitive(struct fdinfo *fdn, const char *buf, size_t size)
+/* Do a send on an fdinfo, without any logging or other side effects. */
+int fdinfo_send(struct fdinfo *fdn, const char *buf, size_t size)
 {
 #ifdef HAVE_OPENSSL
     if (o.ssl && fdn->ssl != NULL)
@@ -262,7 +286,7 @@ int ncat_send(struct fdinfo *fdn, const char *buf, size_t size)
     if (o.recvonly)
         return size;
 
-    n = ncat_send_primitive(fdn, buf, size);
+    n = fdinfo_send(fdn, buf, size);
     if (n <= 0)
 	return n;
 
@@ -287,7 +311,7 @@ int ncat_broadcast(fd_set *fds, const fd_list_t *fdlist, const char *msg, size_t
             continue;
 
         fdn = get_fdinfo(fdlist, i);
-        if (ncat_send_primitive(fdn, msg, size) <= 0) {
+        if (fdinfo_send(fdn, msg, size) <= 0) {
 	    if (o.debug > 1)
 		logdebug("Error sending to fd %d: %s.\n", i, socket_strerror(socket_errno()));
 	    ret = -1;
@@ -323,16 +347,6 @@ void dotelnet(int s, unsigned char *buf, size_t bufsiz)
 
         send(s, (const char *) tbuf, 3, 0);
     }
-}
-
-/* Return 1 if user is root, otherwise 0. */
-int ncat_checkuid()
-{
-#ifdef WIN32
-    return 1;
-#else
-    return (getuid() == 0 || geteuid() == 0);
-#endif
 }
 
 /* sleep(), usleep(), msleep(), Sleep() -- all together now, "portability".

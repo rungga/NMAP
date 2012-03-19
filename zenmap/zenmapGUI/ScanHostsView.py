@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -93,12 +93,22 @@ from zenmapGUI.higwidgets.higboxes import HIGVBox
 from zenmapGUI.Icons import get_os_icon
 import zenmapCore.I18N
 
+def treemodel_get_addrs_for_sort(model, iter):
+    host = model.get_value(iter, 0)
+    return host.get_addrs_for_sort()
+
+# Used to sort hosts by address.
+def cmp_treemodel_addr(model, iter_a, iter_b):
+    addrs_a = treemodel_get_addrs_for_sort(model, iter_a)
+    addrs_b = treemodel_get_addrs_for_sort(model, iter_b)
+    return cmp(addrs_a, addrs_b)
+
 class ScanHostsView(HIGVBox, object):
     HOST_MODE, SERVICE_MODE = range(2)
 
     def __init__(self, scan_interface):
         HIGVBox.__init__(self)
-        
+
         self._scan_interface = scan_interface
         self._create_widgets()
         self._connect_widgets()
@@ -106,7 +116,7 @@ class ScanHostsView(HIGVBox, object):
         self._set_scrolled()
         self._set_host_list()
         self._set_service_list()
-        
+
         self._pack_expand_fill(self.main_vbox)
 
         self.mode = None
@@ -116,7 +126,7 @@ class ScanHostsView(HIGVBox, object):
 
         self.host_view.show_all()
         self.service_view.show_all()
-    
+
     def _create_widgets(self):
         # Mode buttons
         self.host_mode_button = gtk.ToggleButton(_("Hosts"))
@@ -128,6 +138,8 @@ class ScanHostsView(HIGVBox, object):
 
         # Host list
         self.host_list = gtk.ListStore(object, str, str)
+        self.host_list.set_sort_func(1000, cmp_treemodel_addr)
+        self.host_list.set_sort_column_id(1000, gtk.SORT_ASCENDING)
         self.host_view = gtk.TreeView(self.host_list)
         self.pic_column = gtk.TreeViewColumn(_('OS'))
         self.host_column = gtk.TreeViewColumn(_('Host'))
@@ -136,10 +148,11 @@ class ScanHostsView(HIGVBox, object):
 
         # Service list
         self.service_list = gtk.ListStore(str)
+        self.service_list.set_sort_column_id(0, gtk.SORT_ASCENDING)
         self.service_view = gtk.TreeView(self.service_list)
         self.service_column = gtk.TreeViewColumn(_('Service'))
         self.service_cell = gtk.CellRendererText()
-        
+
         self.scrolled = gtk.ScrolledWindow()
 
     def _pack_widgets(self):
@@ -182,7 +195,7 @@ class ScanHostsView(HIGVBox, object):
             self.scrolled.remove(child)
         except:
             pass
-    
+
     def _set_scrolled(self):
         self.scrolled.set_border_width(5)
         self.scrolled.set_size_request(150, -1)
@@ -195,7 +208,7 @@ class ScanHostsView(HIGVBox, object):
         selection = self.service_view.get_selection()
         selection.set_mode(gtk.SELECTION_MULTIPLE)
         self.service_view.append_column(self.service_column)
-        
+
         self.service_column.set_resizable(True)
         self.service_column.set_sort_column_id(0)
         self.service_column.set_reorderable(True)
@@ -205,25 +218,25 @@ class ScanHostsView(HIGVBox, object):
     def _set_host_list(self):
         self.host_view.set_enable_search(True)
         self.host_view.set_search_column(1)
-        
+
         selection = self.host_view.get_selection()
         selection.set_mode(gtk.SELECTION_MULTIPLE)
-        
+
         self.host_view.append_column(self.pic_column)
         self.host_view.append_column(self.host_column)
-        
+
         self.host_column.set_resizable(True)
         self.pic_column.set_resizable(True)
-        
-        self.host_column.set_sort_column_id(1)
+
+        self.host_column.set_sort_column_id(1000)
         self.pic_column.set_sort_column_id(1)
-        
+
         self.host_column.set_reorderable(True)
         self.pic_column.set_reorderable(True)
-        
+
         self.pic_column.pack_start(self.os_cell, True)
         self.host_column.pack_start(self.host_cell, True)
-        
+
         self.pic_column.set_min_width(35)
         self.pic_column.set_attributes(self.os_cell, stock_id = 1)
         self.host_column.set_attributes(self.host_cell, text = 2)
@@ -235,6 +248,15 @@ class ScanHostsView(HIGVBox, object):
         services = set()
         for h in hosts:
             services.update([s["service_name"] for s in h.services])
+
+        # Disable sorting while elements are added. See the PyGTK FAQ 13.43,
+        # "Are there tips for improving performance when adding many rows to a
+        # Treeview?"
+        sort_column_id = self.host_list.get_sort_column_id()
+        self.host_list.set_default_sort_func(lambda *args: -1)
+        self.host_list.set_sort_column_id(-1, gtk.SORT_ASCENDING)
+        self.host_view.freeze_child_notify()
+        self.host_view.set_model(None)
 
         it = self.host_list.get_iter_first()
         # Remove any of our ListStore hosts that aren't in the list passed in.
@@ -250,6 +272,11 @@ class ScanHostsView(HIGVBox, object):
         # Add any remaining hosts into our ListStore.
         for host in hosts:
             self.add_host(host)
+
+        # Reenable sorting.
+        self.host_list.set_sort_column_id(*sort_column_id)
+        self.host_view.set_model(self.host_list)
+        self.host_view.thaw_child_notify()
 
         it = self.service_list.get_iter_first()
         # Remove any of our ListStore services that aren't in the list passed
@@ -277,5 +304,4 @@ if __name__ == "__main__":
     h = ScanHostsView()
     w.add(h)
     w.show_all()
-
     gtk.main()

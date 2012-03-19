@@ -63,100 +63,6 @@ def substitute_key_file(in_file_name, out_file_name, replacements):
     in_file.close()
     out_file.close()
 
-# The format of gtk-2.0/gdk-pixbuf.loaders, gtk-2.0/gtk.immodules, and
-# pango/pango.modules is lines of whitespace-separated strings, possibly quoted.
-# Split a line of strings into a list with no escaping or quoting.
-def split_modules_file_line(line):
-    parts = []
-    i = 0
-    while i < len(line):
-        # Skip whitespace.
-        while i < len(line) and line[i].isspace():
-            i += 1
-        if i >= len(line):
-            break
-        current = []
-        if line[i] == "\"":
-            i += 1
-            backslash = False
-            while i < len(line):
-                c = line[i]
-                if backslash:
-                    if c == "n":
-                        c = "\n"
-                    elif c == "t":
-                        c = "\t"
-                    current.append(c)
-                    backslash = False
-                else:
-                    if c == "\"":
-                        break
-                    elif c == "\\":
-                        backslash = True
-                    else:
-                        current.append(c)
-                i += 1
-            if backslash:
-                raise ValueError, "Escaped string ends with a backslash."
-            if not (i < len(line) and line[i] == "\""):
-                raise ValueError, "Unterminated quoted string: %d, %d" % (i, len(line))
-            i += 1
-        else:
-            while i < len(line) and not line[i].isspace():
-                current.append(line[i])
-                i += 1
-        current = "".join(current)
-        parts.append(current)
-    return parts
-
-# Since GTK+ 2.16.1 at least, it appears that numeric values must not be quoted
-# or the file will not be read properly.
-def modules_file_value_needs_quoting(value):
-    if value == "":
-        return True
-    for c in value:
-        if not c.isdigit():
-            return True
-    return False
-
-# Escape a string so it can be read by pango_scan_string.
-def escape_modules_file_value(value):
-    if modules_file_value_needs_quoting(value):
-        result = []
-        for c in value:
-            if c == "\n":
-                c = "\\n"
-            elif c == "\"":
-                c = "\\\""
-            elif c == "\\":
-                c = "\\\\"
-            result.append(c)
-        return "\"" + "".join(result) + "\""
-    else:
-        return value
-
-# Substitute a dict of replacements into a line from a modules file, unescaping
-# before the substitution and reescaping afterwards.
-def substitute_modules_file_line(line, replacements):
-    if not line.startswith("#"):
-        parts = split_modules_file_line(line)
-        out_parts = []
-        for part in parts:
-            for text, rep in replacements.items():
-                part = part.replace(text, rep)
-            out_parts.append(escape_modules_file_value(part))
-        line = " ".join(out_parts) + "\n"
-    return line
-
-# Substitute a dict of replacements into a modules file.
-def substitute_modules_file(in_file_name, out_file_name, replacements):
-    in_file = open(in_file_name, "r")
-    out_file = open(out_file_name, "w")
-    for line in in_file:
-        out_file.write(substitute_modules_file_line(line, replacements))
-    in_file.close()
-    out_file.close()
-
 def escape_shell(arg):
     """Escape a string to be a shell argument."""
     result = []
@@ -243,12 +149,9 @@ if __name__ == "__main__":
 
     # The following environment variables refer to files within ~/.zenmap-etc
     # that are automatically generated from templates.
-    os.environ["GTK_IM_MODULE_FILE"] = os.path.join(etcdir, "gtk-2.0", "gtk.immodules")
-    os.environ["GDK_PIXBUF_MODULE_FILE"] = os.path.join(etcdir, "gtk-2.0", "gdk-pixbuf.loaders")
     os.environ["PANGO_RC_FILE"] = os.path.join(etcdir, "pango", "pangorc")
 
     # Create the template directory.
-    create_dir(os.path.join(etcdir, "gtk-2.0"))
     create_dir(os.path.join(etcdir, "pango"))
 
     REPLACEMENTS = {
@@ -264,15 +167,6 @@ if __name__ == "__main__":
         in_file_name = os.path.join(resourcedir, "etc", f + ".in")
         out_file_name = os.path.join(etcdir, f)
         substitute_key_file(in_file_name, out_file_name, REPLACEMENTS)
-    MODULES_FILE_TEMPLATES = (
-        "pango/pango.modules",
-        "gtk-2.0/gdk-pixbuf.loaders",
-        "gtk-2.0/gtk.immodules"
-    )
-    for f in MODULES_FILE_TEMPLATES:
-        in_file_name = os.path.join(resourcedir, "etc", f + ".in")
-        out_file_name = os.path.join(etcdir, f)
-        substitute_modules_file(in_file_name, out_file_name, REPLACEMENTS)
 
     start_x11()
 

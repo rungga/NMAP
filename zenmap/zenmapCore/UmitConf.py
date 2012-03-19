@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -136,7 +136,7 @@ class SearchConfig(UmitConfigParser, object):
 
     def _set_it(self, p_name, value):
         config_parser.set(self.section_name, p_name, value)
-        
+
     def boolean_sanity(self, attr):
         if attr == True or \
            attr == "True" or \
@@ -199,7 +199,7 @@ class SearchConfig(UmitConfigParser, object):
                 "years": 60 * 60 * 24 * 7 * 30 * 12,
                 "minutes": 60,
                 "seconds": 1}
-    
+
     directory = property(get_directory, set_directory)
     file_extension = property(get_file_extension, set_file_extension)
     save_time = property(get_save_time, set_save_time)
@@ -272,7 +272,7 @@ class CommandProfile (Profile, object):
     attributes of a profile: command and description"""
     def __init__(self, user_profile = None):
         Profile.__init__(self, user_profile)
-        
+
     def get_command(self, profile):
         command_string = self._get_it(profile, 'command')
         # Old versions of Zenmap used to append "%s" to commands and use that to
@@ -283,13 +283,13 @@ class CommandProfile (Profile, object):
 
     def get_description(self, profile):
         return self._get_it(profile, 'description')
-    
+
     def set_command(self, profile, command=''):
         self._set_it(profile, 'command', command)
 
     def set_description(self, profile, description=''):
         self._set_it(profile, 'description', description)
-    
+
     def get_profile(self, profile_name):
         return {'profile':profile_name, \
                 'command':self.get_command(profile_name), \
@@ -298,7 +298,7 @@ class CommandProfile (Profile, object):
 
 class NmapOutputHighlight(object):
     setts = ["bold", "italic", "underline", "text", "highlight", "regex"]
-    
+
     def save_changes(self):
         config_parser.save_changes()
 
@@ -340,7 +340,7 @@ class NmapOutputHighlight(object):
         Sequence: [bold, italic, underline, text, highlight, regex]
         """
         #log.debug(">>> Sanitize %s" % str(settings))
-        
+
         settings[0] = self.boolean_sanity(settings[0])
         settings[1] = self.boolean_sanity(settings[1])
         settings[2] = self.boolean_sanity(settings[2])
@@ -413,7 +413,7 @@ class NmapOutputHighlight(object):
             enable = config_parser.get("output_highlight", "enable_highlight")
         except NoSectionError:
             config_parser.set("output_highlight", "enable_highlight", str(True))
-        
+
         if enable == "False" or enable == "0" or enable == "":
             return False
         return True

@@ -1,5 +1,5 @@
 description = [[
-Check whether or not a server is running the SMBv2 protocol. 
+Checks whether or not a server is running the SMBv2 protocol. 
 ]]
 ---
 --@usage
@@ -12,7 +12,6 @@ Check whether or not a server is running the SMBv2 protocol.
 --
 -- Host script results:
 -- |_ smb-v2-enabled: Server doesn't support SMBv2 protocol
------------------------------------------------------------------------
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
@@ -34,7 +33,7 @@ local function go(host)
 
 	status, smbstate = smb.start(host)
 	if(not(status)) then
-		return false, "Couldn't start SMB session: " .. smb
+		return false, "Couldn't start SMB session: " .. smbstate
 	end
 
 	status, result = smb.negotiate_protocol(smbstate, overrides)

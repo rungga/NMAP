@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -138,6 +138,12 @@ class ControlWidget(BWVBox):
         self.bw_pack_start_noexpand_nofill(self.__view)
 
 
+def try_set_tooltip_text(widget, text):
+    try:
+        widget.set_tooltip_text(text)
+    except AttributeError:
+        # The set_tooltip_text method was introduced in PyGTK 2.12.
+        pass
 
 class ControlAction(BWExpander):
     """
@@ -160,10 +166,8 @@ class ControlAction(BWExpander):
         self.__tbox.bw_set_spacing(0)
         self.__vbox = BWVBox()
 
-        self.__tooltips = gtk.Tooltips()
-
         self.__jump_to = gtk.RadioToolButton(None, gtk.STOCK_JUMP_TO)
-        self.__jump_to.set_tooltip(self.__tooltips, _('Change focus'))
+        try_set_tooltip_text(self.__jump_to, 'Change focus')
         self.__jump_to.connect('toggled',
                                self.__change_pointer,
                                POINTER_JUMP_TO)
@@ -176,20 +180,20 @@ class ControlAction(BWExpander):
             self.__info.set_label(_("Info"))
         else:
             self.__info = gtk.RadioToolButton(self.__jump_to, info_icon)
-        self.__info.set_tooltip(self.__tooltips, _('Show information'))
+        try_set_tooltip_text(self.__info, 'Show information')
         self.__info.connect('toggled',
                             self.__change_pointer,
                             POINTER_INFO)
 
         self.__group = gtk.RadioToolButton(self.__jump_to, gtk.STOCK_ADD)
-        self.__group.set_tooltip(self.__tooltips, _('Group children'))
+        try_set_tooltip_text(self.__group, 'Group children')
         self.__group.connect('toggled',
                              self.__change_pointer,
                              POINTER_GROUP)
 
         self.__region = gtk.RadioToolButton(self.__jump_to,
                                             gtk.STOCK_SELECT_COLOR)
-        self.__region.set_tooltip(self.__tooltips, _('Fill region'))
+        try_set_tooltip_text(self.__region, 'Fill region')
         self.__region.connect('toggled',
                               self.__change_pointer,
                               POINTER_FILL)
@@ -1172,7 +1176,7 @@ class ControlNavigation(gtk.DrawingArea):
             self.__rotate_node.set_coordinate(r, t)
 
             self.queue_draw()
-        
+
         return False
 
 
@@ -1253,7 +1257,7 @@ class ControlNavigation(gtk.DrawingArea):
 
             pc.set_coordinate(23, 45 * i)
             x, y = pc.to_cartesian()
-        
+
             self.context.set_dash([1,1])
             self.context.move_to(xc, yc)
             self.context.line_to(xc + x, yc - y)
@@ -1361,7 +1365,7 @@ class ControlNavigation(gtk.DrawingArea):
 
             pc.set_coordinate(23, 45 * i)
             x, y = pc.to_cartesian()
-        
+
             center = (xc + x, yc - y)
             result = geometry.is_in_circle(pointer,
                                            self.__move_radius,

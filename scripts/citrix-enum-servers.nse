@@ -1,5 +1,5 @@
 description = [[ 
-Extract a list of Citrix servers from the ICA Browser service
+Extracts a list of Citrix servers from the ICA Browser service.
 ]]
 
 ---
@@ -19,7 +19,7 @@ Extract a list of Citrix servers from the ICA Browser service
 -- Revised 11/26/2009 - v0.2 - minor packet documentation
 
 
-author = "Patrik Karlsson <patrik@cqure.net>"
+author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
@@ -104,7 +104,7 @@ action = function(host, port)
 	socket:set_timeout(5000)
 
 	try = nmap.new_try(function() socket:close() end)
-	try(socket:connect(host.ip, port.number, port.protocol))
+	try(socket:connect(host, port))
 
 	-- send the two first packets and never look back
 	repeat

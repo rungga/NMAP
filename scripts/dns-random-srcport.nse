@@ -3,22 +3,26 @@ Checks a DNS server for the predictable-port recursion vulnerability.
 Predictable source ports can make a DNS server vulnerable to cache poisoning
 attacks (see CVE-2008-1447).
 
-The script works by querying porttest.dns-oarc.net.
-Be aware that any targets against which this script is run will be sent to and
-potentially recorded by one or more DNS servers and the porttest server. In
-addition your IP address will be sent along with the porttest query to the DNS
-server running on the target.
+The script works by querying porttest.dns-oarc.net (see
+https://www.dns-oarc.net/oarc/services/porttest).  Be aware that any
+targets against which this script is run will be sent to and
+potentially recorded by one or more DNS servers and the porttest
+server. In addition your IP address will be sent along with the
+porttest query to the DNS server running on the target.
 ]]
 
-license = [[
-Script: Same as Nmap--See http://nmap.org/book/man-legal.html \n
-porttest.dns-oarc.net: https://www.dns-oarc.net/oarc/services/porttest
-]]
+license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 author = [[
 Script: Brandon Enright <bmenrigh@ucsd.edu>\n
 porttest.dns-oarc.net: Duane Wessels <wessels@dns-oarc.net>
 ]]
+
+---
+-- @output
+-- PORT   STATE SERVICE REASON
+-- 53/udp open  domain  udp-response
+-- |_dns-random-srcport: X.X.X.X is GREAT: 26 queries in 1.2 seconds from 26 ports with std dev 17905
 
 -- This script uses (with permission) Duane Wessels' porttest.dns-oarc.net
 -- service.  Duane/OARC believe the service is valuable to the community

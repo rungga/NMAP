@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -26,7 +26,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -49,8 +49,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -89,6 +89,8 @@
 
 /* $Id:$ */
 
+#include "nbase.h"
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -102,7 +104,6 @@ extern "C"
 {
 #include "lua.h"
 #include "lauxlib.h"
-void *safe_realloc(void *, size_t);
 }
 
 #include "nse_nsock.h"
@@ -161,14 +162,16 @@ static void obj_to_key(lua_State *L, const ASN1_OBJECT *obj)
 
   nid = OBJ_obj2nid(obj);
   if (nid == NID_undef) {
-    size_t size = 0;
-    char *buf = NULL;
+    size_t size = 1;
+    char *buf = (char *) lua_newuserdata(L, size);
     const char *p, *q;
     int i, n;
 
     while ((n = OBJ_obj2txt(buf, size, obj, 1)) < 0 || (unsigned) n >= size) {
-      size = size * 2 + 1;
-      buf = (char *) safe_realloc(buf, size);
+      size = size * 2;
+      buf = (char *) lua_newuserdata(L, size);
+      memcpy(lua_touserdata(L, -1), lua_touserdata(L, -2), lua_objlen(L, -2));
+      lua_replace(L, -2);
     }
 
     lua_newtable(L);
@@ -184,7 +187,7 @@ static void obj_to_key(lua_State *L, const ASN1_OBJECT *obj)
       lua_rawseti(L, -2, i++);
       p = q + 1;
     }
-    free(buf);
+    lua_replace(L, -2); /* replace userdata with table */
   } else {
     lua_pushstring(L, OBJ_nid2ln(nid));
   }
@@ -243,7 +246,7 @@ static int parse_int(const unsigned char *s, size_t len)
   return (int) v;
 }
 
-/* This is a helper function for asn1_time_to_obj. It parses a tectual ASN1_TIME
+/* This is a helper function for asn1_time_to_obj. It parses a textual ASN1_TIME
    value and stores the time in the given struct tm. It returns 0 on success and
    -1 on a parse error. */
 static int time_to_tm(const ASN1_TIME *t, struct tm *result)
@@ -320,7 +323,7 @@ static void tm_to_table(lua_State *L, const struct tm *tm)
   /* Omit tm_wday and tm_yday. */
 }
 
-/* This is a helper functino for x509_validity_to_table. It takes teh given
+/* This is a helper function for x509_validity_to_table. It takes teh given
    ASN1_TIME and covnerts it to a value on the stack, which is one of
      nil, if the time is NULL;
      a date table, if the date can be parsed; and
@@ -370,12 +373,33 @@ static void cert_pem_to_string(lua_State *L, X509 *cert)
   BIO_vfree(bio);
 }
 
+/* This is a helper function for l_get_ssl_certificate. It converts the
+   public-key type to a string. */
+static const char *pkey_type_to_string(int type)
+{
+  switch (type) {
+  case EVP_PKEY_RSA:
+    return "rsa";
+  case EVP_PKEY_DSA:
+    return "dsa";
+  case EVP_PKEY_DH:
+    return "dh";
+#ifdef EVP_PKEY_EC
+  case EVP_PKEY_EC:
+    return "ec";
+#endif
+  default:
+    return "unknown";
+  }
+}
+
 int l_get_ssl_certificate(lua_State *L)
 {
   SSL *ssl;
   struct cert_userdata *udata;
   X509 *cert;
   X509_NAME *subject, *issuer;
+  EVP_PKEY *pubkey;
 
   ssl = nse_nsock_get_ssl(L);
   cert = SSL_get_peer_certificate(ssl);
@@ -406,6 +430,15 @@ int l_get_ssl_certificate(lua_State *L)
 
   cert_pem_to_string(L, cert);
   lua_setfield(L, -2, "pem");
+
+  pubkey = X509_get_pubkey(cert);
+  lua_newtable(L);
+  lua_pushstring(L, pkey_type_to_string(pubkey->type));
+  lua_setfield(L, -2, "type");
+  lua_pushnumber(L, EVP_PKEY_bits(pubkey));
+  lua_setfield(L, -2, "bits");
+  lua_setfield(L, -2, "pubkey");
+  EVP_PKEY_free(pubkey);
 
   /* At this point the certificate-specific table of attributes is at the top of
      the stack. We give it a metatable with an __index entry that points into

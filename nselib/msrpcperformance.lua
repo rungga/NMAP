@@ -1,16 +1,17 @@
----This module is designed to parse the <code>PERF_DATA_BLOCK</code> structure, which is
+---
+-- This module is designed to parse the <code>PERF_DATA_BLOCK</code> structure, which is
 -- stored in the registry under HKEY_PERFORMANCE_DATA. By querying this structure, you can
 -- get a whole lot of information about what's going on. 
 --
 -- To use this from a script, see <code>get_performance_data</code>, it is the only 
--- 'public' function in this module. 
+-- "public" function in this module. 
 --
 -- My primary sources of information were:
 -- * This 1996 journal by Matt Pietrek: <http://www.microsoft.com/msj/archive/S271.aspx>
 -- * The followup article: <http://www.microsoft.com/msj/archive/S2A9.aspx>
 -- * The WinPerf.h header file
 --
--- And my primary inspiration was PsTools, specifically, pstasklist.exe. 
+-- And my primary inspiration was PsTools, specifically, <code>pstasklist.exe</code>. 
 --
 --@author Ron Bowes <ron@skullsecurity.net>
 --@copyright Same as Nmap--See http://nmap.org/book/man-legal.html
@@ -425,40 +426,36 @@ end
 --@param objects [optional] The space-separated list of object numbers to retrieve. Default: only retrieve the database. 
 function get_performance_data(host, objects)
 
-	local status, smbstate
-	local bind_result, openhkpd_result, queryvalue_result, data_block
-	local pos, object_type, counter_result
-	local result = {}
-	local i, j, k
-
 	-- Create the SMB session
-	status, smbstate = msrpc.start_smb(host, msrpc.WINREG_PATH)
+	local status, smbstate = msrpc.start_smb(host, msrpc.WINREG_PATH)
 	if(status == false) then
 		return false, smbstate
 	end
 
 	-- Bind to WINREG service
-	status, bind_result = msrpc.bind(smbstate, msrpc.WINREG_UUID, msrpc.WINREG_VERSION, nil)
+	local status, bind_result = msrpc.bind(smbstate, msrpc.WINREG_UUID, msrpc.WINREG_VERSION, nil)
 	if(status == false) then
 		msrpc.stop_smb(smbstate)
 		return false, bind_result
 	end
 
 	-- Open HKEY_PERFORMANCE_DATA
-	status, openhkpd_result = msrpc.winreg_openhkpd(smbstate)
+	local status, openhkpd_result = msrpc.winreg_openhkpd(smbstate)
 	if(status == false) then
 		msrpc.stop_smb(smbstate)
 		return false, openhkpd_result
 	end
 
-	status, queryvalue_result = msrpc.winreg_queryvalue(smbstate, openhkpd_result['handle'], "Counter 009")
+	local status, queryvalue_result = msrpc.winreg_queryvalue(smbstate, openhkpd_result['handle'], "Counter 009")
 	if(status == false) then
 		msrpc.stop_smb(smbstate)
 		return false, queryvalue_result
 	end
 
 	-- Parse the title database
-	pos = 1
+	local pos = 1
+	local status
+	local result = {}
 	status, pos, result['title_database'] = parse_perf_title_database(queryvalue_result['value'], pos)
 	if(status == false) then
 		msrpc.stop_smb(smbstate)
@@ -469,7 +466,7 @@ function get_performance_data(host, objects)
 
 	if(objects ~= nil and #objects > 0) then
 		-- Query for the objects
-		status, queryvalue_result = msrpc.winreg_queryvalue(smbstate, openhkpd_result['handle'], objects)
+		local status, queryvalue_result = msrpc.winreg_queryvalue(smbstate, openhkpd_result['handle'], objects)
 		if(status == false) then
 			msrpc.stop_smb(smbstate)
 			return false, queryvalue_result
@@ -477,6 +474,7 @@ function get_performance_data(host, objects)
 
 		-- Parse the header
 		pos = 1
+		local status, data_block
 		status, pos, data_block = parse_perf_data_block(queryvalue_result['value'], pos)
 		if(status == false) then
 			msrpc.stop_smb(smbstate)
@@ -489,13 +487,13 @@ function get_performance_data(host, objects)
 		-- Parse the data sections
 		for i = 1, data_block['NumObjectTypes'], 1 do
 			local object_start = pos
-			local object_name
 
 			local counter_definitions = {}
 			local object_instances    = {}
 			local counter_definitions = {}
 
 			-- Get the type of the object (this is basically the class definition -- info about the object instances)
+			local status, object_type
 			status, pos, object_type = parse_perf_object_type(queryvalue_result['value'], pos)
 			if(status == false) then
 				msrpc.stop_smb(smbstate)
@@ -503,14 +501,14 @@ function get_performance_data(host, objects)
 			end
 
 			-- Start setting up the result object
---io.write(string.format("Index = %d\n", object_type['ObjectNameTitleIndex']))
-			object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
+--stdnse.print_debug("Index = %d\n", object_type['ObjectNameTitleIndex'])
+			local object_name = result['title_database'][object_type['ObjectNameTitleIndex']]
 			result[object_name] = {}
 			
---io.write(string.format("\n\nOBJECT: %s\n", object_name))
---io.write(string.format(" Counters: %d\n", object_type['NumCounters']))
---io.write(string.format(" Instances: %d\n", object_type['NumInstances']))
---io.write("-----------------\n")
+--stdnse.print_debug("\n\nOBJECT: %s\n", object_name)
+--stdnse.print_debug(" Counters: %d\n", object_type['NumCounters'])
+--stdnse.print_debug(" Instances: %d\n", object_type['NumInstances'])
+--stdnse.print_debug("-----------------\n")
 
 			-- Bring the position to the beginning of the counter definitions
 			pos = object_start + object_type['HeaderLength']
@@ -522,7 +520,7 @@ function get_performance_data(host, objects)
 					msrpc.stop_smb(smbstate)
 					return false, pos
 				end
---io.write(string.format(" Counter definition #%2d: [%d bytes] %s\n", j, counter_definitions[j]['CounterSize'], result['title_database'][counter_definitions[j]['CounterNameTitleIndex']]))
+--stdnse.print_debug(" Counter definition #%2d: [%d bytes] %s\n", j, counter_definitions[j]['CounterSize'], result['title_database'][counter_definitions[j]['CounterNameTitleIndex']])
 			end
 
 			-- Bring the position to the beginning of the instances (or counters)
@@ -533,9 +531,9 @@ function get_performance_data(host, objects)
 				-- Parse the object instances and counters
 				for j = 1, object_type['NumInstances'], 1 do
 					local instance_start = pos
-					local instance_name
-					local counter_block
+
 					-- Instance definition
+					local status
 					status, pos, object_instances[j] = parse_perf_instance_definition(queryvalue_result['value'], pos)
 					if(status == false) then
 						msrpc.stop_smb(smbstate)
@@ -543,19 +541,20 @@ function get_performance_data(host, objects)
 					end
 
 					-- Set up the instance array
-					instance_name = object_instances[j]['InstanceName']
+					local instance_name = object_instances[j]['InstanceName']
 					result[object_name][instance_name] = {}
 		
 					-- Bring the pos to the start of the counter block
 					pos = instance_start + object_instances[j]['ByteLength']
 
---io.write(string.format("\n  INSTANCE: %s\n", instance_name))
---io.write(string.format("  Length: %d\n",     object_instances[j]['ByteLength']))
---io.write(string.format("  NameOffset: %d\n", object_instances[j]['NameOffset']))
---io.write(string.format("  NameLength: %d\n", object_instances[j]['NameLength']))
---io.write("  --------------\n")
+--stdnse.print_debug("\n  INSTANCE: %s\n", instance_name)
+--stdnse.print_debug("  Length: %d\n",     object_instances[j]['ByteLength'])
+--stdnse.print_debug("  NameOffset: %d\n", object_instances[j]['NameOffset'])
+--stdnse.print_debug("  NameLength: %d\n", object_instances[j]['NameLength'])
+--stdnse.print_debug("  --------------\n")
 		
 					-- The counter block
+					local status, counter_block
 					status, pos, counter_block = parse_perf_counter_block(queryvalue_result['value'], pos)
 					if(status == false) then
 						msrpc.stop_smb(smbstate)
@@ -563,15 +562,16 @@ function get_performance_data(host, objects)
 					end
 		
 					for k = 1, object_type['NumCounters'], 1 do
-						local counter_name
 						-- Each individual counter
+						local status, counter_result
 						status, pos, counter_result = parse_perf_counter(queryvalue_result['value'], pos, counter_definitions[k])
 						if(status == false) then
 							msrpc.stop_smb(smbstate)
 							return false, pos
 						end
-						counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
---io.write(string.format("    %s: %s\n", counter_name, counter_result))
+
+						local counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
+--stdnse.print_debug("    %s: %s\n", counter_name, counter_result)
 
 						-- Save it in the result
 						result[object_name][instance_name][counter_name] = counter_result
@@ -582,15 +582,16 @@ function get_performance_data(host, objects)
 				end
 			else
 				for k = 1, object_type['NumCounters'], 1 do
-					local counter_name
 					-- Each individual counter
+					local status, counter_result
 					status, pos, counter_result = parse_perf_counter(queryvalue_result['value'], pos, counter_definitions[k])
 					if(status == false) then
 						msrpc.stop_smb(smbstate)
 						return false, pos
 					end
-					counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
---io.write(string.format("    %s: %s\n", counter_name, counter_result))
+
+					local counter_name = result['title_database'][counter_definitions[k]['CounterNameTitleIndex']]
+--stdnse.print_debug("    %s: %s\n", counter_name, counter_result)
 
 					-- Save it in the result
 					result[object_name][counter_name] = counter_result

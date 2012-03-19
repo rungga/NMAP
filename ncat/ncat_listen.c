@@ -2,7 +2,7 @@
  * ncat_listen.c -- --listen mode.                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.c 16410 2010-01-06 05:54:55Z david $ */
+/* $Id: ncat_listen.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "ncat.h"
 
@@ -122,6 +122,7 @@ static fd_list_t read_fdlist, broadcast_fdlist;
 static int listen_socket;
 /* Has stdin seen EOF? */
 static int stdin_eof = 0;
+static int crlf_state = 0;
 
 static void handle_connection(void);
 static int read_stdin(void);
@@ -287,7 +288,7 @@ static void handle_connection(void)
     }
 
     if (o.verbose)
-        loguser("Connection from %s.\n", inet_socktop(&remoteaddr));
+        loguser("Connection from %s:%hu.\n", inet_socktop(&remoteaddr), inet_port(&remoteaddr));
 
     /* Check conditions that might cause us to deny the connection. */
     conn_count = get_conn_count();
@@ -331,7 +332,10 @@ static void handle_connection(void)
      * to our descriptor list or set.
      */
     if (o.cmdexec) {
-        netrun(&s, o.cmdexec);
+        if (o.keepopen)
+            netrun(&s, o.cmdexec);
+        else
+            netexec(&s, o.cmdexec);
     } else {
         /* Now that a client is connected, pay attention to stdin. */
         if (!stdin_eof)
@@ -374,7 +378,7 @@ int read_stdin(void)
     }
 
     if (o.crlf)
-        fix_line_endings((char *) buf, &nbytes, &tempbuf);
+        fix_line_endings((char *) buf, &nbytes, &tempbuf, &crlf_state);
 
     if(o.linedelay)
         ncat_delay_timer(o.linedelay);
@@ -384,9 +388,9 @@ int read_stdin(void)
         ncat_broadcast(&broadcast_fds, &broadcast_fdlist, tempbuf, nbytes);
         free(tempbuf);
         tempbuf = NULL;
-    } else
+    } else {
         ncat_broadcast(&broadcast_fds, &broadcast_fdlist, buf, nbytes);
-    
+    }
 
     return nbytes;
 }
@@ -417,11 +421,11 @@ int read_socket(int recv_fd)
                 SSL_free(fdn->ssl);
             }
 #endif
-            close(fdn->fd);
-            FD_CLR(fdn->fd, &read_fds);
-            rm_fd(&read_fdlist, fdn->fd);
-            FD_CLR(fdn->fd, &broadcast_fds);
-            rm_fd(&broadcast_fdlist, fdn->fd);
+            close(recv_fd);
+            FD_CLR(recv_fd, &read_fds);
+            rm_fd(&read_fdlist, recv_fd);
+            FD_CLR(recv_fd, &broadcast_fds);
+            rm_fd(&broadcast_fdlist, recv_fd);
 
             conn_inc--;
             if (get_conn_count() == 0)
@@ -460,6 +464,9 @@ static int ncat_listen_dgram(int proto)
 #else
     /* Reap on SIGCHLD */
     Signal(SIGCHLD, sigchld_handler);
+    /* Ignore the SIGPIPE that occurs when a client disconnects suddenly and we
+       send data to it before noticing. */
+    Signal(SIGPIPE, SIG_IGN);
 #endif
 
     while (1) {
@@ -509,7 +516,10 @@ static int ncat_listen_dgram(int proto)
             struct fdinfo info = { 0 };
 
             info.fd = sockfd;
-            netrun(&info, o.cmdexec);
+            if (o.keepopen)
+                netrun(&info, o.cmdexec);
+            else
+                netexec(&info, o.cmdexec);
             continue;
         }
 
@@ -537,7 +547,7 @@ static int ncat_listen_dgram(int proto)
                     return 0;
                 }
                 if (o.crlf)
-                    fix_line_endings((char *) buf, &nbytes, &tempbuf);
+                    fix_line_endings((char *) buf, &nbytes, &tempbuf, &crlf_state);
                 if (!o.recvonly) {
                     if (tempbuf != NULL)
                         send(sockfd, tempbuf, nbytes, 0);

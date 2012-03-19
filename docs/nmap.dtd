@@ -1,7 +1,7 @@
 <!--
     nmap.dtd
     This is the DTD for Nmap's XML output (-oX) format.
-    $Id: nmap.dtd 15900 2009-10-24 01:01:08Z david $
+    $Id: nmap.dtd 19515 2010-08-06 16:40:03Z djalal $
 
     Originally written by:
     William McVey <wam@cisco.com> <wam+nmap@wamber.net>
@@ -73,8 +73,9 @@
      It represents to the topmost element of the output document.
 -->
 <!ELEMENT nmaprun      (scaninfo*, verbose, debugging,
-                        ((taskbegin, taskprogress*, taskend) | host | output)*,
-                        runstats) >
+                        ((taskbegin, taskprogress*, taskend) |
+                            prescripts | postscripts | host | output)*,
+                            runstats) >
 <!ATTLIST nmaprun
 			scanner		(nmap)		#REQUIRED
 			args		CDATA		#IMPLIED
@@ -287,7 +288,7 @@
 			values		CDATA		#IMPLIED
 >
 
-<!ELEMENT trace (hop*, error?) >
+<!ELEMENT trace (hop*) >
 <!ATTLIST trace
       proto   CDATA   #IMPLIED
       port    CDATA   #IMPLIED
@@ -299,11 +300,6 @@
       rtt     CDATA   #IMPLIED
       ipaddr  CDATA   #IMPLIED
       host    CDATA   #IMPLIED
->
-
-<!ELEMENT error EMPTY>
-<!ATTLIST error
-     errorstr   CDATA #IMPLIED
 >
 
 <!ELEMENT times EMPTY>
@@ -318,12 +314,15 @@
 <!ATTLIST output type  (interactive)  #IMPLIED>
 
 <!-- these elements are generated in output.c:printfinaloutput() -->
-<!ELEMENT runstats	(finished, hosts) >
+<!ELEMENT runstats	(finished, hosts)>
 
 <!ELEMENT finished	EMPTY >
 <!ATTLIST finished	time		%attr_numeric;	#REQUIRED 
                         timestr		CDATA	        #IMPLIED
 			elapsed		%attr_numeric;	#REQUIRED
+                        summary		CDATA	        #IMPLIED
+                        exit		(error|success) #IMPLIED
+                        errormsg	CDATA	        #IMPLIED
 >
 
 <!ELEMENT hosts		EMPTY >
@@ -334,3 +333,5 @@
 >
 
 <!ELEMENT hostscript ( script+ )>
+<!ELEMENT prescript ( script+ )>
+<!ELEMENT postscript ( script+ )>

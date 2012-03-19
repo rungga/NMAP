@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -95,61 +95,61 @@ from higbuttons import HIGButton
 
 
 class HIGNotebook(gtk.Notebook):
-	def __init__(self):
-		gtk.Notebook.__init__(self)
-		self.popup_enable()
+    def __init__(self):
+        gtk.Notebook.__init__(self)
+        self.popup_enable()
 
 class HIGClosableTabLabel(HIGHBox):
-	__gsignals__ = { 'close-clicked' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()) }
+    __gsignals__ = { 'close-clicked' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE, ()) }
 
-	def __init__(self, label_text=""):
-		gobject.GObject.__init__(self)
-		#HIGHBox.__init__(self, spacing=4)
+    def __init__(self, label_text=""):
+        gobject.GObject.__init__(self)
+        #HIGHBox.__init__(self, spacing=4)
 
-		self.label_text = label_text
-		self.__create_widgets()
+        self.label_text = label_text
+        self.__create_widgets()
 
-		#self.propery_map = {"label_text" : self.label.get_label}
+        #self.propery_map = {"label_text" : self.label.get_label}
 
-	def __create_widgets(self):
-		self.label = gtk.Label(self.label_text)
-		self.close_image = gtk.Image()
-		self.close_image.set_from_stock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON)
-		self.close_button = HIGButton()
-		self.close_button.set_size_request(20, 20)
-		self.close_button.set_relief(gtk.RELIEF_NONE)
-		self.close_button.set_focus_on_click(False)
-		self.close_button.add(self.close_image)
+    def __create_widgets(self):
+        self.label = gtk.Label(self.label_text)
+        self.close_image = gtk.Image()
+        self.close_image.set_from_stock(gtk.STOCK_CLOSE, gtk.ICON_SIZE_BUTTON)
+        self.close_button = HIGButton()
+        self.close_button.set_size_request(20, 20)
+        self.close_button.set_relief(gtk.RELIEF_NONE)
+        self.close_button.set_focus_on_click(False)
+        self.close_button.add(self.close_image)
 
-		self.close_button.connect('clicked', self.__close_button_clicked)
+        self.close_button.connect('clicked', self.__close_button_clicked)
 
-		for w in (self.label, self.close_button):
-			self.pack_start(w, False, False, 0)
+        for w in (self.label, self.close_button):
+            self.pack_start(w, False, False, 0)
 
-		self.show_all()
+        self.show_all()
 
-		# 	def do_get_property(self, property):
-		# 		func = self.property_map.get(property, None)
-		# 		if func:
-		# 			return func()
-		# 		else:
-		# 			raise 
+        #     def do_get_property(self, property):
+        #         func = self.property_map.get(property, None)
+        #         if func:
+        #             return func()
+        #         else:
+        #             raise
 
-	def __close_button_clicked(self, data):
-		self.emit('close-clicked')
-	
-	def get_text(self):
-		return self.label.get_text()
-	
-	def set_text(self, text):
-		self.label.set_text(text)
-	
-	def get_label(self):
-		return self.label.get_label()
-	
-	def set_label(self, label):
-		self.label.set_text(label)
+    def __close_button_clicked(self, data):
+        self.emit('close-clicked')
+
+    def get_text(self):
+        return self.label.get_text()
+
+    def set_text(self, text):
+        self.label.set_text(text)
+
+    def get_label(self):
+        return self.label.get_label()
+
+    def set_label(self, label):
+        self.label.set_text(label)
 
 gobject.type_register(HIGClosableTabLabel)
-		
+
 HIGAnimatedTabLabel = HIGClosableTabLabel

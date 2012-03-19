@@ -2,7 +2,7 @@
  * sys_wrap.h                                                              *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: sys_wrap.h 15803 2009-10-10 02:42:28Z david $ */
+/* $Id: sys_wrap.h 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #ifndef SYS_WRAP_H
 #define SYS_WRAP_H
@@ -104,7 +104,6 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #else
-#include <gnuc.h>
 #define pid_t int
 #define mode_t int
 #define uid_t int
@@ -126,7 +125,6 @@
 /* need an autoconf to check for this */
 typedef void (*sighandler_t)(int);
 
-int Bind(int sockfd, const struct sockaddr *my_addr, socklen_t addrlen);
 void * Calloc(size_t nmemb, size_t size);
 int Close(int fd);
 int Connect(int sockfd, const struct sockaddr *serv_addr, socklen_t addrlen);

@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -86,6 +86,7 @@
 # *                                                                         *
 # ***************************************************************************/
 
+import os.path
 import sys
 import gtk
 
@@ -100,7 +101,7 @@ class AllFilesFileFilter(gtk.FileFilter):
         pattern = "*"
         self.add_pattern(pattern)
         self.set_name(_("All files (%s)") % pattern)
-        
+
 class ResultsFileFilter(gtk.FileFilter):
     def __init__(self):
         gtk.FileFilter.__init__(self)
@@ -109,6 +110,15 @@ class ResultsFileFilter(gtk.FileFilter):
         for pattern in patterns:
             self.add_pattern(pattern)
         self.set_name(_("Nmap XML files (%s)") % ", ".join(patterns))
+
+class ScriptFileFilter(gtk.FileFilter):
+    def __init__(self):
+        gtk.FileFilter.__init__(self)
+
+        patterns = ["*.nse"]
+        for pattern in patterns:
+            self.add_pattern(pattern)
+        self.set_name(_("NSE scripts (%s)") % ", ".join(patterns))
 
 class UnicodeFileChooserDialog(gtk.FileChooserDialog):
     """This is a base class for file choosers. It is designed to ease the
@@ -167,16 +177,86 @@ class ResultsFileChooserDialog(UnicodeFileChooserDialog):
         for f in (ResultsFileFilter(), AllFilesFileFilter()):
             self.add_filter(f)
 
+class ScriptFileChooserDialog(UnicodeFileChooserDialog):
+    def __init__(self, title="", parent=None,
+                 action=gtk.FILE_CHOOSER_ACTION_OPEN,
+                 buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                          gtk.STOCK_OPEN, gtk.RESPONSE_OK), backend=None):
+
+        UnicodeFileChooserDialog.__init__(self, title, parent,
+                                       action, buttons)
+        self.set_default_response(gtk.RESPONSE_OK)
+	self.set_select_multiple(True)
+        for f in (ScriptFileFilter(), AllFilesFileFilter()):
+            self.add_filter(f)
+
 class SaveResultsFileChooserDialog(UnicodeFileChooserDialog):
+    TYPES = (
+        (_("By extension"), None, None),
+        (_("Nmap XML format (.xml)"), "xml", ".xml"),
+        (_("Nmap text format (.nmap)"), "text", ".nmap"),
+    )
+    # For the "By Extension" choice.
+    EXTENSIONS = {
+        ".xml": "xml",
+        ".nmap": "text",
+        ".txt": "text",
+    }
+
     def __init__(self, title="", parent=None,
                  action=gtk.FILE_CHOOSER_ACTION_SAVE,
                  buttons=(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
                           gtk.STOCK_SAVE, gtk.RESPONSE_OK), backend=None):
 
         UnicodeFileChooserDialog.__init__(self, title, parent, action, buttons)
+
+        types_store = gtk.ListStore(str, str, str)
+        for type in self.TYPES:
+            types_store.append(type)
+
+        self.combo = gtk.ComboBox(types_store)
+        cell = gtk.CellRendererText()
+        self.combo.pack_start(cell, True)
+        self.combo.add_attribute(cell, "text", 0)
+        self.combo.connect("changed", self.combo_changed_cb)
+        self.combo.set_active(1)
+
+        hbox = gtk.HBox(False, 6)
+        hbox.pack_end(self.combo, False)
+        hbox.pack_end(gtk.Label(_("Select File Type:")), False)
+        hbox.show_all()
+
+        self.set_extra_widget(hbox)
+        self.set_do_overwrite_confirmation(True)
+
         self.set_default_response(gtk.RESPONSE_OK)
-        for f in (ResultsFileFilter(), AllFilesFileFilter()):
-            self.add_filter(f)
+
+    def combo_changed_cb(self, combo):
+        filename = self.get_filename() or ""
+        dir, basename = os.path.split(filename)
+        if dir != self.get_current_folder():
+            self.set_current_folder(dir)
+
+        # Find the recommended extension.
+        new_ext = combo.get_model().get_value(combo.get_active_iter(), 2)
+        if new_ext is not None:
+            # Change the filename to use the recommended extension.
+            root, ext = os.path.splitext(basename)
+            if len(ext) == 0 and root.startswith("."):
+                root = ""
+            self.set_current_name(root + new_ext)
+
+    def get_extension(self):
+        return os.path.splitext(self.get_filename())[1]
+
+    def get_format(self):
+        """Get the save format the user has chosen. It is a string, either
+        "text" or "xml"."""
+        filetype = self.combo.get_model().get_value(self.combo.get_active_iter(), 1)
+        if filetype is None:
+            # Guess based on extension. "xml" is the default if unknown.
+            return self.EXTENSIONS.get(self.get_extension(), "xml")
+        return filetype
 
 class DirectoryChooserDialog(UnicodeFileChooserDialog):
     def __init__(self, title="", parent=None,

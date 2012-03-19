@@ -2,7 +2,7 @@
  * http.c -- HTTP network interaction, parsing, and construction.          *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -102,7 +102,10 @@ static const int MAX_HEADER_LENGTH = 1024 * 10;
 
 void socket_buffer_init(struct socket_buffer *buf, int sd)
 {
-    buf->sd = sd;
+    buf->fdn.fd = sd;
+#ifdef HAVE_OPENSSL
+    buf->fdn.ssl = NULL;
+#endif
     buf->p = buf->buffer;
     buf->end = buf->p;
 }
@@ -118,7 +121,7 @@ int socket_buffer_read(struct socket_buffer *buf, char *out, size_t size)
         buf->p = buf->buffer;
         do {
             errno = 0;
-            i = recv(buf->sd, buf->buffer, sizeof(buf->buffer), 0);
+            i = fdinfo_recv(&buf->fdn, buf->buffer, sizeof(buf->buffer));
         } while (i == -1 && errno == EINTR);
         if (i <= 0)
             return i;
@@ -135,7 +138,7 @@ int socket_buffer_read(struct socket_buffer *buf, char *out, size_t size)
 
 /* Read a line thorough a stateful socket buffer. The line, including its '\n',
    is returned in a dynamically allocated buffer. The length of the line is
-   returned in n. If the length of the line exceeds maxlen, then NULL is
+   returned in *n. If the length of the line exceeds maxlen, then NULL is
    returned and *n is greater than or equal to maxlen. On error, NULL is
    returned and *n is less than maxlen. The returned buffer is always
    null-terminated if the return value is not NULL. */
@@ -156,7 +159,7 @@ char *socket_buffer_readline(struct socket_buffer *buf, size_t *n, size_t maxlen
             buf->p = buf->buffer;
             do {
                 errno = 0;
-                i = recv(buf->sd, buf->buffer, sizeof(buf->buffer), 0);
+                i = fdinfo_recv(&buf->fdn, buf->buffer, sizeof(buf->buffer));
             } while (i == -1 && errno == EINTR);
             if (i <= 0) {
                 free(line);
@@ -190,20 +193,20 @@ char *socket_buffer_readline(struct socket_buffer *buf, size_t *n, size_t maxlen
 }
 
 /* This is like socket_buffer_read, except that it blocks until it can read all
- * size bytes. If fewer than size bytes are available, it reads them and returns
- * -1. */
+   size bytes. If fewer than size bytes are available, it reads them and returns
+   -1. */
 int socket_buffer_readcount(struct socket_buffer *buf, char *out, size_t size)
 {
     size_t n = 0;
     int i;
-    
+
     while (n < size) {
         /* Refill the buffer if necessary. */
         if (buf->p >= buf->end) {
             buf->p = buf->buffer;
             do {
                 errno = 0;
-                i = recv(buf->sd, buf->buffer, sizeof(buf->buffer), 0);
+                i = fdinfo_recv(&buf->fdn, buf->buffer, sizeof(buf->buffer));
             } while (i == -1 && errno == EINTR);
             if (i <= 0)
                 return -1;
@@ -218,8 +221,8 @@ int socket_buffer_readcount(struct socket_buffer *buf, char *out, size_t size)
             memcpy(out+ n, buf->p, size - n);
             buf->p += size - n;
             n += size - n;
-        } 
-    }  
+        }
+    }
 
     return n;
 }
@@ -263,6 +266,33 @@ static int hex_digit_value(char digit)
         return -1;
 
     return p - DIGITS;
+}
+
+/* Case-insensitive string comparison. */
+static int str_cmp_i(const char *a, const char *b)
+{
+    while (*a != '\0' && *b != '\0') {
+        int ca, cb;
+
+        ca = tolower((int) (unsigned char) *a);
+        cb = tolower((int) (unsigned char) *b);
+        if (ca != cb)
+                return ca - cb;
+        a++;
+        b++;
+    }
+
+    if (*a == '\0' && *b == '\0')
+        return 0;
+    else if (*a == '\0')
+        return -1;
+    else
+        return 1;
+}
+
+static int str_equal_i(const char *a, const char *b)
+{
+    return str_cmp_i(a, b) == 0;
 }
 
 static int lowercase(char *s)
@@ -326,7 +356,7 @@ static int is_digit_char(int c)
 /* Get the default port for the given URI scheme, or -1 if unrecognized. */
 static int scheme_default_port(const char *scheme)
 {
-    if (strcmp(scheme, "http") == 0)
+    if (str_equal_i(scheme, "http"))
         return 80;
 
     return -1;
@@ -443,7 +473,7 @@ struct uri *uri_parse_authority(struct uri *uri, const char *authority)
     return uri;
 }
 
-static void http_header_node_free(struct http_header *node) 
+static void http_header_node_free(struct http_header *node)
 {
     free(node->name);
     free(node->value);
@@ -464,6 +494,12 @@ void http_header_free(struct http_header *header)
 static int is_space_char(int c)
 {
     return c == ' ' || c == '\t';
+}
+
+/* RFC 2616, section 2.2. */
+static int is_ctl_char(int c)
+{
+    return (c >= 0 && c <= 31) || c == 127;
 }
 
 /* RFC 2616, section 2.2. */
@@ -496,14 +532,7 @@ static const char *skip_crlf(const char *s)
 
 static int field_name_equal(const char *a, const char *b)
 {
-    while (*a != '\0' && *b != '\0') {
-        if (tolower((int) (unsigned char) *a) != tolower((int) (unsigned char) *b))
-            return 0;
-        a++;
-        b++;
-    }
-
-    return *a == '\0' && *b == '\0';
+    return str_equal_i(a, b);
 }
 
 /* Get the value of every header with the given name, separated by commas. If
@@ -537,16 +566,31 @@ char *http_header_get(const struct http_header *header, const char *name)
     return buf;
 }
 
+const struct http_header *http_header_next(const struct http_header *header,
+    const struct http_header *p, const char *name)
+{
+    if (p == NULL)
+        p = header;
+    else
+        p = p->next;
+
+    for (; p != NULL; p = p->next) {
+        if (field_name_equal(p->name, name))
+            return p;
+    }
+
+    return NULL;
+}
+
 /* Get the value of the first header with the given name. The returned string
    must be freed. */
 char *http_header_get_first(const struct http_header *header, const char *name)
 {
     const struct http_header *p;
 
-    for (p = header; p != NULL; p = p->next) {
-        if (field_name_equal(p->name, name))
-            return Strdup(p->value);
-    }
+    p = http_header_next(header, NULL, name);
+    if (p != NULL)
+        return Strdup(p->value);
 
     return NULL;
 }
@@ -590,6 +634,58 @@ static const char *read_token(const char *s, char **token)
     return t;
 }
 
+static const char *read_quoted_string(const char *s, char **quoted_string)
+{
+    char *buf = NULL;
+    size_t size = 0, offset = 0;
+    const char *t;
+
+    while (is_space_char(*s))
+        s++;
+    if (*s != '"')
+        return NULL;
+    s++;
+    t = s;
+    while (*s != '"') {
+        /* Get a block of normal characters. */
+        while (*t != '"' && *t != '\\') {
+            /* This is qdtext, which is TEXT except for CTL. */
+            if (is_ctl_char(*t)) {
+                free(buf);
+                return NULL;
+            }
+            t++;
+        }
+        strbuf_append(&buf, &size, &offset, s, t - s);
+        /* Now possibly handle an escape. */
+        if (*t == '\\') {
+            t++;
+            /* You can only escape a CHAR, octets 0-127. But we disallow 0. */
+            if (*t <= 0 || *t > 127) {
+                free(buf);
+                return NULL;
+            }
+            strbuf_append(&buf, &size, &offset, t, 1);
+            t++;
+        }
+        s = t;
+    }
+    s++;
+
+    *quoted_string = buf;
+    return s;
+}
+
+static const char *read_token_or_quoted_string(const char *s, char **token)
+{
+    while (is_space_char(*s))
+        s++;
+    if (*s == '"')
+        return read_quoted_string(s, token);
+    else
+        return read_token(s, token);
+}
+
 static const char *read_token_list(const char *s, char **tokens[], size_t *n)
 {
     char *token;
@@ -603,7 +699,7 @@ static const char *read_token_list(const char *s, char **tokens[], size_t *n)
             int i;
 
             for (i = 0; i < *n; i++)
-                free(*tokens);
+                free((*tokens)[i]);
             free(*tokens);
 
             return NULL;
@@ -812,16 +908,17 @@ char *http_response_to_string(const struct http_response *response, size_t *n)
 int http_read_header(struct socket_buffer *buf, char **result)
 {
     char *line = NULL;
+    char *header;
     size_t n = 0;
     size_t count;
     int blank;
 
-    *result = NULL;
+    header = NULL;
 
     do {
         line = socket_buffer_readline(buf, &count, MAX_HEADER_LENGTH);
         if (line == NULL) {
-            free(*result);
+            free(header);
             if (n >= MAX_HEADER_LENGTH)
                 /* Request Entity Too Large. */
                 return 413;
@@ -832,17 +929,19 @@ int http_read_header(struct socket_buffer *buf, char **result)
 
         if (n + count >= MAX_HEADER_LENGTH) {
             free(line);
-            free(*result);
+            free(header);
             /* Request Entity Too Large. */
             return 413;
         }
 
-        *result = (char *) safe_realloc(*result, n + count + 1);
-        memcpy(*result + n, line, count);
+        header = (char *) safe_realloc(header, n + count + 1);
+        memcpy(header + n, line, count);
         n += count;
         free(line);
     } while (!blank);
-    (*result)[n] = '\0';
+    header[n] = '\0';
+
+    *result = header;
 
     return 0;
 }
@@ -1068,7 +1167,8 @@ int http_parse_request_line(const char *line, struct http_request *request)
         goto badreq;
     uri_s = mkstr(p, q);
 
-    /* RFC 2616, section 5.1.2:
+    /* RFC 2616, section 5.1.1: The method is case-sensitive.
+       RFC 2616, section 5.1.2:
          Request-URI    = "*" | absoluteURI | abs_path | authority
        The absoluteURI form is REQUIRED when the request is being made to a
        proxy... The authority form is only used by the CONNECT method. */
@@ -1171,47 +1271,375 @@ int http_parse_status_line_code(const char *line)
     return code;
 }
 
-/* userpass is a user:pass string (the argument to --proxy-auth). value is the
-   value of the Proxy-Authorization header field. Returns 0 on authentication
-   failure and nonzero on success. */
-int http_check_auth_basic(const char *userpass, const char *value)
+static const char *http_read_challenge(const char *s, struct http_challenge *challenge)
 {
-    const char *p, *q;
+    const char *p;
     char *scheme;
-    char *base64_expected;
-    char *base64_received;
-    int cmp;
 
-    p = value;
-    p = read_token(value, &scheme);
-    if (p == NULL)
-        return 0;
-    if (strcmp(scheme, "Basic") != 0) {
-        if (o.debug > 1)
-            logdebug("Got authentication scheme \"%s\", expected \"Basic\".\n", scheme);
+    http_challenge_init(challenge);
+
+    scheme = NULL;
+    s = read_token(s, &scheme);
+    if (s == NULL)
+        goto bail;
+    if (str_equal_i(scheme, "Basic")) {
+        challenge->scheme = AUTH_BASIC;
+    } else if (str_equal_i(scheme, "Digest")) {
+        challenge->scheme = AUTH_DIGEST;
+    } else {
+        challenge->scheme = AUTH_UNKNOWN;
+    }
+    free(scheme);
+    scheme = NULL;
+
+    while (is_space_char(*s))
+        s++;
+    while (*s != '\0') {
+        char *name, *value;
+
+        p = read_token(s, &name);
+        if (p == NULL)
+            goto bail;
+        while (is_space_char(*p))
+            p++;
+        /* It's possible that we've hit the end of one challenge and the
+           beginning of another. Section 14.33 says that the header value can be
+           1#challenge, in other words several challenges separated by commas.
+           Because the auth-params are also separated by commas, the only way we
+           can tell is if we find a token not followed by an equals sign. */
+        if (*p != '=')
+            break;
+        p++;
+        while (is_space_char(*p))
+            p++;
+        p = read_token_or_quoted_string(p, &value);
+        if (p == NULL) {
+            free(name);
+            goto bail;
+        }
+        if (str_equal_i(name, "realm"))
+            challenge->realm = Strdup(value);
+        else if (challenge->scheme == AUTH_DIGEST) {
+            if (str_equal_i(name, "nonce")) {
+                if (challenge->digest.nonce != NULL)
+                    goto bail;
+                challenge->digest.nonce = Strdup(value);
+            } else if (str_equal_i(name, "opaque")) {
+                if (challenge->digest.opaque != NULL)
+                    goto bail;
+                challenge->digest.opaque = Strdup(value);
+            } else if (str_equal_i(name, "algorithm")) {
+                if (str_equal_i(value, "MD5"))
+                    challenge->digest.algorithm = ALGORITHM_MD5;
+                else
+                    challenge->digest.algorithm = ALGORITHM_UNKNOWN;
+            } else if (str_equal_i(name, "qop")) {
+                char **tokens;
+                size_t n;
+                int i;
+                const char *tmp;
+
+                tmp = read_token_list(value, &tokens, &n);
+                if (tmp == NULL) {
+                    free(name);
+                    free(value);
+                    goto bail;
+                }
+                for (i = 0; i < n; i++) {
+                    if (str_equal_i(tokens[i], "auth"))
+                        challenge->digest.qop |= QOP_AUTH;
+                    else if (str_equal_i(tokens[i], "auth-int"))
+                        challenge->digest.qop |= QOP_AUTH_INT;
+                }
+                for (i = 0; i < n; i++)
+                    free(tokens[i]);
+                free(tokens);
+                if (*tmp != '\0') {
+                    free(name);
+                    free(value);
+                    goto bail;
+                }
+            }
+        }
+        free(name);
+        free(value);
+        while (is_space_char(*p))
+            p++;
+        if (*p == ',') {
+            p++;
+            while (is_space_char(*p))
+                p++;
+            if (*p == '\0')
+                goto bail;
+        }
+        s = p;
+    }
+
+    return s;
+
+bail:
+    if (scheme != NULL)
         free(scheme);
-        return 0;
+    http_challenge_free(challenge);
+
+    return NULL;
+}
+
+static const char *http_read_credentials(const char *s,
+    struct http_credentials *credentials)
+{
+    const char *p;
+    char *scheme;
+
+    credentials->scheme = AUTH_UNKNOWN;
+
+    s = read_token(s, &scheme);
+    if (s == NULL)
+        return NULL;
+    if (str_equal_i(scheme, "Basic")) {
+        http_credentials_init_basic(credentials);
+    } else if (str_equal_i(scheme, "Digest")) {
+        http_credentials_init_digest(credentials);
+    } else {
+        free(scheme);
+        return NULL;
     }
     free(scheme);
 
-    /* Grab the received base64-encoded user name and password. */
-    while (*p == ' ')
-        p++;
-    q = p;
-    while (*q != '\0' && *q != ' ')
-        q++;
-    /* Should be at the end of the string now. */
-    if (*q != '\0')
+    while (is_space_char(*s))
+        s++;
+    if (credentials->scheme == AUTH_BASIC) {
+        p = s;
+        /* Read base64. */
+        while (is_alpha_char(*p) || is_digit_char(*p) || *p == '+' || *p == '/' || *p == '=')
+            p++;
+        credentials->u.basic = mkstr(s, p);
+        while (is_space_char(*p))
+            p++;
+        s = p;
+    } else if (credentials->scheme == AUTH_DIGEST) {
+        char *name, *value;
+
+        while (*s != '\0') {
+            p = read_token(s, &name);
+            if (p == NULL)
+                goto bail;
+            while (is_space_char(*p))
+                p++;
+            /* It's not legal to combine multiple Authorization or
+               Proxy-Authorization values. The productions are
+                 "Authorization" ":" credentials  (section 14.8)
+                 "Proxy-Authorization" ":" credentials  (section 14.34)
+               Contrast this with WWW-Authenticate and Proxy-Authenticate and
+               their handling in http_read_challenge. */
+            if (*p != '=')
+                goto bail;
+            p++;
+            while (is_space_char(*p))
+                p++;
+            p = read_token_or_quoted_string(p, &value);
+            if (p == NULL) {
+                free(name);
+                goto bail;
+            }
+            if (str_equal_i(name, "username")) {
+                if (credentials->u.digest.username != NULL)
+                    goto bail;
+                credentials->u.digest.username = Strdup(value);
+            } else if (str_equal_i(name, "realm")) {
+                if (credentials->u.digest.realm != NULL)
+                    goto bail;
+                credentials->u.digest.realm = Strdup(value);
+            } else if (str_equal_i(name, "nonce")) {
+                if (credentials->u.digest.nonce != NULL)
+                    goto bail;
+                credentials->u.digest.nonce = Strdup(value);
+            } else if (str_equal_i(name, "uri")) {
+                if (credentials->u.digest.uri != NULL)
+                    goto bail;
+                credentials->u.digest.uri = Strdup(value);
+            } else if (str_equal_i(name, "response")) {
+                if (credentials->u.digest.response != NULL)
+                    goto bail;
+                credentials->u.digest.response = Strdup(value);
+            } else if (str_equal_i(name, "algorithm")) {
+                if (str_equal_i(value, "MD5"))
+                    credentials->u.digest.algorithm = ALGORITHM_MD5;
+                else
+                    credentials->u.digest.algorithm = ALGORITHM_MD5;
+            } else if (str_equal_i(name, "qop")) {
+                if (str_equal_i(value, "auth"))
+                    credentials->u.digest.qop = QOP_AUTH;
+                else if (str_equal_i(value, "auth-int"))
+                    credentials->u.digest.qop = QOP_AUTH_INT;
+                else
+                    credentials->u.digest.qop = QOP_NONE;
+            } else if (str_equal_i(name, "cnonce")) {
+                if (credentials->u.digest.cnonce != NULL)
+                    goto bail;
+                credentials->u.digest.cnonce = Strdup(value);
+            } else if (str_equal_i(name, "nc")) {
+                if (credentials->u.digest.nc != NULL)
+                    goto bail;
+                credentials->u.digest.nc = Strdup(value);
+            }
+            free(name);
+            free(value);
+            while (is_space_char(*p))
+                p++;
+            if (*p == ',') {
+                p++;
+                while (is_space_char(*p))
+                    p++;
+                if (*p == '\0')
+                    goto bail;
+            }
+            s = p;
+        }
+    }
+
+    return s;
+
+bail:
+    http_credentials_free(credentials);
+
+    return NULL;
+}
+
+/* Is scheme a preferred over scheme b? We prefer Digest to Basic when Digest is
+   supported. */
+static int auth_scheme_is_better(enum http_auth_scheme a,
+    enum http_auth_scheme b)
+{
+#if HAVE_HTTP_DIGEST
+    if (b == AUTH_DIGEST)
         return 0;
-    base64_received = mkstr(p, q);
+    if (b == AUTH_BASIC)
+        return a == AUTH_DIGEST;
+    if (b == AUTH_UNKNOWN)
+        return a == AUTH_BASIC || a == AUTH_DIGEST;
+#else
+    if (b == AUTH_BASIC)
+        return 0;
+    if (b == AUTH_UNKNOWN)
+        return a == AUTH_BASIC;
+#endif
 
-    base64_expected = b64enc((unsigned char *) userpass, strlen(userpass));
+    return 0;
+}
 
-    /* We don't decode the received password, we encode the expected password
-       and compare the encoded strings. */
-    cmp = strcmp(base64_expected, base64_received);
-    free(base64_expected);
-    free(base64_received);
+struct http_challenge *http_header_get_proxy_challenge(const struct http_header *header, struct http_challenge *challenge)
+{
+    const struct http_header *p;
 
-    return cmp == 0;
+    http_challenge_init(challenge);
+
+    p = NULL;
+    while ((p = http_header_next(header, p, "Proxy-Authenticate")) != NULL) {
+        const char *tmp;
+
+        tmp = p->value;
+        while (*tmp != '\0') {
+            struct http_challenge tmp_info;
+
+            tmp = http_read_challenge(tmp, &tmp_info);
+            if (tmp == NULL) {
+                http_challenge_free(challenge);
+                return NULL;
+            }
+            if (auth_scheme_is_better(tmp_info.scheme, challenge->scheme)) {
+                http_challenge_free(challenge);
+                *challenge = tmp_info;
+            } else {
+                http_challenge_free(&tmp_info);
+            }
+        }
+    }
+
+    return challenge;
+}
+
+struct http_credentials *http_header_get_proxy_credentials(const struct http_header *header, struct http_credentials *credentials)
+{
+    const struct http_header *p;
+
+    credentials->scheme = AUTH_UNKNOWN;
+
+    p = NULL;
+    while ((p = http_header_next(header, p, "Proxy-Authorization")) != NULL) {
+        const char *tmp;
+
+        tmp = p->value;
+        while (*tmp != '\0') {
+            struct http_credentials tmp_info;
+
+            tmp = http_read_credentials(tmp, &tmp_info);
+            if (tmp == NULL) {
+                http_credentials_free(credentials);
+                return NULL;
+            }
+            if (auth_scheme_is_better(tmp_info.scheme, credentials->scheme)) {
+                http_credentials_free(credentials);
+                *credentials = tmp_info;
+            } else {
+                http_credentials_free(&tmp_info);
+            }
+        }
+    }
+
+    return credentials;
+}
+
+void http_challenge_init(struct http_challenge *challenge)
+{
+    challenge->scheme = AUTH_UNKNOWN;
+    challenge->realm = NULL;
+    challenge->digest.nonce = NULL;
+    challenge->digest.opaque = NULL;
+    challenge->digest.algorithm = ALGORITHM_MD5;
+    challenge->digest.qop = 0;
+}
+
+void http_challenge_free(struct http_challenge *challenge)
+{
+    free(challenge->realm);
+    if (challenge->scheme == AUTH_DIGEST) {
+        free(challenge->digest.nonce);
+        free(challenge->digest.opaque);
+    }
+}
+
+void http_credentials_init_basic(struct http_credentials *credentials)
+{
+    credentials->scheme = AUTH_BASIC;
+    credentials->u.basic = NULL;
+}
+
+void http_credentials_init_digest(struct http_credentials *credentials)
+{
+    credentials->scheme = AUTH_DIGEST;
+    credentials->u.digest.username = NULL;
+    credentials->u.digest.realm = NULL;
+    credentials->u.digest.nonce = NULL;
+    credentials->u.digest.uri = NULL;
+    credentials->u.digest.response = NULL;
+    credentials->u.digest.algorithm = ALGORITHM_MD5;
+    credentials->u.digest.qop = QOP_NONE;
+    credentials->u.digest.nc = NULL;
+    credentials->u.digest.cnonce = NULL;
+}
+
+void http_credentials_free(struct http_credentials *credentials)
+{
+    if (credentials->scheme == AUTH_BASIC) {
+        free(credentials->u.basic);
+    } else if (credentials->scheme == AUTH_DIGEST) {
+        free(credentials->u.digest.username);
+        free(credentials->u.digest.realm);
+        free(credentials->u.digest.nonce);
+        free(credentials->u.digest.uri);
+        free(credentials->u.digest.response);
+        free(credentials->u.digest.nc);
+        free(credentials->u.digest.cnonce);
+    }
 }

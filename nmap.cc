@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -27,7 +27,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -50,8 +50,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 16334 2009-12-24 21:32:06Z fyodor $ */
+/* $Id: nmap.cc 22209 2011-02-09 02:37:53Z david $ */
 
 #include "nmap.h"
 #include "osscan.h"
@@ -109,6 +109,7 @@
 #include "charpool.h"
 #include "nmap_error.h"
 #include "utils.h"
+#include "xml.h"
 
 #ifndef NOLUA
 #include "nse_main.h"
@@ -124,6 +125,9 @@ using namespace std;
 extern char *optarg;
 extern int optind;
 extern NmapOps o;  /* option structure */
+
+static bool target_needs_new_hostgroup(std::vector<Target *> &targets,
+  const Target *target);
 
 /* parse the --scanflags argument.  It can be a number >=0 or a string consisting of TCP flag names like "URGPSHFIN".  Returns -1 if the argument is invalid. */
 static int parse_scanflags(char *arg) {
@@ -180,7 +184,7 @@ static int parse_bounce_argument(struct ftpinfo *ftp, char *url) {
       strncpy(ftp->pass, s, 255);
     } else { /* we ONLY have user */
       log_write(LOG_STDOUT, "Assuming %s is a username, and using the default password: %s\n",
-		p, ftp->pass);
+          p, ftp->pass);
     }
 
     strncpy(ftp->user, p, 63);
@@ -214,8 +218,8 @@ printf("%s %s ( %s )\n"
        "  --excludefile <exclude_file>: Exclude list from file\n"
        "HOST DISCOVERY:\n"
        "  -sL: List Scan - simply list targets to scan\n"
-       "  -sP: Ping Scan - go no further than determining if host is online\n"
-       "  -PN: Treat all hosts as online -- skip host discovery\n"
+       "  -sn: Ping Scan - disable port scan\n"
+       "  -Pn: Treat all hosts as online -- skip host discovery\n"
        "  -PS/PA/PU/PY[portlist]: TCP SYN/ACK, UDP or SCTP discovery to given ports\n"
        "  -PE/PP/PM: ICMP echo, timestamp, and netmask request discovery probes\n"
        "  -PO[protocol list]: IP Protocol Ping\n"
@@ -234,7 +238,7 @@ printf("%s %s ( %s )\n"
        "  -b <FTP relay host>: FTP bounce scan\n"
        "PORT SPECIFICATION AND SCAN ORDER:\n"
        "  -p <port ranges>: Only scan specified ports\n"
-       "    Ex: -p22; -p1-65535; -p U:53,111,137,T:21-25,80,139,8080\n"
+       "    Ex: -p22; -p1-65535; -p U:53,111,137,T:21-25,80,139,8080,S:9\n"
        "  -F: Fast mode - Scan fewer ports than the default scan\n"
        "  -r: Scan ports consecutively - don't randomize\n"
        "  --top-ports <number>: Scan <number> most common ports\n"
@@ -249,8 +253,8 @@ printf("%s %s ( %s )\n"
        "SCRIPT SCAN:\n"
        "  -sC: equivalent to --script=default\n"
        "  --script=<Lua scripts>: <Lua scripts> is a comma separated list of \n"
-	   "           directories, script-files or script-categories\n"
-	   "  --script-args=<n1=v1,[n2=v2,...]>: provide arguments to scripts\n"
+       "           directories, script-files or script-categories\n"
+       "  --script-args=<n1=v1,[n2=v2,...]>: provide arguments to scripts\n"
        "  --script-trace: Show all data sent and received\n"
        "  --script-updatedb: Update the script database.\n"
 #endif
@@ -259,11 +263,11 @@ printf("%s %s ( %s )\n"
        "  --osscan-limit: Limit OS detection to promising targets\n"
        "  --osscan-guess: Guess OS more aggressively\n"
        "TIMING AND PERFORMANCE:\n"
-       "  Options which take <time> are in milliseconds, unless you append 's'\n"
-       "  (seconds), 'm' (minutes), or 'h' (hours) to the value (e.g. 30m).\n"
+       "  Options which take <time> are in seconds, or append 'ms' (milliseconds),\n"
+       "  's' (seconds), 'm' (minutes), or 'h' (hours) to the value (e.g. 30m).\n"
        "  -T<0-5>: Set timing template (higher is faster)\n"
        "  --min-hostgroup/max-hostgroup <size>: Parallel host scan group sizes\n"
-       "  --min-parallelism/max-parallelism <time>: Probe parallelization\n"
+       "  --min-parallelism/max-parallelism <numprobes>: Probe parallelization\n"
        "  --min-rtt-timeout/max-rtt-timeout/initial-rtt-timeout <time>: Specifies\n"
        "      probe round trip time.\n"
        "  --max-retries <tries>: Caps number of port scan probe retransmissions.\n"
@@ -282,13 +286,12 @@ printf("%s %s ( %s )\n"
        "  --ttl <val>: Set IP time-to-live field\n"
        "  --spoof-mac <mac address/prefix/vendor name>: Spoof your MAC address\n"
        "  --badsum: Send packets with a bogus TCP/UDP/SCTP checksum\n"
-       "  --adler32: Use deprecated Adler32 instead of CRC32C for SCTP checksums\n"
        "OUTPUT:\n"
        "  -oN/-oX/-oS/-oG <file>: Output scan in normal, XML, s|<rIpt kIddi3,\n"
        "     and Grepable format, respectively, to the given filename.\n"
        "  -oA <basename>: Output in the three major formats at once\n"
-       "  -v: Increase verbosity level (use twice or more for greater effect)\n"
-       "  -d[level]: Set or increase debugging level (Up to 9 is meaningful)\n"
+       "  -v: Increase verbosity level (use -vv or more for greater effect)\n"
+       "  -d: Increase debugging level (use -dd or more for greater effect)\n"
        "  --reason: Display the reason a port is in a particular state\n"
        "  --open: Only show open (or possibly open) ports\n"
        "  --packet-trace: Show all packets sent and received\n"
@@ -301,7 +304,7 @@ printf("%s %s ( %s )\n"
        "  --no-stylesheet: Prevent associating of XSL stylesheet w/XML output\n"
        "MISC:\n"
        "  -6: Enable IPv6 scanning\n"
-       "  -A: Enables OS detection and Version detection, Script scanning and Traceroute\n"
+       "  -A: Enable OS detection, version detection, script scanning, and traceroute\n"
        "  --datadir <dirname>: Specify custom Nmap data file location\n"
        "  --send-eth/--send-ip: Send using raw ethernet frames or IP packets\n"
        "  --privileged: Assume that the user is fully privileged\n"
@@ -310,144 +313,23 @@ printf("%s %s ( %s )\n"
        "  -h: Print this help summary page.\n"
        "EXAMPLES:\n"
        "  nmap -v -A scanme.nmap.org\n"
-       "  nmap -v -sP 192.168.0.0/16 10.0.0.0/8\n"
-       "  nmap -v -iR 10000 -PN -p 80\n"
+       "  nmap -v -sn 192.168.0.0/16 10.0.0.0/8\n"
+       "  nmap -v -iR 10000 -Pn -p 80\n"
        "SEE THE MAN PAGE (http://nmap.org/book/man.html) FOR MORE OPTIONS AND EXAMPLES\n", NMAP_NAME, NMAP_VERSION, NMAP_URL);
   exit(rc);
 }
 
-/**
- * Returns 1 if this is a reserved IP address, where "reserved" means
- * either a private address, non-routable address, or even a non-reserved
- * but unassigned address which has an extremely high probability of being
- * black-holed.
- *
- * We try to optimize speed when ordering the tests. This optimization
- * assumes that all byte values are equally likely in the input.
- *
- * Warning: This function could easily become outdated if the IANA
- * starts to assign some more IPv4 ranges to RIPE, etc. as they have
- * started doing this year (2001), for example 80.0.0.0/4 used to be
- * completely unassigned until they gave 80.0.0.0/7 to RIPE in April
- * 2001 (www.junk.org is an example of a new address in this range).
- *
- * Check <http://www.iana.org/assignments/ipv4-address-space> for
- * the most recent assigments and
- * <http://www.cymru.com/Documents/bogon-bn-nonagg.txt> for bogon
- * netblocks.
- */
-static int ip_is_reserved(struct in_addr *ip)
-{
-  char *ipc = (char *) &(ip->s_addr);
-  unsigned char i1 = ipc[0], i2 = ipc[1], i3 = ipc[2]; /* i4 not currently used - , i4 = ipc[3]; */
-
-  /* do all the /7's and /8's with a big switch statement, hopefully the
-   * compiler will be able to optimize this a little better using a jump table
-   * or what have you
-   */
-  switch (i1)
-    {
-    case 0:         /* 000/8 is IANA reserved       */
-    case 1:         /* 001/8 is IANA reserved       */
-    case 5:         /* 005/8 is IANA reserved       */
-    case 6:         /* USA Army ISC                 */
-    case 7:         /* used for BGP protocol        */
-    case 10:        /* the infamous 10.0.0.0/8      */
-    case 14:        /* 014/8 is IANA reserved       */
-    case 23:        /* 023/8 is IANA reserved       */
-    case 27:        /* 027/8 is IANA reserved       */
-    case 31:        /* 031/8 is IANA reserved       */
-    case 36:        /* 036/8 is IANA reserved       */
-    case 37:        /* 037/8 is IANA reserved       */
-    case 39:        /* 039/8 is IANA reserved       */
-    case 42:        /* 042/8 is IANA reserved       */
-    case 49:        /* 049/8 is IANA reserved       */
-    case 50:        /* 050/8 is IANA reserved       */
-    case 55:        /* misc. U.S.A. Armed forces    */
-    case 127:       /* 127/8 is reserved for loopback */
-    case 179:       /* 179/8 is IANA reserved       */
-    case 181:       /* 181/8 is IANA reserved       */
-    case 185:       /* 185/8 is IANA reserved       */
-    case 223:       /* 223/8 is IANA reserved       */
-      return 1;
-    default:
-      break;
-    }
-
-  /* 100-107/8 is IANA reserved */
-  if (i1 >= 100 && i1 <= 107)
-    return 1;
-
-  /* 172.16.0.0/12 is reserved for private nets by RFC1819 */
-  if (i1 == 172 && i2 >= 16 && i2 <= 31)
-    return 1;
-
-  /* 176-177/8 is IANA reserved */
-  if (i1 >= 176 && i1 <= 177)
-    return 1;
-  
-  /* 192.168.0.0/16 is reserved for private nets by RFC1819 */
-  /* 192.0.2.0/24 is reserved for documentation and examples */
-  /* 192.88.99.0/24 is used as 6to4 Relay anycast prefix by RFC3068 */
-  if (i1 == 192) {
-    if (i2 == 168)
-      return 1;
-    if (i2 == 0 && i3 == 2)
-      return 1;
-    if (i2 == 88 && i3 == 99)
-      return 1;
-  }
-
-  /* 198.18.0.0/15 is used for benchmark tests by RFC2544 */
-  if (i1 == 198 && i2 == 18 && i3 >= 1 && i3 <= 64) {
-    return 1;
-  }
-
-  /* reserved for DHCP clients seeking addresses, not routable outside LAN */
-  if (i1 == 169 && i2 == 254)
-    return 1;
-
-  /* 224-239/8 is all multicast stuff */
-  /* 240-255/8 is IANA reserved */
-  if (i1 >= 224)
-    return 1;
-
-  return 0;
-}
-
-static char *grab_next_host_spec(FILE *inputfd, int argc, char **fakeargv) {
-  static char host_spec[1024];
-  struct in_addr ip;
-  size_t n;
-
-  if (o.generate_random_ips) {
-    do {
-      ip.s_addr = get_random_unique_u32();
-    } while (ip_is_reserved(&ip));
-    Strncpy(host_spec, inet_ntoa(ip), sizeof(host_spec));
-  } else if (!inputfd) {
-    return( (optind < argc)?  fakeargv[optind++] : NULL);
-  } else { 
-    n = read_host_from_file(inputfd, host_spec, sizeof(host_spec));
-    if (n == 0)
-      return NULL;
-    else if (n >= sizeof(host_spec))
-      fatal("One of the host specifications from your input file is too long (>= %u chars)", (unsigned int) sizeof(host_spec));
-  }
-  return host_spec;
-}
-
 static void insert_port_into_merge_list(unsigned short *mlist,
-						int *merged_port_count,
-						unsigned short p) {
-	int i;
-	// make sure the port isn't already in the list
-	for (i = 0; i < *merged_port_count; i++) {
-		if (mlist[i] == p) {
-			return;
-		}
-	}
-	mlist[*merged_port_count] = p;
+                                        int *merged_port_count,
+                                        unsigned short p) {
+    int i;
+    // make sure the port isn't already in the list
+    for (i = 0; i < *merged_port_count; i++) {
+        if (mlist[i] == p) {
+            return;
+        }
+    }
+    mlist[*merged_port_count] = p;
     (*merged_port_count)++;
 }
 
@@ -543,6 +425,7 @@ int nmap_main(int argc, char *argv[]) {
   char *p, *q;
   int i, arg;
   long l;
+  double d;
   unsigned int targetno;
   FILE *inputfd = NULL, *excludefd = NULL;
   char *host_spec = NULL, *exclude_spec = NULL;
@@ -558,6 +441,12 @@ int nmap_main(int argc, char *argv[]) {
   HostGroupState *hstate = NULL;
   char *endptr = NULL;
   struct scan_lists ports = { 0 };
+#ifndef NOLUA
+  /* Pre-Scan and Post-Scan script results datastructure */
+  ScriptResults *script_scan_results = NULL;
+  /* Only NSE scripts can add targets */
+  NewTargets *new_targets = NULL;
+#endif
   TargetGroup *exclude_group = NULL;
   char myname[MAXHOSTNAMELEN + 1];
 #if (defined(IN_ADDR_DEEPSTRUCT) || defined( SOLARIS))
@@ -573,12 +462,14 @@ int nmap_main(int argc, char *argv[]) {
   vector<Target *> Targets;
   char *portlist = NULL; /* Ports list specified by user */
   int sourceaddrwarning = 0; /* Have we warned them yet about unguessable
-				source addresses? */
+                                source addresses? */
   unsigned int ideal_scan_group_sz = 0;
   char hostname[MAXHOSTNAMELEN + 1] = "";
   const char *spoofmac = NULL;
   time_t timep;
   char mytime[128];
+  char tbuf[128];
+  char errstr[256];
   struct sockaddr_storage ss;
   size_t sslen;
   int option_index;
@@ -711,6 +602,8 @@ int nmap_main(int argc, char *argv[]) {
       {"script_updatedb", no_argument, 0, 0},
       {"script-args",required_argument,0,0},
       {"script_args",required_argument,0,0},
+      {"script-help",required_argument,0,0},
+      {"script_help",required_argument,0,0},
 #endif
       {"ip_options", required_argument, 0, 0},
       {"ip-options", required_argument, 0, 0},
@@ -743,7 +636,7 @@ int nmap_main(int argc, char *argv[]) {
 
   /* OK, lets parse these args! */
   optind = 1; /* so it can be called multiple times */
-  while((arg = getopt_long_only(argc,fakeargv,"6Ab:D:d::e:Ffg:hIi:M:m:nO::o:P:p:qRrS:s:T:Vv", long_options, &option_index)) != EOF) {
+  while((arg = getopt_long_only(argc,fakeargv,"6Ab:D:d::e:Ffg:hIi:M:m:nO::o:P:p:qRrS:s:T:Vv::", long_options, &option_index)) != EOF) {
     switch(arg) {
     case 0:
 #ifndef NOLUA
@@ -756,31 +649,38 @@ int nmap_main(int argc, char *argv[]) {
               o.scripttrace = 1;
       } else if (optcmp(long_options[option_index].name, "script-updatedb") == 0){
               o.scriptupdatedb = 1;
+      } else if (optcmp(long_options[option_index].name, "script-help") == 0){
+              o.scripthelp = true;
+              o.chooseScripts(optarg);
       } else
 #endif
       if (optcmp(long_options[option_index].name, "max-os-tries") == 0) {
-        l = tval2msecs(optarg);
+        l = atoi(optarg);
         if (l < 1 || l > 50)
           fatal("Bogus --max-os-tries argument specified, must be between 1 and 50 (inclusive)");
         o.setMaxOSTries(l);
       } else if (optcmp(long_options[option_index].name, "max-rtt-timeout") == 0) {
         l = tval2msecs(optarg);
         if (l < 5)
-          fatal("Bogus --max-rtt-timeout argument specified, must be at least 5");
-        if (l < 20) {
+          fatal("Bogus --max-rtt-timeout argument specified, must be at least 5ms");
+        if (l >= 50 * 1000 && tval_unit(optarg) == NULL)
+          fatal("Since April 2010, the default unit for --max-rtt-timeout is seconds, so your time of \"%s\" is %g seconds. Use \"%sms\" for %g milliseconds.", optarg, l / 1000.0, optarg, l / 1000.0);
+        if (l < 20)
           error("WARNING: You specified a round-trip time timeout (%ld ms) that is EXTRAORDINARILY SMALL.  Accuracy may suffer.", l);
-        }
         pre_max_rtt_timeout = l;
       } else if (optcmp(long_options[option_index].name, "min-rtt-timeout") == 0) {
         l = tval2msecs(optarg);
-        if (l < 0) fatal("Bogus --min-rtt-timeout argument specified");
-        if (l > 50000) {
-          error("Warning:  min-rtt-timeout is given in milliseconds, your value seems pretty large.");
-        }
+        if (l < 0)
+          fatal("Bogus --min-rtt-timeout argument specified");
+        if (l >= 50 * 1000 && tval_unit(optarg) == NULL)
+          fatal("Since April 2010, the default unit for --min-rtt-timeout is seconds, so your time of \"%s\" is %g seconds. Use \"%sms\" for %g milliseconds.", optarg, l / 1000.0, optarg, l / 1000.0);
         pre_min_rtt_timeout = l;
       } else if (optcmp(long_options[option_index].name, "initial-rtt-timeout") == 0) {
         l = tval2msecs(optarg);
-        if (l <= 0) fatal("Bogus --initial-rtt-timeout argument specified.  Must be positive");
+        if (l <= 0)
+          fatal("Bogus --initial-rtt-timeout argument specified.  Must be positive");
+        if (l >= 50 * 1000 && tval_unit(optarg) == NULL)
+          fatal("Since April 2010, the default unit for --initial-rtt-timeout is seconds, so your time of \"%s\" is %g seconds. Use \"%sms\" for %g milliseconds.", optarg, l / 1000.0, optarg, l / 1000.0);
         pre_init_rtt_timeout = l;
       } else if (strcmp(long_options[option_index].name, "excludefile") == 0) {
         if (exclude_spec)
@@ -820,11 +720,11 @@ int nmap_main(int argc, char *argv[]) {
         }
       } else if (optcmp(long_options[option_index].name, "host-timeout") == 0) {
         l = tval2msecs(optarg);
-        if (l <= 1500) fatal("--host-timeout is specified in milliseconds unless you qualify it by appending 's', 'm', or 'h'. The value must be greater than 1500 milliseconds");
+        if (l <= 0)
+          fatal("Bogus --host-timeout argument specified");
+        if (l >= 10000 * 1000 && tval_unit(optarg) == NULL)
+          fatal("Since April 2010, the default unit for --host-timeout is seconds, so your time of \"%s\" is %.1f hours. If this is what you want, use \"%ss\".", optarg, l / 1000.0 / 60 / 60, optarg);
         pre_host_timeout = l;
-        if (l < 15000) {
-          error("host-timeout is given in milliseconds, so you specified less than 15 seconds (%lims). This is allowed but not recommended.", l);
-        }
       } else if (strcmp(long_options[option_index].name, "ttl") == 0) {
         o.ttl = atoi(optarg);
         if (o.ttl < 0 || o.ttl > 255) {
@@ -857,13 +757,19 @@ int nmap_main(int argc, char *argv[]) {
         o.version_intensity = 9;
       } else if (optcmp(long_options[option_index].name, "scan-delay") == 0) {
         l = tval2msecs(optarg);
-        if (l < 0) fatal("Bogus --scan-delay argument specified.");
+        if (l < 0)
+          fatal("Bogus --scan-delay argument specified.");
+        if (l >= 100 * 1000 && tval_unit(optarg) == NULL)
+          fatal("Since April 2010, the default unit for --scan-delay is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, l / 1000.0 / 60, optarg, l / 1000.0);
         pre_scan_delay = l;
       } else if (optcmp(long_options[option_index].name, "defeat-rst-ratelimit") == 0) {
         o.defeat_rst_ratelimit = 1;
       } else if (optcmp(long_options[option_index].name, "max-scan-delay") == 0) {
         l = tval2msecs(optarg);
-        if (l < 0) fatal("--max-scan-delay cannot be negative.");
+        if (l < 0)
+          fatal("Bogus --max-scan-delay argument specified.");
+        if (l >= 100 * 1000 && tval_unit(optarg) == NULL)
+          fatal("Since April 2010, the default unit for --max-scan-delay is seconds, so your time of \"%s\" is %.1f minutes. If this is what you want, use \"%ss\".", optarg, l / 1000.0 / 60, optarg);
         pre_max_scan_delay = l;
       } else if (optcmp(long_options[option_index].name, "max-retries") == 0) {
         pre_max_retries = atoi(optarg);
@@ -909,7 +815,7 @@ int nmap_main(int argc, char *argv[]) {
       } else if (optcmp(long_options[option_index].name, "log-errors") == 0) {
         o.log_errors = 1;
       } else if (strcmp(long_options[option_index].name, "webxml") == 0) {
-        o.setXSLStyleSheet("http://nmap.org/data/nmap.xsl");
+        o.setXSLStyleSheet("http://nmap.org/svn/docs/nmap.xsl");
       } else if (strcmp(long_options[option_index].name, "oN") == 0) {
         normalfilename = logfilename(optarg, tm);
       } else if (strcmp(long_options[option_index].name, "oG") == 0 ||
@@ -968,7 +874,8 @@ int nmap_main(int argc, char *argv[]) {
           fatal("--top-ports should be an integer 1 or greater");
       } else if (optcmp(long_options[option_index].name, "ip-options") == 0){
         o.ipoptions    = (u8*) safe_malloc(4*10+1);
-        o.ipoptionslen = parse_ip_options(optarg, o.ipoptions, 4*10+1, &o.ipopt_firsthop, &o.ipopt_lasthop);
+        if( (o.ipoptionslen=parse_ip_options(optarg, o.ipoptions, 4*10+1, &o.ipopt_firsthop, &o.ipopt_lasthop, errstr, sizeof(errstr)))==OP_FAILURE )
+            fatal("%s", errstr);
         if(o.ipoptionslen > 4*10)
           fatal("Ip options can't be more than 40 bytes long");
         if(o.ipoptionslen %4 != 0)
@@ -986,9 +893,10 @@ int nmap_main(int argc, char *argv[]) {
       } else if (optcmp(long_options[option_index].name, "adler32") == 0) {
         o.adler32 = true;
       } else if(optcmp(long_options[option_index].name, "stats-every") == 0) {
-        l = tval2msecs(optarg);
-        if (l < 0) fatal("Argument to --stats-every cannot be negative.");
-        o.stats_interval = (double) l / 1000.0;
+        d = tval2secs(optarg);
+        if (d < 0)
+          fatal("Argument to --stats-every cannot be negative.");
+        o.stats_interval = d;
       } else {
         fatal("Unknown long option (%s) given@#!$#$", long_options[option_index].name);
       }
@@ -1006,7 +914,7 @@ int nmap_main(int argc, char *argv[]) {
       o.script = 1;
 #endif
       if (o.isr00t) {
-        o.osscan = OS_SCAN_DEFAULT;
+        o.osscan++;
         o.traceroute = true;
       }
       break;
@@ -1047,7 +955,12 @@ int nmap_main(int argc, char *argv[]) {
         } else {
           if (o.numdecoys >= MAX_DECOYS -1)
             fatal("You are only allowed %d decoys (if you need more redefine MAX_DECOYS in nmap.h)", MAX_DECOYS);
-          if (resolve(p, &o.decoys[o.numdecoys])) {
+            
+          /* Try to resolve it */
+          struct sockaddr_in decoytemp;
+          size_t decoytemplen=sizeof(struct sockaddr_in);          
+          if( resolve(p, 0, 0, (sockaddr_storage*)&decoytemp, &decoytemplen, AF_INET) == 1 ){
+            o.decoys[o.numdecoys]=decoytemp.sin_addr;
             o.numdecoys++;
           } else {
             fatal("Failed to resolve decoy host: %s (must be hostname or IP address)", p);
@@ -1060,10 +973,18 @@ int nmap_main(int argc, char *argv[]) {
       } while(q);
       break;
     case 'd':
-      if (optarg)
+      if (optarg && isdigit(optarg[0])) {
         o.debugging = o.verbose = atoi(optarg);
-      else {
-        o.debugging++; o.verbose++;
+      } else {
+        const char *p;
+        o.debugging++;
+        o.verbose++;
+        for (p = optarg != NULL ? optarg : ""; *p == 'd'; p++) {
+          o.debugging++;
+          o.verbose++;
+        }
+        if (*p != '\0')
+          fatal("Invalid argument to -d: \"%s\".", optarg);
       }
       o.reason = true;
       break;
@@ -1108,7 +1029,7 @@ int nmap_main(int argc, char *argv[]) {
     case 'n': o.noresolve++; break;
     case 'O':
       if (!optarg || *optarg == '2')
-        o.osscan = OS_SCAN_DEFAULT;
+        o.osscan++;
       else if (*optarg == '1')
         fatal("First-generation OS detection (-O1) is no longer supported. Use -O instead.");
       else
@@ -1196,7 +1117,7 @@ int nmap_main(int argc, char *argv[]) {
         }
       } else if (*optarg == 'O') {
         if (ports.proto_ping_count > 0)
-          fatal("Only one -PO option is allowed. Combine port ranges with commas.");
+          fatal("Only one -PO option is allowed. Combine protocol ranges with commas.");
         o.pingtype |= PINGTYPE_PROTO;
         if (*(optarg + 1) != '\0') {
           getpts_simple(optarg + 1, SCAN_PROTOCOLS, &ports.proto_ping_ports, &ports.proto_ping_count);
@@ -1207,7 +1128,7 @@ int nmap_main(int argc, char *argv[]) {
           assert(ports.proto_ping_count > 0);
         }
       } else {
-        fatal("Illegal Argument to -P, use -PN, -PO, -PI, -PB, -PE, -PM, -PP, -PA, -PU, -PT, or -PT80 (or whatever number you want for the TCP probe destination port)");
+        fatal("Illegal Argument to -P, use -Pn, -PO, -PI, -PB, -PE, -PM, -PP, -PA, -PU, -PT, -PY, or -PT80 (or whatever number you want for the TCP probe destination port)");
       }
       break;
     case 'p':
@@ -1223,7 +1144,7 @@ int nmap_main(int argc, char *argv[]) {
     case 'S':
       if (o.spoofsource)
         fatal("You can only use the source option once!  Use -D <decoy1> -D <decoy2> etc. for decoys\n");
-      if (resolve(optarg, &ss, &sslen, o.af()) == 0) {
+      if (resolve(optarg, 0, 0, &ss, &sslen, o.af()) == 0) {
         fatal("Failed to resolve/decode supposed %s source address %s. Note that if you are using IPv6, the -6 argument must come before -S", (o.af() == AF_INET)? "IPv4" : "IPv6", optarg);
       }
       o.setSourceSockAddr(&ss, sslen);
@@ -1231,7 +1152,7 @@ int nmap_main(int argc, char *argv[]) {
       break;
     case 's':
       if (!*optarg) {
-        error("An option is required for -s, most common are -sT (tcp scan), -sS (SYN scan), -sF (FIN scan), -sU (UDP scan) and -sP (Ping scan)");
+        error("An option is required for -s, most common are -sT (tcp scan), -sS (SYN scan), -sF (FIN scan), -sU (UDP scan) and -sn (Ping scan)");
         printusage(argv[0], -1);
       }
       p = optarg;
@@ -1307,7 +1228,16 @@ int nmap_main(int argc, char *argv[]) {
       exit(0);
       break;
     case 'v':
-      o.verbose++;
+      if (optarg && isdigit(optarg[0])) {
+        o.verbose = atoi(optarg);
+      } else {
+        const char *p;
+        o.verbose++;
+        for (p = optarg != NULL ? optarg : ""; *p == 'v'; p++)
+          o.verbose++;
+        if (*p != '\0')
+          fatal("Invalid argument to -v: \"%s\".", optarg);
+      }
       break;
     }
   }
@@ -1326,7 +1256,7 @@ int nmap_main(int argc, char *argv[]) {
     if (o.scan_delay > o.maxTCPScanDelay()) o.setMaxTCPScanDelay(o.scan_delay);
     if (o.scan_delay > o.maxUDPScanDelay()) o.setMaxUDPScanDelay(o.scan_delay);
     if (o.scan_delay > o.maxSCTPScanDelay()) o.setMaxSCTPScanDelay(o.scan_delay);
-    if (pre_max_parallelism != -1 || o.min_parallelism != -1)
+    if (pre_max_parallelism != -1 || o.min_parallelism != 0)
       error("Warning: --min-parallelism and --max-parallelism are ignored with --scan-delay.");
   }
   if (pre_max_scan_delay != -1) {
@@ -1341,7 +1271,7 @@ int nmap_main(int argc, char *argv[]) {
   if (pre_host_timeout != -1) o.host_timeout = pre_host_timeout;
 
 
-  if (o.osscan == OS_SCAN_DEFAULT)
+  if (o.osscan)
     o.reference_FPs = parse_fingerprint_reference_file("nmap-os-db");
 
   validate_scan_lists(ports,o);
@@ -1354,7 +1284,7 @@ int nmap_main(int argc, char *argv[]) {
     if (o.ipoptionslen >= 8)       // at least one ip address
       log_write(LOG_STDOUT, "Binary ip options to be send:\n%s", buf);
       log_write(LOG_STDOUT, "Parsed ip options to be send:\n%s\n",
-        print_ip_options(o.ipoptions, o.ipoptionslen));
+        format_ip_options(o.ipoptions, o.ipoptionslen));
   }
 
   /* Open the log files, now that we know whether the user wants them appended
@@ -1376,41 +1306,38 @@ int nmap_main(int argc, char *argv[]) {
     free(xmlfilename);
   }
 
-  if (!o.interactivemode) {
-    char tbuf[128];
-    // ISO 8601 date/time -- http://www.cl.cam.ac.uk/~mgk25/iso-time.html
-    if (strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M %Z", tm) <= 0)
-      fatal("Unable to properly format time");
-    log_write(LOG_STDOUT|LOG_SKID, "\nStarting %s %s ( %s ) at %s\n", NMAP_NAME, NMAP_VERSION, NMAP_URL, tbuf);
-    if (o.verbose) {
-      if (tm->tm_mon == 8 && tm->tm_mday == 1) {
-	log_write(LOG_STDOUT|LOG_SKID, "Happy %dth Birthday to Nmap, may it live to be %d!\n", tm->tm_year - 97, tm->tm_year + 3 );
-      } else if (tm->tm_mon == 11 && tm->tm_mday == 25) {
-	log_write(LOG_STDOUT|LOG_SKID, "Nmap wishes you a merry Christmas! Specify -sX for Xmas Scan (http://nmap.org/book/man-port-scanning-techniques.html).\n");
-      } 
-    }
-    if (iflist) {
-      print_iflist();
-      exit(0);
-    }
+  // ISO 8601 date/time -- http://www.cl.cam.ac.uk/~mgk25/iso-time.html
+  if (strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M %Z", tm) <= 0)
+    fatal("Unable to properly format time");
+  log_write(LOG_STDOUT|LOG_SKID, "\nStarting %s %s ( %s ) at %s\n", NMAP_NAME, NMAP_VERSION, NMAP_URL, tbuf);
+  if (o.verbose) {
+    if (tm->tm_mon == 8 && tm->tm_mday == 1) {
+      log_write(LOG_STDOUT|LOG_SKID, "Happy %dth Birthday to Nmap, may it live to be %d!\n", tm->tm_year - 97, tm->tm_year + 3 );
+    } else if (tm->tm_mon == 11 && tm->tm_mday == 25) {
+      log_write(LOG_STDOUT|LOG_SKID, "Nmap wishes you a merry Christmas! Specify -sX for Xmas Scan (http://nmap.org/book/man-port-scanning-techniques.html).\n");
+    } 
   }
+  if (iflist) {
+    print_iflist();
+    exit(0);
+  }
+
+#ifndef NOLUA
+  if (o.scripthelp) {
+    /* Special-case open_nse for --script-help only. */
+    open_nse();
+    exit(0);
+  }
+#endif
 
 #if HAVE_IPV6
-  if(o.af() == AF_INET6 && o.traceroute) {
-     error("Warning: Traceroute does not support IPv6, disabling...");
-     o.traceroute = 0;
-  } else
+  if(o.af() == AF_INET6 && o.traceroute)
+     fatal("Traceroute does not support IPv6");
 #endif
-  if(o.traceroute && (o.idlescan || o.connectscan)) {
-    error("Warning: Traceroute does not support idle or connect scan, disabling...");
-    o.traceroute = 0;
-  }
-
-  if(o.traceroute && !o.isr00t) {
-    error("Warning: Traceroute has to be run as root, disabling...");
-    o.traceroute = 0;
-  }
-
+  if (o.traceroute && !o.isr00t)
+    fatal("Traceroute has to be run as root");
+  if (o.traceroute && (o.idlescan || o.connectscan))
+    fatal("Traceroute does not support idle or connect scan");
 
   if ((o.noportscan) && (portlist || o.fastscan))
     fatal("You cannot use -F (fast scan) or -p (explicit port selection) when not doing a port scan");
@@ -1556,39 +1483,53 @@ int nmap_main(int argc, char *argv[]) {
   Strncpy(mytime, ctime(&timep), sizeof(mytime));
   chomp(mytime);
   char *xslfname = o.XSLStyleSheet();
-  char xslline[1024];
+  xml_start_document();
   if (xslfname) {
-    char *p = xml_convert(xslfname);
-    Snprintf(xslline, sizeof(xslline), "<?xml-stylesheet href=\"%s\" type=\"text/xsl\"?>\n", p);
-    free(p);
-  }  else xslline[0] = '\0';
-  log_write(LOG_XML, "<?xml version=\"1.0\" ?>\n%s<!-- ", xslline);
+    xml_open_pi("xml-stylesheet");
+    xml_attribute("href", "%s", xslfname);
+    xml_attribute("type", "text/xsl");
+    xml_close_pi();
+    xml_newline();
+  }
+
+  std::string command;
+  if (argc > 0)
+    command += fakeargv[0];
+  for (i = 1; i < argc; i++) {
+    command += " ";
+    command += fakeargv[i];
+  }
+
+  xml_start_comment();
+  xml_write_escaped(" %s %s scan initiated %s as: %s ", NMAP_NAME, NMAP_VERSION, mytime, join_quoted(fakeargv, argc).c_str());
+  xml_end_comment();
+  xml_newline();
+
   log_write(LOG_NORMAL|LOG_MACHINE, "# ");
-  log_write(LOG_NORMAL|LOG_MACHINE|LOG_XML, "%s %s scan initiated %s as: ", NMAP_NAME, NMAP_VERSION, mytime);
+  log_write(LOG_NORMAL|LOG_MACHINE, "%s %s scan initiated %s as: ", NMAP_NAME, NMAP_VERSION, mytime);
+  log_write(LOG_NORMAL|LOG_MACHINE, "%s", command.c_str());
+  log_write(LOG_NORMAL|LOG_MACHINE, "\n");
 
-  for(i=0; i < argc; i++) {
-    char *p = xml_convert(fakeargv[i]);
-    log_write(LOG_XML,"%s ", p);
-    free(p);
-    log_write(LOG_NORMAL|LOG_MACHINE,"%s ", fakeargv[i]);
-  }
-  log_write(LOG_XML, "-->");
-  log_write(LOG_NORMAL|LOG_MACHINE|LOG_XML,"\n");
-
-  log_write(LOG_XML, "<nmaprun scanner=\"nmap\" args=\"");
-  for(i=0; i < argc; i++) {
-    char *p = xml_convert(fakeargv[i]);
-    log_write(LOG_XML, (i == argc-1)? "%s\" " : "%s ", p);
-    free(p);
-  }
-
-  log_write(LOG_XML, "start=\"%lu\" startstr=\"%s\" version=\"%s\" xmloutputversion=\"1.03\">\n",
-            (unsigned long) timep, mytime, NMAP_VERSION);
+  xml_open_start_tag("nmaprun");
+  xml_attribute("scanner", "nmap");
+  xml_attribute("args", "%s", join_quoted(fakeargv, argc).c_str());
+  xml_attribute("start", "%lu", (unsigned long) timep);
+  xml_attribute("startstr", "%s", mytime);
+  xml_attribute("version", "%s", NMAP_VERSION);
+  xml_attribute("xmloutputversion", "1.03");
+  xml_close_start_tag();
+  xml_newline();
 
   output_xml_scaninfo_records(&ports);
 
-  log_write(LOG_XML, "<verbose level=\"%d\" />\n<debugging level=\"%d\" />\n",
-            o.verbose, o.debugging);
+  xml_open_start_tag("verbose");
+  xml_attribute("level", "%d", o.verbose);
+  xml_close_empty_tag();
+  xml_newline();
+  xml_open_start_tag("debugging");
+  xml_attribute("level", "%d", o.debugging);
+  xml_close_empty_tag();
+  xml_newline();
 
   /* Before we randomize the ports scanned, lets output them to machine
      parseable output */
@@ -1673,14 +1614,21 @@ int nmap_main(int argc, char *argv[]) {
 
 #ifndef NOLUA
   if (o.scriptupdatedb) {
-    script_updatedb();
-    // disable warnings
-    o.max_ips_to_scan = o.numhosts_scanned;
+    o.max_ips_to_scan = o.numhosts_scanned; // disable warnings?
   }
   if (o.servicescan)
     o.scriptversion = 1;
-  if (o.scriptversion || o.script)
+  if (o.scriptversion || o.script || o.scriptupdatedb)
     open_nse();
+
+  /* Run the script pre-scanning phase */
+  if (o.script) {
+    new_targets = NewTargets::get();
+    script_scan_results = get_script_scan_results_obj();
+    script_scan(Targets, SCRIPT_PRE_SCAN);
+    printscriptresults(script_scan_results, SCRIPT_PRE_SCAN);
+    script_scan_results->clear();
+  }
 #endif
 
   /* Time to create a hostgroup state object filled with all the requested
@@ -1690,7 +1638,7 @@ int nmap_main(int argc, char *argv[]) {
   num_host_exp_groups = 0;
 
   hstate = new HostGroupState(o.ping_group_sz, o.randomize_hosts,
-			      host_exp_group, num_host_exp_groups);
+                  host_exp_group, num_host_exp_groups);
 
   do {
     ideal_scan_group_sz = determineScanGroupSize(o.numhosts_scanned, &ports);
@@ -1698,101 +1646,123 @@ int nmap_main(int argc, char *argv[]) {
       o.current_scantype = HOST_DISCOVERY;
       currenths = nexthost(hstate, exclude_group, &ports, o.pingtype);
       if (!currenths) {
-	/* Try to refill with any remaining expressions */
-	/* First free the old ones */
-	for(i=0; i < num_host_exp_groups; i++)
-	  free(host_exp_group[i]);
-	num_host_exp_groups = 0;
-	/* Now grab any new expressions */
-	while(num_host_exp_groups < o.ping_group_sz && 
-	      (!o.max_ips_to_scan || o.max_ips_to_scan > o.numhosts_scanned + (int) Targets.size() + num_host_exp_groups) &&
-	      (host_spec = grab_next_host_spec(inputfd, argc, fakeargv))) {
-	  // For purposes of random scan
-	  host_exp_group[num_host_exp_groups++] = strdup(host_spec);
-	}
-	if (num_host_exp_groups == 0)
-	  break;
-	delete hstate;
-	hstate = new HostGroupState(o.ping_group_sz, o.randomize_hosts,
-				    host_exp_group, num_host_exp_groups);
+        /* Try to refill with any remaining expressions */
+        /* First free the old ones */
+        for(i=0; i < num_host_exp_groups; i++)
+          free(host_exp_group[i]);
+        num_host_exp_groups = 0;
+        /* Now grab any new expressions */
+        while(num_host_exp_groups < o.ping_group_sz && 
+          (!o.max_ips_to_scan || o.max_ips_to_scan > o.numhosts_scanned + (int) Targets.size() + num_host_exp_groups) &&
+          (host_spec = grab_next_host_spec(inputfd, o.generate_random_ips, argc, fakeargv))) {
+            // For purposes of random scan
+            host_exp_group[num_host_exp_groups++] = strdup(host_spec);
+        }
+#ifndef NOLUA
+        /* Add the new NSE discovered targets to the scan queue */
+        if (o.script) {
+          if (new_targets != NULL) {
+            while (new_targets->get_queued() > 0 && num_host_exp_groups < o.ping_group_sz) {
+              std::string target_spec = new_targets->read();
+              if (target_spec.length())
+                host_exp_group[num_host_exp_groups++] = strdup(target_spec.c_str());
+            }
+
+            if (o.debugging > 3)
+              log_write(LOG_PLAIN,
+                  "New targets in the scanned cache: %ld, pending ones: %ld.\n",
+                  new_targets->get_scanned(), new_targets->get_queued());
+          }
+        }
+#endif
+        if (num_host_exp_groups == 0)
+          break;
+        delete hstate;
+        hstate = new HostGroupState(o.ping_group_sz, o.randomize_hosts,host_exp_group,
+                        num_host_exp_groups);
       
-	/* Try one last time -- with new expressions */
-	currenths = nexthost(hstate, exclude_group, &ports, o.pingtype);
-	if (!currenths)
-	  break;
+        /* Try one last time -- with new expressions */
+        currenths = nexthost(hstate, exclude_group, &ports, o.pingtype);
+        if (!currenths)
+          break;
       }
     
       if (currenths->flags & HOST_UP && !o.listscan) 
-	o.numhosts_up++;
+        o.numhosts_up++;
     
       if ((o.noportscan && !o.traceroute
 #ifndef NOLUA
-	   && !o.script
+      && !o.script
 #endif
           ) || o.listscan) {
-	/* We're done with the hosts */
-	log_write(LOG_XML, "<host>");
-	write_host_header(currenths);
-	printmacinfo(currenths);
-	//	if (currenths->flags & HOST_UP)
-	//  log_write(LOG_PLAIN,"\n");
-	printtimes(currenths);
-	log_write(LOG_XML, "</host>\n");
-	log_flush_all();
-	delete currenths;
-	o.numhosts_scanned++;
-	continue;
+        /* We're done with the hosts */
+        if (currenths->flags & HOST_UP || o.verbose) {
+          xml_start_tag("host");
+          write_host_header(currenths);
+          printmacinfo(currenths);
+          //  if (currenths->flags & HOST_UP)
+          //  log_write(LOG_PLAIN,"\n");
+          printtimes(currenths);
+          xml_end_tag();
+          xml_newline();
+          log_flush_all();
+        }
+        delete currenths;
+        o.numhosts_scanned++;
+        continue;
       }
     
       if (o.spoofsource) {
-	o.SourceSockAddr(&ss, &sslen);
-	currenths->setSourceSockAddr(&ss, sslen);
+        o.SourceSockAddr(&ss, &sslen);
+        currenths->setSourceSockAddr(&ss, sslen);
       }
     
       /* I used to check that !currenths->weird_responses, but in some
-	 rare cases, such IPs CAN be port successfully scanned and even connected to */
+         rare cases, such IPs CAN be port successfully scanned and even
+         connected to */
       if (!(currenths->flags & HOST_UP)) {
-	log_write(LOG_XML, "<host>");
-	write_host_header(currenths);
-	log_write(LOG_XML, "</host>\n");
-	delete currenths;
-	o.numhosts_scanned++;
-	continue;
+        if (o.verbose && (!o.openOnly() || currenths->ports.hasOpenPorts())) {
+          xml_start_tag("host");
+          write_host_header(currenths);
+          xml_end_tag();
+          xml_newline();
+        }
+        delete currenths;
+        o.numhosts_scanned++;
+        continue;
       }
 
       if (o.af() == AF_INET && o.RawScan()) { 
-	if (currenths->SourceSockAddr(NULL, NULL) != 0) {
-	  if (o.SourceSockAddr(&ss, &sslen) == 0) {
-	    currenths->setSourceSockAddr(&ss, sslen);
-	  } else {
-	    if (gethostname(myname, MAXHOSTNAMELEN) || 
-		resolve(myname, &ss, &sslen, o.af()) == 0)
-	      fatal("Cannot get hostname!  Try using -S <my_IP_address> or -e <interface to scan through>\n"); 
-	    
-	    o.setSourceSockAddr(&ss, sslen);
-	    currenths->setSourceSockAddr(&ss, sslen);
-	    if (! sourceaddrwarning) {
-	      error("WARNING:  We could not determine for sure which interface to use, so we are guessing %s .  If this is wrong, use -S <my_IP_address>.", inet_socktop(&ss));
-	      sourceaddrwarning = 1;
-	    }
-	  }
-	}
+        if (currenths->SourceSockAddr(NULL, NULL) != 0) {
+          if (o.SourceSockAddr(&ss, &sslen) == 0) {
+            currenths->setSourceSockAddr(&ss, sslen);
+          } else {
+            if (gethostname(myname, MAXHOSTNAMELEN) ||
+                resolve(myname, 0, 0, &ss, &sslen, o.af()) == 0)
+              fatal("Cannot get hostname!  Try using -S <my_IP_address> or -e <interface to scan through>\n"); 
+        
+            o.setSourceSockAddr(&ss, sslen);
+            currenths->setSourceSockAddr(&ss, sslen);
+            if (! sourceaddrwarning) {
+              error("WARNING:  We could not determine for sure which interface to use, so we are guessing %s .  If this is wrong, use -S <my_IP_address>.",
+                  inet_socktop(&ss));
+                sourceaddrwarning = 1;
+            }
+          }
+        }
 
-	if (!currenths->deviceName())
-	  fatal("Do not have appropriate device name for target");
-	
-	/* Groups should generally use the same device as properties
-	   change quite a bit between devices.  Plus dealing with a
-	   multi-device group can be a pain programmatically. So if
-	   this Target has a different device the rest, we give it
-	   back. */
-	if (Targets.size() > 0 && 
-	    strcmp(Targets[Targets.size() - 1]->deviceName(), currenths->deviceName())) {
-	  returnhost(hstate);
-	  o.numhosts_up--;
-	  break;
-	}
-	o.decoys[o.decoyturn] = currenths->v4source();
+        if (!currenths->deviceName())
+          fatal("Do not have appropriate device name for target");
+
+        /* Hosts in a group need to be somewhat homogeneous. Put this host in
+           the next group if necessary. See target_needs_new_hostgroup for the
+           details of when we need to split. */
+        if (target_needs_new_hostgroup(Targets, currenths)) {
+          returnhost(hstate);
+          o.numhosts_up--;
+          break;
+        }
+        o.decoys[o.decoyturn] = currenths->v4source();
       }
       Targets.push_back(currenths);
     }
@@ -1883,7 +1853,7 @@ int nmap_main(int argc, char *argv[]) {
       }
     }
 
-    if (o.osscan == OS_SCAN_DEFAULT)
+    if (o.osscan)
       os_scan2(Targets);
 
     if (o.traceroute)
@@ -1891,39 +1861,43 @@ int nmap_main(int argc, char *argv[]) {
 
 #ifndef NOLUA
     if(o.script || o.scriptversion) {
-      script_scan(Targets);
+      script_scan(Targets, SCRIPT_SCAN);
     }
 #endif
 
     for(targetno = 0; targetno < Targets.size(); targetno++) {
       currenths = Targets[targetno];
       /* Now I can do the output and such for each host */
-      log_write(LOG_XML, "<host starttime=\"%lu\" endtime=\"%lu\">",
-		(unsigned long) currenths->StartTime(),
-		(unsigned long) currenths->EndTime());
-      write_host_header(currenths);
       if (currenths->timedOut(NULL)) {
-	log_write(LOG_PLAIN,"Skipping host %s due to host timeout\n", 
-		  currenths->NameIP(hostname, sizeof(hostname)));
-	log_write(LOG_MACHINE,"Host: %s (%s)\tStatus: Timeout", 
-		  currenths->targetipstr(), currenths->HostName());
+        write_host_header(currenths);
+        log_write(LOG_PLAIN,"Skipping host %s due to host timeout\n",
+            currenths->NameIP(hostname, sizeof(hostname)));
+        log_write(LOG_MACHINE,"Host: %s (%s)\tStatus: Timeout", 
+            currenths->targetipstr(), currenths->HostName());
       } else {
-	printportoutput(currenths, &currenths->ports);
-	printmacinfo(currenths);
-	printosscanoutput(currenths);
-	printserviceinfooutput(currenths);
+        /* --open means don't show any hosts without open ports. */
+        if (o.openOnly() && !currenths->ports.hasOpenPorts())
+          continue;
+
+        xml_open_start_tag("host");
+        xml_attribute("starttime", "%lu", (unsigned long) currenths->StartTime());
+        xml_attribute("endtime", "%lu", (unsigned long) currenths->EndTime());
+        xml_close_start_tag();
+        write_host_header(currenths);
+        printportoutput(currenths, &currenths->ports);
+        printmacinfo(currenths);
+        printosscanoutput(currenths);
+        printserviceinfooutput(currenths);
 #ifndef NOLUA
-	printhostscriptresults(currenths);
+        printhostscriptresults(currenths);
 #endif
+        if (o.traceroute)
+          printtraceroute(currenths);
+        printtimes(currenths);
+        log_write(LOG_PLAIN|LOG_MACHINE,"\n");
+        xml_end_tag(); /* host */
+        xml_newline();
       }
-    
-      if (o.traceroute)
-        printtraceroute(currenths);
-
-      printtimes(currenths);
-
-      log_write(LOG_PLAIN|LOG_MACHINE,"\n");
-      log_write(LOG_XML, "</host>\n");
     }
     log_flush_all();
 
@@ -1937,7 +1911,17 @@ int nmap_main(int argc, char *argv[]) {
     }
     o.numhosts_scanning = 0;
   } while(!o.max_ips_to_scan || o.max_ips_to_scan > o.numhosts_scanned);
-  
+
+#ifndef NOLUA
+  if (o.script) {
+    script_scan(Targets, SCRIPT_POST_SCAN);
+    printscriptresults(script_scan_results, SCRIPT_POST_SCAN);
+    script_scan_results->clear();
+    delete new_targets;
+    new_targets = NULL;
+  }
+#endif
+
   delete hstate;
   if (exclude_group)
     delete[] exclude_group;
@@ -1961,7 +1945,7 @@ int nmap_main(int argc, char *argv[]) {
 
   eth_close_cached();
 
-  if(o.release_memory || o.interactivemode) {
+  if (o.release_memory) {
     /* Free fake argv */
     for(i=0; i < argc; i++)
       free(fakeargv[i]);
@@ -1971,6 +1955,42 @@ int nmap_main(int argc, char *argv[]) {
   }
   return 0;
 }      
+
+/* Returns true iff this target is incompatible with the other hosts in the host
+   group. This happens when:
+     1. it uses a different interface, or
+     2. it has the same IP address as another target already in the group.
+   These restrictions only apply for raw scans. This function is similar to one
+   of the same name in targets.cc. That one is for ping scanning, this one is
+   for port scanning. */
+static bool target_needs_new_hostgroup(std::vector<Target *> &targets,
+  const Target *target) {
+  std::vector<Target *>::iterator it;
+
+  /* We've just started a new hostgroup, so any target is acceptable. */
+  if (targets.empty())
+    return false;
+
+  /* Different interface name? */
+  if (targets[0]->deviceName() != NULL &&
+      target->deviceName() != NULL &&
+      strcmp(targets[0]->deviceName(), target->deviceName()) != 0) {
+    return true;
+  }
+
+  /* Is there already a target with this same IP address? ultra_scan doesn't
+     cope with that, because it uses IP addresses to look up targets from
+     replies. What happens is one target gets the replies for all probes
+     referring to the same IP address. */
+  if (o.af() == AF_INET) {
+    for (it = targets.begin(); it != targets.end(); it++) {
+      if ((*it)->v4host().s_addr == target->v4host().s_addr)
+        return true;
+    }
+  }
+
+  return false;
+}
       
 // Free some global memory allocations.
 // This is used for detecting memory leaks.
@@ -1979,6 +1999,7 @@ void nmap_free_mem() {
   cp_free();
   free_dns_servers();
   free_etchosts();
+  free_services();
   if (o.reference_FPs) {
     delete o.reference_FPs;
     o.reference_FPs = NULL;
@@ -2007,7 +2028,7 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
   int filelen;
   char nmap_arg_buffer[1024];
   struct in_addr lastip;
-  char *p, *q, *found; /* I love C! */
+  char *p, *q, *found, *lastipstr; /* I love C! */
   /* We mmap it read/write since we will change the last char to a newline if it is not already */
   filestr = mmapfile(fname, &filelen, O_RDWR);
   if (!filestr) {
@@ -2037,7 +2058,7 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     fatal("Unable to parse supposed log file %s.  Perhaps the Nmap execution had not finished at least one host?  In that case there is no use \"resuming\"", fname);
 
 
-  strcpy(nmap_arg_buffer, "nmap --append-output ");
+  strncpy(nmap_arg_buffer, "nmap --append-output ", sizeof(nmap_arg_buffer));
   if ((q-p) + 21 + 1 >= (int) sizeof(nmap_arg_buffer)) fatal("0verfl0w");
   memcpy(nmap_arg_buffer + 21, p, q-p);
   nmap_arg_buffer[21 + q-p] = '\0';
@@ -2054,7 +2075,7 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
   /* Now it is time to figure out the last IP that was scanned */
   q = p;
   found = NULL;
-  /* Lets see if its a machine log first */
+  /* Lets see if its a grepable log first (-oG) */
   while((q = strstr(q, "\nHost: ")))
     found = q = q + 7;
 
@@ -2066,33 +2087,31 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
       fatal("Unable to parse supposed log file %s.  Sorry", fname);
     *q = ' ';
   } else {
-    /* OK, I guess (hope) it is a normal log then */
+    /* OK, I guess (hope) it is a normal log then (-oN) */
     q = p;
     found = NULL;
-    while((q = strstr(q, "\nInteresting ports on ")))
-      found = q++;
+    while((q = strstr(q, "\nNmap scan report for ")))
+      found = q = q + 22;
 
-    /* There may be some later IPs of the form 'All [num] scanned ports on  ([ip]) are: state */
-    if (found) q = found;
-    if (q) {    
-      while((q = strstr(q, "\nAll "))) {
-	q+= 5;
-	while(isdigit((int) (unsigned char) *q)) q++;
-	if (strncmp(q, " scanned ports on", 17) == 0)
-	  found = q;
-      }
-    }
-
-    if (found) {    
-      found = strchr(found, '(');
-      if (!found) fatal("Unable to parse supposed log file %s.  Sorry", fname);
-      found++;
-      q = strchr(found, ')');
+    /*  There may be some later IPs of the form :
+        "Nmap scan report for florence (x.x.7.10)" (dns reverse lookup)
+        or "Nmap scan report for x.x.7.10".
+    */
+    if (found) {
+      q = strchr(found, '\n');
       if (!q) fatal("Unable to parse supposed log file %s.  Sorry", fname);
       *q = '\0';
-      if (inet_pton(AF_INET, found, &lastip) == 0)
-	fatal("Unable to parse ip (%s) supposed log file %s.  Sorry", found, fname);
-      *q = ')';
+      p = strchr(found, '(');
+      if (!p) { /* No DNS reverse lookup, found should already contain IP */
+        lastipstr = strdup(found);
+      } else { /* DNS reverse lookup, IP is between parentheses */
+        *q = '\n'; q--; *q = '\0';
+        lastipstr = strdup(p + 1);
+      }
+      *q = p ? ')' : '\n'; /* recover changed chars */
+      if (inet_pton(AF_INET, lastipstr, &lastip) == 0)
+        fatal("Unable to parse ip (%s) in supposed log file %s.  Sorry", lastipstr, fname);
+      free(lastipstr);
     } else {
       error("Warning: You asked for --resume but it doesn't look like any hosts in the log file were successfully scanned.  Starting from the beginning.");
       lastip.s_addr = 0;
@@ -2104,36 +2123,6 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
   filestr[filelen - 1] = '\n';
   munmap(filestr, filelen);
   return 0;
-}
-
-/* We set the socket lingering so we will RST connection instead of wasting
-   bandwidth with the four step close  */
-void init_socket(int sd) {
-  struct linger l;
-  int res;
-  static int bind_failed=0;
-  struct sockaddr_storage ss;
-  size_t sslen;
-
-  l.l_onoff = 1;
-  l.l_linger = 0;
-
-  if (setsockopt(sd, SOL_SOCKET, SO_LINGER,  (const char *) &l, sizeof(struct linger)))
-    {
-      error("Problem setting socket SO_LINGER, errno: %d", socket_errno());
-      perror("setsockopt");
-    }
-  if (o.spoofsource && !bind_failed)
-    {
-      o.SourceSockAddr(&ss, &sslen);
-      res=bind(sd, (struct sockaddr*)&ss, sslen);
-      if (res<0)
-	{
-	  error("init_socket: Problem binding source address (%s), errno :%d", inet_socktop(&ss), socket_errno());
-	  perror("bind");
-	  bind_failed=1;
-	}
-    }
 }
 
 
@@ -2505,28 +2494,6 @@ void free_scan_lists(struct scan_lists *ports) {
   if (ports->proto_ping_ports) free(ports->proto_ping_ports);
 }
 
-void printinteractiveusage() {
-  printf(
-	 "Nmap Interactive Commands:\n\
-n <nmap args> -- executes an nmap scan using the arguments given and\n\
-waits for nmap to finish.  Results are printed to the\n\
-screen (of course you can still use file output commands).\n\
-! <command>   -- runs shell command given in the foreground\n\
-x             -- Exit Nmap\n\
-f [--spoof <fakeargs>] [--nmap-path <path>] <nmap args>\n\
--- Executes nmap in the background (results are NOT\n\
-printed to the screen).  You should generally specify a\n\
-file for results (with -oX, -oG, or -oN).  If you specify\n\
-fakeargs with --spoof, Nmap will try to make those\n\
-appear in ps listings.  If you wish to execute a special\n\
-version of Nmap, specify --nmap-path.\n\
-n -h          -- Obtain help with Nmap syntax\n\
-h             -- Prints this help screen.\n\
-Examples:\n\
-n -sS -O -v example.com/24\n\
-f --spoof \"/usr/local/bin/pico -z hello.c\" -sS -oN e.log example.com/24\n\n");
-}
-
 char *seqreport(struct seq_info *seq) {
   static char report[512];
 
@@ -2610,7 +2577,9 @@ const char *scantype2str(stype scantype) {
   case BOUNCE_SCAN: return "Bounce Scan"; break;
   case SERVICE_SCAN: return "Service Scan"; break;
   case OS_SCAN: return "OS Scan"; break;
+  case SCRIPT_PRE_SCAN: return "Script Pre-Scan"; break;
   case SCRIPT_SCAN: return "Script Scan"; break;
+  case SCRIPT_POST_SCAN: return "Script Post-Scan"; break;
   case TRACEROUTE: return "Traceroute" ; break;
   default: assert(0); break;
   }
@@ -2708,36 +2677,7 @@ int ftp_anon_connect(struct ftpinfo *ftp) {
   return sd;
 }
 
-/* Returns one if the file pathname given exists, is not a directory and
- * is readable by the executing process.  Returns two if it is readable
- * and is a directory.  Otherwise returns 0.
- */
 
-int fileexistsandisreadable(const char *pathname) {
-	char *pathname_buf = strdup(pathname);
-	int status = 0;
-
-#ifdef WIN32
-	// stat on windows only works for "dir_name" not for "dir_name/" or "dir_name\\"
-	int pathname_len = strlen(pathname_buf);
-	char last_char = pathname_buf[pathname_len - 1];
-
-	if(	last_char == '/'
-		|| last_char == '\\')
-		pathname_buf[pathname_len - 1] = '\0';
-
-#endif
-
-  struct stat st;
-
-  if (stat(pathname_buf, &st) == -1)
-    status = 0;
-  else if (access(pathname_buf, R_OK) != -1)
-    status = S_ISDIR(st.st_mode) ? 2 : 1;
-
-  free(pathname_buf);
-  return status;
-}
 
 int nmap_fileexistsandisreadable(const char* pathname) {
 	return fileexistsandisreadable(pathname);
@@ -2861,5 +2801,3 @@ int nmap_fetchfile(char *filename_returned, int bufferlen, const char *file) {
   return foundsomething;
 
 }
-
-

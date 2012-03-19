@@ -2,7 +2,7 @@
  * http.h                                                                  *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -90,13 +90,16 @@
 #ifndef _HTTP_H
 #define _HTTP_H
 
+#include "ncat_config.h"
+#include "util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
-/* This is an abstraction over a socket that provides rudimentary buffering. It
-   is useful for the line-oriented parts of HTTP. */
+/* This is an abstraction over a socket (really a struct fdinfo) that provides
+   rudimentary buffering. It is useful for the line-oriented parts of HTTP. */
 struct socket_buffer {
-    int sd;
+    struct fdinfo fdn;
     char buffer[BUFSIZ];
     char *p;
     char *end;
@@ -162,6 +165,7 @@ struct http_response {
 
 void http_header_free(struct http_header *header);
 char *http_header_get(const struct http_header *header, const char *name);
+const struct http_header *http_header_next(const struct http_header *header, const struct http_header *p, const char *name);
 char *http_header_get_first(const struct http_header *header, const char *name);
 struct http_header *http_header_set(struct http_header *header, const char *name, const char *value);
 struct http_header *http_header_remove(struct http_header *header, const char *name);
@@ -188,6 +192,62 @@ int http_read_status_line(struct socket_buffer *buf, char **line);
 int http_parse_status_line(const char *line, struct http_response *response);
 int http_parse_status_line_code(const char *line);
 
-int http_check_auth_basic(const char *userpass, const char *value);
+enum http_auth_scheme { AUTH_UNKNOWN, AUTH_BASIC, AUTH_DIGEST };
+enum http_digest_algorithm { ALGORITHM_MD5, ALGORITHM_UNKNOWN };
+enum http_digest_qop { QOP_NONE = 0, QOP_AUTH = 1 << 0, QOP_AUTH_INT = 1 << 1 };
+
+struct http_challenge {
+    enum http_auth_scheme scheme;
+    char *realm;
+    struct {
+        char *nonce;
+        char *opaque;
+        enum http_digest_algorithm algorithm;
+        /* A bit mask of supported qop values ("auth", "auth-int", etc.). */
+        unsigned char qop;
+    } digest;
+};
+
+struct http_credentials {
+    enum http_auth_scheme scheme;
+    union {
+        char *basic;
+        struct {
+            char *username;
+            char *realm;
+            char *nonce;
+            char *uri;
+            char *response;
+            enum http_digest_algorithm algorithm;
+            enum http_digest_qop qop;
+            char *nc;
+            char *cnonce;
+        } digest;
+    } u;
+};
+
+void http_challenge_init(struct http_challenge *challenge);
+void http_challenge_free(struct http_challenge *challenge);
+struct http_challenge *http_header_get_proxy_challenge(const struct http_header *header, struct http_challenge *challenge);
+
+void http_credentials_init_basic(struct http_credentials *credentials);
+void http_credentials_init_digest(struct http_credentials *credentials);
+void http_credentials_free(struct http_credentials *credentials);
+struct http_credentials *http_header_get_proxy_credentials(const struct http_header *header, struct http_credentials *credentials);
+
+#if HAVE_HTTP_DIGEST
+/* Initialize the server secret used in generating nonces. */
+int http_digest_init_secret(void);
+int http_digest_nonce_time(const char *nonce, struct timeval *tv);
+/* Return a Proxy-Authenticate header. */
+char *http_digest_proxy_authenticate(const char *realm, int stale);
+/* Return a Proxy-Authorization header answering the given challenge. */
+char *http_digest_proxy_authorization(const struct http_challenge *challenge,
+    const char *username, const char *password,
+    const char *method, const char *uri);
+int http_digest_check_credentials(const char *username, const char *realm,
+    const char *password, const char *method,
+    const struct http_credentials *credentials);
+#endif
 
 #endif

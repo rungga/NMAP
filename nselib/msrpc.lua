@@ -1,4 +1,5 @@
---- By making heavy use of the 'smb' library, this library will call various MSRPC 
+---
+-- By making heavy use of the <code>smb</code> library, this library will call various MSRPC 
 --  functions. The functions used here can be accessed over TCP ports 445 and 139, 
 --  with an established session. A NULL session (the default) will work for some 
 --  functions and operating systems (or configurations), but not for others. 
@@ -8,11 +9,11 @@
 -- <code>start_smb</code> can be called. A session has to be created, then the IPC$ 
 -- tree opened. 
 --
--- Next, the interface has to be bound. The bind() function will take care of that. 
+-- Next, the interface has to be bound. The <code>bind()</code> function will take care of that. 
 --
 -- After that, you're free to call any function that's part of that interface. In
--- other words, if you bind to the SAMR interface, you can only call the samr_
--- functions, for lsa_ functions, bind to the LSA interface, etc.  Although functions 
+-- other words, if you bind to the SAMR interface, you can only call the <code>samr_</code>
+-- functions, for <code>lsa_</code> functions, bind to the LSA interface, etc.  Although functions 
 -- can technically be called in any order, many functions depend on the
 -- value returned by other functions. I indicate those in the function comments, 
 -- so keep an eye out. SAMR functions, for example, require a call to 
@@ -21,8 +22,8 @@
 -- Something to note is that these functions, for the most part, return a whole ton
 -- of stuff in a table; basically, everything that is returned by the function. 
 -- Generally, if you want to know exactly what you have access to, either display the
--- returned data with a print_table-type function, or check the documentation (Samba 4.0's
--- .idl files (in samba_4.0/source/librpc/idl; see below for link) are what I based 
+-- returned data with a <code>print_table</code>-type function, or check the documentation (Samba 4.0's
+-- <code>.idl</code> files (in <code>samba_4.0/source/librpc/idl</code>; see below for link) are what I based 
 -- the names on). 
 --
 -- The parameters for each function are converted to a string of bytes in a process
@@ -37,8 +38,8 @@
 -- deal with the returned values. 
 --
 -- When implementing this, I used Wireshark's output significantly, as well as Samba's
--- "idl" files for reference:
---  http://websvn.samba.org/cgi-bin/viewcvs.cgi/branches/SAMBA_4_0/source/librpc/idl/ 
+-- <code>.idl</code> files for reference:
+--  http://websvn.samba.org/cgi-bin/viewcvs.cgi/branches/SAMBA_4_0/source/librpc/idl/.
 -- I'm not a lawyer, but I don't expect that this is a breach of Samba's copyright -- 
 -- if it is, please talk to me and I'll make arrangements to re-license this or to 
 -- remove references to Samba. 
@@ -293,7 +294,7 @@ end
 --        useful one being 'arguments', which are the values returned by the server. If the packet is fragmented, the fragments
 --        will be reassembled and 'arguments' will represent all the arguments; however, the rest of the result table will represent
 --        the most recent fragment. 
-local function call_function(smbstate, opnum, arguments)
+function call_function(smbstate, opnum, arguments)
 	local i
 	local status, result
 	local parameters, data
@@ -1600,7 +1601,7 @@ function samr_getmembersinalias(smbstate, alias_handle)
 	return true, result
 end
 
----Call the <code>LookupRids</code> function, which converts a list of RIDs to 
+-- Call the <code>LookupRids</code> function, which converts a list of RIDs to 
 -- names. 
 --
 --NOTE: This doesn't appear to work (it generates a fault, despite the packet being properly formatted). 
@@ -2621,8 +2622,8 @@ function svcctl_openscmanagerw(smbstate, machinename)
 	arguments = arguments .. msrpctypes.marshall_unicode_ptr(nil, true)
 
 --        [in] uint32 access_mask,
-	arguments = arguments .. msrpctypes.marshall_int32(0x000f003f) 
---	arguments = arguments .. msrpctypes.marshall_int32(0x00000002) 
+--	arguments = arguments .. msrpctypes.marshall_int32(0x000f003f) 
+	arguments = arguments .. msrpctypes.marshall_int32(0x02000000) 
 
 --        [out,ref] policy_handle *handle
 
@@ -3338,6 +3339,11 @@ function samr_enum_groups(host)
 			return false, "Couldn't enumerate groups: " .. enumaliases_result
 		end
 
+		-- If it returned a nil array
+		if(enumaliases_result['sam'] == nil or enumaliases_result['sam']['entries'] == nil) then
+			return false, "ERROR: No groups returned by samr_EnumDomainAliases()"
+		end
+
 		-- Print some output
 		stdnse.print_debug(1, "MSRPC: Found %d groups in %s", #enumaliases_result['sam']['entries'], domain)
 
@@ -3662,6 +3668,237 @@ function get_user_list(host)
 	table.sort(names, function(a,b) return a:lower() < b:lower() end )
 
 	return true, response, names
+end
+
+---Retrieve information about a domain. This is done by three seperate calls to samr_querydomaininfo2() to get all
+-- possible information. smbstate has to be in the proper state for this to work. 
+local function get_domain_info(host, domain)
+	local result = {}
+	local status, smbstate, bind_result, connect4_result, lookupdomain_result, opendomain_result, enumdomainusers_result
+
+	-- Create the SMB session
+	status, smbstate  = msrpc.start_smb(host, msrpc.SAMR_PATH)
+	if(status == false) then
+		return false, smbstate
+	end
+
+	-- Bind to SAMR service
+	status, bind_result = msrpc.bind(smbstate, msrpc.SAMR_UUID, msrpc.SAMR_VERSION, nil)
+	if(status == false) then
+		msrpc.stop_smb(smbstate)
+		return false, bind_result
+	end
+
+	-- Call connect4()
+	status, connect4_result = msrpc.samr_connect4(smbstate, host.ip)
+	if(status == false) then
+		msrpc.stop_smb(smbstate)
+		return false, connect4_result
+	end
+
+	-- Call LookupDomain()
+	status, lookupdomain_result = msrpc.samr_lookupdomain(smbstate, connect4_result['connect_handle'], domain)
+	if(status == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+		return false, "Couldn't look up the domain: " .. lookupdomain_result
+	end
+
+	-- Call OpenDomain()
+	status, opendomain_result = msrpc.samr_opendomain(smbstate, connect4_result['connect_handle'], lookupdomain_result['sid'])
+	if(status == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+		return false, opendomain_result
+	end
+
+	-- Call QueryDomainInfo2() to get domain properties. We call these for three types -- 1, 8, and 12, since those return
+	-- the most useful information. 
+	local status_1,  querydomaininfo2_result_1  = msrpc.samr_querydomaininfo2(smbstate, opendomain_result['domain_handle'], 1)
+	local status_8,  querydomaininfo2_result_8  = msrpc.samr_querydomaininfo2(smbstate, opendomain_result['domain_handle'], 8)
+	local status_12, querydomaininfo2_result_12 = msrpc.samr_querydomaininfo2(smbstate, opendomain_result['domain_handle'], 12)
+
+	if(status_1 == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+		return false, querydomaininfo2_result_1
+	end
+
+	if(status_8 == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+		return false, querydomaininfo2_result_8
+	end
+
+	if(status_12 == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+		return false, querydomaininfo2_result_12
+	end
+
+	-- Call EnumDomainUsers() to get users
+	status, enumdomainusers_result = msrpc.samr_enumdomainusers(smbstate, opendomain_result['domain_handle'])
+	if(status == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+		return false, enumdomainusers_result
+	end
+
+	-- Call EnumDomainAliases() to get groups
+	local status, enumdomaingroups_result = msrpc.samr_enumdomainaliases(smbstate, opendomain_result['domain_handle'])
+	if(status == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+		return false, enumdomaingroups_result
+	end
+
+	-- Close the domain handle
+	msrpc.samr_close(smbstate, opendomain_result['domain_handle'])
+	-- Close the smb session
+	msrpc.stop_smb(smbstate)
+
+	-- Create a list of groups
+	local groups = {}
+	if(enumdomaingroups_result['sam'] ~= nil and enumdomaingroups_result['sam']['entries'] ~= nil) then
+		for _, group in ipairs(enumdomaingroups_result['sam']['entries']) do
+			table.insert(groups, group.name)
+		end
+	end
+
+	-- Create the list of users
+	local names = {}
+	if(enumdomainusers_result['sam'] ~= nil and enumdomainusers_result['sam']['entries'] ~= nil) then
+		for _, name in ipairs(enumdomainusers_result['sam']['entries']) do
+			table.insert(names, name.name)
+		end
+	end
+
+	-- Our output table
+	local response = {}
+
+	-- Finally, start filling in the response!
+	response['name'] = domain
+	response['sid']  = lookupdomain_result['sid']
+	response['groups'] = groups
+	response['users'] = names
+	if(querydomaininfo2_result_8['info']['domain_create_time'] ~= 0) then
+		response['created'] = os.date("%Y-%m-%d %H:%M:%S", querydomaininfo2_result_8['info']['domain_create_time'])
+	else
+		response['created'] = "unknown"
+	end
+
+	-- Password characteristics
+	response['min_password_length'] = querydomaininfo2_result_1['info']['min_password_length']
+	response['max_password_age']    = querydomaininfo2_result_1['info']['max_password_age'] / 60 / 60 / 24
+	response['min_password_age']    = querydomaininfo2_result_1['info']['min_password_age'] / 60 / 60 / 24
+	response['password_history']    = querydomaininfo2_result_1['info']['password_history_length']
+	response['lockout_duration']    = querydomaininfo2_result_12['info']['lockout_duration'] / 60
+	response['lockout_threshold']   = querydomaininfo2_result_12['info']['lockout_threshold']
+	response['lockout_window']      = querydomaininfo2_result_12['info']['lockout_window'] / 60
+
+	-- Sanity check the different values, and remove them if they don't appear to be set
+	if(response['min_password_length'] <= 0) then
+		response['min_password_length'] = nil
+	end
+
+	if(response['max_password_age'] < 0 or response['max_password_age'] > 5000) then
+		response['max_password_age'] = nil
+	end
+
+	if(response['min_password_age'] <= 0) then
+		response['min_password_age'] = nil
+	end
+
+	if(response['password_history'] <= 0) then
+		response['password_history'] = nil
+	end
+
+	if(response['lockout_duration'] <= 0) then
+		response['lockout_duration'] = nil
+	end
+
+	if(response['lockout_threshold'] <= 0) then
+		response['lockout_threshold'] = nil
+	end
+
+	if(response['lockout_window'] <= 0) then
+		response['lockout_window'] = nil
+	end
+
+	local password_properties = querydomaininfo2_result_1['info']['password_properties']
+	
+	if(#password_properties > 0) then
+		local password_properties_response = {}
+		password_properties_response['name'] = "Password properties:"
+		for j = 1, #password_properties, 1 do
+			table.insert(password_properties_response, msrpc.samr_PasswordProperties_tostr(password_properties[j]))
+		end
+
+		response['password_properties'] = password_properties_response
+	end
+
+	return true, response
+end
+
+function get_domains(host)
+	local result = {}
+	local status, smbstate, bind_result, connect4_result, enumdomains_result
+	local i, j
+
+	-- Create the SMB session
+	status, smbstate  = msrpc.start_smb(host, msrpc.SAMR_PATH)
+	if(status == false) then
+		return false, smbstate
+	end
+
+	-- Bind to SAMR service
+	status, bind_result = msrpc.bind(smbstate, msrpc.SAMR_UUID, msrpc.SAMR_VERSION, nil)
+	if(status == false) then
+		msrpc.stop_smb(smbstate)
+		return false, bind_result
+	end
+
+	-- Call connect4()
+	status, connect4_result = msrpc.samr_connect4(smbstate, host.ip)
+	if(status == false) then
+		msrpc.stop_smb(smbstate)
+		return false, connect4_result
+	end
+
+	-- Call EnumDomains()
+	status, enumdomains_result = msrpc.samr_enumdomains(smbstate, connect4_result['connect_handle'])
+	if(status == false) then
+		msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+		msrpc.stop_smb(smbstate)
+
+		return false, enumdomains_result
+	end
+
+	-- Close the connect handle
+	msrpc.samr_close(smbstate, connect4_result['connect_handle'])
+
+	-- Close the SMB session
+	msrpc.stop_smb(smbstate)
+
+	-- If no domains were returned, return an error (not sure that this can ever happen, but who knows?)
+	if(#enumdomains_result['sam']['entries'] == 0) then
+		return false, "No domains could be found"
+	end
+
+	local response = {}
+	for i = 1, #enumdomains_result['sam']['entries'], 1 do
+		local domain = enumdomains_result['sam']['entries'][i]['name']
+		local status, domain_info = get_domain_info(host, domain)
+
+		if(not(status)) then
+			return false, "Couldn't get info for the domain: " .. domain_info
+		else
+			response[domain] = domain_info
+		end
+
+	end
+
+	return true, response
 end
 
 ---Create a "service" on a remote machine. This service is linked to an executable that is already
@@ -4116,4 +4353,321 @@ function get_share_info(host, name)
 	return true, netsharegetinfo_result
 end
 
+--####################################################################--
+--#		1) RRAS RASRPC INTERFACE
+--####################################################################--
+ROUTER_PATH = "\\router" --also can be reached across "\\srvsvc" pipe in WinXP
+RASRPC_UUID = string.char(0x36, 0x00, 0x61, 0x20, 0x22, 0xfa, 0xcf, 0x11, 0x98, 0x23, 0x00, 0xa0, 0xc9, 0x11, 0xe5, 0xdf)
+RASRPC_VERSION = 1
 
+--####################################################################--
+--#		2) RRAS RASRPC TYPES
+--####################################################################--
+
+--####################################################################--
+--typedef enum _ReqTypes{
+--	REQTYPE_PORTENUM = 21,//Request to enumerate all the port information on the RRAS.
+--	REQTYPE_GETINFO = 22,//Request to get information about a specific port on the RRAS.
+--	REQTYPE_GETDEVCONFIG = 73,//Request to get device information on the RRAS.
+--	REQTYPE_SETDEVICECONFIGINFO = 94,//Request to set device configuration information on RRAS.
+--	REQTYPE_GETDEVICECONFIGINFO = 95,//Request to get device configuration information on RRAS.
+--	REQTYPE_GETCALLEDID = 105,//Request to get CalledId information for a specific device on RRAS.
+--	REQTYPE_SETCALLEDID = 106,//Request to set CalledId information for a specific device on RRAS.
+--	REQTYPE_GETNDISWANDRIVERCAPS = 111//Request to get the encryption capabilities of the RRAS.
+--} ReqTypes;
+--- The <code>ReqTypes</code> enumerations indicate the different types of message requests that can be passed in
+--the <code>RB_ReqType</code> field of <code>RequestBuffer</code> structure.
+-- * [MS-RRASM] <code>2.2.1.1.18 ReqTypes</code>
+--####################################################################--
+RRAS_RegTypes = {}
+RRAS_RegTypes['PORTENUM'] = 21
+RRAS_RegTypes['GETINFO'] = 22
+RRAS_RegTypes['GETDEVCONFIG'] = 73 --this method is vulnerable to ms06-025
+RRAS_RegTypes['SETDEVICECONFIGINFO'] = 94
+RRAS_RegTypes['GETDEVICECONFIGINFO'] = 95
+RRAS_RegTypes['GETCALLEDID'] = 105
+RRAS_RegTypes['SETCALLEDID'] = 106
+RRAS_RegTypes['GETNDISWANDRIVERCAPS'] = 111
+
+--####################################################################--
+--typedef struct _RequestBuffer {
+--	DWORD       RB_PCBIndex;//A unique identifier for the port.
+--	ReqTypes    RB_Reqtype;//A ReqTypes enumeration value indicating the request type sent to the server.
+--	DWORD       RB_Dummy;//MUST be set to the size of the ULONG_PTR on the client.
+--	DWORD       RB_Done;//MBZ
+--	LONGLONG    Alignment;//MBZ
+--	BYTE        RB_Buffer[1];//variable size
+--} RequestBuffer;
+--- The <code>RequestBuffer</code> is a generic information container used by the <code>RasRpcSubmitRequest</code>
+--method to set or retrieve information on RRAS server. This method performs
+--serialization of <code>RequestBuffer</code> structure.
+-- Note: This structure is not an IDL specification and as such is not translated into NDR.
+-- @return Returns a blob of <code>RequestBuffer</code> structure.
+-- * [MS-RRASM] <code>2.2.1.2.218 RequestBuffer</code>
+--####################################################################--
+function RRAS_marshall_RequestBuffer(RB_PCBIndex, RB_ReqType, RB_Buffer)
+	local rb_blob, RB_Dummy, RB_Done, Alignment
+	RB_Dummy = 4
+	RB_Done = 0
+	Alignment = 0
+	rb_blob = bin.pack("<IIIILA",
+		RB_PCBIndex,
+		RB_ReqType,
+		RB_Dummy,
+		RB_Done,
+		Alignment,
+		RB_Buffer)
+	return rb_blob
+end
+
+--####################################################################--
+--#		3) RRAS RASRPC OPERATIONS
+--####################################################################--
+local RRAS_DEBUG_LVL = 2 --debug level for rras operations when calling stdnse.print_debug
+
+--####################################################################--
+--- RRAS operation numbers.
+-- * [MS-RRASM] <code>3.3.4 Message Processing Events and Sequencing Rules</code>
+--####################################################################--
+RRAS_Opnums = {}
+RRAS_Opnums["RasRpcDeleteEntry"] = 5
+RRAS_Opnums["RasRpcGetUserPreferences"] = 9
+RRAS_Opnums["RasRpcSetUserPreferences"] = 10
+RRAS_Opnums["RasRpcGetSystemDirectory"] = 11
+RRAS_Opnums["RasRpcSubmitRequest"] = 12
+RRAS_Opnums["RasRpcGetInstalledProtocolsEx"] = 14
+RRAS_Opnums["RasRpcGetVersion"] = 15
+
+--####################################################################--
+--DWORD RasRpcSubmitRequest(
+--	[in] handle_t hServer,//An RPC binding handle. (not send)
+--	[in, out, unique, size_is(dwcbBufSize)] PBYTE pReqBuffer,//A pointer to a buffer of size dwcbBufSize.
+--	[in] DWORD dwcbBufSize//Size in byte of pReqBuffer.
+--);
+---The RasRpcSubmitRequest method retrieves or sets the configuration data on RRAS server.
+-- @param smbstate The smb object.
+-- @param pReqBuffer The buffer MUST be large enough to hold the <code>RequestBuffer</code>
+--structure and <code>RequestBuffer.RB_Buffer</code> data. <code>RequestBuffer.RB_Reqtype</code>
+--specifies the request type which will be processed by the server and
+--<code>RequestBuffer.RB_Buffer</code> specifies the structure specific to <code>RB_Reqtype</code>
+--to be processed. <code>RequestBuffer.RB_PCBIndex<code> MUST be set to the unique port identifier
+--whose information is sought for <code>ReqTypes REQTYPE_GETINFO</code> and <code>REQTYPE_GETDEVCONFIG</code>.
+--For other valid <code>ReqTypes</code>, <code>RequestBuffer.RB_PCBIndex</code> MUST be set to zero.
+-- @param dwcbBufSize Integer representing the size of <code>pRegBuffer</code> in bytes.
+-- @return (status, result)
+--* <code>status == true</code> -> <code>result</code> is a blob that represent a <code>pRegBuffer</code> .
+--* <code>status == false</code> -> <code>result</code> is a error message that caused the fuzz.
+-- * [MS-RRASM] <code>3.3.4.5 RasRpcSubmitRequest (Opnum 12)</code>
+--####################################################################--
+function RRAS_SubmitRequest(smbstate, pReqBuffer, dwcbBufSize)
+	--sanity check
+	if(dwcbBufSize == nil) then
+		dwcbBufSize = string.len(pReqBuffer)
+	end
+	--pack the request
+	local req_blob
+	--[in, out, unique, size_is(dwcbBufSize) PBYTE pReqBuffer,
+	req_blob = bin.pack("<IIAA", 0x20000, dwcbBufSize, pReqBuffer, get_pad(pReqBuffer,4)) --unique pointer see samba:ndr_push_unique_ptr
+	--[in] DWORD dwcbBufSize
+	req_blob = req_blob .. msrpctypes.marshall_int32(dwcbBufSize)
+	--call the function
+	local status, result
+	stdnse.print_debug(
+		RRAS_DEBUG_LVL,
+		"RRAS_SubmitRequest: Calling...")
+	status, result = call_function(
+		smbstate,
+		RRAS_Opnums["RasRpcSubmitRequest"],
+		req_blob)
+	--sanity check
+	if(status == false) then
+		stdnse.print_debug(
+			RRAS_DEBUG_LVL,
+			"RRAS_SubmitRequest: Call function failed: %s",
+			result)
+		return false, result
+	end
+	stdnse.print_debug(
+		RRAS_DEBUG_LVL,
+		"RRAS_SubmitRequest: Returned successfully")
+	--dissect the reply
+	local rep_blob
+	rep_blob = result
+	return true, rep_blob
+end
+
+--####################################################################--
+--#		1) DNS SERVER MANAGEMENT SERVICE INTERFACE
+--####################################################################--
+DNSSERVER_UUID_STR = "50abc2a4-574d-40b3-9d66-ee4fd5fba076"
+DNSSERVER_UUID = string.char(0xa4, 0xc2,0xab, 0x50, 0x4d, 0x57, 0xb3, 0x40, 0x9d, 0x66, 0xee, 0x4f, 0xd5, 0xfb, 0xa0, 0x76)
+DNSSERVER_PATH = "\\DNSSERVER"
+DNSSERVER_VERSION = 5
+
+--####################################################################--
+--#		2) DNS SERVER MANAGEMENT SERVICE TYPES
+--####################################################################--
+---The list of names that are used in (name, value) pairs in DNS Server
+--Configuration information is given below.
+-- * [MS-DNSP] <code>3.1.1.1 DNS Server Configuration Information</code>
+DNSSERVER_ConfInfo =
+	{
+	DNSSERVER_IntProp = {},
+	DNSSERVER_AddrArrProp = {},
+	DNSSERVER_StrProp = {},
+	DNSSERVER_StrLstProp = {}
+	}
+
+--####################################################################--
+--#		3) DNS SERVER MANAGEMENT SERVICE OPERATIONS
+--####################################################################--
+local DNSSERVER_DEBUG_LVL = 2 --debug level for dnsserver operations when calling stdnse.print_debug
+
+--####################################################################--
+--- DNSSERVER operation numbers.
+-- * [MS-DNSP] <code>3.1.4 Message Processing Events and Sequencing Rules</code>
+--####################################################################--
+DNSSERVER_Opnums = {}
+DNSSERVER_Opnums['R_DnssrvOperation'] = 0
+DNSSERVER_Opnums['R_DnssrvQuery'] = 1
+DNSSERVER_Opnums['R_DnssrvComplexOperation'] = 2
+DNSSERVER_Opnums['R_DnssrvEnumRecords'] = 3
+DNSSERVER_Opnums['R_DnssrvUpdateRecord'] = 4
+DNSSERVER_Opnums['R_DnssrvOperation2'] = 5
+DNSSERVER_Opnums['R_DnssrvQuery2'] = 6
+DNSSERVER_Opnums['R_DnssrvComplexOperation2'] = 7
+DNSSERVER_Opnums['R_DnssrvEnumRecords2'] = 8
+DNSSERVER_Opnums['R_DnssrvUpdateRecord2'] = 9
+
+--####################################################################--
+--[[
+LONG R_DnssrvQuery(
+  [in, unique, string] LPCWSTR pwszServerName,
+  [in, unique, string] LPCSTR pszZone,
+  [in, unique, string] LPCSTR pszOperation,
+  [out] PDWORD pdwTypeId,
+  [out, switch_is(*pdwTypeId)] DNSSRV_RPC_UNION* ppData);
+--]]
+---Issues type specific information queries to server. This method is
+--obsoleted by R_DnssrvQuery2.
+-- @param smbstate The smb object.
+-- @param server_name String that designates a fully qualified domain
+--name of the target server. The server MUST ignore this value.
+-- @param zone String that designates the name of the zone to be queried.
+--For operations specific to a particular zone, this field MUST contain
+--the name of the zone. For all other operations, this field MUST be nil.
+-- @param operation String that designates the name of the operation to
+--be performed on the server. These are two sets of allowed values for
+--pszOperation:
+--* <code>zone == nil</code> -> see DNSSERVER_ConfInfo table.
+--* <code>zone == "some_zone"</code> -> see DNSSERVER_ZoneInfo table.
+-- @return (status, result)
+--* <code>status == true</code> ->
+--that indicates the type of <code>result['data']</code>.
+--** <code>result['data']</code> - A DNSSRV_RPC_UNION blob that contains a
+--** <code>result['type_id']</code> - Integer that on success contains a value of type DNS_RPC_TYPEID
+--data-structure as indicated by <code>result['type_id']</code>.
+--* <code>status == false</code> ->
+--** <code>result</code> - Is a error message that caused the fuzz.
+-- * [MS-DNSP] <code>3.1.4.2 R_DnssrvQuery (Opnum 1)</code>
+--####################################################################--
+function DNSSERVER_Query(smbstate, server_name, zone, operation)
+	local status
+	--call
+	local req_blob, srv_name_utf16, zone_ascii, operation_ascii
+	--[in, unique, string] LPCWSTR pwszServerName,
+	local unique_ptr
+  	unique_ptr = 0x00020000
+	srv_name_utf16 = msrpctypes.string_to_unicode(server_name, true)
+	req_blob = bin.pack("<IIIIAA",
+		unique_ptr,
+		string.len(srv_name_utf16)/2,
+		0,
+		string.len(srv_name_utf16)/2,
+		srv_name_utf16,
+		get_pad(srv_name_utf16, 4))
+	--[in, unique, string] LPCSTR pszZone,
+  	if(zone == nil) then
+		req_blob = bin.pack("<I", 0x00000000)
+	else
+		zone_ascii = zone .. string.char(0x00)
+		req_blob = req_blob .. bin.pack("<IIIIAA",
+			unique_ptr + 1,
+			string.len(zone_ascii),
+			0,
+			string.len(zone_ascii),
+			zone_ascii,
+			get_pad(zone_ascii, 4))
+	end
+	--[in, unique, string] LPCSTR pszOperation,
+  	operation_ascii = operation .. string.char(0x00)
+	req_blob = req_blob .. bin.pack("<IIIIAA",
+		unique_ptr+2,
+		string.len(operation_ascii),
+		0,
+		string.len(operation_ascii),
+		operation_ascii,
+		get_pad(operation_ascii, 4))
+
+	local call_result
+	stdnse.print_debug(
+		DNSSERVER_DEBUG_LVL,
+		"DNSSERVER_Query: Calling...")
+	status, call_result = call_function(
+		smbstate,
+		DNSSERVER_Opnums['R_DnssrvQuery'],
+		req_blob)
+	--sanity check
+	if(status == false) then
+		stdnse.print_debug(
+			DNSSERVER_DEBUG_LVL,
+			"DNSSERVER_Query: Call function failed: %s",
+			call_result)
+		return false, call_result
+	end
+	stdnse.print_debug(
+		DNSSERVER_DEBUG_LVL,
+		"DNSSERVER_Query: Returned successfully")
+	--dissect the reply
+	local rep_blob, pos, ptr, result
+	rep_blob = call_result['arguments']
+	--[out] PDWORD pdwTypeId,
+	result = {}
+	pos, result['type_id'] = msrpctypes.unmarshall_int32_ptr(rep_blob)
+	--[out, switch_is(*pdwTypeId)] DNSSRV_RPC_UNION* ppData) -- pointer_default(unique)
+	pos, ptr, result['data']= bin.unpack("<IA", rep_blob, pos)
+	return result
+end
+
+--####################################################################--
+--#		UTILITY
+--###################################################################--
+
+--####################################################################--
+---Makes a pad for alignment
+-- @param data Data which needs to be padded for the sake of alignment.
+-- @param align Integer representing the alignment boundary.
+-- @param pad_byte The value for pad byte. 
+-- @return Returns the amount of pad calculated by <code>(align-datalen%align)%align</code>.
+--####################################################################--
+function get_pad(data, align, pad_byte)
+	pad_byte = pad_byte or "\00"
+	return string.rep(pad_byte, (align-string.len(data)%align)%align)
+end
+
+--####################################################################--
+---Generates a random string of the requested length.
+--@param length The length of the string to return.
+--@param charset    The set of letters to choose from. Default: ASCII letters and numbers
+--@return The random string. 
+--####################################################################--
+function random_crap(length, charset)
+	charset = charset or "0123456789abcdefghijklmnoprstuvzxwyABCDEFGHIJKLMNOPRSTUVZXWY"
+	local random_str = ""
+	for i = 1, length, 1 do
+                local random = math.random(#charset)
+                random_str = random_str .. string.sub(charset, random, random)
+        end
+	return random_str
+end
+	

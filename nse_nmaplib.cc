@@ -2,6 +2,7 @@
 extern "C" {
   #include "lua.h"
   #include "lauxlib.h"
+  #include "lualib.h"
 }
 
 #include <math.h>
@@ -10,124 +11,74 @@ extern "C" {
 #include "nmap_error.h"
 #include "NmapOps.h"
 #include "Target.h"
+#include "TargetGroup.h"
 #include "portlist.h"
+#include "service_scan.h"
 #include "nmap_rpc.h"
 #include "nmap_dns.h"
 #include "osscan.h"
 #include "protocols.h"
 
-/* #include "output.h"  UNNECESSARY?? */
-
 #include "nse_nmaplib.h"
+#include "nse_utility.h"
 #include "nse_nsock.h"
-
-#define SCRIPT_ENGINE_PUSHSTRING_NOTNULL(c_str, str) if(c_str != NULL) {\
-  lua_pushstring(L, c_str); \
-  lua_setfield(L, -2, str); \
-}
+#include "nse_dnet.h"
 
 extern NmapOps o;
 
-void set_version(lua_State *L, const struct serviceDeductions *sd) {
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->name, "name");
+static const char *NSE_PROTOCOL_OP[] = {"tcp", "udp", "sctp", NULL};
+static const int NSE_PROTOCOL[] = {IPPROTO_TCP, IPPROTO_UDP, IPPROTO_SCTP};
 
-  lua_pushnumber(L, sd->name_confidence);
-  lua_setfield(L, -2, "name_confidence");
-
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->product, "product");
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->version, "version");
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->extrainfo, "extrainfo");
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->hostname, "hostname");
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->ostype, "ostype");
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->devicetype, "devicetype");
-
-  switch(sd->service_tunnel) {
-    case(SERVICE_TUNNEL_NONE):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("none", "service_tunnel");
-      break;
-    case(SERVICE_TUNNEL_SSL):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("ssl", "service_tunnel");
-      break;
-    default:
-      fatal("%s: In: %s:%i This should never happen.",
-        SCRIPT_ENGINE, __FILE__, __LINE__);
-      break;
-  }
-
-  SCRIPT_ENGINE_PUSHSTRING_NOTNULL(sd->service_fp, "service_fp");
-
-  switch(sd->dtype) {
-    case(SERVICE_DETECTION_TABLE):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("table", "service_fp");
-      break;
-    case(SERVICE_DETECTION_PROBED):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("probed", "service_fp");
-      break;
-    default:
-      fatal("%s: In: %s:%i This should never happen.",
-        SCRIPT_ENGINE, __FILE__, __LINE__);
-      break;
-  }
-
-  switch(sd->rpc_status) {
-    case(RPC_STATUS_UNTESTED):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("untested", "rpc_status");
-      break;
-    case(RPC_STATUS_UNKNOWN):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("unknown", "rpc_status");
-      break;
-    case(RPC_STATUS_GOOD_PROG):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("good_prog", "rpc_status");
-      break;
-    case(RPC_STATUS_NOT_RPC):
-      SCRIPT_ENGINE_PUSHSTRING_NOTNULL("not_rpc", "rpc_status");
-      break;
-    default:
-      fatal("%s: In: %s:%i This should never happen.",
-        SCRIPT_ENGINE, __FILE__, __LINE__);
-      break;
-  }
-
-  if(sd->rpc_status == RPC_STATUS_GOOD_PROG) {
-    lua_pushnumber(L, sd->rpc_program);
-    lua_setfield(L, -2, "rpc_program");
-
-    lua_pushnumber(L, sd->rpc_lowver);
-    lua_setfield(L, -2, "rpc_lowver");
-
-    lua_pushnumber(L, sd->rpc_highver);
-    lua_setfield(L, -2, "rpc_highver");
+void set_version (lua_State *L, const struct serviceDeductions *sd)
+{
+  setsfield(L, -1, "name", sd->name);
+  setnfield(L, -1, "name_confidence", sd->name_confidence);
+  setsfield(L, -1, "product", sd->product);
+  setsfield(L, -1, "version", sd->version);
+  setsfield(L, -1, "extrainfo", sd->extrainfo);
+  setsfield(L, -1, "hostname", sd->hostname);
+  setsfield(L, -1, "ostype", sd->ostype);
+  setsfield(L, -1, "devicetype", sd->devicetype);
+  setsfield(L, -1, "service_tunnel",
+      sd->service_tunnel == SERVICE_TUNNEL_NONE ? "none" :
+      sd->service_tunnel == SERVICE_TUNNEL_SSL ? "ssl" :
+      NULL);
+  setsfield(L, -1, "service_fp", sd->service_fp);
+  setsfield(L, -1, "service_dtype",
+      sd->dtype == SERVICE_DETECTION_TABLE ? "table" :
+      sd->dtype == SERVICE_DETECTION_PROBED ? "probed" :
+      NULL);
+  setsfield(L, -1, "rpc_status",
+      sd->rpc_status == RPC_STATUS_UNTESTED ? "untested" :
+      sd->rpc_status == RPC_STATUS_UNKNOWN ? "unknown" :
+      sd->rpc_status == RPC_STATUS_GOOD_PROG ? "good_prog" :
+      sd->rpc_status == RPC_STATUS_NOT_RPC ? "not_rpc" :
+      NULL);
+  if (sd->rpc_status == RPC_STATUS_GOOD_PROG)
+  {
+    setnfield(L, -1, "rpc_program", sd->rpc_program);
+    setnfield(L, -1, "rpc_lowver", sd->rpc_lowver);
+    setnfield(L, -1, "rpc_highver", sd->rpc_highver);
   }
 }
 
 /* set some port state information onto the
  * table which is currently on the stack
  * */
-void set_portinfo(lua_State *L, const Target *target, const Port *port) {
+void set_portinfo (lua_State *L, const Target *target, const Port *port)
+{
   struct serviceDeductions sd;
 
   target->ports.getServiceDeductions(port->portno, port->proto, &sd);
 
-  lua_pushnumber(L, (double) port->portno);
-  lua_setfield(L, -2, "number");
-
-  if (sd.name != NULL) {
-    lua_pushstring(L, sd.name);
-    lua_setfield(L, -2, "service");
-  }
-
+  setnfield(L, -1, "number", port->portno);
+  setsfield(L, -1, "service", sd.name);
+  setsfield(L, -1, "protocol", IPPROTO2STR(port->proto));
+  setsfield(L, -1, "state", statenum2str(port->state));
+  setsfield(L, -1, "reason", reason_str(port->reason.reason_id, 1));
   lua_newtable(L);
   set_version(L, &sd);
   lua_setfield(L, -2, "version");
-
-  lua_pushstring(L, IPPROTO2STR(port->proto));
-  lua_setfield(L, -2, "protocol");
-
-  lua_pushstring(L, statenum2str(port->state));
-  lua_setfield(L, -2, "state");
-
-  lua_pushstring(L, reason_str(port->reason.reason_id, 1));
-  lua_setfield(L, -2, "reason");
 }
 
 /* set host ip, host name and target name onto the
@@ -140,63 +91,84 @@ void set_portinfo(lua_State *L, const Target *target, const Port *port) {
  * points to nil!
  * */
 void set_hostinfo(lua_State *L, Target *currenths) {
-  unsigned int i;
-
-  lua_pushstring(L, currenths->targetipstr());
-  lua_setfield(L, -2, "ip");
-
-  lua_pushstring(L, currenths->HostName());
-  lua_setfield(L, -2, "name");
-
-  if ( currenths->TargetName() ) { // else nil
-    lua_pushstring(L, currenths->TargetName());
-    lua_setfield(L, -2, "targetname");
-  }
-
-  if(currenths->directlyConnectedOrUnset() != -1){
-    lua_pushboolean(L, currenths->directlyConnected());
-    lua_setfield(L, -2, "directly_connected");
-  }
-
-  if(currenths->MACAddress()){  // else nil
-    lua_pushlstring (L, (const char*)currenths->MACAddress() , 6);
+  setsfield(L, -1, "ip", currenths->targetipstr());
+  setsfield(L, -1, "name", currenths->HostName());
+  setsfield(L, -1, "targetname", currenths->TargetName());
+  if (currenths->directlyConnectedOrUnset() != -1)
+    setbfield(L, -1, "directly_connected", currenths->directlyConnected());
+  if (currenths->MACAddress())
+  {
+    lua_pushlstring(L, (const char *) currenths->MACAddress() , 6);
     lua_setfield(L, -2, "mac_addr");
   }
-  if(currenths->SrcMACAddress()){ // else nil
-    lua_pushlstring(L, (const char*)currenths->SrcMACAddress(), 6);
+  if (currenths->NextHopMACAddress())
+  {
+    lua_pushlstring(L, (const char *) currenths->NextHopMACAddress() , 6);
+    lua_setfield(L, -2, "mac_addr_next_hop");
+  }
+  if (currenths->SrcMACAddress())
+  {
+    lua_pushlstring(L, (const char *) currenths->SrcMACAddress(), 6);
     lua_setfield(L, -2, "mac_addr_src");
   }
-  if(currenths->deviceName()){
-    lua_pushstring(L, currenths->deviceName());
-    lua_setfield(L, -2, "interface");
-  }
-  if( (u32)(currenths->v4host().s_addr) ){
-    struct in_addr  adr = currenths->v4host();
-    lua_pushlstring(L, (char*)&adr, 4);
+  setsfield(L, -1, "interface", currenths->deviceName());
+  setnfield(L, -1, "interface_mtu", currenths->MTU());
+  if ((u32)(currenths->v4host().s_addr))
+  {
+    struct in_addr adr = currenths->v4host();
+    lua_pushlstring(L, (const char *) &adr, 4);
     lua_setfield(L, -2, "bin_ip");
   }
-  if( (u32)(currenths->v4source().s_addr) ){
-    struct in_addr  adr = currenths->v4source();
-    lua_pushlstring(L, (char*)&adr, 4);
+  if ((u32)(currenths->v4source().s_addr))
+  {
+    struct in_addr adr = currenths->v4source();
+    lua_pushlstring(L, (const char *) &adr, 4);
     lua_setfield(L, -2, "bin_ip_src");
   }
 
-  FingerPrintResults *FPR = NULL;
+  lua_newtable(L);
+  setnfield(L, -1, "srtt", (lua_Number) currenths->to.srtt / 1000000.0);
+  setnfield(L, -1, "rttvar", (lua_Number) currenths->to.rttvar / 1000000.0);
+  setnfield(L, -1, "timeout", (lua_Number) currenths->to.timeout / 1000000.0);
+  lua_setfield(L, -2, "times");
 
-  FPR = currenths->FPR;
+  /* add distance (in hops) if traceroute has been performed */
+  if (currenths->traceroute_hops.size() > 0)
+  {
+    std::list<TracerouteHop>::iterator it;
+
+    lua_newtable(L);
+    for (it = currenths->traceroute_hops.begin(); it != currenths->traceroute_hops.end(); it++)
+    {
+      lua_newtable(L);
+      /* fill the table if the hop has not timed out, otherwise an empty table
+       * is inserted */
+      if (!it->timedout) {
+        setsfield(L, -1, "ip", inet_ntop_ez(&it->addr, sizeof(it->addr)));
+        if (!it->name.empty())
+          setsfield(L, -1, "name", it->name.c_str());
+        lua_newtable(L);
+        setnfield(L, -1, "srtt", it->rtt / 1000.0);
+        lua_setfield(L, -2, "times");
+      }
+      lua_rawseti(L, -2, lua_objlen(L, -2)+1);
+    }
+    lua_setfield(L, -2, "traceroute");
+  }
+
+  FingerPrintResults *FPR = currenths->FPR;
 
   /* if there has been an os scan which returned a pretty certain
    * result, we will use it in the scripts
    * matches which aren't perfect are not needed in the scripts
    */
-  if(currenths->osscanPerformed() &&
-    FPR != NULL &&
-    FPR->overall_results == OSSCAN_SUCCESS &&
-    FPR->num_perfect_matches > 0 &&
-    FPR->num_perfect_matches <= 8 ) {
+  if (currenths->osscanPerformed() && FPR != NULL &&
+      FPR->overall_results == OSSCAN_SUCCESS && FPR->num_perfect_matches > 0 &&
+      FPR->num_perfect_matches <= 8 )
+  {
+    int i;
 
     lua_newtable(L);
-
     // this will run at least one time and at most 8 times, see if condition
     for(i = 0; FPR->accuracy[i] == 1; i++) {
       lua_pushstring(L, FPR->prints[i]->OS_name);
@@ -213,6 +185,15 @@ static int l_clock_ms (lua_State *L)
   /* milliseconds since Epoch */
   lua_pushnumber(L,
     ceil((lua_Number)tv.tv_sec*1000+(lua_Number)tv.tv_usec/1000));
+  return 1;
+}
+
+static int l_clock (lua_State *L)
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  /* floating point seconds since Epoch */
+  lua_pushnumber(L, TIMEVAL_SECS(tv));
   return 1;
 }
 
@@ -241,7 +222,7 @@ static int aux_mutex (lua_State *L)
       }
       lua_pushthread(L);
       lua_rawseti(L, lua_upvalueindex(1), lua_objlen(L, lua_upvalueindex(1))+1);
-      return nse_yield(L);
+      return nse_yield(L, 0, NULL);
     case DONE:
       lua_pushthread(L);
       if (!lua_equal(L, -1, lua_upvalueindex(2)))
@@ -337,7 +318,7 @@ static int aux_condvar (lua_State *L)
     case WAIT:
       lua_pushthread(L);
       lua_rawseti(L, lua_upvalueindex(1), lua_objlen(L, lua_upvalueindex(1))+1);
-      return nse_yield(L);
+      return nse_yield(L, 0, NULL);
     case SIGNAL:
       n = lua_objlen(L, lua_upvalueindex(1));
       break;
@@ -394,54 +375,31 @@ static int l_condvar (lua_State *L)
   return 1; // condition variable closure
 }
 
-Target *get_target (lua_State *L, int index)
+/* Generates an array of port data for the given host and leaves it on
+ * the top of the stack
+ */
+static int l_get_ports (lua_State *L)
 {
-  int top = lua_gettop(L);
-  Target *target;
-  luaL_checktype(L, index, LUA_TTABLE);
-  lua_getfield(L, index, "targetname");
-  lua_getfield(L, index, "ip");
-  if (!(lua_isstring(L, -2) || lua_isstring(L, -1)))
-    luaL_error(L, "host table does not have a 'ip' or 'targetname' field");
-  if (lua_isstring(L, -2)) /* targetname */
-  {
-    nse_gettarget(L, -2); /* use targetname */
-    if (lua_islightuserdata(L, -1))
-      goto done;
-    else
-      lua_pop(L, 1);
-  }
-  if (lua_isstring(L, -1)) /* ip */
-    nse_gettarget(L, -1); /* use ip */
-  if (!lua_islightuserdata(L, -1))
-    luaL_argerror(L, 1, "host is not being processed right now");
-done:
-  target = (Target *) lua_touserdata(L, -1);
-  lua_settop(L, top); /* reset stack */
-  return target;
-}
-
-Port *get_port (lua_State *L, Target *target, Port *port, int index)
-{
+  static const char *state_op[] = {"open", "filtered", "unfiltered", "closed",
+      "open|filtered", "closed|filtered", NULL};
+  static const int states[] = {PORT_OPEN, PORT_FILTERED, PORT_UNFILTERED,
+      PORT_CLOSED, PORT_OPENFILTERED, PORT_CLOSEDFILTERED};
   Port *p = NULL;
-  int portno, protocol;
-  luaL_checktype(L, index, LUA_TTABLE);
-  lua_getfield(L, index, "number");
-  if (!lua_isnumber(L, -1))
-    luaL_error(L, "port 'number' field must be a number");
-  lua_getfield(L, index, "protocol");
-  if (!lua_isstring(L, -1))
-    luaL_error(L, "port 'protocol' field must be a string");
-  portno = (int) lua_tointeger(L, -2);
-  protocol = strcmp(lua_tostring(L, -1), "tcp") == 0 ? IPPROTO_TCP :
-             strcmp(lua_tostring(L, -1), "udp") == 0 ? IPPROTO_UDP :
-             strcmp(lua_tostring(L, -1), "sctp") == 0 ? IPPROTO_SCTP :
-             luaL_error(L, "port 'protocol' field must be \"udp\", \"sctp\" or \"tcp\"");
-  while ((p = target->ports.nextPort(p, port, protocol, PORT_UNKNOWN)) != NULL)
-    if (p->portno == portno)
-      break;
-  lua_pop(L, 2);
-  return p;
+  Port port; /* dummy Port for nextPort */
+  Target *target = get_target(L, 1);
+  int protocol = NSE_PROTOCOL[luaL_checkoption(L, 3, NULL, NSE_PROTOCOL_OP)];
+  int state = states[luaL_checkoption(L, 4, NULL, state_op)];
+
+  if (!lua_isnil(L, 2))
+    p = get_port(L, target, &port, 2);
+
+  if (!(p = target->ports.nextPort(p, &port, protocol, state))) {
+    lua_pushnil(L);
+  } else {
+    lua_newtable(L);
+    set_portinfo(L, target, p);
+  }
+  return 1;
 }
 
 /* this function can be called from lua to obtain the port state
@@ -457,7 +415,8 @@ Port *get_port (lua_State *L, Target *target, Port *port, int index)
 static int l_get_port_state (lua_State *L)
 {
   Target *target;
-  Port port, *p;
+  Port *p;
+  Port port; /* dummy Port */
   target = get_target(L, 1);
   p = get_port(L, target, &port, 2);
   if (p == NULL)
@@ -470,6 +429,19 @@ static int l_get_port_state (lua_State *L)
   return 1;
 }
 
+/* this function must be used by version category scripts or any other
+ * lua code to check if a given port with it's protocol are in the
+ * exclude directive found in the nmap-service-probes file.
+ * */
+static int l_port_is_excluded (lua_State *L)
+{
+  unsigned short portno = (unsigned short) luaL_checkint(L, 1);
+  int protocol = NSE_PROTOCOL[luaL_checkoption(L, 2, NULL, NSE_PROTOCOL_OP)];
+
+  lua_pushboolean(L, AllProbes::check_excluded_port(portno, protocol)); 
+  return 1;
+}
+
 /* unlike set_portinfo() this function sets the port state in nmap.
  * if for example a udp port was seen by the script as open instead of
  * filtered, the script is free to say so.
@@ -479,7 +451,8 @@ static int l_set_port_state (lua_State *L)
   static const int opstate[] = {PORT_OPEN, PORT_CLOSED};
   static const char *op[] = {"open", "closed", NULL};
   Target *target;
-  Port port, *p;
+  Port *p;
+  Port port;
   target = get_target(L, 1);
   if ((p = get_port(L, target, &port, 2)) != NULL)
   {
@@ -518,7 +491,8 @@ static int l_set_port_version (lua_State *L)
     "incomplete"
   };
   Target *target;
-  Port port, *p;
+  Port *p;
+  Port port;
   enum service_tunnel_type tunnel = SERVICE_TUNNEL_NONE;
   enum serviceprobestate probestate =
       opversion[luaL_checkoption(L, 3, "hardmatched", ops)];
@@ -639,6 +613,57 @@ static int l_get_timing_level (lua_State *L)
   return 1;
 }
 
+/* Save new discovered targets.
+ *
+ * This function can take a Vararg expression:
+ *  A vararg expression that represents targets (IPs or Hostnames).
+ *
+ * Returns two values if it receives target arguments:
+ *   The number of targets that were added, or 0 on failures.
+ *   An error message on failures.
+ *
+ * If this function was called without an argument then it
+ * will simply return the number of pending targets that are
+ * in the queue (waiting to be passed to Nmap).
+ * 
+ * If the function was only able to add a one target, then we
+ * consider this success. */
+static int l_add_targets (lua_State *L)
+{
+  int n;
+  unsigned long ntarget = 0;
+
+  if (lua_gettop(L) > 0) {
+    for (n = 1; n <= lua_gettop(L); n++) {
+      if (!NewTargets::insert(luaL_checkstring(L, n)))
+        break;
+      ntarget++;
+    }
+    /* was able to add some targets */
+    if (ntarget) {
+      lua_pushnumber(L, ntarget);
+      return 1;
+    /* errors */
+    } else {
+      lua_pushnumber(L, ntarget);
+      lua_pushstring(L, "failed to add new targets.");
+      return 2;
+    }
+  } else {
+      /* function called without arguments */ 
+      /* push the number of pending targets that are in the queue */
+      lua_pushnumber(L, NewTargets::insert(""));
+      return 1;
+  }
+}
+
+/* Return the number of added targets */
+static int l_get_new_targets_num (lua_State *L)
+{
+  lua_pushnumber(L, NewTargets::get_number());
+  return 1;
+}
+
 // returns a table with DNS servers known to nmap
 static int l_get_dns_servers (lua_State *L)
 {
@@ -654,16 +679,78 @@ static int l_get_dns_servers (lua_State *L)
   return 1;
 }
 
+static int l_is_privileged(lua_State *L)
+{
+  lua_pushboolean(L, o.isr00t);
+  return 1;
+}
+
+/* Takes a host and optional address family and returns a table of
+ * addresses
+ */
+static int l_resolve(lua_State *L)
+{
+  static const char *fam_op[] = { "inet", "inet6", "unspec", NULL };
+  static const int fams[] = { AF_INET, AF_INET6, AF_UNSPEC };
+  struct sockaddr_storage ss;
+  struct addrinfo *addr, *addrs;
+  int i;
+  char *host;
+  int af = fams[luaL_checkoption(L, 2, "unspec", fam_op)];
+
+  if (!lua_isstring(L, 1))
+    luaL_error(L, "Host to resolve must be a string");
+  host = (char *) lua_tostring(L, 1);
+
+  addrs = resolve_all(host, af);
+
+  if (!addrs) {
+    lua_pushboolean(L, false);
+    lua_pushstring(L, "Failed to resolve");
+    return 2;
+  }
+
+  lua_pushboolean(L, true);
+
+  lua_newtable(L);
+
+  for (addr = addrs, i = 1; addr != NULL; addr = addr->ai_next) {
+    if (af != AF_UNSPEC && addr->ai_family != af)
+      continue;
+    if (addr->ai_addrlen > sizeof(ss))
+      continue;
+    memcpy(&ss, addr->ai_addr, addr->ai_addrlen);
+    lua_pushstring(L, inet_socktop(&ss));
+    lua_rawseti(L, -2, i++);
+  }
+
+  freeaddrinfo(addrs);
+
+  return 2;
+}
+
+static int l_address_family(lua_State *L)
+{
+  if (o.af() == AF_INET)
+    lua_pushstring(L, "inet");
+  else
+    lua_pushstring(L, "inet6");
+  return 1;
+}
+
 int luaopen_nmap (lua_State *L)
 {
   static const luaL_reg nmaplib [] = {
     {"get_port_state", l_get_port_state},
+    {"get_ports", l_get_ports},
     {"set_port_state", l_set_port_state},
     {"set_port_version", l_set_port_version},
+    {"port_is_excluded", l_port_is_excluded},
     {"new_socket", l_nsock_new},
     {"new_dnet", l_dnet_new},
     {"get_interface_link", l_dnet_get_interface_link},
     {"clock_ms", l_clock_ms},
+    {"clock", l_clock},
     {"log_write", l_log_write},
     {"new_try", l_new_try},
     {"verbosity", l_get_verbosity},
@@ -671,26 +758,23 @@ int luaopen_nmap (lua_State *L)
     {"have_ssl", l_get_have_ssl},
     {"fetchfile", l_fetchfile},
     {"timing_level", l_get_timing_level},
+    {"add_targets", l_add_targets},
+    {"new_targets_num",l_get_new_targets_num},
     {"get_dns_servers", l_get_dns_servers},
+    {"is_privileged", l_is_privileged},
+    {"resolve", l_resolve},
+    {"address_family", l_address_family},
     {NULL, NULL}
   };
 
   lua_settop(L, 0); // clear stack
   luaL_register(L, "nmap", nmaplib);
 
-  lua_newtable(L);
-  lua_createtable(L, 0, 1);
-  lua_pushliteral(L, "v");
-  lua_setfield(L, -2, "__mode");
-  lua_setmetatable(L, -2); // Allow closures to be collected (see l_mutex)
+  weak_table(L, 0, 0, "v"); /* allow closures to be collected (see l_mutex) */
   lua_pushcclosure(L, l_mutex, 1); /* mutex function */
   lua_setfield(L, -2, "mutex");
 
-  lua_newtable(L);
-  lua_createtable(L, 0, 1);
-  lua_pushliteral(L, "v");
-  lua_setfield(L, -2, "__mode");
-  lua_setmetatable(L, -2); // Allow closures to be collected (see l_condvar)
+  weak_table(L, 0, 0, "v"); /* allow closures to be collected (see l_condvar) */
   lua_pushcclosure(L, l_condvar, 1); // condvar function
   lua_setfield(L, -2, "condvar");
 
@@ -699,6 +783,10 @@ int luaopen_nmap (lua_State *L)
 
   lua_pushcclosure(L, luaopen_nsock, 0);
   lua_pushliteral(L, "nsock");
+  lua_call(L, 1, 0);
+
+  lua_pushcclosure(L, luaopen_dnet, 0);
+  lua_pushliteral(L, "dnet");
   lua_call(L, 1, 0);
 
   lua_settop(L, 1); // just nmap lib on stack

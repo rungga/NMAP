@@ -2,7 +2,7 @@
  * util.h                                                                  *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,18 +85,12 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: util.h 16410 2010-01-06 05:54:55Z david $ */
+/* $Id: util.h 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #ifndef UTIL_H_
 #define UTIL_H_
 
-/* This is a temporary hack, as we'll probably want to do
-   something different for Win32 config */
-#ifdef WIN32
-#define HAVE_OPENSSL 1
-#else
-#include "config.h"
-#endif
+#include "ncat_config.h"
 
 #include "nbase.h"
 #ifndef WIN32
@@ -138,8 +132,6 @@ int strbuf_sprintf(char **buf, size_t *size, size_t *offset, const char *fmt, ..
 
 char *mkstr(const char *start, const char *end);
 
-long parse_long(const char *s, char **tail);
-
 int addr_is_local(const union sockaddr_u *su);
 
 const char *inet_socktop(const union sockaddr_u *su);
@@ -175,6 +167,6 @@ void init_fdlist(fd_list_t *, int);
 int get_maxfd(fd_list_t *);
 struct fdinfo *get_fdinfo(const fd_list_t *, int);
 
-int fix_line_endings(char *src, int *len, char **dst);
+int fix_line_endings(char *src, int *len, char **dst, int *state);
 
 #endif

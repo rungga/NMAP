@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -183,7 +183,7 @@ class Toolbar(gtk.HBox):
     def __create_widgets(self):
         """
         """
-        self.__tooltips = gtk.Tooltips()
+        # self.__tooltips = gtk.Tooltips()
 
         #self.__tools_menu = ToolsMenu(self.radialnet)
 
@@ -232,7 +232,7 @@ class Toolbar(gtk.HBox):
         #self.insert(self.__fisheye,      5)
         #self.insert(self.__fullscreen,   6)
         #self.insert(self.__about,        7)
-        
+
         #self.pack_start(self.__tools_button, False)
         self.pack_start(self.__hosts_button, False)
         self.pack_start(self.__fisheye, False)
@@ -263,7 +263,7 @@ class Toolbar(gtk.HBox):
         """
         self.__tools_menu.popup(None, None, None, 1, 0)
 
-    
+
     def __hosts_viewer_callback(self, widget):
         """
         """
@@ -296,7 +296,7 @@ class Toolbar(gtk.HBox):
 
         self.__save_chooser.hide()
 
-    
+
     def __control_callback(self, widget=None):
         """
         """

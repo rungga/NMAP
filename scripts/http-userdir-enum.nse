@@ -2,13 +2,14 @@ author = "jah"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 description = [[
-Attempts to enumerate valid usernames on webservers running with the mod_userdir
+Attempts to enumerate valid usernames on web servers running with the mod_userdir
 module or similar enabled.
 
 The Apache mod_userdir module allows user-specific directories to be accessed
 using the http://example.com/~user/ syntax.  This script makes http requests in
 order to discover valid user-specific directories and infer valid usernames.  By
-default, the script will use Nmaps nselib/data/usernames.lst  An http response
+default, the script will use Nmap's
+<code>nselib/data/usernames.lst</code>.  An HTTP response
 status of 200 or 403 means the username is likely a valid one and the username
 will be output in the script results along with the status code (in parentheses).
 
@@ -16,44 +17,25 @@ This script makes an attempt to avoid false positives by requesting a directory
 which is unlikely to exist.  If the server responds with 200 or 403 then the
 script will not continue testing it.
 
-Ref: CVE-2001-1013 http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2001-1013
+CVE-2001-1013: http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2001-1013.
 ]]
----
--- @args
--- users=path/to/custom/usernames.list or
--- userdir.users=path/to/custom/usernames.list
---@args limit      Limit the number of users to check. This option is useful if using a list from, for example, 
---                 the DirBuster projects which can have 80,000+ entries. 
 
+---
+-- @args userdir.users The filename of a username list.
+-- @args limit The maximum number of users to check.
 --
 -- @output
 -- 80/tcp open  http    syn-ack Apache httpd 2.2.9
 -- |_ apache-userdir-enum: Potential Users: root (403), user (200), test (200)
 
-
-
 local http      = require 'http'
+local shortport = require 'shortport'
 local stdnse    = require 'stdnse'
 local datafiles = require 'datafiles'
 
 
 
----
--- The script will run against http[s] and http[s]-alt tcp ports.
-portrule = function(host, port)
-  local svc = { std = { ["http"] = 1, ["http-alt"] = 1 },
-                ssl = { ["https"] = 1, ["https-alt"] = 1 } }
-  if port.protocol ~= 'tcp' or not
-  ( svc.std[port.service] or svc.ssl[port.service] ) then
-    return false
-  end
-  -- Don't bother running on SSL ports if we don't have SSL.
-  if (svc.ssl[port.service] or port.version.service_tunnel == 'ssl') and not
-  nmap.have_ssl() then
-    return false
-  end
-  return true
-end
+portrule = shortport.http
 
 
 
@@ -86,18 +68,6 @@ action = function(host, port)
   -- Check if we can use HEAD requests
   local use_head = http.can_use_head(host, port, result_404)
 
-  -- If we can't use HEAD, make sure we can use GET requests
-  if(use_head == false) then
-    local result, err = http.can_use_get(host, port)
-    if(result == false) then
-      if(nmap.debugging() > 0) then
-        return "ERROR: " .. err
-      else
-        return nil
-      end
-    end
-  end
-
   -- Queue up the checks
   local all = {}
   local i
@@ -108,13 +78,13 @@ action = function(host, port)
     end
 
     if(use_head) then
-      all = http.pHead(host, port, "/~" .. usernames[i], nil, nil, all)
+      all = http.pipeline_add("/~" .. usernames[i], nil, all, 'HEAD')
     else
-      all = http.pGet(host, port, "/~" .. usernames[i], nil, nil, all)
+      all = http.pipeline_add("/~" .. usernames[i], nil, all, 'GET')
     end
   end
 
-  local results = http.pipeline(host, port, all, nil)
+  local results = http.pipeline_go(host, port, all)
 
   -- Check for http.pipeline error
   if(results == nil) then
@@ -154,13 +124,12 @@ end
 -- @return nil
 
 function init()
-  local filename = filename and filename:match( "[\\/]([^\\/]+)\.nse$" ) or ""
   local customlist = nmap.registry.args.users or
     (nmap.registry.args.userdir and nmap.registry.args.userdir.users) or
     nmap.registry.args['userdir.users']
   local read, usernames = datafiles.parse_file(customlist or "nselib/data/usernames.lst", {})
   if not read then
-    stdnse.print_debug(1, "%s %s", filename,
+    stdnse.print_debug(1, "%s %s", SCRIPT_NAME,
       usernames or "Unknown Error reading usernames list.")
     nmap.registry.userdir = {}
     return nil
@@ -168,7 +137,7 @@ function init()
   -- random dummy username to catch false positives (not necessary)
 --  if #usernames > 0 then table.insert(usernames, 1, randomstring()) end
   nmap.registry.userdir = usernames
-  stdnse.print_debug(1, "%s Testing %d usernames.", filename, #usernames)
+  stdnse.print_debug(1, "%s Testing %d usernames.", SCRIPT_NAME, #usernames)
   return nil
 end
 

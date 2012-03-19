@@ -4,10 +4,6 @@
 #include "nsock_internal.h"
 #ifdef HAVE_PCAP
 
-#ifdef WIN32
-#include "pcap-int.h"
-#endif
-
 #include "pcap.h"
 
 #include <string.h>
@@ -33,6 +29,16 @@
 #if !defined(WIN32)
 #define PCAP_CAN_DO_SELECT 1
 #endif
+
+/*
+ * In some systems (like Windows), the pcap descriptor is not selectable. Therefore,
+ * we cannot just select() on it and expect it to wake us up and deliver a packet,
+ * but we need to poll it continuously. This define sets the frequency, in milliseconds,
+ * at which the pcap handle is polled to determine if there are any captured packets.
+ * Note that this is only used when PCAP_CAN_DO_SELECT is not defined and therefore it
+ * has no effect on systems like Linux.
+ */
+#define PCAP_POLL_INTERVAL 2
 
 /*
  * Note that on most versions of most BSDs (including Mac OS X) select() and poll() do not work 

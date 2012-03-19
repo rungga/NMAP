@@ -361,12 +361,13 @@ err:
 
 static void print_escaped(const char *s, size_t len)
 {
+    int c;
     for ( ; len > 0; len--) {
-        if (isprint(*s) && !isspace(*s))
-            putchar(*s);
+        c = (unsigned char) *s++;
+        if (isprint(c) && !isspace(c))
+            putchar(c);
         else
-            printf("\\%03o", *s);
-        s++;
+            printf("\\%03o", c);
     }
 }
 

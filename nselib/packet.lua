@@ -1,10 +1,13 @@
---- Facilities for manipulating raw packets.
+---
+-- Facilities for manipulating raw packets.
+--
 -- @author Marek Majkowski <majek04+nse@gmail.com>
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
 module(... or "packet" ,package.seeall)
 
-require "bit"
+local bit = require "bit"
+local stdnse = require "stdnse"
 
 
 ----------------------------------------------------------------------------------------------------------------
@@ -106,7 +109,7 @@ IPPROTO_IDP  = 22             	--  XNS IDP protocol
 IPPROTO_DCCP = 33            	--  Datagram Congestion Control Protocol
 IPPROTO_RSVP = 46            	--  RSVP protocol
 IPPROTO_GRE  = 47             	--  Cisco GRE tunnels (rfc 1701,1702)
-IPPROTO_IPV6 = 41          	--  IPv6-in-IPv4 tunnelling
+IPPROTO_IPV6 = 41             	--  IPv6-in-IPv4 tunnelling
 
 IPPROTO_ESP  = 50            	--  Encapsulation Security Payload protocol
 IPPROTO_AH   = 51             	--  Authentication Header protocol
@@ -140,11 +143,15 @@ function Packet:new(packet, packet_len, force_continue)
 	end
 	if o.ip_p == IPPROTO_TCP then
 		if not o:tcp_parse(force_continue) then
-			io.write("Error while parsing TCP packet\n")
+			stdnse.print_debug("Error while parsing TCP packet\n")
+		end
+	elseif o.ip_p == IPPROTO_UDP then
+		if not o:udp_parse(force_continue) then
+			stdnse.print_debug("Error while parsing UDP packet\n")
 		end
 	elseif o.ip_p == IPPROTO_ICMP then
 		if not o:icmp_parse(force_continue) then
-			io.write("Error while parsing ICMP packet\n")
+			stdnse.print_debug("Error while parsing ICMP packet\n")
 		end
 	end
 	return o
@@ -268,16 +275,19 @@ end
 -- @param len Packet length.
 function Packet:ip_set_len(len)
 	self:set_u16(self.ip_offset + 2, len)
+	self.ip_len = len
 end
 --- Set the TTL.
 -- @param ttl TTL.
 function Packet:ip_set_ttl(ttl)
 	self:set_u8(self.ip_offset + 8, ttl)
+	self.ip_ttl = ttl
 end
 --- Set the checksum.
 -- @param checksum Checksum.
 function Packet:ip_set_checksum(checksum)
 	self:set_u16(self.ip_offset + 10, checksum)
+	self.ip_sum = checksum
 end
 --- Count checksum for packet and save it.
 function Packet:ip_count_checksum()
@@ -365,6 +375,8 @@ end
 function Packet:tostring()
 	if self.tcp then
 		return self:tcp_tostring()
+	elseif self.udp then
+		return self:udp_tostring()
 	elseif self.icmp then
 		return self:icmp_tostring()
 	elseif self.ip then
@@ -448,7 +460,7 @@ function Packet:tcp_parse(force_continue)
 end
 
 --- Get a short string representation of the TCP packet.
--- @return A string representation of the ICMP header.
+-- @return A string representation of the TCP header.
 function Packet:tcp_tostring()
 	return string.format(
 		"TCP %s:%i -> %s:%i",
@@ -483,31 +495,37 @@ end
 -- @param port Source port.
 function Packet:tcp_set_sport(port)
 	self:set_u16(self.tcp_offset + 0, port)
+	self.tcp_sport = port
 end
 --- Set the TCP destination port.
 -- @param port Destination port.
 function Packet:tcp_set_dport(port)
 	self:set_u16(self.tcp_offset + 2, port)
+	self.tcp_dport = port
 end
 --- Set the TCP sequence field.
 -- @param new_seq Sequence.
 function Packet:tcp_set_seq(new_seq)
 	self:set_u32(self.tcp_offset + 4, new_seq)
+	self.tcp_seq = new_seq
 end
 --- Set the TCP flags field (like SYN, ACK, RST).
 -- @param new_flags Flags, represented as an 8-bit number.
 function Packet:tcp_set_flags(new_flags)
 	self:set_u8(self.tcp_offset + 13, new_flags)
+	self.tcp_flags = new_flags
 end
 --- Set the urgent pointer field.
 -- @param urg_ptr Urgent pointer.
 function Packet:tcp_set_urp(urg_ptr)
 	self:set_u16(self.tcp_offset + 18, urg_ptr)
+	self.tcp_urp = urg_ptr
 end
 --- Set the TCP checksum field.
 -- @param checksum Checksum.
 function Packet:tcp_set_checksum(checksum)
 	self:set_u16(self.tcp_offset + 16, checksum)
+	self.tcp_sum = checksum
 end
 --- Count and save the TCP checksum field.
 function Packet:tcp_count_checksum()
@@ -583,3 +601,83 @@ function Packet:tcp_lookup_link()
         end
         return string.format("unknown-%i", self.tcp_opt_mtu)
 end
+
+----------------------------------------------------------------------------------------------------------------
+-- Parse a UDP packet header.
+-- @param force_continue Whether a short packet causes parsing to fail.
+-- @return Whether the parsing succeeded.
+function Packet:udp_parse(force_continue)
+	self.udp = true
+	self.udp_offset		= self.ip_data_offset
+	if string.len(self.buf) < self.udp_offset + 4 then
+		return false
+	end
+	self.udp_sport		= self:u16(self.udp_offset + 0)
+	self.udp_dport		= self:u16(self.udp_offset + 2)
+	if string.len(self.buf) < self.udp_offset + 8 then
+		if force_continue then
+			return true
+		else
+			return false
+		end
+	end
+	self.udp_len		= self:u16(self.udp_offset + 4)
+	self.udp_sum		= self:u16(self.udp_offset + 6)
+	
+	return true
+end
+
+--- Get a short string representation of the UDP packet.
+-- @return A string representation of the UDP header.
+function Packet:udp_tostring()
+	return string.format(
+		"UDP %s:%i -> %s:%i",
+		self.ip_src, self.udp_sport,
+		self.ip_dst, self.udp_dport
+	)
+end
+
+---
+-- Set the UDP source port.
+-- @param port Source port.
+function Packet:udp_set_sport(port)
+	self:set_u16(self.udp_offset + 0, port)
+	self.udp_sport = port
+end
+---
+-- Set the UDP destination port.
+-- @param port Destination port.
+function Packet:udp_set_dport(port)
+	self:set_u16(self.udp_offset + 2, port)
+	self.udp_dport = port
+end
+---
+-- Set the UDP payload length.
+-- @param len UDP payload length.
+function Packet:udp_set_length(len)
+	self:set_u16(self.udp_offset + 4, len)
+	self.udp_len = len
+end
+---
+-- Set the UDP checksum field.
+-- @param checksum Checksum.
+function Packet:udp_set_checksum(checksum)
+	self:set_u16(self.udp_offset + 6, checksum)
+	self.udp_sum = checksum
+end
+---
+-- Count and save the UDP checksum field.
+function Packet:udp_count_checksum()
+	self:udp_set_checksum(0)
+	local proto	= self.ip_p
+	local length	= self.buf:len() - self.udp_offset
+	local b = self.ip_bin_src ..
+		self.ip_bin_dst ..
+		string.char(0) ..
+		string.char(proto) ..
+		set_u16("..", 0, length) ..
+		self.buf:sub(self.udp_offset+1)
+
+	self:udp_set_checksum(in_cksum(b))
+end
+

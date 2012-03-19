@@ -1,4 +1,6 @@
---- Functions for the SSH-2 protocol.
+---
+-- Functions for the SSH-2 protocol.
+--
 -- @author Sven Klemm <sven@c3d2.de>
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
@@ -27,11 +29,12 @@ local SSH2
 --  @return packet_length, packet_length or nil
 --  the return is similar to the lua function string:find()
 check_packet_length = function( buffer )
+  if #buffer < 4 then return nil end -- not enough data in buffer for int
   local packet_length, offset
   offset, packet_length = bin.unpack( ">I", buffer )
   assert(packet_length)
   if packet_length + 4 > buffer:len() then return nil end
-  return packet_length, packet_length
+  return packet_length+4, packet_length+4
 end
 
 --- Receives a complete SSH packet, even if fragmented
@@ -43,7 +46,7 @@ end
 --  @return status True or false
 --  @return packet The packet received
 transport.receive_packet = function( socket )
-  local status, packet = socket:receive_buf(check_packet_length)
+  local status, packet = socket:receive_buf(check_packet_length, true)
   return status, packet
 end
 
@@ -76,7 +79,9 @@ end
 -- @return Payload of the SSH-2 packet.
 transport.payload = function( packet )
   local packet_length, padding_length, payload_length, payload, offset
-  offset, packet_length, padding_length = bin.unpack( ">Ic", packet )
+  offset, packet_length = bin.unpack( ">I", packet )
+  packet = packet:sub(offset);
+  offset, padding_length = bin.unpack( ">c", packet )
   assert(packet_length and padding_length)
   payload_length = packet_length - padding_length - 1
   if packet_length ~= packet:len() then
@@ -93,14 +98,15 @@ transport.kexdh_init = function( e )
 end
 
 --- Build a <code>kex_init</code> packet.
-transport.kex_init = function( cookie, options )
+transport.kex_init = function( options )
   options = options or {}
-  local kex_algorithms = "diffie-hellman-group1-sha1"
+  local cookie = options['cookie'] or openssl.rand_bytes( 16 )
+  local kex_algorithms = options['kex_algorithms'] or "diffie-hellman-group1-sha1"
   local host_key_algorithms = options['host_key_algorithms'] or "ssh-dss,ssh-rsa"
-  local encryption_algorithms = "aes128-cbc,3des-cbc,blowfish-cbc,aes192-cbc,aes256-cbc,aes128-ctr,aes192-ctr,aes256-ctr"
-  local mac_algorithms = "hmac-md5,hmac-sha1,hmac-ripemd160"
-  local compression_algorithms = "none"
-  local languages = ""
+  local encryption_algorithms = options['encryption_algorithms'] or "aes128-cbc,3des-cbc,blowfish-cbc,aes192-cbc,aes256-cbc,aes128-ctr,aes192-ctr,aes256-ctr"
+  local mac_algorithms = options['mac_algorithms'] or "hmac-md5,hmac-sha1,hmac-ripemd160"
+  local compression_algorithms = options['compression_algorithms'] or "none"
+  local languages = options['languages'] or ""
 
   local payload = bin.pack( ">cAaa", SSH2.SSH_MSG_KEXINIT, cookie, kex_algorithms, host_key_algorithms )
   payload = payload .. bin.pack( ">aa", encryption_algorithms, encryption_algorithms )
@@ -152,7 +158,7 @@ fetch_host_key = function( host, port, key_type )
   -- oakley group 2 prime taken from rfc 2409
   local prime = "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF"
 
-  status = socket:connect(host.ip, port.number)
+  status = socket:connect(host, port)
   if not status then return end
   -- fetch banner
   status = socket:receive_lines(1)
@@ -161,8 +167,7 @@ fetch_host_key = function( host, port, key_type )
   status = socket:send("SSH-2.0-Nmap-SSH2-Hostkey\r\n")
   if not status then socket:close(); return end
 
-  local cookie = openssl.rand_bytes( 16 )
-  local packet = transport.build( transport.kex_init( cookie, {host_key_algorithms=key_type} ) )
+  local packet = transport.build( transport.kex_init( {host_key_algorithms=key_type} ) )
   status = socket:send( packet )
   if not status then socket:close(); return end
 

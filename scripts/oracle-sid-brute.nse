@@ -1,15 +1,18 @@
 description = [[
-Guesses Oracle instance/sid names against the TNS-listener
+Guesses Oracle instance/SID names against the TNS-listener.
+
+If the <code>oraclesids</code> script argument is not used to specify an
+alternate file, the default <code>oracle-sids</code> file will be used.
+License to use the <code>oracle-sids</code> file was granted by its
+author, Alexander Kornbrust (http://seclists.org/nmap-dev/2009/q4/645).
 ]]
 
+---
+-- @args oraclesids A file containing SIDs to try.
 --
 -- @usage
 -- nmap --script=oracle-sid-brute --script-args=oraclesids=/path/to/sidfile -p 1521-1560 <host>
 -- nmap --script=oracle-sid-brute -p 1521-1560 <host>
---
--- If no oraclesids file is specified, it falls back to the default oracle-sids file
--- License to use the oracle-sids file was granted by the author (Alexander Kornbrust) 
--- Ref: http://seclists.org/nmap-dev/2009/q4/645
 --
 -- @output
 -- PORT     STATE SERVICE REASON
@@ -18,8 +21,6 @@ Guesses Oracle instance/sid names against the TNS-listener
 -- |   orcl
 -- |   prod
 -- |_  devel
---
----
 
 -- Version 0.3
 
@@ -143,7 +144,7 @@ action = function(host, port)
 		-- check for comments
 		if not sid:match("#!comment:") then
 
-			try(socket:connect(host.ip, port.number))
+			try(socket:connect(host, port))
 			request = create_connect_packet( host.ip, port.number, sid )
 			try(socket:send(request))
 			response = try(socket:receive_bytes(1))
