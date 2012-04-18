@@ -1,56 +1,102 @@
---- Client-side HTTP library.
+---Implements the HTTP client protocol in a standard form that Nmap scripts can
+-- take advantage of. 
 --
--- The return value of each function in this module is a table with the
--- following keys: <code>status</code>, <code>status-line</code>,
--- <code>header</code>, and <code>body</code>. <code>status</code> is a number
--- representing the HTTP status code returned in response to the HTTP request.
--- In case of an unhandled error, <code>status</code> is <code>nil</code>.
--- <code>status-line</code> is the entire status message which includes the HTTP
--- version, status code, and reason phrase. The <code>header</code> value is a
--- table containing key-value pairs of HTTP headers received in response to the
--- request. The header names are in lower-case and are the keys to their
--- corresponding header values (e.g. <code>header.location</code> =
--- <code>"http://nmap.org/"</code>). Multiple headers of the same name are
--- concatenated and separated by commas. The <code>body</code> value is a string
--- containing the body of the HTTP response.
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- Because HTTP has so many uses, there are a number of interfaces to this library.
+-- The most obvious and common ones are simply <code>get</code>, <code>post</code>,
+-- and <code>head</code>; or, if more control is required, <code>generic_request</code>
+-- can be used. Thse functions do what one would expect. The <code>get_url</code> 
+-- helper function can be used to parse and retrieve a full URL. 
+--
+-- These functions return a table of values, including:
+-- * <code>status-line</code> - A string representing the status, such as "HTTP/1.1 200 OK"
+-- * <code>header</code> - An associative array representing the header. Keys are all lowercase, and standard headers, such as 'date', 'content-length', etc. will typically be present. 
+-- * <code>rawheader</code> - A numbered array of the headers, exactly as the server sent them. While header['content-type'] might be 'text/html', rawheader[3] might be 'Content-type: text/html'.
+-- * <code>cookies</code> - A numbered array of the cookies the server sent. Each cookie is a table with the following keys: <code>name</code>, <code>value</code>, <code>path</code>, <code>domain</code>, and <code>expires</code>. 
+-- * <code>body</code> - The full body, as retunred by the server. 
+--
+-- If a script is planning on making a lot of requests, the pipeling functions can
+-- be helpful. <code>pipeline_add</code> queues requests in a table, and
+-- <code>pipeline</code> performs the requests, returning the results as an array,
+-- with the respones in the same order as the queries were added. As a simple example:
+--<code>
+--	-- Start by defining the 'all' variable as nil
+--	local all = nil
+--
+--	-- Add two 'GET' requests and one 'HEAD' to the queue. These requests are not performed
+--	-- yet. The second parameter represents the 'options' table, which we don't need.
+--	all = http.pipeline_add('/book',          nil, all)
+--	all = http.pipeline_add('/test',          nil, all)
+--	all = http.pipeline_add('/monkeys',       nil, all)
+--
+--	-- Perform all three requests as parallel as Nmap is able to
+--	local results = http.pipeline('nmap.org', 80, all)
+--</code>
+--
+-- At this point, <code>results</code> is an array with three elements. Each element
+-- is a table containing the HTTP result, as discussed above. 
+--
+-- One more interface provided by the HTTP library helps scripts determine whether or not
+-- a page exists. The <code>identify_404</code> function will try several URLs on the 
+-- server to determine what the server's 404 pages look like. It will attempt to identify
+-- customized 404 pages that may not return the actual status code 404. If successful, 
+-- the function <code>page_exists</code> can then be used to determine whether no not
+-- a page existed. 
+--
+-- Some other miscellaneous functions that can come in handy are <code>response_contains</code>,
+-- <code>can_use_head</code>, and <code>save_path</code>. See the appropriate documentation
+-- for them. 
+--
+-- The response to each function is typically a table on success or nil on failure. If
+-- a table is returned, the following keys will exist:
+-- <code>status-line</code>: The HTTP status line; for example, "HTTP/1.1 200 OK" (note: this is followed by a newline)
+-- <code>status</code>: The HTTP status value; for example, "200"
+-- <code>header</code>: A table of header values, where the keys are lowercase and the values are exactly what the server sent
+-- <code>rawheader</code>: A list of header values as "name: value" strings, in the exact format and order that the server sent them
+-- <code>cookies</code>: A list of cookies that the server is sending. Each cookie is a table containing the keys <code>name</code>, <code>value</code>, and <code>path</code>. This table can be sent to the server in subsequent responses in the <code>options</code> table to any function (see below). 
+-- <code>body</code>: The body of the response
+--
+-- Many of the functions optionally allow an 'options' table. This table can alter the HTTP headers
+-- or other values like the timeout. The following are valid values in 'options' (note: not all 
+-- options will necessarily affect every function):
+-- * <code>timeout</code>: A timeout used for socket operations.
+-- * <code>header</code>: A table containing additional headers to be used for the request. For example, <code>options['header']['Content-Type'] = 'text/xml'</code>
+-- * <code>content</code>: The content of the message (content-length will be added -- set header['Content-Length'] to override). This can be either a string, which will be directly added as the body of the message, or a table, which will have each key=value pair added (like a normal POST request). 
+-- * <code>cookies</code>: A list of cookies as either a string, which will be directly sent, or a table. If it's a table, the following fields are recognized: 
+-- ** <code>name</code>
+-- ** <code>value</code>
+-- ** <code>path</code>
+-- * <code>auth</code>: A table containing the keys <code>username</code> and <code>password</code>, which will be used for HTTP Basic authentication
+-- * <code>bypass_cache</code>: Do not perform a lookup in the local HTTP cache.
+-- * <code>no_cache</code>: Do not save the result of this request to the local HTTP cache.
+-- * <code>no_cache_body</code>: Do not save the body of the response to the local HTTP cache.
+--  
 -- @args http-max-cache-size The maximum memory size (in bytes) of the cache.
 --
 -- @args http.useragent The value of the User-Agent header field sent with
 -- requests. By default it is
 -- <code>"Mozilla/5.0 (compatible; Nmap Scripting Engine; http://nmap.org/book/nse.html)"</code>.
 -- A value of the empty string disables sending the User-Agent header field.
--- @args pipeline If set, it represents the number of HTTP requests that'll be
+--
+-- @args http.pipeline If set, it represents the number of HTTP requests that'll be
 -- pipelined (ie, sent in a single request). This can be set low to make
 -- debugging easier, or it can be set high to test how a server reacts (its
--- chosen max is ignored). 
-
-local MAX_CACHE_SIZE = "http-max-cache-size";
+-- chosen max is ignored).
 
 local coroutine = require "coroutine";
 local table = require "table";
 
-module(... or "http",package.seeall)
+local base64 = require "base64";
+local nmap = require "nmap";
+local url = require "url";
+local stdnse = require "stdnse";
+local comm = require "comm";
 
-local url    = require 'url'
-local stdnse = require 'stdnse'
-local comm   = require 'comm'
-local nmap   = require 'nmap'
+module(... or "http",package.seeall)
 
 ---Use ssl if we have it
 local have_ssl = (nmap.have_ssl() and pcall(require, "openssl"))
 
-local USER_AGENT
-do
-  local arg = nmap.registry.args and nmap.registry.args["http.useragent"]
-  if arg and arg == "" then
-    USER_AGENT = nil
-  elseif arg then
-    USER_AGENT = arg
-  else
-    USER_AGENT = "Mozilla/5.0 (compatible; Nmap Scripting Engine; http://nmap.org/book/nse.html)"
-  end
-end
+local USER_AGENT = stdnse.get_script_args('http.useragent') or "Mozilla/5.0 (compatible; Nmap Scripting Engine; http://nmap.org/book/nse.html)"
 
 -- Recursively copy a table.
 -- Only recurs when a value is a table, other values are copied by assignment.
@@ -78,19 +124,9 @@ local function table_augment(to, from)
   end
 end
 
---- Get a suitable hostname string from the argument, which may be either a
--- string or a host table.
-local function get_hostname(host)
-  if type(host) == "table" then
-    return host.targetname or ( host.name ~= '' and host.name ) or host.ip
-  else
-    return host
-  end
-end
-
 --- Get a value suitable for the Host header field.
 local function get_host_field(host, port)
-  local hostname = get_hostname(host)
+  local hostname = stdnse.get_hostname(host)
   local portno
   if port == nil then
     portno = 80
@@ -200,6 +236,86 @@ local function skip_lws(s, pos)
     pos = e + 1
   end
 end
+
+
+---Validate an 'options' table, which is passed to a number of the HTTP functions. It is
+-- often difficult to track down a mistake in the options table, and requires fiddling
+-- with the http.lua source, but this should make that a lot easier. 
+local function validate_options(options)
+  local bad = false
+
+  if(options == nil) then
+    return true
+  end
+
+  for key, value in pairs(options) do
+    if(key == 'timeout') then
+      if(type(tonumber(value)) ~= 'number') then
+        stdnse.print_debug(1, 'http: options.timeout contains a non-numeric value')
+        bad = true
+      end
+    elseif(key == 'header') then
+      if(type(value) ~= 'table') then
+        stdnse.print_debug(1, "http: options.header should be a table")
+        bad = true
+      end
+    elseif(key == 'content') then
+      if(type(value) ~= 'string' and type(value) ~= 'table') then
+        stdnse.print_debug(1, "http: options.content should be a string or a table")
+        bad = true
+      end
+    elseif(key == 'cookies') then
+      if(type(value) == 'table') then
+        for cookie in pairs(value) do
+          for cookie_key, cookie_value in pairs(value) do
+            if(cookie_key == 'name') then
+              if(type(cookie_value) ~= 'string') then
+                stdnse.print_debug(1, "http: options.cookies[i].name should be a string")
+                bad = true
+              end
+            elseif(cookie_key == 'value') then
+              if(type(cookie_value) ~= 'string') then
+                stdnse.print_debug(1, "http: options.cookies[i].value should be a string")
+                bad = true
+              end
+            elseif(cookie_key == 'path') then
+              if(type(cookie_value) ~= 'string') then
+                stdnse.print_debug(1, "http: options.cookies[i].path should be a string")
+                bad = true
+              end
+            else
+              stdnse.print_debug(1, "http: Unknown field in cookie table: %s", cookie_key)
+              bad = true
+            end
+          end
+        end
+      elseif(type(value) ~= 'string') then
+        stdnse.print_debug(1, "http: options.cookies should be a table or a string")
+        bad = true
+      end
+    elseif(key == 'auth') then
+      if(type(value) == 'table') then
+        if(value['username'] == nil or value['password'] == nil) then
+          stdnse.print_debug(1, "http: options.auth should contain both a 'username' and a 'password' key")
+          bad = true
+        end
+      else
+        stdnse.print_debug(1, "http: options.auth should be a table")
+        bad = true
+      end
+    elseif(key == 'bypass_cache' or key == 'no_cache' or key == 'no_cache_body') then
+      if(type(value) ~= 'boolean') then
+        stdnse.print_debug(1, "http: options.bypass_cache, options.no_cache, and options.no_cache_body must be boolean values")
+        bad = true
+      end
+    else
+      stdnse.print_debug(1, "http: Unknown key in the options table: %s", key)
+    end
+  end
+
+  return not(bad)
+end
+
 
 -- The following recv functions, and the function <code>next_response</code>
 -- follow a common pattern. They each take a <code>partial</code> argument
@@ -519,7 +635,6 @@ local function parse_header(header, response)
         pos = pos + 1
       end
       words[#words + 1] = string.sub(header, s, pos - 1)
-      pos = pos + 1
       pos = skip_lws(header, pos)
     end
 
@@ -702,7 +817,9 @@ end
 --  @return The max number of requests on a keep-alive connection
 local function getPipelineMax(response)
   -- Allow users to override this with a script-arg
-  if nmap.registry.args.pipeline ~= nil then
+  local pipeline = stdnse.get_script_args({'http.pipeline', 'pipeline'})
+
+  if(pipeline) then
     return tonumber(nmap.registry.args.pipeline)
   end
 
@@ -722,155 +839,14 @@ local function getPipelineMax(response)
   return 1
 end
 
---- Sets all the values and options for a get request and than calls buildRequest to
---  create a string to be sent to the server as a resquest
---
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @return Request String 
-local buildGet = function( host, port, path, options, cookies )
-  options = options or {}
-
-  -- Private copy of the options table, used to add default header fields.
-  local mod_options = {
-    header = {
-      Host = get_host_field(host, port),
-      ["User-Agent"]  = USER_AGENT
-    }
-  }
-  if cookies then
-    local cookies = buildCookies(cookies, path)
-    if #cookies > 0 then mod_options["header"]["Cookie"] = cookies end
-  end
-
-  if options and options.connection 
-    then mod_options["header"]["Connection"] = options.connection
-    else mod_options["header"]["Connection"] = "Close" end
-
-  -- Add any other options into the local copy.
-  table_augment(mod_options, options)
-
-  local data = "GET " .. path .. " HTTP/1.1\r\n"
-  return data, mod_options
-end
-
---- Sets all the values and options for a head request and than calls buildRequest to
---  create a string to be sent to the server as a resquest
---
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @return Request String 
-local buildHead = function( host, port, path, options, cookies )
-  local options = options or {}
-
-  -- Private copy of the options table, used to add default header fields.
-  local mod_options = {
-    header = {
-      Host = get_host_field(host, port),
-      ["User-Agent"]  = USER_AGENT
-    }
-  }
-  if cookies then
-    local cookies = buildCookies(cookies, path)
-    if #cookies > 0 then mod_options["header"]["Cookie"] = cookies end
-  end
-  if options and options.connection 
-    then mod_options["header"]["Connection"] = options.connection
-    else mod_options["header"]["Connection"] = "Close" end
-
-  -- Add any other options into the local copy.
-  table_augment(mod_options, options)
-
-  local data = "HEAD " .. path .. " HTTP/1.1\r\n"
-  return data, mod_options
-end
-
---- Sets all the values and options for a post request and than calls buildRequest to
---  create a string to be sent to the server as a resquest
---
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @param postdata A string or a table of data to be posted. If a table, the
--- keys and values must be strings, and they will be encoded into an
--- application/x-www-form-encoded form submission.
--- @return Request String 
-local buildPost = function( host, port, path, options, cookies, postdata)
-  local mod_options = {
-    header = {
-      Host = get_host_field(host, port),
-      Connection = "close",
-      ["Content-Type"] = "application/x-www-form-urlencoded",
-      ["User-Agent"] = USER_AGENT
-    }
-  }
-
-  -- Build a form submission from a table, like "k1=v1&k2=v2".
-  if type(postdata) == "table" then
-    local parts = {}
-    local k, v
-    for k, v in pairs(postdata) do
-      parts[#parts + 1] = url.escape(k) .. "=" .. url.escape(v)
-    end
-    postdata = table.concat(parts, "&")
-    mod_options.header["Content-Type"] = "application/x-www-form-urlencoded"
-  end
-
-  mod_options.content = postdata
-
-  if cookies then
-    local cookies = buildCookies(cookies, path)
-    if #cookies > 0 then mod_options["header"]["Cookie"] = cookies end
-  end
-
-  table_augment(mod_options, options or {})
-
-  local data = "POST " .. path .. " HTTP/1.1\r\n"
-
-  return data, mod_options
-end
-
---- Parses all options from a request and creates the string
---  to be sent to the server
---
---  @param data 
---  @param options
---  @return A string ready to be sent to the server
-local buildRequest = function (data, options) 
-  options = options or {} 
-
-  -- Build the header.
-  for key, value in pairs(options.header or {}) do
-    data = data .. key .. ": " .. value .. "\r\n"
-  end
-  if(options.content ~= nil and options.header['Content-Length'] == nil) then
-    data = data .. "Content-Length: " .. string.len(options.content) .. "\r\n"
-  end
-  data = data .. "\r\n"
-
-  if(options.content ~= nil) then
-    data = data .. options.content
-  end
-
-  return data
-end
-
 --- Builds a string to be added to the request mod_options table
--- 
+--
 --  @param cookies A cookie jar just like the table returned parse_set_cookie.
 --  @param path If the argument exists, only cookies with this path are included to the request
 --  @return A string to be added to the mod_options table
-function buildCookies(cookies, path)
+local function buildCookies(cookies, path)
   local cookie = ""
-  if type(cookies) == 'string' then return cookies end 
+  if type(cookies) == 'string' then return cookies end
   for i, ck in ipairs(cookies or {}) do
     if not path or string.match(ck["path"],".*" .. path .. ".*") then
       if i ~= 1 then cookie = cookie .. " " end
@@ -881,7 +857,6 @@ function buildCookies(cookies, path)
 end
 
 -- HTTP cache.
-
 -- Cache of GET and HEAD requests. Uses <"host:port:path", record>.
 -- record is in the format:
 --   result: The result from http.get or http.head
@@ -891,7 +866,8 @@ end
 local cache = {size = 0};
 
 local function check_size (cache)
-  local max_size = tonumber(nmap.registry.args[MAX_CACHE_SIZE] or 1e6);
+  local max_size = tonumber(stdnse.get_script_args({'http.max-cache-size', 'http-max-cache-size'}) or 1e6);
+
   local size = cache.size;
 
   if size > max_size then
@@ -912,7 +888,7 @@ local function check_size (cache)
     end
     cache.size = size;
   end
-  stdnse.print_debug(1, "Final http cache size (%d bytes) of max size of %d",
+  stdnse.print_debug(2, "Final http cache size (%d bytes) of max size of %d",
       size, max_size);
   return size;
 end
@@ -922,6 +898,10 @@ end
 local WORKING = setmetatable({}, {__mode = "v"});
 
 local function lookup_cache (method, host, port, path, options)
+  if(not(validate_options(options))) then
+    return nil
+  end
+
   options = options or {};
   local bypass_cache = options.bypass_cache; -- do not lookup
   local no_cache = options.no_cache; -- do not save result
@@ -929,7 +909,7 @@ local function lookup_cache (method, host, port, path, options)
 
   if type(port) == "table" then port = port.number end
 
-  local key = get_hostname(host)..":"..port..":"..path;
+  local key = stdnse.get_hostname(host)..":"..port..":"..path;
   local mutex = nmap.mutex(tostring(lookup_cache)..key);
 
   local state = {
@@ -963,24 +943,47 @@ local function lookup_cache (method, host, port, path, options)
   end
 end
 
+local function response_is_cacheable(response)
+  -- 206 Partial Content. RFC 2616, 1.34: "...a cache that does not support the
+  -- Range and Content-Range headers MUST NOT cache 206 (Partial Content)
+  -- responses."
+  if response.status == 206 then
+    return false
+  end
+
+  -- RFC 2616, 13.4. "A response received with any [status code other than 200,
+  -- 203, 206, 300, 301 or 410] (e.g. status codes 302 and 307) MUST NOT be
+  -- returned in a reply to a subsequent request unless there are cache-control
+  -- directives or another header(s) that explicitly allow it."
+  -- We violate the standard here and allow these other codes to be cached,
+  -- with the exceptions listed below.
+
+  -- 401 Unauthorized. Caching this would prevent us from retrieving it later
+  -- with the correct credentials.
+  if response.status == 401 then
+    return false
+  end
+
+  return true
+end
+
 local function insert_cache (state, response)
   local key = assert(state.key);
   local mutex = assert(state.mutex);
 
-  if response == nil or state.no_cache or
-      response.status == 206 then -- ignore partial content response
+  if response == nil or state.no_cache or not response_is_cacheable(response) then
     cache[key] = state.old_record;
   else
     local record = {
       result = tcopy(response),
       last_used = os.time(),
-      get = state.method,
+      method = state.method,
       size = type(response.body) == "string" and #response.body or 0,
     };
     response = record.result; -- only modify copy
     cache[key], cache[#cache+1] = record, record;
     if state.no_cache_body then
-      result.body = "";
+      response.body = "";
     end
     if type(response.body) == "string" then
       cache.size = cache.size + #response.body;
@@ -988,6 +991,12 @@ local function insert_cache (state, response)
     end
   end
   mutex "done";
+end
+
+-- Return true if the given method requires a body in the request. In case no
+-- body was supplied we must send "Content-Length: 0".
+local function request_method_needs_content_length(method)
+  return method == "POST"
 end
 
 -- For each of the following request functions, <code>host</code> may either be
@@ -1000,39 +1009,192 @@ end
 -- being the key the table also has an entry named "status" which contains the
 -- http status code of the request in case of an error status is nil.
 
---- Fetches a resource with a GET request.
+--- Build an HTTP request from parameters and return it as a string.
 --
--- The first argument is either a string with the hostname or a table like the
--- host table passed to a portrule or hostrule. The second argument is either
--- the port number or a table like the port table passed to a portrule or
--- hostrule. The third argument is the path of the resource. The fourth argument
--- is a table for further options. The fifth argument is a cookie table.
--- The function calls buildGet to build the request, then calls request to send
--- it and get the response.
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @return Table as described in the module description.
-get = function( host, port, path, options, cookies )
+-- @param host The host this request is intended for.
+-- @param port The port this request is intended for.
+-- @param method The method to use.
+-- @param path The path for the request.
+-- @param options A table of options, which may include the keys:
+-- * <code>header</code>: A table containing additional headers to be used for the request.
+-- * <code>content</code>: The content of the message (content-length will be added -- set header['Content-Length'] to override)
+-- * <code>cookies</code>: A table of cookies in the form returned by <code>parse_set_cookie</code>.
+-- * <code>auth</code>: A table containing the keys <code>username</code> and <code>password</code>.
+-- @return A request string.
+-- @see generic_request
+local function build_request(host, port, method, path, options)
+  if(not(validate_options(options))) then
+    return nil
+  end
+  options = options or {}
+
+  -- Private copy of the options table, used to add default header fields.
+  local mod_options = {
+    header = {
+      Connection = "close",
+      Host = get_host_field(host, port),
+      ["User-Agent"]  = USER_AGENT
+    }
+  }
+
+  if options.cookies then
+    local cookies = buildCookies(options.cookies, path)
+    if #cookies > 0 then
+      mod_options.header["Cookie"] = cookies
+    end
+  end
+  -- Only Basic authentication is supported.
+  if options.auth then
+    local username = options.auth.username
+    local password = options.auth.password
+    local credentials = "Basic " .. base64.enc(username .. ":" .. password)
+    mod_options.header["Authorization"] = credentials
+  end
+
+  local body
+  -- Build a form submission from a table, like "k1=v1&k2=v2".
+  if type(options.content) == "table" then
+    local parts = {}
+    local k, v
+    for k, v in pairs(options.content) do
+      parts[#parts + 1] = url.escape(k) .. "=" .. url.escape(v)
+    end
+    body = table.concat(parts, "&")
+    mod_options.header["Content-Type"] = "application/x-www-form-urlencoded"
+  elseif options.content then
+    body = options.content
+  elseif request_method_needs_content_length(method) then
+    body = ""
+  end
+  if body then
+    mod_options.header["Content-Length"] = #body
+  end
+
+  -- Add any other header fields into the local copy.
+  table_augment(mod_options, options)
+
+  local request_line = string.format("%s %s HTTP/1.1", method, path)
+  local header = {}
+  for name, value in pairs(mod_options.header) do
+    header[#header + 1] = string.format("%s: %s", name, value)
+  end
+
+  return request_line .. "\r\n" .. stdnse.strjoin("\r\n", header) .. "\r\n\r\n" .. (body or "")
+end
+
+--- Send a string to a host and port and return the HTTP result. This function
+-- is like <code>generic_request</code>, to be used when you have a ready-made
+-- request, not a collection of request parameters.
+--
+-- @param host The host to connect to.
+-- @param port The port to connect to.
+-- @param options A table of other parameters. It may have any of these fields:
+-- * <code>timeout</code>: A timeout used for socket operations.
+-- * <code>header</code>: A table containing additional headers to be used for the request.
+-- * <code>content</code>: The content of the message (content-length will be added -- set header['Content-Length'] to override)
+-- * <code>cookies</code>: A table of cookies in the form returned by <code>parse_set_cookie</code>.
+-- * <code>auth</code>: A table containing the keys <code>username</code> and <code>password</code>.
+-- @return A table as described in the module description.
+-- @see generic_request
+local function request(host, port, data, options)
+  if(not(validate_options(options))) then
+    return nil
+  end
+  local method
+  local header, partial
+  local response
+
+  options = options or {}
+
+  if type(port) == 'table' then
+    if port.protocol and port.protocol ~= 'tcp' then
+      stdnse.print_debug(1, "http.request() supports the TCP protocol only, your request to %s cannot be completed.", host)
+      return nil
+    end
+  end
+
+  local error_response = {status=nil,["status-line"]=nil,header={},body=""}
+  local socket
+
+  method = string.match(data, "^(%S+)")
+
+  socket, partial = comm.tryssl(host, port, data, { timeout = options.timeout })
+
+  if not socket then
+    return error_response
+  end
+
+  repeat
+    response, partial = next_response(socket, method, partial)
+    if not response then
+      return error_response
+    end
+    -- See RFC 2616, sections 8.2.3 and 10.1.1, for the 100 Continue status.
+    -- Sometimes a server will tell us to "go ahead" with a POST body before
+    -- sending the real response. If we got one of those, skip over it.
+  until not (response.status >= 100 and response.status <= 199)
+
+  socket:close()
+
+  return response
+end
+
+---Do a single request with a given method. The response is returned as the standard
+-- response table (see the module documentation). 
+--
+-- The <code>get</code>, <code>head</code>, and <code>post</code> functions are simple
+-- wrappers around <code>generic_request</code>. 
+--
+-- Any 1XX (informational) responses are discarded.
+--
+-- @param host The host to connect to.
+-- @param port The port to connect to.
+-- @param method The method to use; for example, 'GET', 'HEAD', etc.
+-- @param path The path to retrieve.
+-- @param options [optional] A table that lets the caller control socket timeouts, HTTP headers, and other parameters. For full documentation, see the module documentation (above). 
+-- @return <code>nil</code> if an error occurs; otherwise, a table as described in the module documentation. 
+-- @see request
+function generic_request(host, port, method, path, options)
+  if(not(validate_options(options))) then
+    return nil
+  end
+  return request(host, port, build_request(host, port, method, path, options), options)
+end
+
+---Fetches a resource with a GET request and returns the result as a table. This is a simple
+-- wraper around <code>generic_request</code>, with the added benefit of having local caching. 
+-- This caching can be controlled in the <code>options</code> array, see module documentation 
+-- for more information. 
+--
+-- @param host The host to connect to.
+-- @param port The port to connect to.
+-- @param path The path to retrieve.
+-- @param options [optional] A table that lets the caller control socket timeouts, HTTP headers, and other parameters. For full documentation, see the module documentation (above). 
+-- @return <code>nil</code> if an error occurs; otherwise, a table as described in the module documentation. 
+-- @see http.generic_request
+function get(host, port, path, options)
+  if(not(validate_options(options))) then
+    return nil
+  end
   local response, state = lookup_cache("GET", host, port, path, options);
   if response == nil then
-    local data, mod_options = buildGet(host, port, path, options, cookies)
-    data = buildRequest(data, mod_options)
-    response = request(host, port, data)
+    response = generic_request(host, port, "GET", path, options)
     insert_cache(state, response);
   end
   return response
 end
 
---- Parses a URL and calls <code>http.get</code> with the result.
+---Parses a URL and calls <code>http.get</code> with the result. The URL can contain
+-- all the standard fields, protocol://host:port/path
 --
--- The second argument is a table for further options.
 -- @param u The URL of the host.
--- @param options A table of options, as with <code>http.request</code>.
+-- @param options [optional] A table that lets the caller control socket timeouts, HTTP headers, and other parameters. For full documentation, see the module documentation (above). 
+-- @return <code>nil</code> if an error occurs; otherwise, a table as described in the module documentation. 
 -- @see http.get
-get_url = function( u, options )
+function get_url( u, options )
+  if(not(validate_options(options))) then
+    return nil
+  end
   local parsed = url.parse( u )
   local port = {}
 
@@ -1055,108 +1217,117 @@ get_url = function( u, options )
   return get( parsed.host, port, path, options )
 end
 
---- Fetches a resource with a HEAD request.
+---Fetches a resource with a HEAD request. Like <code>get</code>, this is a simple
+-- wrapper around <code>generic_request</code> with response caching. 
 --
--- The first argument is either a string with the hostname or a table like the
--- host table passed to a portrule or hostrule. The second argument is either
--- the port number or a table like the port table passed to a portrule or
--- hostrule. The third argument is the path of the resource. The fourth argument
--- is a table for further options. The fifth argument is a cookie table.
--- The function calls buildHead to build the request, then calls request to
--- send it get the response.
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @return Table as described in the module description.
-head = function( host, port, path, options, cookies )
+-- @param host The host to connect to.
+-- @param port The port to connect to.
+-- @param path The path to retrieve.
+-- @param options [optional] A table that lets the caller control socket timeouts, HTTP headers, and other parameters. For full documentation, see the module documentation (above). 
+-- @return <code>nil</code> if an error occurs; otherwise, a table as described in the module documentation. 
+-- @see http.generic_request
+function head(host, port, path, options)
+  if(not(validate_options(options))) then
+    return nil
+  end
   local response, state = lookup_cache("HEAD", host, port, path, options);
   if response == nil then
-    local data, mod_options = buildHead(host, port, path, options, cookies)
-    data = buildRequest(data, mod_options)
-    response = request(host, port, data)
+    response = generic_request(host, port, "HEAD", path, options)
     insert_cache(state, response);
   end
   return response;
 end
 
---- Fetches a resource with a POST request.
+---Fetches a resource with a POST request. Like <code>get</code>, this is a simple
+-- wrapper around <code>generic_request</code> except that postdata is handled
+-- properly. 
 --
--- The first argument is either a string with the hostname or a table like the
--- host table passed to a portrule or hostrule. The second argument is either
--- the port number or a table like the port table passed to a portrule or
--- hostrule. The third argument is the path of the resource. The fourth argument
--- is a table for further options. The fifth argument is a cookie table. The sixth 
--- argument is a table with data to be posted. 
--- The function calls buildHead to build the request, then calls request to
--- send it and get the response.
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @param postdata A string or a table of data to be posted. If a table, the
--- keys and values must be strings, and they will be encoded into an
--- application/x-www-form-encoded form submission.
--- @return Table as described in the module description.
-post = function( host, port, path, options, cookies, postdata )
-  local data, mod_options = buildPost(host, port, path, options, cookies, postdata)
-  data = buildRequest(data, mod_options)
-  local response = request(host, port, data)
-  return response
+-- @param host The host to connect to.
+-- @param port The port to connect to.
+-- @param path The path to retrieve.
+-- @param options [optional] A table that lets the caller control socket timeouts, HTTP headers, and other parameters. For full documentation, see the module documentation (above). 
+-- @param ignored Ignored for backwards compatibility.
+-- @param postdata A string or a table of data to be posted. If a table, the keys and values must be strings, and they will be encoded into an application/x-www-form-encoded form submission.
+-- @return <code>nil</code> if an error occurs; otherwise, a table as described in the module documentation. 
+-- @see http.generic_request
+function post( host, port, path, options, ignored, postdata )
+  if(not(validate_options(options))) then
+    return nil
+  end
+  local mod_options = {
+    content = postdata,
+  }
+  table_augment(mod_options, options or {})
+  return generic_request(host, port, "POST", path, mod_options)
 end
 
---- Builds a get request to be used in a pipeline request
+-- Deprecated pipeline functions
+function pGet( host, port, path, options, ignored, allReqs )
+  stdnse.print_debug(1, "WARNING: pGet() is deprecated. Use pipeline_add() instead.")
+  return pipeline_add(path, options, allReqs, 'GET')
+end
+function pHead( host, port, path, options, ignored, allReqs )
+  stdnse.print_debug(1, "WARNING: pHead() is deprecated. Use pipeline_add instead.")
+  return pipeline_add(path, options, allReqs, 'HEAD')
+end
+function addPipeline(host, port, path, options, ignored, allReqs, method)
+  stdnse.print_debug(1, "WARNING: addPipeline() is deprecated! Use pipeline_add instead.")
+  return pipeline_add(path, options, allReqs, method)
+end
+function pipeline(host, port, allReqs)
+  stdnse.print_debug(1, "WARNING: pipeline() is deprecated. Use pipeline_go() instead.")
+  return pipeline_go(host, port, allReqs)
+end
+
+
+---Adds a pending request to the HTTP pipeline. The HTTP pipeline is a set of requests that will
+-- all be sent at the same time, or as close as the server allows. This allows more efficient
+-- code, since requests are automatically buffered and sent simultaneously. 
 --
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @param allReqs A table with all the pipeline requests
+-- The <code>all_requests</code> argument contains the current list of queued requests (if this
+-- is the first time calling <code>pipeline_add</code>, it should be <code>nil</code>). After
+-- adding the request to end of the queue, the queue is returned and can be passed to the next
+-- <code>pipeline_add</code> call. 
+--
+-- When all requests have been queued, call <code>pipeline_go</code> with the all_requests table
+-- that has been built. 
+--
+-- @param path The path to retrieve.
+-- @param options [optional] A table that lets the caller control socket timeouts, HTTP headers, and other parameters. For full documentation, see the module documentation (above). 
+-- @param all_requests [optional] The current pipeline queue (retunred from a previous <code>add_pipeline</code> call), or nil if it's the first call. 
+-- @param method [optional] The HTTP method ('get', 'head', 'post', etc). Default: 'get'. 
 -- @return Table with the pipeline get requests (plus this new one)
-function pGet( host, port, path, options, cookies, allReqs )
-  local req = {}
-  if not allReqs then allReqs = {} end
-  if not options then options = {} end
-  local object = {data="", opts="", method="get"}
-  options.connection = "Keep-alive"
-  object["data"], object["opts"] =  buildGet(host, port, path, options, cookies)
-  allReqs[#allReqs + 1] =  object
-  return allReqs
+-- @see http.pipeline_go
+function pipeline_add(path, options, all_requests, method)
+  if(not(validate_options(options))) then
+    return nil
+  end
+  method = method or 'GET'
+  all_requests = all_requests or {}
+
+  local mod_options = {
+    header = {
+      ["Connection"] = "keep-alive"
+    }
+  }
+  table_augment(mod_options, options or {})
+
+  local object = { method=method, path=path, options=mod_options }
+  table.insert(all_requests, object)
+
+  return all_requests
 end
 
---- Builds a Head request to be used in a pipeline request
+---Performs all queued requests in the all_requests variable (created by the 
+-- <code>pipeline_add</code> function). Returns an array of responses, each of
+-- which is a table as defined in the module documentation above. 
 --
--- @param host The host to query.
--- @param port The port for the host.
--- @param path The path of the resource.
--- @param options A table of options, as with <code>http.request</code>.
--- @param cookies A table with cookies
--- @param allReqs A table with all the pipeline requests
--- @return Table with the pipeline get requests (plus this new one)
-function pHead( host, port, path, options, cookies, allReqs )
-  local req = {}
-  if not allReqs then allReqs = {} end
-  if not options then options = {} end
-  local object = {data="", opts="", method="head"}
-  options.connection = "Keep-alive"
-  object["data"], object["opts"] =  buildHead(host, port, path, options, cookies)
-  allReqs[#allReqs + 1] =  object
-  return allReqs
-end
-
---- Performs pipelined that are in allReqs to the resource. Return an array of
--- response tables.
---
--- @param host The host to query.
--- @param port The port for the host.
--- @param allReqs A table with all the previously built pipeline requests
--- @param options A table with options to configure the pipeline request
--- @return A table with multiple http response tables
-pipeline = function(host, port, allReqs)
-  stdnse.print_debug("Total number of pipelined requests: " .. #allReqs)
+-- @param host The host to connect to.
+-- @param port The port to connect to.
+-- @param all_requests A table with all the previously built pipeline requests
+-- @return A list of responses, in the same order as the requests were queued. Each response is a table as described in the module documentation. 
+function pipeline_go(host, port, all_requests)
+  stdnse.print_debug("Total number of pipelined requests: " .. #all_requests)
   local responses
   local response
   local partial
@@ -1164,7 +1335,7 @@ pipeline = function(host, port, allReqs)
   responses = {}
 
   -- Check for an empty request
-  if (#allReqs == 0) then
+  if (#all_requests == 0) then
     stdnse.print_debug(1, "Warning: empty set of requests passed to http.pipeline()")
     return responses
   end
@@ -1173,53 +1344,56 @@ pipeline = function(host, port, allReqs)
 
   -- We'll try a first request with keep-alive, just to check if the server
   -- supports and how many requests we can send into one socket!
-  socket, partial, bopt = comm.tryssl(host, port, buildRequest(allReqs[1]["data"], allReqs[1]["opts"]), {connect_timeout=5000, request_timeout=3000, recv_before=false})
+  local request = build_request(host, port, all_requests[1].method, all_requests[1].path, all_requests[1].options)
+
+  socket, partial, bopt = comm.tryssl(host, port, request, {connect_timeout=5000, request_timeout=3000, recv_before=false})
   if not socket then
     return nil
   end
 
-  response, partial = next_response(socket, allReqs[1].method, partial)
+  response, partial = next_response(socket, all_requests[1].method, partial)
   if not response then
     return nil
   end
 
-  responses[#responses + 1] = response
+  table.insert(responses, response)
 
   local limit = getPipelineMax(response)
   local count = 1
-  stdnse.print_debug("Number of requests allowed by pipeline: " .. limit)
+  stdnse.print_debug(1, "Number of requests allowed by pipeline: " .. limit)
 
-  while #responses < #allReqs do
+  while #responses < #all_requests do
     local j, batch_end
     -- we build a big string with many requests, upper limited by the var "limit"
     local requests = ""
 
-    if #responses + limit < #allReqs then
+    if #responses + limit < #all_requests then
       batch_end = #responses + limit
     else
-      batch_end = #allReqs
+      batch_end = #all_requests
     end
 
     j = #responses + 1
     while j <= batch_end do
       if j == batch_end then
-        allReqs[j].opts.header["Connection"] = "close"
+        all_requests[j].options.header["Connection"] = "close"
       end
-      requests = requests .. buildRequest(allReqs[j].data, allReqs[j].opts)
+
+      requests = requests .. build_request(host, port, all_requests[j].method, all_requests[j].path, all_requests[j].options)
       j = j + 1
     end
 
     -- Connect to host and send all the requests at once!
     if count >= limit or not socket:get_info() then
-      socket:connect(host.ip, port.number, bopt)
+      socket:connect(host, port, bopt)
       partial = ""
       count = 0
     end
     socket:set_timeout(10000)
     socket:send(requests)
 
-    while #responses < #allReqs do
-      response, partial = next_response(socket, allReqs[#responses + 1].method, partial)
+    while #responses < #all_requests do
+      response, partial = next_response(socket, all_requests[#responses + 1].method, partial)
       if not response then
         break
       end
@@ -1230,10 +1404,10 @@ pipeline = function(host, port, allReqs)
     socket:close()
 
     if count == 0 then
-      stdnse.print_debug("Received 0 of %d expected reponses.\nGiving up on pipeline.", limit);
+      stdnse.print_debug("Received 0 of %d expected responses.\nGiving up on pipeline.", limit);
       break
     elseif count < limit then
-      stdnse.print_debug("Received only %d of %d expected reponses.\nDecreasing max pipelined requests to %d.", count, limit, count)
+      stdnse.print_debug("Received only %d of %d expected responses.\nDecreasing max pipelined requests to %d.", count, limit, count)
       limit = count
     end
   end
@@ -1243,72 +1417,76 @@ pipeline = function(host, port, allReqs)
   return responses
 end
 
---- Sends request to host:port and parses the answer. This is a common
--- subroutine used by <code>get</code>, <code>head</code>, and
--- <code>post</code>. Any 1XX (informational) responses are discarded.
---
--- The first argument is either a string with the hostname or a table like the
--- host table passed to a portrule or hostrule. The second argument is either
--- the port number or a table like the port table passed to a portrule or
--- hostrule. SSL is used for the request if <code>port.service</code> is
--- <code>"https"</code> or <code>"https-alt"</code> or
--- <code>port.version.service_tunnel</code> is <code>"ssl"</code>.
--- The third argument is the request. The fourth argument is
--- a table for further options.
--- @param host The host to query.
--- @param port The port on the host.
--- @param data Data to send initially to the host, like a <code>GET</code> line.
--- Should end in a single <code>\r\n</code>.
--- @param options A table of options. It may have any of these fields:
--- * <code>timeout</code>: A timeout used for socket operations.
--- * <code>header</code>: A table containing additional headers to be used for the request.
--- * <code>content</code>: The content of the message (content-length will be added -- set header['Content-Length'] to override)
--- * <code>bypass_cache</code>: The contents of the cache is ignored for the request (method == "GET" or "HEAD")
--- * <code>no_cache</code>: The result of the request is not saved in the cache (method == "GET" or "HEAD").
--- * <code>no_cache_body</code>: The body of the request is not saved in the cache (method == "GET" or "HEAD").
-request = function(host, port, data)
-  local method
-  local opts
-  local header, partial
-  local response
-  
-  if type(host) == 'table' then
-    host = host.ip
-  end
 
-  if type(port) == 'table' then
-    if port.protocol and port.protocol ~= 'tcp' then
-      stdnse.print_debug(1, "http.request() supports the TCP protocol only, your request to %s cannot be completed.", host)
-      return nil
-    end
-  end
+-- Parsing of specific headers. skip_space and the read_* functions return the
+-- byte index following whatever they have just read, or nil on error.
 
-  local error_response = {status=nil,["status-line"]=nil,header={},body=""}
-  local socket
+-- Skip whitespace (that has already been folded from LWS). See RFC 2616,
+-- section 2.2, definition of LWS.
+local function skip_space(s, pos)
+  local _
 
-  method = string.match(data, "^(%S+)")
+  _, pos = string.find(s, "^[ \t]*", pos)
 
-  socket, partial = comm.tryssl(host, port, data, opts)
-
-  if not socket then
-    return error_response
-  end
-
-  repeat
-    response, partial = next_response(socket, method, partial)
-    if not response then
-      return error_response
-    end
-    -- See RFC 2616, sections 8.2.3 and 10.1.1, for the 100 Continue status.
-    -- Sometimes a server will tell us to "go ahead" with a POST body before
-    -- sending the real response. If we got one of those, skip over it.
-  until not (response.status >= 100 and response.status <= 199)
-
-  socket:close()
-
-  return response
+  return pos + 1
 end
 
+-- See RFC 2616, section 2.2.
+local function read_token(s, pos)
+  local _, token
+
+  pos = skip_space(s, pos)
+  -- 1*<any CHAR except CTLs or separators>. CHAR is only byte values 0-127.
+  _, pos, token = string.find(s, "^([^%z\001-\031()<>@,;:\\\"/?={} \t%[%]\127-\255]+)", pos)
+
+  if token then
+    return pos + 1, token
+  else
+    return nil
+  end
+end
+
+-- See RFC 2616, section 2.2. Here we relax the restriction that TEXT may not
+-- contain CTLs.
+local function read_quoted_string(s, pos)
+  local chars = {}
+
+  if string.sub(s, pos, pos) ~= "\"" then
+    return nil
+  end
+  pos = pos + 1
+  pos = skip_space(s, pos)
+  while pos <= string.len(s) and string.sub(s, pos, pos) ~= "\"" do
+    local c
+
+    c = string.sub(s, pos, pos)
+    if c == "\\" then
+      if pos < string.len(s) then
+        pos = pos + 1
+        c = string.sub(s, pos, pos)
+      else
+        return nil
+      end
+    end
+
+    chars[#chars + 1] = c
+    pos = pos + 1
+  end
+  if pos > string.len(s) or string.sub(s, pos, pos) ~= "\"" then
+    return nil
+  end
+
+  return pos + 1, table.concat(chars)
+end
+
+local function read_token_or_quoted_string(s, pos)
+  pos = skip_space(s, pos)
+  if string.sub(s, pos, pos) == "\"" then
+    return read_quoted_string(s, pos)
+  else
+    return read_token(s, pos)
+  end
+end
 
 local MONTH_MAP = {
   Jan = 1, Feb = 2, Mar = 3, Apr = 4, May = 5, Jun = 6,
@@ -1320,14 +1498,13 @@ local MONTH_MAP = {
 -- * Sun, 06 Nov 1994 08:49:37 GMT  (RFC 822, updated by RFC 1123)
 -- * Sunday, 06-Nov-94 08:49:37 GMT (RFC 850, obsoleted by RFC 1036)
 -- * Sun Nov  6 08:49:37 1994       (ANSI C's <code>asctime()</code> format)
--- @arg s the date string.
+-- @param s the date string.
 -- @return a table with keys <code>year</code>, <code>month</code>,
 -- <code>day</code>, <code>hour</code>, <code>min</code>, <code>sec</code>, and
 -- <code>isdst</code>, relative to GMT, suitable for input to
 -- <code>os.time</code>.
 function parse_date(s)
   local day, month, year, hour, min, sec, tz, month_name
-  -- RFC 2616, section 3.3.1:
 
   -- Handle RFC 1123 and 1036 at once.
   day, month_name, year, hour, min, sec, tz = s:match("^%w+, (%d+)[- ](%w+)[- ](%d+) (%d+):(%d+):(%d+) (%w+)$")
@@ -1367,7 +1544,616 @@ function parse_date(s)
   return { year = year, month = month, day = day, hour = hour, min = min, sec = sec, isdst = false }
 end
 
-get_default_timeout = function( nmap_timing )
+-- See RFC 2617, section 1.2. This function returns a table with keys "scheme"
+-- and "params".
+local function read_auth_challenge(s, pos)
+  local _, scheme, params
+
+  pos, scheme = read_token(s, pos)
+  if not scheme then
+    return nil
+  end
+
+  params = {}
+  pos = skip_space(s, pos)
+  while pos < string.len(s) do
+    local name, val
+    local tmp_pos
+
+    -- We need to peek ahead at this point. It's possible that we've hit the
+    -- end of one challenge and the beginning of another. Section 14.33 says
+    -- that the header value can be 1#challenge, in other words several
+    -- challenges separated by commas. Because the auth-params are also
+    -- separated by commas, the only way we can tell is if we find a token not
+    -- followed by an equals sign.
+    tmp_pos = pos
+    tmp_pos, name = read_token(s, tmp_pos)
+    if not name then
+      return nil
+    end
+    tmp_pos = skip_space(s, tmp_pos)
+    if string.sub(s, tmp_pos, tmp_pos) ~= "=" then
+      -- No equals sign, must be the beginning of another challenge.
+      break
+    end
+    tmp_pos = tmp_pos + 1
+
+    pos = tmp_pos
+    pos, val = read_token_or_quoted_string(s, pos)
+    if not val then
+      return nil
+    end
+    if params[name] then
+      return nil
+    end
+    params[name] = val
+    pos = skip_space(s, pos)
+    if string.sub(s, pos, pos) == "," then
+      pos = skip_space(s, pos + 1)
+      if pos > string.len(s) then
+        return nil
+      end
+    end
+  end
+
+  return pos, { scheme = scheme, params = params }
+end
+
+---Parses the WWW-Authenticate header as described in RFC 2616, section 14.47
+-- and RFC 2617, section 1.2. The return value is an array of challenges. Each
+-- challenge is a table with the keys <code>scheme</code> and
+-- <code>params</code>.
+-- @param s The header value text.
+-- @return An array of challenges, or <code>nil</code> on error.
+function parse_www_authenticate(s)
+  local challenges = {}
+  local pos
+
+  pos = 1
+  while pos <= string.len(s) do
+    local challenge
+
+    pos, challenge = read_auth_challenge(s, pos)
+    if not challenge then
+      return nil
+    end
+    challenges[#challenges + 1] = challenge
+  end
+
+  return challenges
+end
+
+
+---Take the data returned from a HTTP request and return the status string.
+-- Useful for <code>stdnse.print_debug</code> messages and even advanced output.
+--
+-- @param data The response table from any HTTP request
+-- @return The best status string we could find: either the actual status string, the status code, or <code>"<unknown status>"</code>.
+function get_status_string(data)
+  -- Make sure we have valid data
+  if(data == nil) then
+    return "<unknown status>"
+  elseif(data['status-line'] == nil) then
+    if(data['status'] ~= nil) then
+      return data['status']
+    end
+
+    return "<unknown status>"
+  end
+
+  -- We basically want everything after the space
+  local space = string.find(data['status-line'], ' ')
+  if(space == nil) then
+    return data['status-line']
+  else
+    return (string.sub(data['status-line'], space + 1)):gsub('\r?\n', '')
+  end
+end
+
+---Determine whether or not the server supports HEAD by requesting / and
+-- verifying that it returns 200, and doesn't return data. We implement the
+-- check like this because can't always rely on OPTIONS to tell the truth.
+--
+-- Note: If <code>identify_404</code> returns a 200 status, HEAD requests
+-- should be disabled. Sometimes, servers use a 200 status code with a message
+-- explaining that the page wasn't found. In this case, to actually identify
+-- a 404 page, we need the full body that a HEAD request doesn't supply. 
+-- This is determined automatically if the <code>result_404</code> field is
+-- set. 
+--
+-- @param host The host object.
+-- @param port The port to use.
+-- @param result_404 [optional] The result when an unknown page is requested.
+-- This is returned by <code>identify_404</code>. If the 404 page returns a
+-- 200 code, then we disable HEAD requests.
+-- @param path The path to request; by default, / is used.
+-- @return A boolean value: true if HEAD is usable, false otherwise.
+-- @return If HEAD is usable, the result of the HEAD request is returned (so
+-- potentially, a script can avoid an extra call to HEAD
+function can_use_head(host, port, result_404, path)
+  -- If the 404 result is 200, don't use HEAD.
+  if(result_404 == 200) then
+    return false
+  end
+
+  -- Default path
+  if(path == nil) then
+    path = '/'
+  end
+
+  -- Perform a HEAD request and see what happens.
+  local data = http.head( host, port, path )
+  if data then
+    if data.status and data.status == 302 and data.header and data.header.location then
+      stdnse.print_debug(1, "HTTP: Warning: Host returned 302 and not 200 when performing HEAD.")
+      return false
+    end
+
+    if data.status and data.status == 200 and data.header then
+      -- check that a body wasn't returned
+      if string.len(data.body) > 0 then
+        stdnse.print_debug(1, "HTTP: Warning: Host returned data when performing HEAD.")
+        return false
+      end
+
+      stdnse.print_debug(1, "HTTP: Host supports HEAD.")
+      return true, data
+    end
+
+    stdnse.print_debug(1, "HTTP: Didn't receive expected response to HEAD request (got %s).", get_status_string(data))
+    return false
+  end
+
+  stdnse.print_debug(1, "HTTP: HEAD request completely failed.")
+  return false
+end
+
+--- Try and remove anything that might change within a 404. For example:
+-- * A file path (includes URI)
+-- * A time
+-- * A date
+-- * An execution time (numbers in general, really)
+--
+-- The intention is that two 404 pages from different URIs and taken hours
+-- apart should, whenever possible, look the same.
+--
+-- During this function, we're likely going to over-trim things. This is fine
+-- -- we want enough to match on that it'll a) be unique, and b) have the best
+-- chance of not changing. Even if we remove bits and pieces from the file, as
+-- long as it isn't a significant amount, it'll remain unique.
+--
+-- One case this doesn't cover is if the server generates a random haiku for
+-- the user.
+--
+-- @param body The body of the page.
+local function clean_404(body)
+  -- Remove anything that looks like time
+  body = string.gsub(body, '%d?%d:%d%d:%d%d', "")
+  body = string.gsub(body, '%d%d:%d%d', "")
+  body = string.gsub(body, 'AM', "")
+  body = string.gsub(body, 'am', "")
+  body = string.gsub(body, 'PM', "")
+  body = string.gsub(body, 'pm', "")
+
+  -- Remove anything that looks like a date (this includes 6 and 8 digit numbers)
+  -- (this is probably unnecessary, but it's getting pretty close to 11:59 right now, so you never know!)
+  body = string.gsub(body, '%d%d%d%d%d%d%d%d', "") -- 4-digit year (has to go first, because it overlaps 2-digit year)
+  body = string.gsub(body, '%d%d%d%d%-%d%d%-%d%d', "")
+  body = string.gsub(body, '%d%d%d%d/%d%d/%d%d', "")
+  body = string.gsub(body, '%d%d%-%d%d%-%d%d%d%d', "")
+  body = string.gsub(body, '%d%d%/%d%d%/%d%d%d%d', "")
+
+  body = string.gsub(body, '%d%d%d%d%d%d', "") -- 2-digit year
+  body = string.gsub(body, '%d%d%-%d%d%-%d%d', "")
+  body = string.gsub(body, '%d%d%/%d%d%/%d%d', "")
+
+  -- Remove anything that looks like a path (note: this will get the URI too) (note2: this interferes with the date removal above, so it can't be moved up)
+  body = string.gsub(body, "/[^ ]+", "") -- Unix - remove everything from a slash till the next space
+  body = string.gsub(body, "[a-zA-Z]:\\[^ ]+", "") -- Windows - remove everything from a "x:\" pattern till the next space
+
+  -- If we have SSL available, save us a lot of memory by hashing the page (if SSL isn't available, this will work fine, but
+  -- take up more memory). If we're debugging, don't hash (it makes things far harder to debug).
+  if(have_ssl and nmap.debugging() == 0) then
+    return openssl.md5(body)
+  end
+
+  return body
+end
+
+---Try requesting a non-existent file to determine how the server responds to
+-- unknown pages ("404 pages"), which a) tells us what to expect when a
+-- non-existent page is requested, and b) tells us if the server will be
+-- impossible to scan. If the server responds with a 404 status code, as it is
+-- supposed to, then this function simply returns 404. If it contains one of a
+-- series of common status codes, including unauthorized, moved, and others, it
+-- is returned like a 404.
+--
+-- I (Ron Bowes) have observed one host that responds differently for three
+-- scenarios:
+-- * A non-existent page, all lowercase (a login page)
+-- * A non-existent page, with uppercase (a weird error page that says, "Filesystem is corrupt.")
+-- * A page in a non-existent directory (a login page with different font colours)
+--
+-- As a result, I've devised three different 404 tests, one to check each of
+-- these conditions. They all have to match, the tests can proceed; if any of
+-- them are different, we can't check 404s properly.
+--
+-- @param host The host object.
+-- @param port The port to which we are establishing the connection.
+-- @return status Did we succeed?
+-- @return result If status is false, result is an error message. Otherwise, it's the code to expect (typically, but not necessarily, '404').
+-- @return body Body is a hash of the cleaned-up body that can be used when detecting a 404 page that doesn't return a 404 error code.
+function identify_404(host, port)
+  local data
+  local bad_responses = { 301, 302, 400, 401, 403, 499, 501, 503 }
+
+  -- The URLs used to check 404s
+  local URL_404_1 = '/nmaplowercheck' .. os.time(os.date('*t'))
+  local URL_404_2 = '/NmapUpperCheck' .. os.time(os.date('*t'))
+  local URL_404_3 = '/Nmap/folder/check' .. os.time(os.date('*t'))
+
+  data = http.get(host, port, URL_404_1)
+
+  if(data == nil) then
+    stdnse.print_debug(1, "HTTP: Failed while testing for 404 status code")
+    return false, "Failed while testing for 404 error message"
+  end
+
+  if(data.status and data.status == 404) then
+    stdnse.print_debug(1, "HTTP: Host returns proper 404 result.")
+    return true, 404
+  end
+
+  if(data.status and data.status == 200) then
+    stdnse.print_debug(1, "HTTP: Host returns 200 instead of 404.")
+
+    -- Clean up the body (for example, remove the URI). This makes it easier to validate later
+    if(data.body) then
+      -- Obtain a couple more 404 pages to test different conditions
+      local data2 = http.get(host, port, URL_404_2)
+      local data3 = http.get(host, port, URL_404_3)
+      if(data2 == nil or data3 == nil) then
+        stdnse.print_debug(1, "HTTP: Failed while testing for extra 404 error messages")
+        return false, "Failed while testing for extra 404 error messages"
+      end
+
+      -- Check if the return code became something other than 200
+      if(data2.status ~= 200) then
+        if(data2.status == nil) then
+          data2.status = "<unknown>"
+        end
+        stdnse.print_debug(1, "HTTP: HTTP 404 status changed for second request (became %d).", data2.status)
+        return false, string.format("HTTP 404 status changed for second request (became %d).", data2.status)
+      end
+
+      -- Check if the return code became something other than 200
+      if(data3.status ~= 200) then
+        if(data3.status == nil) then
+          data3.status = "<unknown>"
+        end
+        stdnse.print_debug(1, "HTTP: HTTP 404 status changed for third request (became %d).", data3.status)
+        return false, string.format("HTTP 404 status changed for third request (became %d).", data3.status)
+      end
+
+      -- Check if the returned bodies (once cleaned up) matches the first returned body
+      local clean_body  = clean_404(data.body)
+      local clean_body2 = clean_404(data2.body)
+      local clean_body3 = clean_404(data3.body)
+      if(clean_body ~= clean_body2) then
+        stdnse.print_debug(1, "HTTP: Two known 404 pages returned valid and different pages; unable to identify valid response.")
+        stdnse.print_debug(1, "HTTP: If you investigate the server and it's possible to clean up the pages, please post to nmap-dev mailing list.")
+        return false, string.format("Two known 404 pages returned valid and different pages; unable to identify valid response.")
+      end
+
+      if(clean_body ~= clean_body3) then
+        stdnse.print_debug(1, "HTTP: Two known 404 pages returned valid and different pages; unable to identify valid response (happened when checking a folder).")
+        stdnse.print_debug(1, "HTTP: If you investigate the server and it's possible to clean up the pages, please post to nmap-dev mailing list.")
+        return false, string.format("Two known 404 pages returned valid and different pages; unable to identify valid response (happened when checking a folder).")
+      end
+
+      return true, 200, clean_body
+    end
+
+    stdnse.print_debug(1, "HTTP: The 200 response didn't contain a body.")
+    return true, 200
+  end
+
+  -- Loop through any expected error codes
+  for _,code in pairs(bad_responses) do
+    if(data.status and data.status == code) then
+      stdnse.print_debug(1, "HTTP: Host returns %s instead of 404 File Not Found.", get_status_string(data))
+      return true, code
+    end
+  end
+
+  stdnse.print_debug(1,  "Unexpected response returned for 404 check: %s", get_status_string(data))
+
+  return true, data.status
+end
+
+--- Determine whether or not the page that was returned is a 404 page. This is
+--actually a pretty simple function, but it's best to keep this logic close to
+--<code>identify_404</code>, since they will generally be used together.
+--
+-- @param data The data returned by the HTTP request
+-- @param result_404 The status code to expect for non-existent pages. This is returned by <code>identify_404</code>.
+-- @param known_404 The 404 page itself, if <code>result_404</code> is 200. If <code>result_404</code> is something else, this parameter is ignored and can be set to <code>nil</code>. This is returned by <code>identfy_404</code>.
+-- @param page The page being requested (used in error messages).
+-- @param displayall [optional] If set to true, don't exclude non-404 errors (such as 500). 
+-- @return A boolean value: true if the page appears to exist, and false if it does not.
+function page_exists(data, result_404, known_404, page, displayall)
+  if(data and data.status) then
+    -- Handle the most complicated case first: the "200 Ok" response
+    if(data.status == 200) then
+      if(result_404 == 200) then
+        -- If the 404 response is also "200", deal with it (check if the body matches)
+        if(string.len(data.body) == 0) then
+          -- I observed one server that returned a blank string instead of an error, on some occasions
+          stdnse.print_debug(1, "HTTP: Page returned a totally empty body; page likely doesn't exist")
+          return false
+        elseif(clean_404(data.body) ~= known_404) then
+          stdnse.print_debug(1, "HTTP: Page returned a body that doesn't match known 404 body, therefore it exists (%s)", page)
+          return true
+        else
+          return false
+        end
+      else
+        -- If 404s return something other than 200, and we got a 200, we're good to go
+        stdnse.print_debug(1, "HTTP: Page was '%s', it exists! (%s)", get_status_string(data), page)
+        return true
+      end
+    else
+      -- If the result isn't a 200, check if it's a 404 or returns the same code as a 404 returned
+      if(data.status ~= 404 and data.status ~= result_404) then
+        -- If this check succeeded, then the page isn't a standard 404 -- it could be a redirect, authentication request, etc. Unless the user
+        -- asks for everything (with a script argument), only display 401 Authentication Required here.
+        stdnse.print_debug(1, "HTTP: Page didn't match the 404 response (%s) (%s)", get_status_string(data), page)
+
+        if(data.status == 401) then -- "Authentication Required"
+          return true
+        elseif(displayall) then
+          return true
+        end
+
+        return false
+      else
+        -- Page was a 404, or looked like a 404
+        return false
+      end
+    end
+  else
+    stdnse.print_debug(1, "HTTP: HTTP request failed (is the host still up?)")
+    return false
+  end
+end
+
+---Check if the response variable, which could be a return from a http.get, http.post, http.pipeline, 
+-- etc, contains the given text. The text can be:
+-- * Part of a header ('content-type', 'text/html', '200 OK', etc)
+-- * An entire header ('Content-type: text/html', 'Content-length: 123', etc)
+-- * Part of the body
+--
+-- The search text is treated as a Lua pattern. 
+--
+--@param response The full response table from a HTTP request.
+--@param pattern The pattern we're searching for. Don't forget to escape '-', for example, 'Content%-type'. The pattern can also contain captures, like 'abc(.*)def', which will be returned if successful. 
+--@param case_sensitive [optional] Set to <code>true</code> for case-sensitive searches. Default: not case sensitive.
+--@return result True if the string matched, false otherwise
+--@return matches An array of captures from the match, if any
+function response_contains(response, pattern, case_sensitive)
+  local result, _
+  local m = {}
+  
+  -- If they're searching for the empty string or nil, it's true
+  if(pattern == '' or pattern == nil) then
+    return true
+  end
+
+  -- Create a function that either lowercases everything or doesn't, depending on case sensitivity
+  local case = function(pattern) return string.lower(pattern or '') end
+  if(case_sensitive == true) then
+    case = function(pattern) return (pattern or '') end
+  end
+
+  -- Set the case of the pattern
+  pattern = case(pattern)
+
+  -- Check the status line (eg, 'HTTP/1.1 200 OK')
+  m = {string.match(case(response['status-line']), pattern)};
+  if(m and #m > 0) then
+    return true, m
+  end
+
+  -- Check the headers
+  for _, header in pairs(response['rawheader']) do
+    m = {string.match(case(header), pattern)}
+    if(m and #m > 0) then
+      return true, m
+    end
+  end
+
+  -- Check the body
+  m = {string.match(case(response['body']), pattern)}
+  if(m and #m > 0) then
+    return true, m
+  end
+
+  return false
+end
+
+---Take a URI or URL in any form and convert it to its component parts. The URL can optionally
+-- have a protocol definition ('http://'), a server ('scanme.insecure.org'), a port (':80'), a
+-- URI ('/test/file.php'), and a query string ('?username=ron&password=turtle'). At the minimum,
+-- a path or protocol and url are required. 
+--
+--@param url The incoming URL to parse
+--@return result A table containing the result, which can have the following fields: protocol, hostname, port, uri, querystring. All fields are strings except querystring, which is a table containing name=value pairs.
+function parse_url(url)
+  local result = {}
+
+  -- Save the original URL
+  result['original'] = url
+
+  -- Split the protocol off, if it exists
+  local colonslashslash = string.find(url, '://')
+  if(colonslashslash) then
+    result['protocol'] = string.sub(url, 1, colonslashslash - 1)
+    url = string.sub(url, colonslashslash + 3)
+  end
+
+  -- Split the host:port from the path
+  local slash, host_port
+  slash = string.find(url, '/')
+  if(slash) then
+    host_port      = string.sub(url, 1, slash - 1)
+    result['path_query'] = string.sub(url, slash)
+  else
+    -- If there's no slash, then it's just a URL (if it has a http://) or a path (if it doesn't)
+    if(result['protocol']) then
+      result['host_port'] = url
+    else
+      result['path_query'] = url
+    end
+  end
+  if(host_port == '') then
+    host_port = nil
+  end
+
+  -- Split the host and port apart, if possible
+  if(host_port) then
+    local colon = string.find(host_port, ':')
+    if(colon) then
+      result['host'] = string.sub(host_port, 1, colon - 1)
+      result['port'] = tonumber(string.sub(host_port, colon + 1))
+    else
+      result['host'] = host_port
+    end
+  end
+
+  -- Split the path and querystring apart
+  if(result['path_query']) then
+    local question = string.find(result['path_query'], '?')
+    if(question) then
+      result['path']      = string.sub(result['path_query'], 1, question - 1)
+      result['raw_querystring'] = string.sub(result['path_query'], question + 1)
+    else
+      result['path'] = result['path_query']
+    end
+
+    -- Split up the query, if necessary
+    if(result['raw_querystring']) then
+      result['querystring'] = {}
+      local values = stdnse.strsplit('&', result['raw_querystring'])
+      for i, v in ipairs(values) do
+        local name, value = unpack(stdnse.strsplit('=', v))
+        result['querystring'][name] = value
+      end
+    end
+
+    -- Get the extension of the file, if any, or set that it's a folder
+    if(string.match(result['path'], "/$")) then
+      result['is_folder'] = true
+    else
+      result['is_folder'] = false
+      local split_str = stdnse.strsplit('%.', result['path'])
+      if(split_str and #split_str > 1) then
+        result['extension'] = split_str[#split_str]
+      end
+    end
+  end
+
+  return result
+end
+
+---This function should be called whenever a valid path (a path that doesn't contain a known
+-- 404 page) is discovered. It will add the path to the registry in several ways, allowing
+-- other scripts to take advantage of it in interesting ways. 
+--
+--@param host The host the path was discovered on (not necessarily the host being scanned). 
+--@param port The port the path was discovered on (not necessarily the port being scanned). 
+--@param path The path discovered. Calling this more than once with the same path is okay; it'll update the data as much as possible instead of adding a duplicate entry
+--@param status [optional] The status code (200, 404, 500, etc). This can be left off if it isn't known. 
+--@param links_to [optional] A table of paths that this page links to. 
+--@param linked_from [optional] A table of paths that link to this page. 
+--@param contenttype [optional] The content-type value for the path, if it's known. 
+function save_path(host, port, path, status, links_to, linked_from, contenttype)
+  -- Make sure we have a proper hostname and port
+  host = stdnse.get_hostname(host)
+  if(type(port) == 'table') then
+    port = port.number
+  end
+
+  -- Parse the path
+  local parsed = parse_url(path)
+
+  -- Add to the 'all_pages' key
+  stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'all_pages'}, parsed['path'])
+
+  -- Add the URL with querystring to all_pages_full_query
+  stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'all_pages_full_query'}, parsed['path_query'])
+
+  -- Add the URL to a key matching the response code
+  if(status) then
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'status_codes', status}, parsed['path'])
+  end
+
+  -- If it's a directory, add it to the directories list; otherwise, add it to the files list
+  if(parsed['is_folder']) then
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'directories'}, parsed['path'])
+  else
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'files'}, parsed['path'])
+  end
+
+
+  -- If we have an extension, add it to the extensions key
+  if(parsed['extension']) then
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'extensions', parsed['extension']}, parsed['path'])
+  end
+
+  -- Add an entry for the page and its arguments
+  if(parsed['querystring']) then
+    -- Add all scripts with a querystring to the 'cgi' and 'cgi_full_query' keys
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi'}, parsed['path'])
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi_full_query'}, parsed['path_query'])
+
+    -- Add the query string alone to the registry (probably not necessary)
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi_querystring', parsed['path'] }, parsed['raw_querystring'])
+
+    -- Add the individual arguments for the page, along with their values
+    for key, value in pairs(parsed['querystring']) do
+      stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'cgi_args', parsed['path']}, parsed['querystring'])
+    end
+  end
+
+  -- Save the pages it links to
+  if(links_to) then
+    if(type(links_to) == 'string') then
+      links_to = {links_to}
+    end
+
+    for _, v in ipairs(links_to) do
+      stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'links_to', parsed['path_query']}, v)
+    end
+  end
+
+  -- Save the pages it's linked from (we save these in the 'links_to' key, reversed)
+  if(linked_from) then
+    if(type(linked_from) == 'string') then
+      linked_from = {linked_from}
+    end
+
+    for _, v in ipairs(linked_from) do
+      stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'links_to', v}, parsed['path_query'])
+    end
+  end
+
+  -- Save it as a content-type, if we have one
+  if(contenttype) then
+    stdnse.registry_add_array({parsed['host'] or host, 'www', parsed['port'] or port, 'content-type', contenttype}, parsed['path_query'])
+  end
+end
+
+local function get_default_timeout( nmap_timing )
   local timeout = {}
   if nmap_timing >= 0 and nmap_timing <= 3 then
     timeout.connect = 10000
@@ -1382,334 +2168,4 @@ get_default_timeout = function( nmap_timing )
   end
   return timeout
 end
-
----Take the data returned from a HTTP request and return the status string. Useful 
--- for <code>print_debug</code> messaes and even for advanced output. 
---
---@param data The data returned by a HTTP request (can be nil or empty)
---@return The status string, the status code, or "<unknown status>". 
-function get_status_string(data)
-	-- Make sure we have valid data
-	if(data == nil) then
-		return "<unknown status>"
-	elseif(data['status-line'] == nil) then
-		if(data['status'] ~= nil) then
-			return data['status']
-		end
-
-		return "<unknown status>"
-	end
-
-	-- We basically want everything after the space
-	local space = string.find(data['status-line'], ' ')
-	if(space == nil) then
-		return data['status-line']
-	else
-		return string.sub(data['status-line'], space + 1)
-	end
-end
-
----Determine whether or not the server supports HEAD by requesting '/' and verifying that it returns 
--- 200, and doesn't return data. We implement the check like this because can't always rely on OPTIONS to 
--- tell the truth. 
---
---Note: If <code>identify_404</code> returns a 200 status, HEAD requests should be disabled. 
---
---@param host The host object. 
---@param port The port to use -- note that SSL will automatically be used, if necessary. 
---@param result_404 [optional] The result when an unknown page is requested. This is returned by 
---                  <code>identify_404</code>. If the 404 page returns a '200' code, then we 
---                  disable HEAD requests. 
---@param path [optional] The path to request; by default, '/' is used. 
---@return A boolean value: true if HEAD is usable, false otherwise. 
---@return If HEAD is usable, the result of the HEAD request is returned (so potentially, a script can
---        avoid an extra call to HEAD
-function can_use_head(host, port, result_404, path)
-	-- If the 404 result is 200, don't use HEAD. 
-	if(result_404 == 200) then
-		return false
-	end
-
-	-- Default path
-	if(path == nil) then
-		path = '/'
-	end
-
-	-- Perform a HEAD request and see what happens. 
-	local data = http.head( host, port, path )
-	if data then
-		if data.status and data.status == 302 and data.header and data.header.location then
-			stdnse.print_debug(1, "HTTP: Warning: Host returned 302 and not 200 when performing HEAD.")
-			return false
-		end
-
-		if data.status and data.status == 200 and data.header then
-			-- check that a body wasn't returned
-			if string.len(data.body) > 0 then
-				stdnse.print_debug(1, "HTTP: Warning: Host returned data when performing HEAD.")
-				return false
-			end
-
-			stdnse.print_debug(1, "HTTP: Host supports HEAD.")
-			return true, data
-		end
-
-		stdnse.print_debug(1, "HTTP: Didn't receive expected response to HEAD request (got %s).", get_status_string(data))
-		return false
-	end
-
-	stdnse.print_debug(1, "HTTP: HEAD request completely failed.")
-	return false
-end
-
----Request the root folder, "/", in order to determine if we can use a GET request against this server. If the server returns
--- 301 Moved Permanently or 401 Authentication Required, then tests against this server will most likely fail. 
---
--- TODO: It's probably worthwhile adding a script-arg that will ignore the output of this function and always scan servers. 
---
---@param host The host object. 
---@param port The port to use -- note that SSL will automatically be used, if necessary. 
---@return (result, message) result is a boolean: true means we're good to go, false means there's an error.
---        The error is returned in message. 
-function can_use_get(host, port)
-	stdnse.print_debug(1, "Checking if a GET request is going to work out")
-
-	-- Try getting the root directory
-	local data = http.get( host, port, '/' )
-	if(data == nil) then
-		stdnse.print_debug(1, string.format("GET request for '/' returned nil when verifying host %s", host.ip))
-	else
-		-- If the root directory is a permanent redirect, we're going to run into troubles
-		if(data.status == 301 or data.status == 302) then
-			if(data.header and data.header.location) then
-				stdnse.print_debug(1, string.format("GET request for '/' returned a forwarding address (%s) -- try scanning %s instead, if possible", get_status_string(data), data.header.location))
-			end
-		end
-	
-		-- If the root directory requires authentication, we're outta luck
-		if(data.status == 401) then
-			stdnse.print_debug(1, string.format("Root directory requires authentication (%s), scans may not work", get_status_string(data)))
-		end
-	end
-
-	return true
-end
-
----Try and remove anything that might change within a 404. For example:
--- * A file path (includes URI)
--- * A time
--- * A date
--- * An execution time (numbers in general, really)
---
--- The intention is that two 404 pages from different URIs and taken hours apart should, whenever
--- possible, look the same. 
---
--- During this function, we're likely going to over-trim things. This is fine -- we want enough to match on that it'll a) be unique, 
--- and b) have the best chance of not changing. Even if we remove bits and pieces from the file, as long as it isn't a significant
--- amount, it'll remain unique. 
---
--- One case this doesn't cover is if the server generates a random haiku for the user. 
---
---@param body The body of the page. 
---@param uri  The URI that the page came from. 
-local function clean_404(body)
-
-	-- Remove anything that looks like time 
-	body = string.gsub(body, '%d?%d:%d%d:%d%d', "")
-	body = string.gsub(body, '%d%d:%d%d', "")
-	body = string.gsub(body, 'AM', "")
-	body = string.gsub(body, 'am', "")
-	body = string.gsub(body, 'PM', "")
-	body = string.gsub(body, 'pm', "")
-
-	-- Remove anything that looks like a date (this includes 6 and 8 digit numbers)
-	-- (this is probably unnecessary, but it's getting pretty close to 11:59 right now, so you never know!)
-	body = string.gsub(body, '%d%d%d%d%d%d%d%d', "") -- 4-digit year (has to go first, because it overlaps 2-digit year)
-	body = string.gsub(body, '%d%d%d%d%-%d%d%-%d%d', "")
-	body = string.gsub(body, '%d%d%d%d/%d%d/%d%d', "")
-	body = string.gsub(body, '%d%d%-%d%d%-%d%d%d%d', "")
-	body = string.gsub(body, '%d%d%/%d%d%/%d%d%d%d', "")
-
-	body = string.gsub(body, '%d%d%d%d%d%d', "") -- 2-digit year
-	body = string.gsub(body, '%d%d%-%d%d%-%d%d', "")
-	body = string.gsub(body, '%d%d%/%d%d%/%d%d', "")
-
-	-- Remove anything that looks like a path (note: this will get the URI too) (note2: this interferes with the date removal above, so it can't be moved up)
-	body = string.gsub(body, "/[^ ]+", "") -- Unix - remove everything from a slash till the next space
-	body = string.gsub(body, "[a-zA-Z]:\\[^ ]+", "") -- Windows - remove everything from a "x:\" pattern till the next space
-
-	-- If we have SSL available, save us a lot of memory by hashing the page (if SSL isn't available, this will work fine, but
-	-- take up more memory). If we're debugging, don't hash (it makes things far harder to debug). 
-	if(have_ssl and nmap.debugging() == 0) then
-		return openssl.md5(body)
-	end
-
-	return body
-end
-
----Try requesting a non-existent file to determine how the server responds to unknown pages ("404 pages"), which a) 
--- tells us what to expect when a non-existent page is requested, and b) tells us if the server will be impossible to
--- scan. If the server responds with a 404 status code, as it is supposed to, then this function simply returns 404. If it 
--- contains one of a series of common status codes, including unauthorized, moved, and others, it is returned like a 404. 
---
--- I (Ron Bowes) have observed one host that responds differently for three scenarios:
--- * A non-existent page, all lowercase (a login page)
--- * A non-existent page, with uppercase (a weird error page that says, "Filesystem is corrupt.")
--- * A page in a non-existent directory (a login page with different font colours)
---
--- As a result, I've devised three different 404 tests, one to check each of these conditions. They all have to match, 
--- the tests can proceed; if any of them are different, we can't check 404s properly. 
---
---@param host The host object.
---@param port The port to which we are establishing the connection. 
---@return (status, result, body) If status is false, result is an error message. Otherwise, result is the code to expect and 
---        body is the cleaned-up body (or a hash of the cleaned-up body). 
-function identify_404(host, port)
-	local data
-	local bad_responses = { 301, 302, 400, 401, 403, 499, 501, 503 }
-
-	-- The URLs used to check 404s
-	local URL_404_1 = '/nmaplowercheck' .. os.time(os.date('*t'))
-	local URL_404_2 = '/NmapUpperCheck' .. os.time(os.date('*t'))
-	local URL_404_3 = '/Nmap/folder/check' .. os.time(os.date('*t'))
-
-	data = http.get(host, port, URL_404_1)
-
-	if(data == nil) then
-		stdnse.print_debug(1, "HTTP: Failed while testing for 404 status code")
-		return false, "Failed while testing for 404 error message"
-	end
-
-	if(data.status and data.status == 404) then
-		stdnse.print_debug(1, "HTTP: Host returns proper 404 result.")
-		return true, 404
-	end
-
-	if(data.status and data.status == 200) then
-		stdnse.print_debug(1, "HTTP: Host returns 200 instead of 404.")
-
-		-- Clean up the body (for example, remove the URI). This makes it easier to validate later
-		if(data.body) then
-			-- Obtain a couple more 404 pages to test different conditions
-			local data2 = http.get(host, port, URL_404_2)
-			local data3 = http.get(host, port, URL_404_3)
-			if(data2 == nil or data3 == nil) then
-				stdnse.print_debug(1, "HTTP: Failed while testing for extra 404 error messages")
-				return false, "Failed while testing for extra 404 error messages"
-			end
-
-			-- Check if the return code became something other than 200
-			if(data2.status ~= 200) then
-				if(data2.status == nil) then
-					data2.status = "<unknown>"
-				end
-				stdnse.print_debug(1, "HTTP: HTTP 404 status changed for second request (became %d).", data2.status)
-				return false, string.format("HTTP 404 status changed for second request (became %d).", data2.status)
-			end
-
-			-- Check if the return code became something other than 200
-			if(data3.status ~= 200) then
-				if(data3.status == nil) then
-					data3.status = "<unknown>"
-				end
-				stdnse.print_debug(1, "HTTP: HTTP 404 status changed for third request (became %d).", data3.status)
-				return false, string.format("HTTP 404 status changed for third request (became %d).", data3.status)
-			end
-
-			-- Check if the returned bodies (once cleaned up) matches the first returned body
-			local clean_body  = clean_404(data.body)
-			local clean_body2 = clean_404(data2.body)
-			local clean_body3 = clean_404(data3.body)
-			if(clean_body ~= clean_body2) then
-				stdnse.print_debug(1, "HTTP: Two known 404 pages returned valid and different pages; unable to identify valid response.")
-				stdnse.print_debug(1, "HTTP: If you investigate the server and it's possible to clean up the pages, please post to nmap-dev mailing list.")
-				return false, string.format("Two known 404 pages returned valid and different pages; unable to identify valid response.")
-			end
-
-			if(clean_body ~= clean_body3) then
-				stdnse.print_debug(1, "HTTP: Two known 404 pages returned valid and different pages; unable to identify valid response (happened when checking a folder).")
-				stdnse.print_debug(1, "HTTP: If you investigate the server and it's possible to clean up the pages, please post to nmap-dev mailing list.")
-				return false, string.format("Two known 404 pages returned valid and different pages; unable to identify valid response (happened when checking a folder).")
-			end
-
-			return true, 200, clean_body
-		end
-
-		stdnse.print_debug(1, "HTTP: The 200 response didn't contain a body.")
-		return true, 200
-	end
-
-	-- Loop through any expected error codes
-	for _,code in pairs(bad_responses) do
-		if(data.status and data.status == code) then
-			stdnse.print_debug(1, "HTTP: Host returns %s instead of 404 File Not Found.", get_status_string(data))
-			return true, code
-		end
-	end
-
-	stdnse.print_debug(1,  "Unexpected response returned for 404 check: %s", get_status_string(data))
---	io.write("\n\n" .. nsedebug.tostr(data) .. "\n\n")
-
-	return true, data.status
-end
-
----Determine whether or not the page that was returned is a 404 page. This is actually a pretty simple function, 
--- but it's best to keep this logic close to <code>identify_404</code>, since they will generally be used 
--- together. 
---
---@param data The data returned by the HTTP request
---@param result_404 The status code to expect for non-existent pages. This is returned by <code>identify_404</code>. 
---@param known_404  The 404 page itself, if <code>result_404</code> is 200. If <code>result_404</code> is something
---                  else, this parameter is ignored and can be set to <code>nil</code>. This is returned by 
---                  <code>identfy_404</code>. 
---@param page       The page being requested (used in error messages). 
---@param displayall [optional] If set to true, "true", or "1", displays all error codes that don't look like a 404 instead
---                  of just 200 OK and 401 Authentication Required. 
---@return A boolean value: true if the page appears to exist, and false if it does not. 
-function page_exists(data, result_404, known_404, page, displayall)
-	if(data and data.status) then
-		-- Handle the most complicated case first: the "200 Ok" response
-		if(data.status == 200) then
-			if(result_404 == 200) then
-				-- If the 404 response is also "200", deal with it (check if the body matches)
-				if(string.len(data.body) == 0) then
-					-- I observed one server that returned a blank string instead of an error, on some occasions
-					stdnse.print_debug(1, "HTTP: Page returned a totally empty body; page likely doesn't exist")
-					return false
-				elseif(clean_404(data.body) ~= known_404) then
-					stdnse.print_debug(1, "HTTP: Page returned a body that doesn't match known 404 body, therefore it exists (%s)", page)
-					return true
-				else
-					return false
-				end
-			else
-				-- If 404s return something other than 200, and we got a 200, we're good to go
-				stdnse.print_debug(1, "HTTP: Page was '%s', it exists! (%s)", get_status_string(data), page)
-				return true
-			end
-		else
-			-- If the result isn't a 200, check if it's a 404 or returns the same code as a 404 returned
-			if(data.status ~= 404 and data.status ~= result_404) then
-				-- If this check succeeded, then the page isn't a standard 404 -- it could be a redirect, authentication request, etc. Unless the user
-				-- asks for everything (with a script argument), only display 401 Authentication Required here.
-				stdnse.print_debug(1, "HTTP: Page didn't match the 404 response (%s) (%s)", get_status_string(data), page)
-
-				if(data.status == 401) then -- "Authentication Required"
-					return true
-				elseif(displayall == true or displayall == '1' or displayall == "true") then
-					return true
-				end
-
-				return false
-			else
-				-- Page was a 404, or looked like a 404
-				return false
-			end
-		end
-	else
-		stdnse.print_debug(1, "HTTP: HTTP request failed (is the host still up?)")
-		return false
-	end
-end
-
 

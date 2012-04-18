@@ -16,7 +16,7 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
 -- okay, we're interested only in hosts that are on our ethernet lan
-hostrule = function(host, port)
+hostrule = function(host)
 	return host.directly_connected == true and
 		host.mac_addr ~= nil and
 		host.mac_addr_src ~= nil and
@@ -24,14 +24,13 @@ hostrule = function(host, port)
 		nmap.get_interface_link(host.interface) == 'ethernet'
 end
 
-callback = function(packetsz, layer2, layer3)
+local function check (layer2)
 	return string.sub(layer2, 0, 12)
 end
 
 
 do_test = function(dnet, pcap, host, test)
-	local _
-	local status
+	local status, length, layer2, layer3
 	local i = 0
 
 	-- ARP requests are send with timeouts: 10ms, 40ms, 90ms
@@ -41,15 +40,21 @@ do_test = function(dnet, pcap, host, test)
 		-- flush buffers :), wait quite long.
 		repeat
 			pcap:set_timeout(100)
-			pcap:pcap_register(host.mac_addr_src .. host.mac_addr)
-			status ,_,_,_ = pcap:pcap_receive()
+			local test = host.mac_addr_src .. host.mac_addr
+			status, length, layer2, layer3 = pcap:pcap_receive()
+			while status and test ~= check(layer2) do
+				status, length, layer2, layer3 = pcap:pcap_receive()
+			end
 		until status ~= true
 		pcap:set_timeout(10 * i*i)
-		pcap:pcap_register(host.mac_addr_src .. host.mac_addr)
 
 		dnet:ethernet_send(test)
 
-		status ,_,_,_ = pcap:pcap_receive()
+		local test = host.mac_addr_src .. host.mac_addr
+		status, length, layer2, layer3 = pcap:pcap_receive()
+		while status and test ~= check(layer2) do
+			status, length, layer2, layer3 = pcap:pcap_receive()
+		end
 		if status == true then
 			-- the basic idea, was to inform user about time, when we got packet
 			-- so that 1 would mean (0-10ms), 2=(10-40ms) and 3=(40ms-90ms)
@@ -63,7 +68,7 @@ do_test = function(dnet, pcap, host, test)
 	return('_')
 end
 
-action = function(host, port)
+action = function(host)
 	local dnet = nmap.new_dnet()
 	local pcap = nmap.new_socket()
 	local _
@@ -79,7 +84,7 @@ action = function(host, port)
 		}
 	dnet:ethernet_open(host.interface)
 
-	pcap:pcap_open(host.interface, 64, 0, callback, "arp")
+	pcap:pcap_open(host.interface, 64, false, "arp")
 
 	local test_static = host.mac_addr_src ..
 			string.char(0x08,0x06, 0x00,0x01, 0x08,0x00, 0x06,0x04, 0x00,0x01) ..

@@ -1,5 +1,5 @@
 description = [[
-Determines whether the server supports obsolete and less secure SSL-v2, and discovers which ciphers it
+Determines whether the server supports obsolete and less secure SSLv2, and discovers which ciphers it
 supports.
 ]]
 
@@ -14,7 +14,7 @@ supports.
 -- |       SSL2_RC4_128_EXPORT40_WITH_MD5
 -- |_      SSL2_RC2_CBC_128_CBC_WITH_MD5
 
-author = "Matt"
+author = "Matthew Boyle"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"default", "safe"}
@@ -52,7 +52,7 @@ cyphers = function(cypher_list, len)
 
 	local ssl_cyphers = {
 -- (cut down) table of codes with their corresponding cyphers.
--- stolen from wireshark's 'epan/dissectors/packet-ssl-utils.h'
+-- inspired by Wireshark's 'epan/dissectors/packet-ssl-utils.h'
 		[0x010080] = "SSL2_RC4_128_WITH_MD5",
 		[0x020080] = "SSL2_RC4_128_EXPORT40_WITH_MD5",
 		[0x030080] = "SSL2_RC2_CBC_128_CBC_WITH_MD5",
@@ -63,7 +63,7 @@ cyphers = function(cypher_list, len)
 		[0x080080] = "SSL2_RC4_64_WITH_MD5",
 	};
 
-	if (len == 0) then return "\tthe server didn't offer any cyphers"; end
+	if (len == 0) then return "none"; end
 -- something's got broken along the way if these aren't equal
 	if (len ~= string.len(cypher_list)) then
 		return "";
@@ -133,7 +133,7 @@ action = function(host, port)
 	local cypher_list;
 	local connection_ID;
 
--- build client hello packet (contents stolen from
+-- build client hello packet (contents inspired by
 -- http://mail.nessus.org/pipermail/plugins-writers/2004-October/msg00041.html )
 	local t = {};
 	table.insert(t, string.char(0x80, 0x31));
@@ -156,7 +156,7 @@ action = function(host, port)
 	table.insert(t, string.char(0x44, 0xc0, 0x3d, 0xc0));
 	ssl_v2_hello = table.concat(t, "")
 
-	socket:connect(host.ip, port.number, "tcp");
+	socket:connect(host, port, "tcp");
 	socket:send(ssl_v2_hello);
 
 	status, server_hello = socket:receive_bytes(2);
@@ -215,20 +215,20 @@ action = function(host, port)
 		return;
 	end
 
+-- get a list of cyphers offered
+	available_cyphers = cyphers(cypher_list, cyphers_len);
+
 -- actually run some tests:
 	if (ssl_version == string.char(0x00, 0x02)) then
-		return_string = "server still supports SSLv2\n";
+		if (available_cyphers == "none") then
+			return_string = "server supports SSLv2 protocol, but no SSLv2 cyphers\n";
+		else
+			return_string = "server still supports SSLv2\n";
+			if (nmap.verbosity() > 1 or nmap.debugging() > 0) then
+				return_string = return_string .. available_cyphers;
+			end
+		end
 	end
 
-	if (nmap.verbosity() > 1 or nmap.debugging() > 0) then
-		available_cyphers = cyphers(cypher_list, cyphers_len);
-	end
-
-	if (	string.len(return_string) > 0
-	or	string.len(available_cyphers) > 0) then
-			return return_string .. available_cyphers;
-	else
-			return;
-	end
-
+	return return_string;
 end

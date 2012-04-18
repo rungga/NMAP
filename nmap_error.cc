@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -26,7 +26,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -49,8 +49,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -87,11 +87,12 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_error.cc 16466 2010-01-15 03:55:23Z david $ */
+/* $Id: nmap_error.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #include "nmap_error.h"
 #include "output.h"
 #include "NmapOps.h"
+#include "xml.h"
 
 extern NmapOps o;
 
@@ -99,8 +100,15 @@ extern NmapOps o;
 #include <windows.h>
 #endif /* WIN32 */
 
+
 void fatal(const char *fmt, ...) {
+  time_t timep;
+  struct timeval tv;
   va_list  ap;
+
+  gettimeofday(&tv, NULL);
+  timep = time(NULL);
+
   va_start(ap, fmt);
   log_vwrite(LOG_STDERR, fmt, ap);
   va_end(ap);
@@ -110,6 +118,37 @@ void fatal(const char *fmt, ...) {
     va_end(ap);
   }
   log_write(o.log_errors? LOG_NORMAL|LOG_STDERR : LOG_STDERR, "\nQUITTING!\n");
+
+  if (!xml_root_written())
+    xml_start_tag("nmaprun");
+  /* Close all open XML elements but one. */
+  while (xml_depth() > 1) {
+    xml_end_tag();
+    xml_newline();
+  }
+  if (xml_depth() == 1) {
+    char errbuf[1024];
+
+    va_start(ap, fmt);
+    Vsnprintf(errbuf, sizeof(errbuf), fmt, ap);
+    va_end(ap);
+
+    xml_start_tag("runstats");
+    print_xml_finished_open(timep, &tv);
+    xml_attribute("exit", "error");
+    xml_attribute("errormsg", "%s", errbuf);
+    xml_close_empty_tag();
+
+    print_xml_hosts();
+    xml_newline();
+
+    xml_end_tag(); /* runstats */
+    xml_newline();
+
+    xml_end_tag(); /* nmaprun */
+    xml_newline();
+  }
+
   exit(1);
 }
 
@@ -129,72 +168,98 @@ void error(const char *fmt, ...) {
   return;
 }
 
-void pfatal(const char *err, ...) {
-#ifdef WIN32
-  int lasterror =0;
-  char *errstr = NULL;
-#endif
+void pfatal(const char *fmt, ...) {
+  time_t timep;
+  struct timeval tv;
   va_list ap;
-  
-  va_start(ap, err);
-  log_vwrite(LOG_STDERR, err, ap);
+  int error_number;
+  char errbuf[1024], *strerror_s;
+
+#ifdef WIN32
+  error_number = GetLastError();
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM, 
+		NULL, error_number, MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR) &strerror_s,  0, NULL);
+#else
+  error_number = errno;
+  strerror_s = strerror(error_number);
+#endif
+
+  gettimeofday(&tv, NULL);
+  timep = time(NULL);
+
+  va_start(ap, fmt);
+  Vsnprintf(errbuf, sizeof(errbuf), fmt, ap);
   va_end(ap);
 
-  if (o.log_errors) {
-    va_start(ap, err);
-    log_vwrite(LOG_NORMAL, err, ap);
-    va_end(ap);
+  log_write(o.log_errors? LOG_NORMAL|LOG_STDERR : LOG_STDERR, "%s: %s (%d)\n", 
+	    errbuf, strerror_s, error_number);
+
+  if (!xml_root_written())
+    xml_start_tag("nmaprun");
+  /* Close all open XML elements but one. */
+  while (xml_depth() > 1) {
+    xml_end_tag();
+    xml_newline();
+  }
+  if (xml_depth() == 1) {
+    xml_start_tag("runstats");
+    print_xml_finished_open(timep, &tv);
+    xml_attribute("exit", "error");
+    xml_attribute("errormsg", "%s: %s (%d)", errbuf, strerror_s, error_number);
+    xml_close_empty_tag();
+
+    print_xml_hosts();
+    xml_newline();
+
+    xml_end_tag(); /* runstats */
+    xml_newline();
+
+    xml_end_tag(); /* nmaprun */
+    xml_newline();
   }
 
 #ifdef WIN32
-  lasterror = GetLastError();
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM, 
-		NULL, lasterror, MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR) &errstr,  0, NULL);
-  log_write(o.log_errors? LOG_NORMAL|LOG_STDERR : LOG_STDERR, ": %s (%d)\n", 
-	    errstr, lasterror);
-  HeapFree(GetProcessHeap(), 0, errstr);
-#else
-  log_write(o.log_errors? LOG_NORMAL|LOG_STDERR : LOG_STDERR, ": %s (%d)\n", 
-	    strerror(errno), errno);
-#endif /* WIN32 perror() compatability switch */
+  HeapFree(GetProcessHeap(), 0, strerror_s);
+#endif
+
   if (o.log_errors) log_flush(LOG_NORMAL);
   fflush(stderr);
   exit(1);
 }
 
-/* This function is the Nmap version of perror.  It is just copy and
-   pasted from pfatal(), except the exit has been replaced with a
-   return. */
-void gh_perror(const char *err, ...) {
-#ifdef WIN32
-  int lasterror =0;
-  char *errstr = NULL;
-#endif
+/* This function is the Nmap version of perror. It is like pfatal, but it
+   doesn't write to XML and it only returns, doesn't exit. */
+void gh_perror(const char *fmt, ...) {
   va_list ap;
-  
-  va_start(ap, err);
-  log_vwrite(LOG_STDERR, err, ap);
-  va_end(ap);
-
-  if (o.log_errors) {
-    va_start(ap, err);
-    log_vwrite(LOG_NORMAL, err, ap);
-    va_end(ap);
-  }
+  int error_number;
+  char *strerror_s;
 
 #ifdef WIN32
-  lasterror = GetLastError();
+  error_number = GetLastError();
   FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_FROM_SYSTEM, 
-		NULL, lasterror, MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR) &errstr,  0, NULL);
-  log_write(o.log_errors? LOG_NORMAL|LOG_STDERR : LOG_STDERR, ": %s (%d)\n", 
-	    errstr, lasterror);
-  HeapFree(GetProcessHeap(), 0, errstr);
+		NULL, error_number, MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR) &strerror_s,  0, NULL);
 #else
-  log_write(o.log_errors? LOG_NORMAL|LOG_STDERR : LOG_STDERR, ": %s (%d)\n", 
-	    strerror(errno), errno);
-#endif /* WIN32 perror() compatability switch */
+  error_number = errno;
+  strerror_s = strerror(error_number);
+#endif
+  
+  va_start(ap, fmt);
+  log_vwrite(LOG_STDERR, fmt, ap);
+  va_end(ap);
+  if (o.log_errors) {
+      va_start(ap, fmt);
+      log_vwrite(LOG_NORMAL, fmt, ap);
+      va_end(ap);
+  }
+  log_write(o.log_errors? LOG_NORMAL|LOG_STDERR : LOG_STDERR, ": %s (%d)\n",
+    strerror_s, error_number);
+
+#ifdef WIN32
+  HeapFree(GetProcessHeap(), 0, strerror_s);
+#endif
+
   if (o.log_errors) log_flush(LOG_NORMAL);
   fflush(stderr);
   return;

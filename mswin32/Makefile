@@ -22,16 +22,23 @@ winbuild:
 	rm -rf nmap-$(NMAP_VERSION)
 	rm -f nmap-$(NMAP_VERSION)-win32.zip
 	mkdir nmap-$(NMAP_VERSION)
-	cd Release && cp -r ../../CHANGELOG ../../COPYING nmap-mac-prefixes nmap-os-db nmap-protocols nmap-rpc nmap-service-probes nmap-services nmap.exe nmap.xsl nse_main.lua ../nmap_performance.reg ../../README-WIN32 ../nmap-$(NMAP_VERSION)/
+	cd Release && cp -r ../../CHANGELOG ../../COPYING nmap-mac-prefixes nmap-os-db nmap-payloads nmap-protocols nmap-rpc nmap-service-probes nmap-services nmap.exe nmap.xsl nse_main.lua ../nmap_performance.reg ../../README-WIN32 ../../docs/3rd-party-licenses.txt ../nmap-$(NMAP_VERSION)/
 	cp -f OpenSSL/bin/*.dll ./nmap-$(NMAP_VERSION)/
 	mkdir nmap-$(NMAP_VERSION)/scripts
 	cd Release && cp -f $(NSE_FILES) ../nmap-$(NMAP_VERSION)/scripts/
-	mkdir nmap-$(NMAP_VERSION)/nselib
-	cp -a Release/nselib nmap-$(NMAP_VERSION)
+	cd Release && for f in `find nselib -name .svn -prune -o -type d -print`; do \
+		mkdir -p ../nmap-$(NMAP_VERSION)/$$f; \
+	done
+	cd Release && for f in `find nselib -name .svn -prune -o -type f -print`; do \
+		cp -f $$f ../nmap-$(NMAP_VERSION)/$$f; \
+	done
+	cd Release && cp -r ../../docs/licenses ../nmap-$(NMAP_VERSION)/
+	rm -rf nmap-$(NMAP_VERSION)/licenses/.svn
 	cp winpcap/winpcap-nmap-*.exe nmap-$(NMAP_VERSION)
 	cp vcredist_x86.exe nmap-$(NMAP_VERSION)
 	cp ../ncat/Release/ncat.exe nmap-$(NMAP_VERSION)
 	cp ../ncat/Release/ca-bundle.crt nmap-$(NMAP_VERSION)
+	cp ../nping/Release/nping.exe nmap-$(NMAP_VERSION)
 # Install the ndiff batch file wrapper in the zip distribution.
 	cp ../ndiff/ndiff nmap-$(NMAP_VERSION)/ndiff.py
 	cp python-wrap.bat nmap-$(NMAP_VERSION)/ndiff.bat
@@ -41,6 +48,7 @@ winbuild:
 	cd ../zenmap && install_scripts/windows/copy_and_compile.bat
 	cp -R ../zenmap/dist/* nmap-$(NMAP_VERSION)/
 	cp ../zenmap/README nmap-$(NMAP_VERSION)/ZENMAP_README
+	cp vcredist2008_x86.exe nmap-$(NMAP_VERSION)
 	cp ../zenmap/COPYING_HIGWIDGETS nmap-$(NMAP_VERSION)
 	cp ../ndiff/README nmap-$(NMAP_VERSION)/NDIFF_README
 	cp nsis/AddToPath.nsh nsis/Nmap.nsi nsis/shortcuts.ini nsis/final.ini nmap-$(NMAP_VERSION)
@@ -48,5 +56,5 @@ winbuild:
 	mv nmap-$(NMAP_VERSION)/NmapInstaller.exe nmap-$(NMAP_VERSION)-setup.exe
 
 clean:
-	$(VCEXPRESS) nmap.sln /clean
+	"$(VCEXPRESS)" nmap.sln /clean
 	rm -rf Debug Release nmapbuild.log

@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -27,7 +27,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -50,8 +50,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -88,16 +88,17 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: services.cc 14789 2009-08-06 15:10:00Z josh $ */
+/* $Id: services.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
-#include <list>
-#include <map>
-
+#include "nmap.h"
 #include "services.h"
 #include "NmapOps.h"
 #include "charpool.h"
 #include "nmap_error.h"
 #include "utils.h"
+
+#include <list>
+#include <map>
 
 /* This structure is the key for looking up services in the
    port/proto -> service map. */
@@ -129,13 +130,13 @@ bool service_node_ratio_compare(const service_node& a, const service_node& b) {
 }
 
 extern NmapOps o;
-static int numtcpports = 0;
-static int numudpports = 0;
-static int numsctpports = 0;
+static int numtcpports;
+static int numudpports;
+static int numsctpports;
 static std::map<port_spec, service_node> service_table;
 static std::list<service_node> services_by_ratio;
-static int services_initialized = 0;
-static int ratio_format = 0; // 0 = /etc/services no-ratio format. 1 = new nmap format
+static int services_initialized;
+static int ratio_format; // 0 = /etc/services no-ratio format. 1 = new nmap format
 
 static int nmap_services_init() {
   if (services_initialized) return 0;
@@ -151,6 +152,13 @@ static int nmap_services_init() {
   double ratio;
   int ratio_n, ratio_d;
   char ratio_str[32];
+
+  numtcpports = 0;
+  numudpports = 0;
+  numsctpports = 0;
+  service_table.clear();
+  services_by_ratio.clear();
+  ratio_format = 0;
 
   if (nmap_fetchfile(filename, sizeof(filename), "nmap-services") != 1) {
 #ifndef WIN32
@@ -277,6 +285,13 @@ static int nmap_services_init() {
   return 0;
 }
 
+void free_services() {
+  /* This doesn't free anything, because the service_table is allocated
+     statically. It just marks the table as needing to be reinitialized because
+     other things have been freed, for example the cp_strdup-allocated members
+     of service_node. */
+  services_initialized = 0;
+}
 
   
 /* Adds ports whose names match mask and one or more protocols

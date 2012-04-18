@@ -2,7 +2,7 @@
  * ncat_posix.c -- POSIX-specific functions.                               *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -124,14 +124,14 @@ static int write_loop(int fd, char *buf, size_t size)
 
     p = buf;
     while (p - buf < size) {
-	n = write(fd, p, size - (p - buf));
-	if (n == -1) {
-	    if (errno == EINTR)
-		continue;
-	    else
-		break;
-	}
-	p += n;
+        n = write(fd, p, size - (p - buf));
+        if (n == -1) {
+            if (errno == EINTR)
+                continue;
+            else
+                break;
+        }
+        p += n;
     }
 
     return p - buf;
@@ -147,6 +147,7 @@ void netexec(struct fdinfo *info, char *cmdexec)
     int child_stdin[2];
     int child_stdout[2];
     int pid;
+    int crlf_state;
 
     char buf[DEFAULT_TCP_BUF_LEN];
     int maxfd;
@@ -159,31 +160,31 @@ void netexec(struct fdinfo *info, char *cmdexec)
     }
 
     if (pipe(child_stdin) == -1 || pipe(child_stdout) == -1)
-	bye("Can't create child pipes: %s", strerror(errno));
+        bye("Can't create child pipes: %s", strerror(errno));
 
     pid = fork();
     if (pid == -1)
-	bye("Error in fork: %s", strerror(errno));
+        bye("Error in fork: %s", strerror(errno));
     if (pid == 0) {
-	/* This is the child process. Exec the command. */
-	close(child_stdin[1]);
-	close(child_stdout[0]);
+        /* This is the child process. Exec the command. */
+        close(child_stdin[1]);
+        close(child_stdout[0]);
 
-	/* rearrange stdin and stdout */
-	Dup2(child_stdin[0], STDIN_FILENO);
-	Dup2(child_stdout[1], STDOUT_FILENO);
+        /* rearrange stdin and stdout */
+        Dup2(child_stdin[0], STDIN_FILENO);
+        Dup2(child_stdout[1], STDOUT_FILENO);
 
-	if (o.shellexec) {
-	    execl("/bin/sh", "sh", "-c", cmdexec, NULL);
-	} else {
-	    char **cmdargs;
+        if (o.shellexec) {
+            execl("/bin/sh", "sh", "-c", cmdexec, (void *) NULL);
+        } else {
+            char **cmdargs;
 
-	    cmdargs = cmdline_split(cmdexec);
-	    execv(cmdargs[0], cmdargs);
-	}
+            cmdargs = cmdline_split(cmdexec);
+            execv(cmdargs[0], cmdargs);
+        }
 
-	/* exec failed.*/
-	die("exec");
+        /* exec failed.*/
+        die("exec");
     }
 
     close(child_stdin[0]);
@@ -191,61 +192,59 @@ void netexec(struct fdinfo *info, char *cmdexec)
 
     maxfd = child_stdout[0];
     if (info->fd > maxfd)
-	maxfd = info->fd;
+        maxfd = info->fd;
 
     /* This is the parent process. Enter a "caretaker" loop that reads from the
        socket and writes to the suprocess, and reads from the subprocess and
-       writes to the socket. */
+       writes to the socket. We exit the loop on any read error (or EOF). On a
+       write error we just close the opposite side of the conversation. */
+    crlf_state = 0;
     for (;;) {
-	fd_set fds;
-	int r, n_r, n_w;
+        fd_set fds;
+        int r, n_r, n_w;
 
-	FD_ZERO(&fds);
-	FD_SET(info->fd, &fds);
-	FD_SET(child_stdout[0], &fds);
+        FD_ZERO(&fds);
+        FD_SET(info->fd, &fds);
+        FD_SET(child_stdout[0], &fds);
 
-	r = fselect(maxfd + 1, &fds, NULL, NULL, NULL);
-	if (r == -1) {
-	    if (errno == EINTR)
-		continue;
-	    else
-		break;
-	}
-	if (FD_ISSET(info->fd, &fds)) {
-	    int pending;
+        r = fselect(maxfd + 1, &fds, NULL, NULL, NULL);
+        if (r == -1) {
+            if (errno == EINTR)
+                continue;
+            else
+                break;
+        }
+        if (FD_ISSET(info->fd, &fds)) {
+            int pending;
 
-	    do {
-		n_r = ncat_recv(info, buf, sizeof(buf), &pending);
-		if (n_r <= 0)
-		    goto loop_end;
-		n_w = write_loop(child_stdin[1], buf, n_r);
-		if (n_w < n_r)
-		    goto loop_end;
-	    } while (pending);
-	}
-	if (FD_ISSET(child_stdout[0], &fds)) {
-	    char *crlf = NULL, *wbuf;
-	    n_r = read(child_stdout[0], buf, sizeof(buf));
-	    if (n_r <= 0)
-		break;
-	    wbuf = buf;
-	    if (o.crlf) {
-		if (fix_line_endings((char *) buf, &n_r, &crlf))
-		    wbuf = crlf;
-	    }
-	    n_w = ncat_send(info, wbuf, n_r);
-	    if (crlf != NULL)
-		free(crlf);
-	    if (n_w <= 0)
-		break;
-	}
+            do {
+                n_r = ncat_recv(info, buf, sizeof(buf), &pending);
+                if (n_r <= 0)
+                    goto loop_end;
+                n_w = write_loop(child_stdin[1], buf, n_r);
+            } while (pending);
+        }
+        if (FD_ISSET(child_stdout[0], &fds)) {
+            char *crlf = NULL, *wbuf;
+            n_r = read(child_stdout[0], buf, sizeof(buf));
+            if (n_r <= 0)
+                break;
+            wbuf = buf;
+            if (o.crlf) {
+                if (fix_line_endings((char *) buf, &n_r, &crlf, &crlf_state))
+                    wbuf = crlf;
+            }
+            n_w = ncat_send(info, wbuf, n_r);
+            if (crlf != NULL)
+                free(crlf);
+        }
     }
 loop_end:
 
 #ifdef HAVE_OPENSSL
     if (info->ssl != NULL) {
-	SSL_shutdown(info->ssl);
-	SSL_free(info->ssl);
+        SSL_shutdown(info->ssl);
+        SSL_free(info->ssl);
     }
 #endif
     close(info->fd);

@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -104,7 +104,7 @@ class NmapOutputProperties(HIGDialog):
     def __init__(self, nmap_output_view):
         HIGDialog.__init__(self, _("Nmap Output Properties"),
                            buttons=(gtk.STOCK_CLOSE, gtk.RESPONSE_CLOSE))
-        
+
         self.nmap_highlight = NmapOutputHighlight()
 
         self.__create_widgets()
@@ -147,7 +147,7 @@ class NmapOutputProperties(HIGDialog):
             self.property_names[p].append(gtk.gdk.Color(*settings[3]))
             self.property_names[p].append(gtk.gdk.Color(*settings[4]))
             self.property_names[p].append(settings[5])
-            
+
         # Creating properties and related widgets and attaching it to main table
         y1 = 0
         y2 = 1
@@ -165,7 +165,7 @@ class NmapOutputProperties(HIGDialog):
             hp.update_example()
 
             self.property_names[p].append(hp)
-            
+
             y1 += 1
             y2 += 1
 
@@ -183,13 +183,13 @@ class HighlightProperty(object):
         self.__create_widgets()
 
         self.property_name = property_name
-        
+
         self.property_label = property[0].capitalize()
         self.example = property[1]
         self.bold = property[2]
         self.italic = property[3]
         self.underline = property[4]
-        
+
         self.text_color = property[5]
         self.highlight_color = property[6]
 
@@ -215,16 +215,16 @@ class HighlightProperty(object):
 
     ####################################
     # Text color dialog
-    
+
     def text_color_dialog(self, widget):
         color_dialog = gtk.ColorSelectionDialog("%s %s" % (self.label, _("text color")))
         color_dialog.colorsel.set_current_color(self.text_color)
-        
+
         color_dialog.ok_button.connect("clicked", self.text_color_dialog_ok, color_dialog)
         color_dialog.cancel_button.connect("clicked",
                                            self.text_color_dialog_cancel, color_dialog)
         color_dialog.connect("delete-event", self.text_color_dialog_close, color_dialog)
-        
+
         color_dialog.run()
 
     def text_color_dialog_ok(self, widget, color_dialog):
@@ -250,7 +250,7 @@ class HighlightProperty(object):
         color_dialog.cancel_button.connect("clicked", self.highlight_color_dialog_cancel,
                                            color_dialog)
         color_dialog.connect("delete-event", self.highlight_color_dialog_close, color_dialog)
-        
+
         color_dialog.run()
 
     def highlight_color_dialog_ok(self, widget, color_dialog):
@@ -267,7 +267,7 @@ class HighlightProperty(object):
     def update_example(self, widget=None):
         start = 0
         end = len(self.example)
-        
+
         attributes = pango.AttrList()
 
         attributes.insert(pango.AttrForeground(self.text_color.red, self.text_color.green,
@@ -294,7 +294,7 @@ class HighlightProperty(object):
             attributes.insert(pango.AttrUnderline(pango.UNDERLINE_SINGLE, start, end))
         else:
             attributes.insert(pango.AttrUnderline(pango.UNDERLINE_NONE, start, end))
-        
+
         self.example_label.set_attributes(attributes)
 
 

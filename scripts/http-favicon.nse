@@ -1,33 +1,29 @@
 description = [[
-Gets the favicon ("favorites icon") from a web page matches it against a
+Gets the favicon ("favorites icon") from a web page and matches it against a
 database of the icons of known web applications. If there is a match, the name
 of the application is printed; otherwise the MD5 hash of the icon data is
 printed.
 
-If the script arg <code>favicon.uri</code> is given, that relative URI is
+If the script argument <code>favicon.uri</code> is given, that relative URI is
 always used to find the favicon. Otherwise, first the page at the root of the
 web server is retrieved and parsed for a <code><link rel="icon"></code>
-element. If that fails, the icon is looked for in <code>/favicon.ico</code>.
-Obtains the favicon.ico from the root of a web service (or with the html link
-rel attribute if that fails) and tries to identify its source (such as a
-certain web application) using a database lookup.
-
-If a <code><link></code> favicon points to a different host or port, it is
-ignored.
+element. If that fails, the icon is looked for in <code>/favicon.ico</code>. If
+a <code><link></code> favicon points to a different host or port, it is ignored.
 ]]
 
 ---
--- @args favicon.uri Uri that will be requested for favicon
--- @args favicon.root Webserver path to search for favicon
+-- @args favicon.uri URI that will be requested for favicon.
+-- @args favicon.root Web server path to search for favicon.
+--
+-- @usage
+-- nmap --script=http-favicon.nse \
+--		--script-args favicon.root=<root>,favicon.uri=<uri>
 -- @output
 -- |_ http-favicon: Socialtext
 
 -- HTTP default favicon enumeration script
 -- rev 1.2 (2009-03-11)
 -- Original NASL script by Javier Fernandez-Sanguino Pena
---@usage
--- nmap --script=http-favicon.nse \
---		--script-args favicon.root=<root>,favicon.uri=<uri>
 
 
 author = "Vlatko Kosturjak"
@@ -42,8 +38,7 @@ require "stdnse"
 require "datafiles"
 require "nsedebug"
 
-portrule = shortport.port_or_service({80, 443, 8080, 8443},
-	{"http", "https", "http-alt", "https-alt"})
+portrule = shortport.http
 
 action = function(host, port)
   local md5sum,answer
@@ -61,7 +56,8 @@ action = function(host, port)
   end
 
   if not pcall(require,'openssl') then
-	stdnse.print_debug( 3, "Skipping %s script because OpenSSL is missing.", filename )
+	stdnse.print_debug( 3, "Skipping %s script because OpenSSL is missing.",
+	    SCRIPT_NAME)
 	return
   end
 

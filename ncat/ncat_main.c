@@ -3,7 +3,7 @@
  * to mode-specific functions.                                             *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -86,7 +86,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_main.c 16441 2010-01-11 21:50:45Z david $ */
+/* $Id: ncat_main.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nsock.h"
 #include "ncat.h"
@@ -216,14 +216,10 @@ int main(int argc, char *argv[])
        which may differ as a result of options like -n and -6. */
     struct host_list_node *allow_host_list = NULL;
     struct host_list_node *deny_host_list = NULL;
-    
+
     int srcport = -1;
     char *source = NULL;
     char *proxyaddr = NULL;
-
-    gettimeofday(&start_time, NULL);
-    /* Set default options. */
-    options_init();
 
     struct option long_options[] = {
         {"4",               no_argument,        NULL,         '4'},
@@ -271,6 +267,10 @@ int main(int argc, char *argv[])
 #endif
         {0, 0, 0, 0}
     };
+
+    gettimeofday(&start_time, NULL);
+    /* Set default options. */
+    options_init();
 
 #ifdef WIN32
     windows_init();
@@ -334,6 +334,8 @@ int main(int argc, char *argv[])
             o.linedelay = tval2msecs(optarg);
             if (o.linedelay <= 0)
                 bye("Invalid -d delay (must be greater than 0).", optarg);
+            if (o.linedelay >= 100 * 1000 && tval_unit(optarg) == NULL)
+                bye("Since April 2010, the default unit for -d is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.linedelay / 1000.0 / 60, optarg, o.linedelay / 1000.0);
             break;
         case 'o':
             o.normlogfd = ncat_openlog(optarg);
@@ -350,6 +352,8 @@ int main(int argc, char *argv[])
             o.idletimeout = tval2msecs(optarg);
             if (o.idletimeout <= 0)
                 bye("Invalid -i timeout (must be greater than 0).");
+            if (o.linedelay >= 100 * 1000 && tval_unit(optarg) == NULL)
+                bye("Since April 2010, the default unit for -i is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.linedelay / 1000.0 / 60, optarg, o.linedelay / 1000.0);
             break;
         case 's':
             source = optarg;
@@ -374,6 +378,8 @@ int main(int argc, char *argv[])
             o.conntimeout = tval2msecs(optarg);
             if (o.conntimeout <= 0)
                 bye("Invalid -w timeout (must be greater than 0).");
+            if (o.linedelay >= 100 * 1000 && tval_unit(optarg) == NULL)
+                bye("Since April 2010, the default unit for -w is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.linedelay / 1000.0 / 60, optarg, o.linedelay / 1000.0);
             break;
         case 't':
             o.telnet = 1;
@@ -466,16 +472,16 @@ int main(int argc, char *argv[])
             printf(
 "Usage: ncat [options] [hostname] [port]\n"
 "\n"
-"Options taking a time assume milliseconds, unless you append an 's'\n"
-"(seconds), 'm' (minutes), or 'h' (hours) to the value (e.g. 30s)\n"
+"Options taking a time assume seconds. Append 'ms' for milliseconds,\n"
+"'s' for seconds, 'm' for minutes, or 'h' for hours (e.g. 500ms).\n"
 "  -4                         Use IPv4 only\n"
 "  -6                         Use IPv6 only\n"
 "  -C, --crlf                 Use CRLF for EOL sequence\n"
-"  -c, --sh-exec <command>    Executes specified command via /bin/sh\n"
-"  -e, --exec <command>       Executes specified command\n"
+"  -c, --sh-exec <command>    Executes the given command via /bin/sh\n"
+"  -e, --exec <command>       Executes the given command\n"
 "  -g hop1[,hop2,...]         Loose source routing hop points (8 max)\n"
-"  -G n                       Loose source routing hop pointer (4, 8, 12, ...)\n"
-"  -m, --max-conns n          Maximum n simultaneous connections\n"
+"  -G <n>                     Loose source routing hop pointer (4, 8, 12, ...)\n"
+"  -m, --max-conns <n>        Maximum <n> simultaneous connections\n"
 "  -h, --help                 Display this help screen\n"
 "  -d, --delay <time>         Wait between read/writes\n"
 "  -o, --output               Dump session data to a file\n"
@@ -493,11 +499,11 @@ int main(int argc, char *argv[])
 "  -w, --wait <time>          Connect timeout\n"
 "      --send-only            Only send data, ignoring received; quit on EOF\n"
 "      --recv-only            Only receive data, never send anything\n"
-"      --allow                Allow specific hosts to connect to Ncat\n"
+"      --allow                Allow only given hosts to connect to Ncat\n"
 "      --allowfile            A file of hosts allowed to connect to Ncat\n"
-"      --deny                 Hosts to be denied from connecting to Ncat\n"
+"      --deny                 Deny given hosts from connecting to Ncat\n"
 "      --denyfile             A file of hosts denied from connecting to Ncat\n"
-"      --broker               Enable Ncat's Connection Brokering mode\n"
+"      --broker               Enable Ncat's connection brokering mode\n"
 "      --chat                 Start a simple Ncat chat server\n"
 "      --proxy <addr[:port]>  Specify address of host to proxy through\n"
 "      --proxy-type <type>    Specify proxy type (\"http\" or \"socks4\")\n"
@@ -664,6 +670,8 @@ int main(int argc, char *argv[])
         /* Don't allow a false sense of security if someone tries SSL over UDP. */
         if (o.ssl)
             bye("UDP mode does not support SSL.");
+        if (o.keepopen && o.cmdexec == NULL)
+            bye("UDP mode does not support the -k or --keep-open options, except with --exec or --sh-exec.");
         if (o.broker)
             bye("UDP mode does not support connection brokering.\n\
 If this feature is important to you, write nmap-dev@insecure.org with a\n\
@@ -716,12 +724,11 @@ static int ncat_listen_mode(void) {
     if (o.idletimeout != 0)
         bye("An idle timeout only works in connect mode.");
 
-    /* If a non-root user tries to bind to a privileged port, Exit. */
-    if (o.portno < 1024 && !ncat_checkuid())
-        bye("Attempted a non-root bind() to a port <1024.");
-
     if (o.broker && o.cmdexec != NULL)
         bye("Invalid option combination: --broker and -e.");
+
+    if (o.proxytype != NULL && o.telnet)
+        bye("Invalid option combination: --telnet has no effect with --proxy-type.");
 
     /* Set the default maximum simultaneous TCP connection limit. */
     if (o.conn_limit == -1)

@@ -1,7 +1,8 @@
----This module takes care of the authentication used in SMB (LM, NTLM, LMv2, NTLMv2). 
+---
+-- This module takes care of the authentication used in SMB (LM, NTLM, LMv2, NTLMv2). 
+--
 -- There is a lot to this functionality, so if you're interested in how it works, read
 -- on. 
---
 -- In SMB authentication, there are two distinct concepts. Each will be dealt with
 -- separately. There are:
 -- * Stored hashes
@@ -9,13 +10,13 @@
 --
 -- What's confusing is that the same names are used for each of those. 
 --
--- Stored Hashes
+-- Stored Hashes:
 -- Windows stores two types of hashes: Lanman and NT Lanman (or NTLM). Vista and later
 -- store NTLM only. Lanman passwords are divided into two 7-character passwords and 
 -- used as a key in DES, while NTLM is converted to unicode and MD4ed. 
 --
--- The stored hashes can be dumped in a variety of ways (pwdump6, fgdump, metasploit's
--- priv module, smb-pwdump.nse, etc). Generally, two hashes are dumped together 
+-- The stored hashes can be dumped in a variety of ways (pwdump6, fgdump, Metasploit's
+-- <code>priv</code> module, <code>smb-psexec.nse</code>, etc). Generally, two hashes are dumped together 
 -- (generally, Lanman:NTLM). Sometimes, Lanman is empty and only NTLM is given. Lanman
 -- is never required. 
 --
@@ -24,7 +25,7 @@
 -- can be passed, in the form of Lanman:NTLM, or a single hash, which is assumed to
 -- be NTLM. 
 --
--- Authentication
+-- Authentication:
 -- There are four types of authentication. Confusingly, these have the same names as
 -- stored hashes, but only slight relationships. The four types are Lanmanv1, NTLMv1, 
 -- Lanmanv2, and NTLMv2. By default, Lanmanv1 and NTLMv1 are used together in most 
@@ -77,6 +78,7 @@
 --                   protocol altogether!). If you're using an extremely old system, you might need to set 
 --                   this to <code>v1</code> or <code>lm</code>, which are less secure but more compatible.  
 --                   For information, see <code>smbauth.lua</code>. 
+--@args smbnoguest   Set to <code>true</code> or <code>1</code> to disable usage of the 'guest' account. 
 
 module(... or "smbauth", package.seeall)
 
@@ -257,7 +259,10 @@ function init_account(host)
 
 	-- Add the anonymous/guest accounts
 	add_account(host, '',      '', '', nil, 'none')
-	add_account(host, 'guest', '', '', nil, 'ntlm')
+
+	if(nmap.registry.args.smbnoguest == nil) then
+		add_account(host, 'guest', '', '', nil, 'ntlm')
+	end
 
 	-- Add the account given on the commandline (TODO: allow more than one?)
 	local args = nmap.registry.args
@@ -444,8 +449,8 @@ end
 ---Create the LM mac key, which is used for message signing. For basic authentication, it's the first 8 bytes 
 -- of the lanman hash, followed by 8 null bytes, followed by the lanman response; for extended authentication, 
 -- this is just the first 8 bytes of the lanman hash followed by 8 null bytes. 
---@param ntlm_hash The NTLM hash. 
---@param ntlm_response The NTLM response. 
+--@param lm_hash The NTLM hash. 
+--@param lm_response The NTLM response. 
 --@param is_extended Should be set if extended security negotiations are being used. 
 function lm_create_mac_key(lm_hash, lm_response, is_extended)
 	if(have_ssl ~= true) then
@@ -653,7 +658,7 @@ end
 function get_security_blob(security_blob, ip, username, domain, password, password_hash, hash_type)
 	local pos = 1
 	local new_blob
-	local flags = 0x00008211 -- (NEGOTIATE_SIGN_ALWAYS | NEGOTIATE_NTLM | NEGOTIATE_SIGN | NEGOTIATE_UNICODE)
+	local flags = 0x00008215 -- (NEGOTIATE_SIGN_ALWAYS | NEGOTIATE_NTLM | NEGOTIATE_SIGN | REQUEST_TARGET | NEGOTIATE_UNICODE)
 
 	if(security_blob == nil) then
 		-- If security_blob is nil, this is the initial packet

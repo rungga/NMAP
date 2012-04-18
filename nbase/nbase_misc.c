@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -27,7 +27,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -50,8 +50,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_misc.c 15804 2009-10-10 03:10:21Z david $ */
+/* $Id: nbase_misc.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nbase.h"
 
@@ -101,6 +101,7 @@ extern int errno;
 #include <winsock2.h>
 #endif
 
+#include <limits.h>
 #include <stdio.h>
 #include "nbase_ipv6.h"
 #include "nbase_crc32ct.h"
@@ -157,7 +158,7 @@ int sockaddr_storage_cmp(const struct sockaddr_storage *a,
   const struct sockaddr_storage *b) {
   if (a->ss_family < b->ss_family)
     return -1;
-  else if (a->ss_family < b->ss_family)
+  else if (a->ss_family > b->ss_family)
     return 1;
   if (a->ss_family == AF_INET) {
     struct sockaddr_in *sin_a = (struct sockaddr_in *) a;
@@ -176,6 +177,7 @@ int sockaddr_storage_cmp(const struct sockaddr_storage *a,
   } else {
     assert(0);
   }
+  return 0; /* Not reached */
 }
 
 /* This function is an easier version of inet_ntop because you don't
@@ -271,27 +273,56 @@ int block_socket(int sd) {
   return 1;
 }
 
-/* Converts a time specification string into milliseconds.  If the string
- * is a plain non-negative number, it is considered to already be in
- * milliseconds and is returned.  If it is a number followed by 's' (for
- * seconds), 'm' (minutes), or 'h' (hours), the number is converted to
- * milliseconds and returned.  If it cannot parse the string, -1 is
- * returned instead.
- */
-long tval2msecs(char *tspec) {
-  long l;
-  char *endptr = NULL;
-  l = strtol(tspec, &endptr, 10);
-  if (l < 0 || !endptr) return -1;
-  if (*endptr == '\0') return l;
-  if (*endptr == 's' || *endptr == 'S') return l * 1000;
-  if ((*endptr == 'm' || *endptr == 'M')) {
-    if (*(endptr + 1) == 's' || *(endptr + 1) == 'S') 
-      return l;
-    return l * 60000;
-  }
-  if (*endptr == 'h' || *endptr == 'H') return l * 3600000;
-  return -1;
+/* Convert a time specification into a count of seconds. A time specification is
+ * a non-negative real number, possibly followed by a units suffix. The suffixes
+ * are "ms" for milliseconds, "s" for seconds, "m" for minutes, or "h" for
+ * hours. Seconds is the default with no suffix. -1 is returned if the string
+ * can't be parsed. */
+double tval2secs(const char *tspec) {
+  double d;
+  char *tail;
+
+  errno = 0;
+  d = strtod(tspec, &tail);
+  if (*tspec == '\0' || errno != 0)
+    return -1;
+  if (strcasecmp(tail, "ms") == 0)
+    return d / 1000.0;
+  else if (*tail == '\0' || strcasecmp(tail, "s") == 0)
+    return d;
+  else if (strcasecmp(tail, "m") == 0)
+    return d * 60.0;
+  else if (strcasecmp(tail, "h") == 0)
+    return d * 60.0 * 60.0;
+  else
+    return -1;
+}
+
+long tval2msecs(const char *tspec) {
+  double s, ms;
+
+  s = tval2secs(tspec);
+  if (s == -1)
+    return -1;
+  ms = s * 1000.0;
+  if (ms > LONG_MAX || ms < LONG_MIN)
+    return -1;
+
+  return (long) ms;
+}
+
+/* Returns the unit portion of a time specification (such as "ms", "s", "m", or
+   "h"). Returns NULL if there was a parsing error or no unit is present. */
+const char *tval_unit(const char *tspec) {
+  double d;
+  char *tail;
+
+  errno = 0;
+  d = strtod(tspec, &tail);
+  if (*tspec == '\0' || errno != 0 || *tail == '\0')
+    return NULL;
+
+  return tail;
 }
 
 /* A replacement for select on Windows that allows selecting on stdin
@@ -352,7 +383,8 @@ int fselect(int s, fd_set *rmaster, fd_set *wmaster, fd_set *emaster, struct tim
      * stdin has input. It involves a background thread, which we start
      * now if necessary. */
     if (!stdin_thread_started) {
-        assert(win_stdin_start_thread() != 0);
+        int ret = win_stdin_start_thread();
+        assert(ret != 0);
         stdin_thread_started = 1;
     }
 
@@ -412,8 +444,18 @@ int fselect(int s, fd_set *rmaster, fd_set *wmaster, fd_set *emaster, struct tim
 
 /*
  * CRC32 Cyclic Redundancy Check
- * simply copied from http://www.ptb.de/de/org/1/11/112/infos/crc16.htm
- * (I don't know why he calls it crc16 there, as it returns a 32-bit result)
+ *
+ * From: http://www.ietf.org/rfc/rfc1952.txt
+ *
+ * Copyright (c) 1996 L. Peter Deutsch
+ *
+ * Permission is granted to copy and distribute this document for any
+ * purpose and without charge, including translations into other
+ * languages and incorporation into compilations, provided that the
+ * copyright notice and this notice are preserved, and that any
+ * substantive changes or deletions from the original are clearly
+ * marked.
+ *
  */
 
 /* Table of CRCs of all 8-bit messages. */
@@ -562,7 +604,7 @@ unsigned long nbase_adler32(unsigned char *buf, int len)
 0020   c4 84 0a 6a 39 ad 3c 10  63 b2 22 c4 24 40 f4 b1  ...j9.<.c.".$@.. 
 
  * The lines look basically like Wireshark's hex dump.
- * WARNING: This function returs a pointer to a DINAMICALLY allocated buffer
+ * WARNING: This function returns a pointer to a DYNAMICALLY allocated buffer
  * that the caller is supposed to free().
  * */
 char *hexdump(const u8 *cp, u32 length){
@@ -604,12 +646,12 @@ char *hexdump(const u8 *cp, u32 length){
   i=0;
   while( i < length ){
     memset(line2print, ' ', LINE_LEN); /* Fill line with spaces */
-    sprintf(line2print, "%04x", (16*line_count++) % 0xFFFF); /* Add line No.*/
-    line2print[4]=' '; /* Replace the '\0' inserted by sprintf() with a space */
+    snprintf(line2print, sizeof(line2print), "%04x", (16*line_count++) % 0xFFFF); /* Add line No.*/
+    line2print[4]=' '; /* Replace the '\0' inserted by snprintf() with a space */
     hex=HEX_START;  asc=ASC_START;
     do { /* Print 16 bytes in both hex and ascii */
 		if (i%16 == 8) hex++; /* Insert space every 8 bytes */
-        sprintf(printbyte,"%02x", cp[i]);/* First print the hex number */
+        snprintf(printbyte, sizeof(printbyte), "%02x", cp[i]);/* First print the hex number */
         line2print[hex++]=printbyte[0];
         line2print[hex++]=printbyte[1];
         line2print[hex++]=' ';
@@ -625,4 +667,78 @@ char *hexdump(const u8 *cp, u32 length){
   return buffer;
 } /* End of hexdump() */
 
+/* This is like strtol or atoi, but it allows digits only. No whitespace, sign,
+   or radix prefix. */
+long parse_long(const char *s, char **tail)
+{
+    if (!isdigit((int) (unsigned char) *s)) {
+        *tail = (char *) s;
+        return 0;
+    }
 
+    return strtol(s, (char **) tail, 10);
+}
+
+
+
+/* This function takes a byte count and stores a short ascii equivalent
+   in the supplied buffer. Eg: 0.122MB, 10.322Kb or 128B. */
+char *format_bytecount(unsigned long long bytes, char *buf, size_t buflen) {
+  assert(buf != NULL);
+
+  if (bytes < 1000)
+    Snprintf(buf, buflen, "%uB", (unsigned int) bytes);
+  else if (bytes < 1000000)
+    Snprintf(buf, buflen, "%.3fKB", bytes / 1000.0);
+  else
+    Snprintf(buf, buflen, "%.3fMB", bytes / 1000000.0);
+
+  return buf;
+}
+
+/* Compare a canonical option name (e.g. "max-scan-delay") with a
+   user-generated option such as "max_scan_delay" and returns 0 if the
+   two values are considered equivalant (for example, - and _ are
+   considered to be the same), nonzero otherwise. */
+int optcmp(const char *a, const char *b) {
+  while(*a && *b) {
+    if (*a == '_' || *a == '-') {
+      if (*b != '_' && *b != '-')
+	return 1;
+    }
+    else if (*a != *b)
+      return 1;
+    a++; b++;
+  }
+  if (*a || *b)
+    return 1;
+  return 0;
+}
+
+/* Returns one if the file pathname given exists, is not a directory and
+ * is readable by the executing process.  Returns two if it is readable
+ * and is a directory.  Otherwise returns 0. */
+int fileexistsandisreadable(const char *pathname) {
+	char *pathname_buf = strdup(pathname);
+	int status = 0;
+	struct stat st;
+
+#ifdef WIN32
+	// stat on windows only works for "dir_name" not for "dir_name/" or "dir_name\\"
+	int pathname_len = strlen(pathname_buf);
+	char last_char = pathname_buf[pathname_len - 1];
+
+	if(	last_char == '/'
+		|| last_char == '\\')
+		pathname_buf[pathname_len - 1] = '\0';
+
+#endif
+
+  if (stat(pathname_buf, &st) == -1)
+    status = 0;
+  else if (access(pathname_buf, R_OK) != -1)
+    status = S_ISDIR(st.st_mode) ? 2 : 1;
+
+  free(pathname_buf);
+  return status;
+}

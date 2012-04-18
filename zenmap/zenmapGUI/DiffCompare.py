@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -123,27 +123,27 @@ class ScanChooser(HIGVBox):
         self.__gobject_init__()
         self.title = title
         self.scan_dict = scan_dict
-        
+
         # Setting HIGVBox
         self.set_border_width(5)
         self.set_spacing(6)
-        
+
         self._create_widgets()
         self._pack_hbox()
         self._attaching_widgets()
         self._set_scrolled()
         self._set_text_view()
         self._set_open_button()
-        
+
         for scan in scan_dict:
             self.list_scan.append([scan])
-        
+
         self.combo_scan.connect('changed', self.show_scan)
         self.combo_scan.connect('changed', lambda x: self.emit('changed'))
-        
+
         self._pack_noexpand_nofill(self.lbl_scan)
         self._pack_expand_fill(self.hbox)
-    
+
     def _create_widgets(self):
         self.lbl_scan = HIGSectionLabel(self.title)
         self.hbox = HIGHBox()
@@ -158,7 +158,7 @@ class ScanChooser(HIGVBox):
 
     def get_buffer(self):
         return self.txt_scan_result.get_buffer()
-    
+
     def show_scan (self, widget):
         nmap_output = self.get_nmap_output()
         if nmap_output is not None:
@@ -175,35 +175,35 @@ class ScanChooser(HIGVBox):
         self.table.attach(self.combo_scan, 0,1,0,1, yoptions=0)
         self.table.attach(self.btn_open_scan, 1,2,0,1, yoptions=0, xoptions=0)
         self.table.attach(self.exp_scan, 0,2,1,2)
-    
+
     def _set_scrolled(self):
         self.scrolled.set_border_width(5)
         self.scrolled.set_size_request(-1, 130)
-        
+
         # Packing scrolled window into expander
         self.exp_scan.add(self.scrolled)
-        
+
         # Packing text view into scrolled window
         self.scrolled.add_with_viewport(self.txt_scan_result)
-        
+
         # Setting scrolled window
         self.scrolled.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-    
+
     def _set_text_view (self):
         self.txg_table = self.txt_scan_result.get_buffer().get_tag_table()
         self.txg_table.add(self.txg_tag)
         self.txg_tag.set_property("family", "Monospace")
-        
+
         self.txt_scan_result.set_wrap_mode(gtk.WRAP_WORD)
         self.txt_scan_result.set_editable(False)
         self.txt_scan_result.get_buffer().connect("changed", self._text_changed_cb)
 
     def _set_open_button (self):
         self.btn_open_scan.connect('clicked', self.open_file)
-    
+
     def open_file (self, widget):
         file_chooser = ResultsFileSingleChooserDialog(_("Select Scan Result"))
-        
+
         response = file_chooser.run()
         file_chosen = file_chooser.get_filename()
         file_chooser.destroy()
@@ -229,7 +229,7 @@ The parsing error that occurred was\n%s") % str(e))
 
             scan_name = os.path.split(file_chosen)[-1]
             self.add_scan(scan_name, parser)
-            
+
             self.combo_scan.set_active(len(self.list_scan) - 1)
 
     def add_scan(self, scan_name, parser):
@@ -238,10 +238,10 @@ The parsing error that occurred was\n%s") % str(e))
         while new_scan_name in self.scan_dict.keys():
             new_scan_name = "%s (%s)" % (scan_name, scan_id)
             scan_id += 1
-                
+
         self.list_scan.append([new_scan_name])
         self.scan_dict[new_scan_name] = parser
-    
+
     def _text_changed_cb (self, widget):
         buff = self.txt_scan_result.get_buffer ()
         buff.apply_tag(self.txg_tag, buff.get_start_iter(), buff.get_end_iter())
@@ -303,7 +303,7 @@ class DiffWindow(gtk.Window):
 
     def _pack_widgets(self):
         self.main_vbox.set_border_width(6)
-        
+
         self.hbox_selection.pack_start(self.scan_chooser_a, True, True)
         self.hbox_selection.pack_start(self.scan_chooser_b, True, True)
 
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     parsed2.parse_file("test/xml_test2.xml")
     parsed3.parse_file("test/xml_test3.xml")
     parsed4.parse_file("test/xml_test4.xml")
-    
+
     dw = DiffWindow({"Parsed 1": parsed1,
                      "Parsed 2": parsed2,
                      "Parsed 3": parsed3,

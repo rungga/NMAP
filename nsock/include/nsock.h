@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -17,15 +17,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -54,12 +54,12 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock.h 15192 2009-08-20 21:36:58Z david $ */
+/* $Id: nsock.h 21905 2011-01-21 00:04:51Z fyodor $ */
 
 /* Would you like to include pcap support in nsock?
  * Pcap support code is currently unstable, so we give
  * you a choice. In future this #define will be removed.*/
-#define HAVE_PCAP 1
+//#define HAVE_PCAP 1
 
 #ifndef NSOCK_H
 #define NSOCK_H
@@ -67,6 +67,13 @@
 /* Keep assert() defined for security reasons */
 #undef NDEBUG
 
+#ifndef WIN32
+#include "nsock_config.h"
+#else
+#include "nsock_winconfig.h"
+#endif
+
+#include <stdio.h>
 #include <sys/types.h>
 #ifndef WIN32
 #include <sys/socket.h>
@@ -167,15 +174,21 @@ void nsp_setud(nsock_pool nsp, void *data);
    to retrieve that data ... */
 void *nsp_getud(nsock_pool nsp);
 
-/* Sets a trace/debug level.  Zero (the default) turns tracing off,
-   while higher numbers are more verbose.  This is generally only used
-   for debugging purposes.  Trace logs are printed to stdout.  The
-   initial value is set in nsp_new().  A level of 1 or 2 is usually
-   sufficient, but 10 will ensure you get everything.  The basetime
-   can be NULL to print trace lines with the current time, otherwise
-   the difference between the current time and basetime will be used
-   (the time program execution starts would be a good candidate) */
-void nsp_settrace(nsock_pool nsp, int tracelevel, const struct timeval *basetime);
+/* Sets a trace/debug level and stream.  A level of 0 (the default)
+   turns tracing off, while higher numbers are more verbose.  If the
+   stream given is NULL, it defaults to stdout.  This is generally only
+   used for debugging purposes. A level of 1 or 2 is usually sufficient,
+   but 10 will ensure you get everything.  The basetime can be NULL to
+   print trace lines with the current time, otherwise the difference
+   between the current time and basetime will be used (the time program
+   execution starts would be a good candidate) */
+void nsp_settrace(nsock_pool nsp, FILE *file, int level, const struct timeval *basetime);
+
+/* Turns on or off broadcast support on new sockets. Default is off 
+   (0, false) set in nsp_new(). Any non-zero (true) value sets 
+   SO_BROADCAST on all new sockets (value of optval will be used directly
+   in the setsockopt() call */
+void nsp_setbroadcast(nsock_pool nsp, int optval);
 
 /* Initializes an Nsock pool to create SSL connections. This sets an internal
    SSL_CTX, which is like a template that sets options for all connections that
@@ -357,7 +370,7 @@ int nsi_set_ipoptions(nsock_iod nsi, void *ipopts, size_t ipoptslen);
    communication (or comm. attempt) this nsi has been involved with.
    By "involved" with I mean interactions like establishing (or trying
    to) a connection or sending a UDP datagram through an unconnected
-   nsock_iod.  AF is the address family (AF_INET or AF_INET6), Protocl
+   nsock_iod.  AF is the address family (AF_INET or AF_INET6), Protocol
    is IPPROTO_TCP or IPPROTO_UDP.  Pass NULL for information you do
    not need.  If ANY of the information you requested is not
    available, 0 will be returned and the unavailable sockets are
@@ -370,6 +383,10 @@ int nsi_set_ipoptions(nsock_iod nsi, void *ipopts, size_t ipoptslen);
 int nsi_getlastcommunicationinfo(nsock_iod ms_iod, int *protocol,
 				 int *af, struct sockaddr *local, 
 				 struct sockaddr *remote, size_t socklen);
+
+/* Set the hostname of the remote host, for when that matters. This is
+   currently only used for Server Name Indication in SSL connections. */
+int nsi_set_hostname(nsock_iod nsi, const char *hostname);
 
 /* EVENT CREATION FUNCTIONS -- These functions request asynchronous
    notification of completion of an event.  The handler will never be
@@ -406,6 +423,9 @@ int nsi_getlastcommunicationinfo(nsock_iod ms_iod, int *protocol,
 */
 
 typedef void (*nsock_ev_handler)(nsock_pool, nsock_event, void *);
+
+/* Initialize an unconnected UDP socket. */
+int nsock_setup_udp(nsock_pool nsp, nsock_iod ms_iod, int af);
 
 /* Request a TCP connection to another system (by IP address).  The
    in_addr is normal network byte order, but the port number should be
@@ -499,6 +519,11 @@ nsock_event_id nsock_read(nsock_pool nsp, nsock_iod nsiod, nsock_ev_handler hand
 nsock_event_id nsock_write(nsock_pool nsp, nsock_iod nsiod, 
 		     nsock_ev_handler handler, int timeout_msecs, 
 		     void *userdata, const char *data, int datalen);
+
+nsock_event_id nsock_sendto(nsock_pool ms_pool, nsock_iod ms_iod,
+              nsock_ev_handler handler, int timeout_msecs,
+              void *userdata, struct sockaddr *saddr, size_t sslen,
+              unsigned short port, const char *data, int datalen);
 
 /* Same as nsock_write except you can use a printf-style format and you can only use this for ASCII strings */
 nsock_event_id nsock_printf(nsock_pool nsp, nsock_iod nsiod, 

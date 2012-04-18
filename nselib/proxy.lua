@@ -1,6 +1,8 @@
---- Functions for proxy testing
---  @author Joao Correa <joao@livewire.com.br>
---  @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+---
+-- Functions for proxy testing.
+--
+-- @author Joao Correa <joao@livewire.com.br>
+-- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
 module(... or "proxy",package.seeall)
 
@@ -171,8 +173,8 @@ end
 function connectProxy(host, port, proxyType, hostname)
   local socket = nmap.new_socket()
   socket:set_timeout(10000)
-  local try = nmap.new_try(function() socket:close() end)
-  try(socket:connect(host.ip, port.number))
+  local try = nmap.new_try(function() socket:close() return false end)
+  try(socket:connect(host, port))
   if proxyType == "http" then return socket end
   if proxyType == "socks4" then return socksHandshake(socket, 4, hostname) end
   if proxyType == "socks5" then return socksHandshake(socket, 5, hostname) end
@@ -187,7 +189,7 @@ end
 function socksHandshake(socket, version, hostname)
   local resolve, sip, paystring, payload
   resolve, sip = hex_resolve(hostname)
-  local try = nmap.new_try(function() socket:close() end)
+  local try = nmap.new_try(function() socket:close() return false end)
   if not resolve then
     stdnse.print_debug("Unable to resolve hostname.")
     return false

@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -26,7 +26,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -49,8 +49,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -148,12 +148,6 @@
 #include "nmap_winconfig.h"
 #endif
 
-#include <stdlib.h>
-#include <limits.h>
-#include <list>
-#include <vector>
-#include <algorithm>
-
 #include "nmap.h"
 #include "NmapOps.h"
 #include "nmap_dns.h"
@@ -162,6 +156,12 @@
 #include "nmap_tty.h"
 #include "timing.h"
 #include "Target.h"
+
+#include <stdlib.h>
+#include <limits.h>
+#include <list>
+#include <vector>
+#include <algorithm>
 
 extern NmapOps o;
 
@@ -799,7 +799,7 @@ static void add_dns_server(char *ipaddrs) {
 
   for (hostname = strtok(ipaddrs, " ,"); hostname != NULL; hostname = strtok(NULL, " ,")) {
 
-    if (!resolve(hostname, (struct sockaddr_storage *) &addr, &addr_len, PF_UNSPEC)) continue;
+    if (!resolve(hostname, 0, 0, (struct sockaddr_storage *) &addr, &addr_len, PF_UNSPEC)) continue;
 
     for(servI = servs.begin(); servI != servs.end(); servI++) {
       tpserv = *servI;
@@ -947,7 +947,7 @@ static void parse_resolvdotconf() {
   }
 
   /* Customize a sscanf format to sizeof(ipaddr). */
-  Snprintf(fmt, sizeof(fmt), "nameserver %%%us", sizeof(ipaddr));
+  Snprintf(fmt, sizeof(fmt), "nameserver %%%us", (unsigned int) sizeof(ipaddr));
 
   while (fgets(buf, sizeof(buf), fp)) {
     tp = buf;
@@ -1190,7 +1190,7 @@ static void nmap_mass_rdns_core(Target **targets, int num_targets) {
     fatal("Unable to create nsock pool in %s()", __func__);
 
   if ((lasttrace = o.packetTrace()))
-    nsp_settrace(dnspool, NSOCK_TRACE_LEVEL, o.getStartTime());
+    nsp_settrace(dnspool, NULL, NSOCK_TRACE_LEVEL, o.getStartTime());
   
   connect_dns_servers();
 
@@ -1212,8 +1212,8 @@ static void nmap_mass_rdns_core(Target **targets, int num_targets) {
     if (o.packetTrace() != lasttrace) {
       lasttrace = !lasttrace;
       if (lasttrace)
-	nsp_settrace(dnspool, NSOCK_TRACE_LEVEL, o.getStartTime());
-      else nsp_settrace(dnspool, 0, o.getStartTime());
+	nsp_settrace(dnspool, NULL, NSOCK_TRACE_LEVEL, o.getStartTime());
+      else nsp_settrace(dnspool, NULL, 0, o.getStartTime());
     }
     nsock_loop(dnspool, timeout);
   }

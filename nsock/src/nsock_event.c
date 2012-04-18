@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -19,15 +19,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -56,7 +56,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_event.c 16449 2010-01-13 20:09:01Z david $ */
+/* $Id: nsock_event.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nsock_internal.h"
 #include "gh_list.h"
@@ -361,9 +361,10 @@ msevent *msevent_new(mspool *nsp, enum nse_type type, msiod *msiod,
   if (type == NSE_TYPE_READ || type ==  NSE_TYPE_WRITE) {  
     filespace_init(&(nse->iobuf), 1024);
   }
-#if HAVE_SSL
+#if HAVE_PCAP
   if (type == NSE_TYPE_PCAP_READ) {
-    mspcap *mp = (mspcap *) nsi->pcap;
+    assert(msiod != NULL);
+    mspcap *mp = (mspcap *) msiod->pcap;
     assert(mp);
     int sz = mp->snaplen+1 + sizeof(nsock_pcap);
     filespace_init(&(nse->iobuf), sz);

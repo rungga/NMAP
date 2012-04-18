@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -26,7 +26,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -49,8 +49,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -87,17 +87,18 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: portlist.cc 16578 2010-01-26 23:03:21Z david $ */
+/* $Id: portlist.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
 
+#include "nmap.h"
 #include "portlist.h"
 #include "nmap_error.h"
-#include "nmap.h"
 #include "NmapOps.h"
 #include "services.h"
 #include "protocols.h"
 #include "nmap_rpc.h"
 #include "tcpip.h"
+#include "libnetutil/netutil.h"
 
 using namespace std;
 
@@ -293,7 +294,7 @@ const void PortList::getServiceDeductions(u16 portno, int protocol, struct servi
 // will be NULL if unavailable. Note that this function makes its
 // own copy of sname and product/version/extrainfo.  This function
 // also takes care of truncating the version strings to a
-// 'reasonable' length if neccessary, and cleaning up any unprintable
+// 'reasonable' length if necessary, and cleaning up any unprintable
 // chars. (these tests are to avoid annoying DOS (or other) attacks
 // by malicious services).  The fingerprint should be NULL unless
 // one is available and the user should submit it.  tunnel must be
@@ -330,7 +331,14 @@ void PortList::setServiceProbeResults(u16 portno, int protocol,
       || sres == PROBESTATE_FINISHED_SOFTMATCHED) {
     port->service->dtype = SERVICE_DETECTION_PROBED;
     port->service->name_confidence = 10;
-  } else if (sres == PROBESTATE_EXCLUDED) {
+  } else if (sres == PROBESTATE_FINISHED_TCPWRAPPED) {
+    port->service->dtype = SERVICE_DETECTION_PROBED;
+    if (sname == NULL)
+      sname = "tcpwrapped";
+    port->service->name_confidence = 8;
+  } else {
+    /* PROBESTATE_FINISHED_NOMATCH, PROBESTATE_EXCLUDED, PROBESTATE_INCOMPLETE.
+       Just look up the service name if none is provided. */
     if (sname == NULL) {
       struct servent *service;
       service = nmap_getservbyport(htons(portno), IPPROTO2STR(protocol));
@@ -338,13 +346,7 @@ void PortList::setServiceProbeResults(u16 portno, int protocol,
         sname = service->s_name;
     }
     port->service->dtype = SERVICE_DETECTION_TABLE;
-    port->service->name_confidence = 2;  // Since we didn't even check it, we aren't very confident
-  } else if (sres == PROBESTATE_FINISHED_TCPWRAPPED) {
-    port->service->dtype = SERVICE_DETECTION_PROBED;
-    if (sname == NULL)
-      sname = "tcpwrapped";
-    port->service->dtype = SERVICE_DETECTION_TABLE;
-    port->service->name_confidence = 8;
+    port->service->name_confidence = 3;  // Since we didn't even check it, we aren't very confident
   }
 
   // port->serviceprobe_results = sres;
@@ -501,7 +503,7 @@ void PortList::setPortState(u16 portno, u8 protocol, int state) {
   if ((state == PORT_OPEN && o.verbose) || (o.debugging > 1)) {
     log_write(LOG_STDOUT, "Discovered %s port %hu/%s%s\n",
 	      statenum2str(state), portno, 
-	      proto2ascii(protocol), idstr? idstr : "");
+	      proto2ascii_lowercase(protocol), idstr? idstr : "");
     log_flush(LOG_STDOUT);
   }
 
@@ -519,7 +521,7 @@ void PortList::setPortState(u16 portno, u8 protocol, int state) {
     /* We must discount our statistics from the old values.  Also warn
        if a complete duplicate */
     if (o.debugging && oldport->state == state) {
-      error("Duplicate port (%hu/%s)", portno, proto2ascii(protocol));
+      error("Duplicate port (%hu/%s)", portno, proto2ascii_lowercase(protocol));
     } 
     state_counts_proto[proto][oldport->state]--;
   } else {
@@ -567,11 +569,11 @@ void PortList::setIdStr(const char *id) {
 }
 
 
-int PortList::getStateCounts(int protocol, int state){
+int PortList::getStateCounts(int protocol, int state) const {
   return state_counts_proto[INPROTO2PORTLISTPROTO(protocol)][state];
 }
 
-int PortList::getStateCounts(int state){
+int PortList::getStateCounts(int state) const {
   int sum=0, proto;
   for(proto=0; proto < PORTLIST_PROTO_MAX; proto++)
     sum += getStateCounts(PORTLISTPROTO2INPROTO(proto), state);
@@ -714,7 +716,7 @@ int PortList::forgetPort(u16 portno, u8 protocol) {
 
   if (o.verbose) {  
     log_write(LOG_STDOUT, "Deleting port %hu/%s, which we thought was %s\n",
-	      portno, proto2ascii(answer->proto),
+	      portno, proto2ascii_lowercase(answer->proto),
 	      statenum2str(answer->state));
     log_flush(LOG_STDOUT);
   }    
@@ -724,17 +726,19 @@ int PortList::forgetPort(u16 portno, u8 protocol) {
 
 /* Just free memory used by PortList::port_map[]. Should be done somewhere 
  * before closing nmap. */
-void PortList::freePortMap(){
+void PortList::freePortMap() {
   int proto;
-  for(proto=0; proto < PORTLIST_PROTO_MAX; proto++) {
-    if(port_map[proto]){
+
+  for (proto=0; proto < PORTLIST_PROTO_MAX; proto++) {
+    if (port_map[proto]) {
       free(port_map[proto]);
       port_map[proto] = NULL;
-  }
+    }
     if (port_map_rev[proto]) {
       free(port_map_rev[proto]);
       port_map_rev[proto] = NULL;
     }
+    port_list_count[proto] = 0;
   }
 }
   
@@ -869,6 +873,13 @@ int PortList::numPorts() const {
     num += port_list_count[proto];
 
   return num;
+}
+
+/* Return true if any of the ports are potentially open. */
+bool PortList::hasOpenPorts() const {
+  return getStateCounts(PORT_OPEN) != 0 ||
+    getStateCounts(PORT_OPENFILTERED) != 0 ||
+    getStateCounts(PORT_UNFILTERED) != 0;
 }
 
 int PortList::setStateReason(u16 portno, u8 proto, reason_t reason, u8 ttl, u32 ip_addr) {

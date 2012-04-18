@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -19,15 +19,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -56,7 +56,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_iod.c 15805 2009-10-10 03:11:21Z david $ */
+/* $Id: nsock_iod.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -120,6 +120,8 @@ nsock_iod nsi_new2(nsock_pool nsockp, int sd, void *userdata) {
   nsi->readpcapsd_count = 0;
   nsi->read_count=0;
   nsi->write_count=0;
+
+  nsi->hostname = NULL;
 
   nsi->ipopts = NULL;
   nsi->ipoptslen = 0;
@@ -200,6 +202,8 @@ void nsi_delete(nsock_iod nsockiod, int pending_response) {
      weren't already decremented to zero. */
   if (nsi->sd >= 0)
     socket_count_zero(nsi, nsi->nsp);
+
+  free(nsi->hostname);
 
 #if HAVE_OPENSSL
   /* Close any SSL resources */
@@ -402,4 +406,16 @@ unsigned long nsi_get_write_count(nsock_iod nsockiod){
   assert(nsockiod);
   return ((msiod *)nsockiod)->write_count;
 
+}
+
+int nsi_set_hostname(nsock_iod nsi, const char *hostname) {
+  msiod *iod = (msiod *) nsi;
+
+  if (iod->hostname != NULL)
+    free(iod->hostname);
+  iod->hostname = strdup(hostname);
+  if (iod->hostname == NULL)
+    return -1;
+
+  return 0;
 }

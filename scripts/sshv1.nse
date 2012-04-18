@@ -5,6 +5,12 @@ author = "Brandon Enright"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "safe"}
 
+---
+-- @output
+-- PORT   STATE SERVICE
+-- 22/tcp open  ssh
+-- |_sshv1: Server supports SSHv1
+
 require "shortport"
 
 portrule = shortport.port_or_service(22, "ssh")
@@ -14,7 +20,7 @@ action = function(host, port)
 	local result;
 	local status = true;
 
-	socket:connect(host.ip, port.number, port.protocol)
+	socket:connect(host, port)
 	status, result = socket:receive_lines(1);
 
 	if (not status) then

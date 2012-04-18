@@ -3,6 +3,7 @@ LINGUAS = $(patsubst %.po,%,$(wildcard *.po))
 TOPDIR = ../../..
 SOURCEFILES = zenmap
 SOURCEDIRS = zenmapCore zenmapGUI radialnet
+PROFILE_EDITOR_XML = share/zenmap/misc/profile_editor.xml
 
 XGETTEXT = xgettext
 MSGID_BUGS_ADDRESS = nmap-dev@insecure.org
@@ -20,14 +21,15 @@ all:
 update-pot:
 	(echo $(SOURCEFILES); cd $(TOPDIR) && find $(SOURCEDIRS) -name '*.py') \
 	  | $(XGETTEXT) -D $(TOPDIR) --language=python --msgid-bugs-address=$(MSGID_BUGS_ADDRESS) -f - -o $(TMP_POT)
-	msgmerge -U --backup=none $(ZENMAP_POT) $(TMP_POT)
+	./xgettext-profile_editor.py -D $(TOPDIR) $(PROFILE_EDITOR_XML) >> $(TMP_POT)
+	msguniq $(TMP_POT) | msgmerge -U --backup=none $(ZENMAP_POT) -
 	rm -f $(TMP_POT)
 
 update-mo: $(addsuffix /LC_MESSAGES/zenmap.mo,$(LINGUAS))
 
 %.po: $(ZENMAP_POT)
 	cp -f $@ $(TMP_PO)
-	msgmerge $(TMP_PO) $< | msgattrib --no-obsolete -o $@
+	msgmerge -N $(TMP_PO) $< | msgattrib --no-obsolete -o $@
 	rm -f $(TMP_PO)
 
 %/LC_MESSAGES/zenmap.mo: %.po

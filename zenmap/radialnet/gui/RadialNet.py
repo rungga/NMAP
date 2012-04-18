@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -184,9 +184,8 @@ class RadialNet(gtk.DrawingArea):
         self.__last_group_node = None
 
         self.__pointer_status = POINTER_JUMP_TO
- 
+
         self.__sorted_nodes = list()
-        self.__reverse_sorted_nodes = list()
 
         self.__icon = Icons()
 
@@ -794,7 +793,7 @@ class RadialNet(gtk.DrawingArea):
 
                     self.__node_views[node].present()
 
-                elif node.get_info('scanned'):
+                elif node.get_draw_info('scanned'):
 
                     view = NodeWindow(node, (int(xw + x), int(yw + y)))
                     def close_view(view, event, node):
@@ -866,7 +865,7 @@ class RadialNet(gtk.DrawingArea):
 
         self.grab_focus()
         self.queue_draw()
-        
+
         return False
 
 
@@ -1015,14 +1014,14 @@ class RadialNet(gtk.DrawingArea):
                 self.__draw_edge(context, edge)
 
             elif not a_is_grouped or not b_is_grouped:
-            
+
                 if not (a_is_group and b_is_child or b_is_group and a_is_child):
                     self.__draw_edge(context, edge)
 
             elif a_group != b_group:
                 self.__draw_edge(context, edge)
 
-        for node in self.__reverse_sorted_nodes:
+        for node in reversed(self.__sorted_nodes):
 
             # check group constraints for nodes
             group = node.get_draw_info('group_node')
@@ -1047,7 +1046,7 @@ class RadialNet(gtk.DrawingArea):
         a_children = a.get_draw_info('children')
         b_children = b.get_draw_info('children')
 
-        latency = edge.get_weigths_mean()
+        latency = edge.get_weights_mean()
 
         # check if isn't an hierarchy connection
         if a not in b_children and b not in a_children:
@@ -1129,7 +1128,7 @@ class RadialNet(gtk.DrawingArea):
             context.set_source_rgb(1.0, 1.0, 1.0)
             context.fill_preserve()
 
-            if node.deep_search_child(self.__graph.get_node_by_id(0)):
+            if node.deep_search_child(self.__graph.get_main_node()):
                 context.set_source_rgb(0.0, 0.0, 0.0)
 
             else:
@@ -1204,7 +1203,7 @@ class RadialNet(gtk.DrawingArea):
         context.set_source_rgb(r, g, b)
         context.fill_preserve()
 
-        if node.get_draw_info('valid') or node.get_id() == 0:
+        if node.get_draw_info('valid'):
             context.set_source_rgb(0.0, 0.0, 0.0)
 
         else:
@@ -1292,7 +1291,7 @@ class RadialNet(gtk.DrawingArea):
                 continue
 
             ax, ay = self.__translation
-        
+
             xn, yn = node.get_cartesian_coordinate()
             center = (xc + xn * self.__scale + ax, yc - yn * self.__scale - ay)
             radius = node.get_draw_info('radius') * self.__scale
@@ -1327,13 +1326,13 @@ class RadialNet(gtk.DrawingArea):
 
         return radius
 
-    
+
     @graph_is_not_empty
     def __arrange_nodes(self):
         """
         """
-        new_nodes = [self.__graph.get_main_node()]
-        old_nodes = list()
+        new_nodes = set([self.__graph.get_main_node()])
+        old_nodes = set()
 
         number_of_needed_rings = 1
         ring = 0
@@ -1341,12 +1340,12 @@ class RadialNet(gtk.DrawingArea):
         # while new nodes were found
         while len(new_nodes) > 0:
 
-            tmp_nodes = list()
+            tmp_nodes = set()
 
             # for each new nodes
             for node in new_nodes:
 
-                old_nodes.append(node)
+                old_nodes.add(node)
 
                 # set ring location
                 node.set_draw_info({'ring':ring})
@@ -1358,30 +1357,20 @@ class RadialNet(gtk.DrawingArea):
                 else:
 
                     # getting connections and fixing multiple fathers
-                    children = self.__graph.get_node_connections(node)
-
-                    misc.list_difference_update(children, old_nodes)
-                    misc.list_difference_update(children, tmp_nodes)
-                    misc.list_difference_update(children, new_nodes)
-
-                    # dropping foreign children
-                    foreign_children = list()
-
-                    for child in children:
-
+                    children = set()
+                    for child in self.__graph.get_node_connections(node):
+                        if child in old_nodes or child in new_nodes:
+                            continue
                         if child.get_draw_info('grouped'):
-                            foreign_children.append(child)
-
-                    misc.list_difference_update(children, foreign_children)
-
-                    children = misc.sort_children(children, node)
+                            continue
+                        children.add(child)
 
                 # setting father foreign
                 for child in children:
                     child.set_draw_info({'father':node})
 
-                node.set_draw_info({'children':children})
-                misc.list_update(tmp_nodes, children)
+                node.set_draw_info({'children':misc.sort_children(children, node)})
+                tmp_nodes.update(children)
 
             # check group influence in number of rings
             for node in tmp_nodes:
@@ -1392,8 +1381,8 @@ class RadialNet(gtk.DrawingArea):
                     break
 
             # update new nodes set
-            misc.list_update(new_nodes, tmp_nodes)
-            misc.list_difference_update(new_nodes, old_nodes)
+            new_nodes.update(tmp_nodes)
+            new_nodes.difference_update(old_nodes)
 
             ring += 1
 
@@ -1405,87 +1394,73 @@ class RadialNet(gtk.DrawingArea):
         """
         # calculating the space needed by each node
         self.__graph.get_main_node().set_draw_info({'range':(0, 360)})
-        new_nodes = [self.__graph.get_main_node()]
+        new_nodes = set([self.__graph.get_main_node()])
 
         self.__graph.get_main_node().calc_needed_space()
 
         while len(new_nodes) > 0:
 
-            tmp_nodes = list()
+            node = new_nodes.pop()
 
-            for node in new_nodes:
+            # add only no grouped nodes
+            children = set()
+            for child in node.get_draw_info('children'):
 
-                # add only no grouped nodes
-                children = list()
+                if child.get_draw_info('grouped') != True:
+                    children.add(child)
+                    new_nodes.add(child)
 
-                for child in node.get_draw_info('children'):
+            if len(children) > 0:
 
-                    if child.get_draw_info('grouped') != True:
-                        children.append(child)
+                min, max = node.get_draw_info('range')
 
-                if len(children) > 0:
+                node_total = max - min
+                children_need = node.get_draw_info('children_need')
 
-                    min, max = node.get_draw_info('range')
+                for child in children:
 
-                    node_total = max - min
-                    children_need = node.get_draw_info('children_need')
+                    child_need = child.get_draw_info('space_need')
+                    child_total = node_total * child_need / children_need
 
-                    for child in children:
+                    theta = child_total / 2 + min + self.__rotate
 
-                        child_need = child.get_draw_info('space_need')
-                        child_total = node_total * child_need / children_need
+                    child.set_coordinate_theta(theta)
+                    child.set_draw_info({'range':(min, min + child_total)})
 
-                        theta = child_total / 2 + min + self.__rotate
-
-                        child.set_coordinate_theta(theta)
-                        child.set_draw_info({'range':(min, min + child_total)})
-
-                        min += child_total
-
-                misc.list_update(tmp_nodes, children)
-
-            new_nodes = list()
-            misc.list_update(new_nodes, tmp_nodes)
+                    min += child_total
 
 
     def __symmetric_layout(self):
         """
         """
         self.__graph.get_main_node().set_draw_info({'range':(0, 360)})
-        new_nodes = [self.__graph.get_main_node()]
+        new_nodes = set([self.__graph.get_main_node()])
 
         while len(new_nodes) > 0:
 
-            tmp_nodes = list()
+            node = new_nodes.pop()
 
-            for node in new_nodes:
+            # add only no grouped nodes
+            children = set()
+            for child in node.get_draw_info('children'):
 
-                # add only no grouped nodes
-                children = list()
+                if child.get_draw_info('grouped') != True:
+                    children.add(child)
+                    new_nodes.add(child)
 
-                for child in node.get_draw_info('children'):
+            if len(children) > 0:
 
-                    if child.get_draw_info('grouped') != True:
-                        children.append(child)
+                min, max = node.get_draw_info('range')
+                factor = float(max - min) / len(children)
 
-                if len(children) > 0:
+                for child in children:
 
-                    min, max = node.get_draw_info('range')
-                    factor = float(max - min) / len(children)
+                    theta = factor / 2 + min + self.__rotate
 
-                    for child in children:
+                    child.set_coordinate_theta(theta)
+                    child.set_draw_info({'range':(min, min + factor)})
 
-                        theta = factor / 2 + min + self.__rotate
-
-                        child.set_coordinate_theta(theta)
-                        child.set_draw_info({'range':(min, min + factor)})
-
-                        min += factor
-
-                misc.list_update(tmp_nodes, children)
-
-            new_nodes = list()
-            misc.list_update(new_nodes, tmp_nodes)
+                    min += factor
 
 
     @graph_is_not_empty
@@ -1673,7 +1648,7 @@ class RadialNet(gtk.DrawingArea):
         for node in self.__graph.get_nodes():
 
             a, b = node.get_draw_info('interpolated_coordinate')[index]
-            
+
             if self.__interpolation == INTERPOLATION_POLAR:
                 node.set_polar_coordinate(a, b)
 
@@ -1721,7 +1696,7 @@ class RadialNet(gtk.DrawingArea):
 
         for node in self.__graph.get_nodes():
 
-            if node.get_info('scanned'):
+            if node.get_draw_info('scanned'):
                 nodes.append(node)
 
         return nodes
@@ -1795,23 +1770,8 @@ class RadialNet(gtk.DrawingArea):
     def calc_sorted_nodes(self):
         """
         """
-        nodes = list()
-
-        for node in self.__graph.get_nodes():
-
-            ring = node.get_draw_info('ring')
-            count = 0
-
-            for s_node in nodes:
-            
-                if ring < s_node.get_draw_info('ring'): break
-                count +=1
-
-            nodes.insert(count, node)
-
-        self.__sorted_nodes = nodes
-        self.__reverse_sorted_nodes = copy.copy(nodes)
-        self.__reverse_sorted_nodes.reverse()
+        self.__sorted_nodes = list(self.__graph.get_nodes())
+        self.__sorted_nodes.sort(key = lambda n: n.get_draw_info('ring'))
 
 
 
@@ -1819,14 +1779,222 @@ class NetNode(Node):
     """
     Node class for radial network widget
     """
-    def __init__(self, id=Node):
+    def __init__(self):
         """
         """
         self.__draw_info = dict()
         """Hash with draw information"""
         self.__coordinate = PolarCoordinate()
 
-        super(NetNode, self).__init__(id)
+        super(NetNode, self).__init__()
+
+
+    def get_host(self):
+        """
+        Set the HostInfo that this node represents
+        """
+        return self.get_data()
+
+
+    def set_host(self, host):
+        """
+        Set the HostInfo that this node represents
+        """
+        self.set_data(host)
+
+
+    def get_info(self, info):
+        """Return various information extracted from the host set with
+        set_host."""
+        host = self.get_data()
+        if host is not None:
+            if info == "number_of_open_ports":
+                return host.get_port_count_by_states(["open"])
+            elif info == "vulnerability_score":
+                num_open_ports = host.get_port_count_by_states(["open"])
+                if num_open_ports < 3:
+                    return 0
+                elif num_open_ports < 7:
+                    return 1
+                else:
+                    return 2
+            elif info == "addresses":
+                addresses = []
+                if host.ip is not None:
+                    addresses.append(host.ip)
+                if host.ipv6 is not None:
+                    addresses.append(host.ipv6)
+                if host.mac is not None:
+                    addresses.append(host.mac)
+                return addresses
+            elif info == "ip":
+                for addr in (host.ip, host.ipv6, host.mac):
+                    if addr:
+                        return addr.get("addr")
+            elif info == "hostnames":
+                hostnames = []
+                for hostname in host.hostnames:
+                    copy = {}
+                    copy["name"] = hostname.get("hostname", "")
+                    copy["type"] = hostname.get("hostname_type", "")
+                    hostnames.append(copy)
+                return hostnames
+            elif info == "hostname":
+                return host.get_hostname()
+            elif info == "uptime":
+                if host.uptime.get("seconds") or host.uptime.get("lastboot"):
+                    return host.uptime
+            elif info == "device_type":
+                if len(host.osclasses) == 0:
+                    return None
+                types = ["router", "wap", "switch", "firewall"]
+                for type in types:
+                    if type in host.osclasses[0].get("type", "").lower():
+                        return type
+            elif info == "os":
+                os = {}
+
+                os_classes = []
+                for osclass in host.osclasses:
+                    os_class = {}
+
+                    os_class["type"] = osclass.get("type", "")
+                    os_class["vendor"] = osclass.get("vendor", "")
+                    #os_class["accuracy"] = int(osclass.get("accuracy", ""))
+                    os_class["accuracy"] = osclass.get("accuracy", "")
+                    os_class["os_family"] = osclass.get("osfamily", "")
+                    os_class["os_gen"] = osclass.get("osgen", "")
+
+                    os_classes.append(os_class)
+                os["classes"] = os_classes
+
+                # osmatches
+                if len(host.osmatches) > 0 and \
+                   host.osmatches[0]["accuracy"] != "" and \
+                   host.osmatches[0]["name"] != "":
+                    if os == None:
+                        os = {}
+                    os["matches"] = host.osmatches
+                    os["matches"][0]["db_line"] = 0     # not supported
+
+                # ports_used
+                if len(host.ports_used) > 0:
+                    if os == None:
+                        os = {}
+                    os_portsused = []
+
+                    for portused in host.ports_used:
+                        os_portused = {}
+
+                        os_portused["state"] = portused.get("state", "")
+                        os_portused["protocol"] = portused.get("proto", "")
+                        os_portused["id"] = int(portused.get("portid", "0"))
+
+                        os_portsused.append(os_portused)
+
+                    os["used_ports"] = os_portsused
+
+                if len(os) > 0:
+                    os["fingerprint"] = ""
+                    return os
+            elif info == "sequences":
+                # getting sequences information
+                sequences = {}
+                # If all fields are empty, we don't put it into the sequences list
+                if reduce(lambda x,y: x + y, host.tcpsequence.values(), "") != "":
+                    tcp = {}
+                    if host.tcpsequence.get("index", "") != "":
+                        tcp["index"] = int(host.tcpsequence["index"])
+                    else:
+                        tcp["index"] = 0
+                    tcp["class"] = ""   # not supported
+                    tcp["values"] = host.tcpsequence.get("values", "").split(",")
+                    tcp["difficulty"] = host.tcpsequence.get("difficulty", "")
+                    sequences["tcp"] = tcp
+                if reduce(lambda x,y: x + y, host.ipidsequence.values(), "") != "":
+                    ip_id = {}
+                    ip_id["class"] = host.ipidsequence.get("class", "")
+                    ip_id["values"] = host.ipidsequence.get("values", "").split(",")
+                    sequences["ip_id"] = ip_id
+                if reduce(lambda x,y: x + y, host.tcptssequence.values(), "") != "":
+                    tcp_ts = {}
+                    tcp_ts["class"] = host.tcptssequence.get("class", "")
+                    tcp_ts["values"] = host.tcptssequence.get("values", "").split(",")
+                    sequences["tcp_ts"] = tcp_ts
+                return sequences
+            elif info == "filtered":
+                if len(host.extraports) > 0 and host.extraports[0]["state"] == "filtered":
+                    return True
+                else:
+                    for port in host.ports:
+                        if port["port_state"] == "filtered":
+                            return True
+                            break
+                return False
+            elif info == "ports":
+                ports = list()
+                for host_port in host.ports:
+                    port = dict()
+                    state = dict()
+                    service = dict()
+
+                    port["id"] = int(host_port.get("portid", ""))
+                    port["protocol"] = host_port.get("protocol", "")
+
+                    state["state"] = host_port.get("port_state", "")
+                    state["reason"] = ""        # not supported
+                    state["reason_ttl"] = ""    # not supported
+                    state["reason_ip"] = ""     # not supported
+
+                    service["name"] = host_port.get("service_name", "")
+                    service["conf"] = host_port.get("service_conf", "")
+                    service["method"] = host_port.get("service_method", "")
+                    service["version"] = host_port.get("service_version", "")
+                    service["product"] = host_port.get("service_product", "")
+                    service["extrainfo"] = host_port.get("service_extrainfo", "")
+
+                    port["state"] = state
+                    port["scripts"] = None      # not supported
+                    port["service"] = service
+
+                    ports.append(port)
+                return ports
+            elif info == "extraports":
+                # extraports
+                all_extraports = list()
+                for extraport in host.extraports:
+                    extraports = dict()
+                    extraports["count"] = int(extraport.get("count", ""))
+                    extraports["state"] = extraport.get("state", "")
+                    extraports["reason"] = list()       # not supported
+                    extraports["all_reason"] = list()   # not supported
+
+                    all_extraports.append(extraports)
+                return all_extraports
+            elif info == "trace":
+                # getting traceroute information
+                if len(host.trace) > 0:
+                    trace = {}
+                    hops = []
+
+                    for host_hop in host.trace.get("hops", []):
+                        hop = {}
+                        hop["ip"] = host_hop.get("ipaddr", "")
+                        hop["ttl"] = int(host_hop.get("ttl", ""))
+                        hop["rtt"] = host_hop.get("rtt", "")
+                        hop["hostname"] = host_hop.get("host", "")
+
+                        hops.append(hop)
+
+                    trace["hops"] = hops
+                    trace["port"] = host.trace.get("port", "")
+                    trace["protocol"] = host.trace.get("proto", "")
+
+                    return trace
+        else: # host is None
+            pass
+
+        return None
 
 
     def get_coordinate_theta(self):
@@ -1905,7 +2073,7 @@ class NetNode(Node):
 
         if self.__draw_info.has_key(info):
             return self.__draw_info[info]
-            
+
         return None
 
 
@@ -1958,7 +2126,7 @@ class NetNode(Node):
 
                 child.calc_needed_space()
                 sum_angle += child.get_draw_info('space_need')
-        
+
         distance = self.get_coordinate_radius()
         size = self.get_draw_info('radius') * 2
         own_angle = geometry.angle_from_object(distance, size)

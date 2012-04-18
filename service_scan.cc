@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -28,7 +28,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -51,8 +51,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -89,7 +89,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: service_scan.cc 16578 2010-01-26 23:03:21Z david $ */
+/* $Id: service_scan.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
 
 #include "service_scan.h"
@@ -103,6 +103,13 @@
 #include "nmap_tty.h"
 
 #if HAVE_OPENSSL
+/* OpenSSL 1.0.0 needs _WINSOCKAPI_ to be defined, otherwise it loads
+   <windows.h> (through openssl/dtls1.h), which is incompatible with the
+   <winsock2.h> that we use. (It creates errors with the redefinition of struct
+   timeval, for example.) _WINSOCKAPI_ should be defined by our inclusion of
+   <winsock2.h>, but it appears to be undefined somewhere, possibly in
+   libpcap. */
+#define _WINSOCKAPI_
 #include <openssl/ssl.h>
 #endif
 
@@ -1172,6 +1179,28 @@ void AllProbes::service_scan_free(void)
   }
 }
 
+// Function that calls isExcluded() function to check if the port
+// is in the excludedports list.
+int AllProbes::check_excluded_port(unsigned short portno, int proto)
+{
+  int excluded;
+
+  // Check if the -sV version scan option was specified
+  // or if the --allports option was used
+  if (!o.servicescan || o.override_excludeports)
+    return 0;
+
+  if (global_AP == NULL)
+    fatal("Failed to check the list of excluded ports: %s", __func__);
+
+  if ((excluded = global_AP->isExcluded(portno, proto))) {
+    if (o.debugging)
+      log_write(LOG_PLAIN, "EXCLUDING %d/%s\n",
+                           portno, IPPROTO2STR(proto));
+  }
+
+  return excluded;
+}
 
 // If the buf (of length buflen) matches one of the regexes in this
 // ServiceProbe, returns the details of nth match (service name,
@@ -1420,7 +1449,8 @@ void ServiceNFO::addToServiceFingerprint(const char *probeName, const u8 *resp,
   if (servicefplen == 0) {
     timep = time(NULL);
     ltime = localtime(&timep);
-    servicefplen = Snprintf(servicefp, spaceleft, "SF-Port%hu-%s:V=%s%s%%I=%d%%D=%d/%d%%Time=%X%%P=%s", portno, proto2ascii(proto, true), NMAP_VERSION, (tunnel == SERVICE_TUNNEL_SSL)? "%T=SSL" : "", o.version_intensity, ltime->tm_mon + 1, ltime->tm_mday, (int) timep, NMAP_PLATFORM);
+    len = Snprintf(buf, sizeof(buf), "SF-Port%hu-%s:V=%s%s%%I=%d%%D=%d/%d%%Time=%X%%P=%s", portno, proto2ascii_uppercase(proto), NMAP_VERSION, (tunnel == SERVICE_TUNNEL_SSL)? "%T=SSL" : "", o.version_intensity, ltime->tm_mon + 1, ltime->tm_mday, (int) timep, NMAP_PLATFORM);
+    addServiceString(buf, servicewrap);
   }
 
   // Note that we give the total length of the response, even though we 
@@ -1433,7 +1463,7 @@ void ServiceNFO::addToServiceFingerprint(const char *probeName, const u8 *resp,
     // A run of this can take up to 8 chars: "\n  \x20"
     assert( servicefpalloc - servicefplen > 8);
  
-   if (isalnum((int)resp[srcidx]))
+    if (isalnum((int)resp[srcidx]))
       addServiceChar((char) resp[srcidx], servicewrap);
     else if (resp[srcidx] == '\0') {
       /* We need to be careful with this, because if it is followed by
@@ -1695,7 +1725,7 @@ ServiceGroup::~ServiceGroup() {
 
 /* Called if data is read for a service or a TCP connection made. Sets the port
    state to PORT_OPEN. */
-static void adjustPortStateIfNeccessary(ServiceNFO *svc) {
+static void adjustPortStateIfNecessary(ServiceNFO *svc) {
   int oldstate;
   char host[128];
 
@@ -1711,7 +1741,7 @@ static void adjustPortStateIfNeccessary(ServiceNFO *svc) {
       svc->target->NameIP(host, sizeof(host));
 
       log_write(LOG_STDOUT, "Discovered %s port %hu/%s on %s is actually open\n",
-         statenum2str(oldstate), svc->portno, proto2ascii(svc->proto), host);
+         statenum2str(oldstate), svc->portno, proto2ascii_lowercase(svc->proto), host);
       log_flush(LOG_STDOUT);
     }
   }
@@ -1728,7 +1758,7 @@ static void adjustPortStateIfNeccessary(ServiceNFO *svc) {
 
     // Report data as probes are sent if --version-trace has been requested 
     if (o.debugging > 1 || o.versionTrace()) {
-      log_write(LOG_PLAIN, "Service scan sending probe %s to %s:%hu (%s)\n", probe->getName(), svc->target->targetipstr(), svc->portno, proto2ascii(svc->proto));
+      log_write(LOG_PLAIN, "Service scan sending probe %s to %s:%hu (%s)\n", probe->getName(), svc->target->targetipstr(), svc->portno, proto2ascii_lowercase(svc->proto));
     }	
 
     assert(probe);
@@ -1744,7 +1774,7 @@ static void adjustPortStateIfNeccessary(ServiceNFO *svc) {
 
 // This simple helper function is used to start the next probe.  If
 // the probe exists, execution begins (and the previous one is cleaned
-// up if neccessary) .  Otherwise, the service is listed as finished
+// up if necessary) .  Otherwise, the service is listed as finished
 // and moved to the finished list.  If you pass 'true' for alwaysrestart, a
 // new connection will be made even if the previous probe was the NULL probe.
 // You would do this, for example, if the other side has closed the connection.
@@ -1788,6 +1818,10 @@ static void startNextProbe(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
 	}
 	if (o.ipoptionslen)
 	  nsi_set_ipoptions(svc->niod, o.ipoptions, o.ipoptionslen);
+        if (svc->target->TargetName()) {
+          if (nsi_set_hostname(svc->niod, svc->target->TargetName()) == -1)
+	    fatal("nsi_set_hostname(\"%s\" failed in %s()", svc->target->TargetName(), __func__);
+        }
 	svc->target->TargetSockAddr(&ss, &ss_len);
 	if (svc->tunnel == SERVICE_TUNNEL_NONE) {
 	  nsock_connect_tcp(nsp, svc->niod, servicescan_connect_handler, 
@@ -1984,7 +2018,7 @@ static int launchSomeServiceProbes(nsock_pool nsp, ServiceGroup *SG) {
       fatal("Failed to allocate Nsock I/O descriptor in %s()", __func__);
     }
     if (o.debugging > 1) {
-      log_write(LOG_PLAIN, "Starting probes against new service: %s:%hu (%s)\n", svc->target->targetipstr(), svc->portno, proto2ascii(svc->proto));
+      log_write(LOG_PLAIN, "Starting probes against new service: %s:%hu (%s)\n", svc->target->targetipstr(), svc->portno, proto2ascii_lowercase(svc->proto));
     }
     if (o.spoofsource) {
       o.SourceSockAddr(&ss, &ss_len);
@@ -2045,7 +2079,7 @@ static void servicescan_connect_handler(nsock_pool nsp, nsock_event nse, void *m
 
     /* If the port is TCP, it is now known to be open rather than openfiltered */
     if (svc->proto == IPPROTO_TCP)
-      adjustPortStateIfNeccessary(svc);
+      adjustPortStateIfNecessary(svc);
 
     // Yeah!  Connection made to the port.  Send the appropriate probe
     // text (if any is needed -- might be NULL probe)
@@ -2142,7 +2176,7 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
   } else if (status == NSE_STATUS_SUCCESS) {
     // w00p, w00p, we read something back from the port.
     readstr = (u8 *) nse_readbuf(nse, &readstrlen);
-    adjustPortStateIfNeccessary(svc); /* A response means PORT_OPENFILTERED is really PORT_OPEN */
+    adjustPortStateIfNecessary(svc); /* A response means PORT_OPENFILTERED is really PORT_OPEN */
     svc->appendtocurrentproberesponse(readstr, readstrlen);
     // now get the full version
     readstr = svc->getcurrentproberesponse(&readstrlen);
@@ -2156,7 +2190,7 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
       // WOO HOO!!!!!!  MATCHED!  But might be soft
       if (MD->isSoft && svc->probe_matched) {
 	if (strcmp(svc->probe_matched, MD->serviceName) != 0)
-	  error("WARNING:  service %s:%hu had already soft-matched %s, but now soft-matched %s; ignoring second value", svc->target->NameIP(), svc->portno, svc->probe_matched, MD->serviceName);
+	  error("WARNING: Service %s:%hu had already soft-matched %s, but now soft-matched %s; ignoring second value", svc->target->targetipstr(), svc->portno, svc->probe_matched, MD->serviceName);
 	// No error if its the same - that happens frequently.  For
 	// example, if we read more data for the same probe response
 	// it will probably still match.
@@ -2165,14 +2199,14 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
 	  if (MD->product || MD->version || MD->info)
 	    log_write(LOG_PLAIN, "Service scan match (Probe %s matched with %s): %s:%hu is %s%s.  Version: |%s|%s|%s|\n",
                       probe->getName(), (*probe->fallbacks[fallbackDepth]).getName(),
-		      svc->target->NameIP(), svc->portno, (svc->tunnel == SERVICE_TUNNEL_SSL)? "SSL/" : "", 
+		      svc->target->targetipstr(), svc->portno, (svc->tunnel == SERVICE_TUNNEL_SSL)? "SSL/" : "", 
 		      MD->serviceName, (MD->product)? MD->product : "", (MD->version)? MD->version : "", 
 		      (MD->info)? MD->info : "");
 	  else
 	    log_write(LOG_PLAIN, "Service scan %s match (Probe %s matched with %s): %s:%hu is %s%s\n",
                       (MD->isSoft)? "soft" : "hard",
                       probe->getName(), (*probe->fallbacks[fallbackDepth]).getName(),
-		      svc->target->NameIP(), svc->portno, (svc->tunnel == SERVICE_TUNNEL_SSL)? "SSL/" : "", MD->serviceName);
+		      svc->target->targetipstr(), svc->portno, (svc->tunnel == SERVICE_TUNNEL_SSL)? "SSL/" : "", MD->serviceName);
 	}
 	svc->probe_matched = MD->serviceName;
 	if (MD->product)
@@ -2267,6 +2301,12 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
       break;
 #ifndef WIN32
     case EPIPE:
+#endif
+#ifdef EPROTO
+    case EPROTO:
+      // EPROTO is suspected to be caused by an active IDS/IPS that forges ICMP
+      // type-12 errors ("Parameter problem"). It's been seen in response to the
+      // Sqlping probe.
 #endif
     case EIO:
       // Usually an SSL error of some sort (those are presently
@@ -2442,7 +2482,7 @@ int service_scan(vector<Target *> &Targets) {
   }
 
   if (o.versionTrace()) {
-    nsp_settrace(nsp, NSOCK_TRACE_LEVEL, o.getStartTime());
+    nsp_settrace(nsp, NULL, NSOCK_TRACE_LEVEL, o.getStartTime());
   }
 
 #if HAVE_OPENSSL

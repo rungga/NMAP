@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -126,13 +126,22 @@ class NdiffCommand(subprocess.Popen):
         search_paths = get_path()
         env = dict(os.environ)
         env["PATH"] = search_paths
+        if getattr(sys, "frozen", None) == "macosx_app":
+            # These variables are set by py2app, but they can interfere with
+            # Ndiff because Ndiff is also a Python application. Without removing
+            # these, Ndiff will attempt to run using the py2app-bundled Python
+            # library, and may run into version or architecture mismatches.
+            if env.has_key("PYTHONPATH"):
+                del env["PYTHONPATH"]
+            if env.has_key("PYTHONHOME"):
+                del env["PYTHONHOME"]
 
         command_list = [paths_config.ndiff_command_path, "--verbose", "--", filename_a, filename_b]
         self.stdout_file = tempfile.TemporaryFile(mode = "rb", prefix = APP_NAME + "-ndiff-", suffix = ".xml")
 
         log.debug("Running command: %s" % repr(command_list))
         # See zenmapCore.NmapCommand.py for an explanation of the shell argument.
-        subprocess.Popen.__init__(self, command_list, stdout = self.stdout_file, stderr = subprocess.PIPE, env = env, shell = (sys.platform == "win32"))
+        subprocess.Popen.__init__(self, command_list, stdout = self.stdout_file, stderr = self.stdout_file, env = env, shell = (sys.platform == "win32"))
 
     def get_scan_diff(self):
         self.wait()

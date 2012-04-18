@@ -2,7 +2,7 @@
  * ncat_core.h                                                             *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.h 16410 2010-01-06 05:54:55Z david $ */
+/* $Id: ncat_core.h 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nsock.h"
 #include "nbase.h"
@@ -165,6 +165,11 @@ void options_init(void);
 int resolve(char *hostname, unsigned short port,
             struct sockaddr_storage *ss, size_t *sslen, int af);
 
+int fdinfo_close(struct fdinfo *fdn);
+int fdinfo_recv(struct fdinfo *fdn, char *buf, size_t size);
+int fdinfo_send(struct fdinfo *fdn, const char *buf, size_t size);
+int fdinfo_pending(struct fdinfo *fdn);
+
 int ncat_recv(struct fdinfo *fdn, char *buf, size_t size, int *pending);
 int ncat_send(struct fdinfo *fdn, const char *buf, size_t size);
 
@@ -174,9 +179,6 @@ extern int ncat_broadcast(fd_set *fds, const fd_list_t *fdlist, const char *msg,
 
 /* Do telnet WILL/WONT DO/DONT negotiations */
 extern void dotelnet(int s, unsigned char *buf, size_t bufsiz);
-
-/* Return 1 if user is root, otherwise 0. */
-extern int ncat_checkuid();
 
 /* sleep(), usleep(), msleep(), Sleep() -- all together now, "portability".
  *

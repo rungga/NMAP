@@ -1,5 +1,7 @@
---- Read and parse some of Nmap's data files: <code>nmap-protocols</code>,
--- <code>nmap-rpc</code>, and <code>nmap-services</code>.
+---
+-- Read and parse some of Nmap's data files: <code>nmap-protocols</code>,
+-- <code>nmap-rpc</code>, <code>nmap-services</code>, and 
+-- <code>nmap-mac-prefixes</code>.
 --
 -- The functions in this module return values appropriate for use with exception
 -- handling via <code>nmap.new_try</code>. On success, they return true and
@@ -23,7 +25,8 @@ local common_files = {
     ["nmap-protocols"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)" ) ) end] = "^%s*([^%s#]+)%s+%d+" },
     ["nmap-services"]  = { ["tcp"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)/tcp" ) ) end] = "^%s*([^%s#]+)%s+%d+/tcp" },
                            ["udp"] = { [function(ln) return tonumber( ln:match( "^%s*[^%s#]+%s+(%d+)/udp" ) ) end] = "^%s*([^%s#]+)%s+%d+/udp" }
-    }
+    },
+	["nmap-mac-prefixes"]	= { [ "^%s*(%w+)%s+[^#]+" ] = "^%s*%w+%s+([^#]+)" }
 
 }
 
@@ -87,6 +90,23 @@ parse_services = function(protocol)
   end
 
   return true, services_table
+end
+
+
+---
+-- Read and parse <code>nmap-mac-prefixes</code>.
+--
+-- On success, return true and a table mapping 3 byte MAC prefixes to manufacturer names.
+-- @return Status (true or false).
+-- @return Table (if status is true) or error string (if status is false).
+-- @see parse_file
+parse_mac_prefixes = function()
+  local status, mac_prefixes_table = parse_file("nmap-mac-prefixes")
+  if not status then
+    return false, "Error parsing nmap-mac-prefixes"
+  end
+
+  return true, mac_prefixes_table
 end
 
 
@@ -225,10 +245,8 @@ function read_from_file( file )
     return false, ( "Error in datafiles.read_from_file: Cannot open %s for reading: %s" ):format( filepath, err )
   end
 
-  local line, ret = nil, {}
-  while true do
-    line = f:read()
-    if not line then break end
+  local ret = {}
+  for line in f:lines() do
     ret[#ret+1] = line
   end
 

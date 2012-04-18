@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -28,7 +28,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -51,8 +51,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -89,7 +89,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: osscan2.cc 16466 2010-01-15 03:55:23Z david $ */
+/* $Id: osscan2.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #include "osscan.h"
 #include "osscan2.h"
@@ -708,8 +708,11 @@ void HostOsScanStats::initScanStats() {
   }
 
   FP = NULL;
-  for (i=0; i<NUM_FPTESTS; i++)
+  for (i=0; i<NUM_FPTESTS; i++) {
+	if (FPtests[i] != NULL)
+	  delete FPtests[i];
 	FPtests[i] = NULL;
+  }
   for (i=0; i<6; i++) {
 	TOps_AVs[i] = NULL;
 	TWin_AVs[i] = NULL;
@@ -2702,7 +2705,7 @@ bool HostOsScan::get_tcpopt_string(struct tcp_hdr *tcp, int mss, char *result, i
         break; /* Window Scale option has 3 bytes */
       *p++ = 'W';
       q++;
-      sprintf(p, "%hX", *((u8*)q));
+      snprintf(p, length, "%hX", *((u8*)q));
       p += strlen(p); /* max movement of p is 2 (max WScale value is 0xFF) */
       q++;
       length -= 3;
@@ -2750,7 +2753,7 @@ HostOsScanInfo::HostOsScanInfo(Target *t, OsScanInfo *OsSI) {
   target = t;
   OSI = OsSI;
 
-  FPs = (FingerPrint **) safe_zalloc(o.maxOSTries() * sizeof(FingerPrint));
+  FPs = (FingerPrint **) safe_zalloc(o.maxOSTries() * sizeof(FingerPrint *));
   FP_matches = (FingerPrintResults *) safe_zalloc(o.maxOSTries() * sizeof(FingerPrintResults));
   timedOut = false;
   isCompleted = false;
@@ -2992,7 +2995,7 @@ int HostOsScan::send_closedudp_probe(HostOsScanStats *hss,
     udp->uh_ulen = htons(8 + datalen);
 
     /* OK, now we should be able to compute a valid checksum */
-    realcheck = magic_tcpudp_cksum(source, hss->target->v4hostip(), IPPROTO_UDP,
+    realcheck = tcpudp_cksum(source, hss->target->v4hostip(), IPPROTO_UDP,
 				   sizeof(struct udp_hdr) + datalen, (char *) udp);
 #if STUPID_SOLARIS_CHECKSUM_BUG
     udp->uh_sum = sizeof(struct udp_hdr) + datalen;
@@ -3207,7 +3210,8 @@ static void begin_sniffer(HostOsScan *HOS, vector<Target *> &Targets) {
   }
   filterlen = 0;
 
-  HOS->pd = my_pcap_open_live(Targets[0]->deviceName(), 8192,  (o.spoofsource)? 1 : 0, pcap_selectable_fd_valid()? 200 : 2);
+  if((HOS->pd=my_pcap_open_live(Targets[0]->deviceName(), 8192,  (o.spoofsource)? 1 : 0, pcap_selectable_fd_valid()? 200 : 2))==NULL)
+    fatal("%s", PCAP_OPEN_ERRMSG);
 
   if (doIndividual)
     len = Snprintf(pcap_filter, sizeof(pcap_filter), "dst host %s and (icmp or (tcp and (%s", 
@@ -3219,9 +3223,9 @@ static void begin_sniffer(HostOsScan *HOS, vector<Target *> &Targets) {
     fatal("ran out of space in pcap filter");
   filterlen = len;
     
-  if (o.debugging > 2) log_write(LOG_PLAIN, "Pcap filter: %s\n", pcap_filter);
+  if (o.debugging) log_write(LOG_PLAIN, "Packet capture filter (device %s): %s\n", Targets[0]->deviceFullName(), pcap_filter);
   set_pcap_filter(Targets[0]->deviceFullName(), HOS->pd, pcap_filter);
-  
+   
   return;
 }
 

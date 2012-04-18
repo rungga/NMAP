@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -24,7 +24,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -47,8 +47,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -86,81 +86,49 @@
 # ***************************************************************************/
 
 
-def is_a_new_connection(connection, conection_set):
-    """
-    """
-    (i, j) = connection
-
-    for edge in conection_set:
-
-        (a, b) = edge.get_nodes()
-
-        if (a == i and b == j) or (a == j and b == i):
-            return False
-
-    return True
-
-
-
 class Node(object):
     """
     Node class
     """
-    def __init__(self, id=None):
+    def __init__(self):
         """
         Constructor method of Node class
         @type  : integer
         @param : Node identifier
         """
-        self.__id = id
-        """Node identifier"""
-        self.__information = {}
-        """Hash with general information"""
+        self.__data = None
+        """User-controlled data pointer"""
+        self.__edges = []
+        """List of edges to other nodes"""
 
 
-    def get_id(self):
+    def get_data(self):
+        return self.__data
+
+
+    def set_data(self, data):
+        self.__data = data
+
+
+    def get_edge(self, dest):
         """
-        Get node ID
-        @rtype: number
-        @return: Node identifier
+        Return the edge connecting to dest, or None if none
         """
-        return self.__id
-
-
-    def set_id(self, id):
-        """
-        Set node ID
-        @type  : number
-        @param : Node identifier
-        """
-        self.__id = id
-
-
-    def get_info(self, info=None):
-        """
-        Get general information about node
-        @type  : string
-        @param : Information name
-        @rtype: mixed
-        @return: The requested information
-        """
-        if info == None:
-            return self.__information
-
-        if self.__information.has_key(info):
-            return self.__information[info]
-            
+        for edge in self.__edges:
+            if dest in edge.get_nodes():
+                return edge
         return None
 
 
-    def set_info(self, info):
+    def get_edges(self):
         """
-        Set general information
-        @type  : dict
-        @param : General information dictionary
+        Return the list of edges
         """
-        for key in info:
-            self.__information[key] = info[key]
+        return self.__edges
+
+
+    def add_edge(self, edge):
+        self.__edges.append(edge)
 
 
 
@@ -170,9 +138,9 @@ class Edge:
     def __init__(self, nodes):
         """
         """
-        self.__weigths = []
+        self.__weights = []
         self.__nodes = nodes
-        self.__weigths_mean = None
+        self.__weights_mean = None
 
 
     def get_nodes(self):
@@ -181,38 +149,31 @@ class Edge:
         return self.__nodes
 
 
-    def get_weigths(self):
+    def get_weights(self):
         """
         """
-        return self.__weigths
+        return self.__weights
 
 
-    def set_weigths(self, weigths):
+    def set_weights(self, weights):
         """
         """
-        self.__weigths = weigths
+        self.__weights = weights
+        self.__weights_mean = sum(self.__weights) / len(self.__weights)
 
 
-    def add_weigth(self, weigth):
+    def add_weight(self, weight):
         """
         """
-        self.__weigths.append(weigth)
+        self.__weights.append(weight)
+        self.__weights_mean = sum(self.__weights) / len(self.__weights)
 
 
-    def get_weigths_mean(self):
+    def get_weights_mean(self):
         """
         """
-        return self.__weigths_mean
+        return self.__weights_mean
 
-
-    def calc_weigths_mean(self):
-        """
-        """
-        if len(self.__weigths) > 0:
-            self.__weigths_mean = sum(self.__weigths) / len(self.__weigths)
-
-        else:
-            self.__weigths_mean = None
 
 
 
@@ -229,12 +190,8 @@ class Graph:
         """
         self.__main_node = None
         self.__nodes = []
-        self.__edges = []
         self.__max_edge_mean_value = None
         self.__min_edge_mean_value = None
-
-        self.calc_max_edge_mean_weight()
-        self.calc_max_edge_mean_weight()
 
 
     def set_nodes(self, nodes):
@@ -260,36 +217,11 @@ class Graph:
 
     def set_main_node(self, node):
         """
-        Set the main node by ID
+        Set the main node
         @type  : number
-        @param : The node ID
+        @param : The node
         """
         self.__main_node = node
-
-
-    def set_main_node_by_id(self, id):
-        """
-        Set the main node by ID
-        @type  : number
-        @param : The node ID
-        """
-        self.__main_node = self.get_node_by_id(id)
-
-
-    def get_node_by_id(self, id):
-        """
-        Get one node of graph by your ID
-        @type  : number
-        @param : The node ID
-        @rtype: Node
-        @return: The node
-        """
-        for node in self.__nodes:
-
-            if node.get_id() == id:
-                return node
-
-        return None
 
 
     def get_main_node(self):
@@ -301,52 +233,40 @@ class Graph:
         return self.__main_node
 
 
-    def get_main_node_id(self):
-        """
-        Get the main node ID
-        @rtype: number
-        @return: The main node ID
-        """
-        return self.__main_node.get_id()
-
-
-    def set_connection(self, a, b, weigth=None):
+    def set_connection(self, a, b, weight=None):
         """
         Set node connections
         @type  : list
         @param : List of connections
         """
-        connection = (a, b)
 
         # if is a new connection make it
-        if is_a_new_connection(connection, self.__edges):
-            self.__edges.append(Edge(connection))
+        edge = a.get_edge(b)
+        if edge is None:
+            edge = Edge((a, b))
+            a.add_edge(edge)
+            b.add_edge(edge)
 
-        # then add new weigth value
-        if weigth != None:
+        # then add new weight value
+        if weight != None:
 
-            edge = self.get_connection(a, b)
-            edge.add_weigth(weigth)
+            edge.add_weight(weight)
 
-            edge.calc_weigths_mean()
-
-            self.calc_min_edge_mean_weight()
-            self.calc_max_edge_mean_weight()
-
-
-    def get_connection(self, a, b):
-        """
-        """
-        for edge in self.__edges:
-
-            if a in edge.get_nodes() and b in edge.get_nodes():
-                return edge
+            mean_weight = edge.get_weights_mean()
+            if self.__min_edge_mean_value is None or mean_weight < self.__min_edge_mean_value:
+                self.__min_edge_mean_value = mean_weight
+            if self.__max_edge_mean_value is None or mean_weight > self.__max_edge_mean_value:
+                self.__max_edge_mean_value = mean_weight
 
 
     def get_edges(self):
         """
+        An iterator that yields all edges
         """
-        return self.__edges
+        for node in self.__nodes:
+            for edge in node.get_edges():
+                if edge.get_nodes()[0] == node:
+                    yield edge
 
 
     def get_node_connections(self, node):
@@ -354,7 +274,7 @@ class Graph:
         """
         connections = []
 
-        for edge in self.__edges:
+        for edge in node.get_edges():
 
             (a, b) = edge.get_nodes()
 
@@ -377,35 +297,4 @@ class Graph:
         """
         return self.__min_edge_mean_value
 
-
-    def calc_max_edge_mean_weight(self):
-        """
-        """
-        max_value = None
-
-        for edge in self.__edges:
-
-            mean = edge.get_weigths_mean()
-
-            if mean != None:
-                if mean > max_value or max_value == None:
-                    max_value = mean
-
-        self.__max_edge_mean_value = max_value
-
-
-    def calc_min_edge_mean_weight(self):
-        """
-        """
-        min_value = None
-
-        for edge in self.__edges:
-
-            mean = edge.get_weigths_mean()
-
-            if mean != None:
-                if mean < min_value or min_value == None:
-                    min_value = mean
-
-        self.__min_edge_mean_value = min_value
 

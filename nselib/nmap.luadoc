@@ -1,4 +1,5 @@
---- Interface with Nmap internals.
+---
+-- Interface with Nmap internals.
 --
 -- The <code>nmap</code> module is an interface with Nmap's internal functions
 -- and data structures. The API provides target host details such as port
@@ -30,6 +31,35 @@ function have_ssl()
 -- @return The verbosity level.
 -- @usage if nmap.verbosity() > 0 then ... end
 function verbosity()
+
+--- Returns whether a script should be able to perform privileged operations
+--
+-- @return True if Nmap is running privileged, false otherwise.
+function is_privileged()
+
+--- Resolves the specified host name using the optional address family and
+-- returns a table containing all of the matching addresses.
+--
+-- If no address family is given, resolve() will return all addresses for the
+-- name.
+--
+-- @param host Host name to resolve
+-- @param family Address family string (such as "inet") to specify the type
+-- of addresses returned
+-- @see address_family
+-- @return Status (true or false)
+-- @return Table containing addresses resolved from the host name if status
+-- is true, or an error string if status is false
+-- @usage local status, t = nmap.resolve("www.kame.net", nmap.address_family())
+function resolve(host, family)
+
+--- Returns the address family Nmap is using.
+--
+-- For example, if Nmap is run with the -6 option, then "inet6" is returned.
+--
+-- @return The address family as a string ("inet" or "inet6")
+-- @usage local family = nmap.address_family()
+function address_family()
 
 --- Searches for the specified file and returns a string containing its path if
 -- it is found and readable (to the process).
@@ -72,6 +102,25 @@ function timing_level()
 -- @return A new port table holding the status and information for the port, or <code>nil</code>.
 -- @usage p = nmap.get_port_state({ip="127.0.0.1"}, {number="80", protocol="tcp"})
 function get_port_state(host, port)
+
+--- Iterates over port tables matching protocol and state for a given host
+--
+-- This function takes a host table, previous port table, port protocol and
+-- port state to return matching port tables on a host.
+--
+-- The first time you call this function, pass <code>nil</code> for the port
+-- parameter to get the first matching port table.  From then on, pass the
+-- previous port table returned by this function to the port parameter for the
+-- next matching port table.
+--
+-- @param host Host table, containing an <code>ip</code> field
+-- @param port Port table, containing a <code>number</code> field; or <code>nil</code>
+-- for first port
+-- @param proto Port protocol, such as <code>"tcp"</code>
+-- @param state Port state, such as <code>"open"</code>
+-- @return Next port table for host, or <code>nil</code> when exhausted
+-- @usage port = nmap.get_ports(host, port, "tcp", "open")
+function get_ports(host, port, proto, state)
 
 --- Sets the state of a port on a given host.
 --
@@ -121,6 +170,12 @@ function set_port_state(host, port, state)
 -- <code>"tcpwrapped"</code>, or <code>"incomplete"</code>.
 function set_port_version(host, port, probestate)
 
+--- Returns the current date and time in seconds.
+-- @return The number of seconds since the epoch (on most systems this is
+-- 01/01/1970) as a floating point value.
+-- @usage local now = nmap.clock()
+function clock()
+
 --- Returns the current date and time in milliseconds.
 -- @return The number of milliseconds since the epoch (on most systems this is
 -- 01/01/1970).
@@ -136,7 +191,7 @@ function clock_ms()
 -- @param interface_name The name of the interface.
 -- @return <code>"ethernet"</code>, <code>"loopback"</code>,
 -- <code>"p2p"</code>, or <code>nil</code>.
--- @usage iface_type = nmap.get_interface_list("eth0")
+-- @usage iface_type = nmap.get_interface_link("eth0")
 function get_interface_link(interface_name)
 
 --- Create a mutex on an object.
@@ -186,7 +241,7 @@ function mutex(object)
 -- NSE maintains a weak reference to the Condition Variable so other calls to
 -- nmap.condvar with the same object will return the same function (Condition
 -- Variable); however, if you discard your reference to the Condition
--- Variable then it may be collected; and, Subsequent calls to nmap.condvar with
+-- Variable then it may be collected; and, subsequent calls to nmap.condvar with
 -- the object will return a different Condition Variable function!
 --
 -- In NSE, Condition Variables are typically used to coordinate with threads
@@ -201,14 +256,14 @@ function mutex(object)
 -- guarantee your thread will not be awakened when no thread called
 -- <code>"signal"</code> or <code>"broadcast"</code> on the condition variable).
 -- One important check for your worker threads, before and after waiting,
--- should be to check that the master <em>script</em> thread is still alive.
+-- should be to check that the master script thread is still alive.
 -- (To check that the master script thread is alive, obtain the "base" thread
 -- using stdnse.base and use coroutine.status). You do not want your worker
 -- threads to continue when the script has ended for reasons unknown to your
--- worker thread.  <strong>You are guaranteed that all threads waiting on a
+-- worker thread. You are guaranteed that all threads waiting on a
 -- condition variable will be awakened if any thread that has accessed
 -- the condition variable via <code>nmap.condvar</code> ends for any
--- reason.</strong> This is essential to prevent deadlock with threads
+-- reason. This is essential to prevent deadlock with threads
 -- waiting for another thread to awaken
 -- them that has ended unexpectedly.
 -- @see stdnse.new_thread
@@ -250,7 +305,7 @@ function condvar(object)
 --   socket:close()
 -- end
 -- try = nmap.new_try(catch)
--- try(socket:connect(host.ip, port.number))
+-- try(socket:connect(host, port))
 -- result = try(socket:receive_lines(1))
 -- try(socket:send(result))
 function new_try(handler)
@@ -270,10 +325,12 @@ function new_try(handler)
 -- NSE sockets are the recommended way to do network I/O. They support
 -- <code>connect</code>-style sending and receiving over TCP and UDP (and SSL),
 -- as well as raw socket receiving.
+-- @param protocol a protocol string (optional, defaults to <code>"tcp"</code>).
+-- @param af an address family string (optional, defaults to <code>"inet"</code>).
 -- @return A new NSE socket.
 -- @see pcap_open
 -- @usage local socket = nmap.new_socket()
-function new_socket()
+function new_socket(protocol, af)
 
 --- Sets the local address of a socket.
 --
@@ -296,10 +353,19 @@ function bind(addr, port)
 --- Establishes a connection.
 --
 -- This method puts a socket in a state ready for communication. It takes as
--- arguments a host descriptor (either an IP address or a hostname), a port
--- number and optionally a protocol. The protocol must be one of
--- <code>"tcp"</code>, <code>"udp"</code> or <code>"ssl"</code>; it is
--- <code>"tcp"</code> if not specified.
+-- arguments a host descriptor (a host table, IP address, or hostname), a port
+-- descriptor (a port table or number), and optionally a protocol. If given, the
+-- protocol must be one of <code>"tcp"</code>, <code>"udp"</code> or
+-- <code>"ssl"</code>. The default value for the protocol is
+-- <code>port.protocol</code> if <code>port</code> is a port table, otherwise
+-- <code>"tcp"</code>.
+--
+-- If <code>host</code> is a host table, it must contain at least one of the
+-- keys <code>addr</code> or <code>targetname</code>. If <code>targetname</code>
+-- is given, it is used to request the correct certificate in SSL connections.
+-- Passing a string instead of a host table acts like <code>host.addr</code> and
+-- <code>host.targetname</code> were set to the same value. If <code>port</code>
+-- is a table, it must contain the <code>number</code> key.
 --
 -- On success the function returns a true value. On failure it returns a false
 -- value (<code>false</code> or <code>nil</code>) and an error string. Those
@@ -318,21 +384,22 @@ function bind(addr, port)
 -- * <code>"System error"</code> (<code>EAI_SYSTEM</code>)
 -- In addition to these standard system error messages there are two
 -- NSE-specific errors:
--- * <code>"Sorry, you don't have OpenSSL"</code>: The protocol is <code>"ssl"</code> but but Nmap was compiled without OpenSSL support.
+-- * <code>"Sorry, you don't have OpenSSL"</code>: The protocol is <code>"ssl"</code> but Nmap was compiled without OpenSSL support.
 -- * <code>"invalid connection method"</code>: The second parameter is not one of <code>"tcp"</code>, <code>"udp"</code>, and <code>"ssl"</code>.
--- @param hostid Hostname or IP address.
--- @param port Port number.
+-- @param host Host table, hostname or IP address.
+-- @param port Port table or number.
 -- @param protocol <code>"tcp"</code>, <code>"udp"</code>, or
--- <code>"ssl"</code> (default <code>"tcp"</code>).
+-- <code>"ssl"</code> (default <code>"tcp"</code>, or whatever was set in
+-- <code>new_socket</code>).
 -- @return Status (true or false).
 -- @return Error code (if status is false).
 -- @see new_socket
 -- @usage
--- local status, err = socket:connect(host.ip, port, "udp")
+-- local status, err = socket:connect(host, port)
 -- if not status then
 --     return string.format("Can't connect: %s", err)
 -- end
-function connect(hostid, port, protocol)
+function connect(host, port, protocol)
 
 --- Reconnect the open (connected) socket with SSL.
 --
@@ -365,6 +432,30 @@ function reconnect_ssl()
 -- @see new_socket
 -- @usage local status, err = socket:send(data)
 function send(data)
+
+--- Sends data on an unconnected socket to a given destination.
+--
+-- Sockets that have not been connected do not have an implicit
+-- destination address, so the <code>send</code> function doesn't work. Instead
+-- the destination must be given with each send using this function. The
+-- protocol and address family of the socket must have been set in
+-- <code>new_socket</code>. On
+-- success the function returns a true value. If the send operation fails, the
+-- function returns a false value (<code>false</code> or <code>nil</code>) along
+-- with an error string. The error strings are
+-- * <code>"Trying to send through a closed socket"</code>: There was no call to <code>socket:connect</code> before the send operation.
+-- * <code>"TIMEOUT"</code>: The operation took longer than the specified timeout for the socket.
+-- * <code>"ERROR"</code>: An error occurred inside the underlying Nsock library.
+-- * <code>"CANCELLED"</code>: The operation was cancelled.
+-- * <code>"KILL"</code>: For example the script scan is aborted due to a faulty script.
+-- * <code>"EOF"</code>: An EOF was read (probably will not occur for a send operation).
+-- @param host The hostname or IP address to send to. 
+-- @param port The port number to send to.
+-- @param data The data to send.
+-- @return Status (true or false).
+-- @return Error code (if status is false).
+-- @usage local status, err = socket:send(data)
+function sendto(host, port, data)
 
 --- Receives data from an open socket.
 --
@@ -421,8 +512,7 @@ function receive_bytes(n)
 -- delimiter string (or matches the function passed in). This function
 -- continues to read from the network until the delimiter is found or the
 -- function times out.  If data is read beyond the delimiter, that data is
--- saved in a buffer for the next call to <code>receive_buf</code>.  This
--- buffer is cleared on subsequent calls to other Network I/O API functions.
+-- saved in a buffer for the next call to <code>receive_buf</code>.
 --
 -- The first argument may be either a pattern or a function. If a pattern, that
 -- pattern is used to separate the data. If a function, it must take exactly
@@ -439,12 +529,7 @@ function receive_bytes(n)
 --
 -- On success the function returns true along with the received data. On failure
 -- the function returns <code>false</code> or <code>nil</code> along with an
--- error string. Possible error messages are the same as those that the other
--- receive functions can return, with the addition of
--- * <code>"Error inside splitting-function"</code>: The first argument was a function which caused an error while being called.
--- * <code>"Error in string.find (nsockobj:receive_buf)!"</code>: A string was provided as the first argument, and string.find() yielded an error while being called.
--- * <code>"Expected either a function or a string!"</code>: The first argument was neither a function nor a string.
--- * <code>"Delimiter has negative size!"</code>: The returned start offset is greater than the end offset.
+-- receive error string. This function may also throw errors for incorrect usage.
 -- @param delimiter A Lua pattern or a function with return values like those of
 -- <code>string.find</code>.
 -- @param keeppattern Whether to return the delimiter string with any returned
@@ -503,51 +588,34 @@ function set_timeout(t)
 
 --- Opens a socket for raw packet capture.
 --
--- The callback function is a function that receives a packet with headers and
--- computes a "packet hash", some value derived from the packet. For example,
--- the callback function could extract the source IP address from a packet. The
--- hash of each packet received is compared against all the strings registered
--- with the <code>pcap_register</code> function.
 -- @param device The dnet-style interface name of the device you want to capture
--- from.
+--               from.
 -- @param snaplen The length of each packet you want to capture (similar to the
--- <code>-s</code> option to tcpdump)
--- @param promisc Set to 1 if the interface should activate promiscuous mode,
--- and 0 otherwise.
--- @param test_function Callback function used to compute the packet hash.
+--                <code>-s</code> option to tcpdump)
+-- @param promisc Boolean value for whether the interface should activate
+--                promiscuous mode.
 -- @param bpf A string describing a Berkeley Packet Filter expression (like
--- those provided to tcpdump).
--- @see new_socket, pcap_register, pcap_receive
+--            those provided to tcpdump).
+-- @see new_socket, pcap_receive
 -- @usage
 -- local socket = nmap.new_socket()
--- socket:pcap_open("eth0", 64, 0, callback, "tcp")
-function pcap_open(device, snaplen, promisc, test_function, bpf)
-
---- Starts listening for incoming packets.
---
--- The provided <code>packet_hash</code> is a binary string which has to match
--- the hash returned by the <code>test_function</code> parameter provided to
--- <code>pcap_open</code>. If you want to receive all packets, just provide
--- the empty string (<code>""</code>). There has to be a call to
--- <code>pcap_register</code> before a call to <code>pcap_receive</code>.
--- @param packet_hash A binary string that is compared against packet hashes.
--- @see pcap_open, pcap_receive
--- @usage socket:pcap_register("")
-function pcap_register(packet_hash)
+-- socket:pcap_open("eth0", 64, false, "tcp")
+function pcap_open(device, snaplen, promisc, bpf)
 
 --- Receives a captured packet.
 --
 -- If an error or timeout occurs, the function returns false and an error
 -- message. Otherwise, the function returns true followed by the packet length,
--- the layer two header, and the layer three header.
+-- layer two header, layer three header and packet capture time.
 -- @return Status (true or false).
 -- @return The length of the captured packet (this may be smaller than the
--- actual packet length since packets are truncated when the Libpcap snaplen
--- parameter is smaller than the total packet length).
+--         actual packet length since packets are truncated when the
+--         libpcap snaplen parameter is smaller than the total packet length).
 -- @return Data from the second OSI layer (e.g. ethernet headers).
 -- @return Data from the third OSI layer (e.g. IPv4 headers).
--- @see pcap_open, pcap_register
--- @usage status, plen, l2_data, l3_data = socket:pcap_receive()
+-- @return Packet capture time, as floating point seconds since the epoch
+-- @see pcap_open
+-- @usage status, plen, l2_data, l3_data, time = socket:pcap_receive()
 function pcap_receive()
 
 --- Closes a pcap device.
@@ -563,6 +631,7 @@ function pcap_close()
 -- subject = { commonName = "...", countryName = "...",
 --             { "2", "5", "4", "15" } = "...", ... },
 -- issuer = { commonName = "...", ... },
+-- pubkey = { type = "rsa", bits = 1024 },
 -- validity = { notBefore = { year = 2020, month = 5, day = 5,
 --                            hour = 0, min = 0, sec = 0 },
 --              notAfter = { year = 2021, month = 5, day = 5,
@@ -591,10 +660,10 @@ function pcap_close()
 -- @return A table as described above.
 -- @usage
 -- local s = nmap.new_socket()
--- local status, error = s:connect(host.ip, port.number, "ssl")
+-- local status, error = s:connect(host, port, "ssl")
 -- if status then
 --     local cert = s:get_ssl_certificate()
---     local digest = s:digest("md5")
+--     local digest = cert:digest("md5")
 -- end
 function get_ssl_certificate()
 
@@ -619,7 +688,7 @@ function ethernet_open(interface_name)
 -- (<code>"dnet is not valid opened ethernet interface"</code>).
 -- @param packet An ethernet frame to send.
 -- @see new_dnet
--- @usage dnet:ethernet_open(packet)
+-- @usage dnet:ethernet_send(packet)
 function ethernet_send(packet)
 
 --- Closes an ethernet interface.
@@ -629,6 +698,26 @@ function ethernet_send(packet)
 -- @see new_dnet, ethernet_open
 -- @usage dnet:ethernet_close()
 function ethernet_close()
+
+--- Opens a socket for raw IPv4 packet sending.
+-- @see new_dnet
+-- @usage dnet:ip_open()
+function ip_open()
+
+--- Sends a raw IPv4 packet.
+--
+-- The dnet object must be associated with a previously opened socket. The
+-- packet must begin with an IP header. If there was no previous valid call
+-- to <code>ip_open</code> an error is thrown.
+-- @param packet An IP packet to send.
+-- @see new_dnet
+-- @usage dnet:ip_send(packet)
+function ip_send(packet)
+
+--- Closes a raw IPv4 socket.
+-- @see new_dnet, ip_open
+-- @usage dnet:ip_close()
+function ip_close()
 
 --- Writes to a log file.
 --

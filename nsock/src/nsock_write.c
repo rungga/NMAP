@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2009 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -17,15 +17,15 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
- *                                                                         * 
+ *                                                                         *
  * If you received these files with a written license agreement stating    *
  * terms other than the (GPL) terms above, then that alternative license   *
- * agreement takes precedence over this comment.                          *
+ * agreement takes precedence over this comment.                           *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_write.c 12956 2009-04-15 00:37:23Z fyodor $ */
+/* $Id: nsock_write.c 21905 2011-01-21 00:04:51Z fyodor $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -62,6 +62,67 @@
 #include <nbase.h>
 #include <stdarg.h>
 #include <errno.h>
+
+nsock_event_id nsock_sendto(nsock_pool ms_pool, nsock_iod ms_iod,
+              nsock_ev_handler handler, int timeout_msecs,
+              void *userdata, struct sockaddr *saddr, size_t sslen,
+              unsigned short port, const char *data, int datalen) {
+  mspool *nsp = (mspool *) ms_pool;
+  msiod *nsi = (msiod *) ms_iod;
+  msevent *nse;
+  char displaystr[256];
+  struct sockaddr_in *sin = (struct sockaddr_in *) saddr;
+#if HAVE_IPV6
+  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) saddr;
+#endif
+
+  nse = msevent_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler,
+		    userdata);
+  assert(nse);
+
+  if (sin->sin_family == AF_INET) {
+    sin->sin_port = htons(port);
+  } else {
+      assert(sin->sin_family == AF_INET6);
+#if HAVE_IPV6
+    sin6->sin6_port = htons(port);
+#else
+    fatal("IPv6 address passed to nsock_connect_* call, but nsock was not compiled w/IPv6 support");
+#endif
+  }
+
+  assert(sslen <= sizeof(nse->writeinfo.dest));
+  memcpy(&nse->writeinfo.dest, saddr, sslen);
+  nse->writeinfo.destlen = sslen;
+
+  assert(sslen <= sizeof(nse->iod->peer));
+  memcpy(&nse->iod->peer, saddr, sslen);
+  nse->iod->peerlen = sslen;
+
+  if (datalen < 0)
+    datalen = (int) strlen(data);	
+
+  if (nsp->tracelevel > 0) {
+    if (nsp->tracelevel > 1 && datalen < 80) {
+      memcpy(displaystr, ": ", 2);
+      memcpy(displaystr + 2, data, datalen);
+      displaystr[2 + datalen] = '\0';
+      replacenonprintable(displaystr + 2, datalen, '.');
+    } else {
+      displaystr[0] = '\0';
+    }
+    nsock_trace(nsp, "Sendto request for %d bytes to IOD #%li EID %li [%s:%hu]%s",
+      datalen, nsi->id, nse->id,
+      inet_ntop_ez(&nse->writeinfo.dest, nse->writeinfo.destlen), port,
+      displaystr);
+  }
+	
+  fscat(&nse->iobuf, data, datalen);
+
+  nsp_add_event(nsp, nse);
+
+  return nse->id;
+}
 
 /* Write some data to the socket.  If the write is not COMPLETED within timeout_msecs , NSE_STATUS_TIMEOUT will be returned.  If you are supplying NUL-terminated data, you can optionally pass -1 for datalen and nsock_write will figure out the length itself */
 nsock_event_id  nsock_write(nsock_pool ms_pool, nsock_iod ms_iod, 
@@ -75,6 +136,8 @@ nsock_event_id  nsock_write(nsock_pool ms_pool, nsock_iod ms_iod,
   nse = msevent_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler,
 		    userdata);
   assert(nse);
+
+  nse->writeinfo.dest.ss_family = AF_UNSPEC;
 
   if (datalen < 0)
     datalen = (int) strlen(data);

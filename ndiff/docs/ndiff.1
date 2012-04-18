@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: ndiff
 .\"    Author: [see the "Authors" section]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 01/26/2010
+.\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
+.\"      Date: 12/12/2011
 .\"    Manual: User Commands
 .\"    Source: Ndiff
 .\"  Language: English
 .\"
-.TH "NDIFF" "1" "01/26/2010" "Ndiff" "User Commands"
+.TH "NDIFF" "1" "12/12/2011" "Ndiff" "User Commands"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -83,8 +92,6 @@ OS matches (from
 .\}
 Script output
 .RE
-.sp
-.RE
 .PP
 Ndiff, like the standard
 \fBdiff\fR
@@ -116,17 +123,17 @@ included in the distribution\&.
 Any other arguments are taken to be the names of Nmap XML output files\&. There must be exactly two\&.
 .SH "EXAMPLE"
 .PP
-Let\'s use Ndiff to compare the output of two Nmap scans that use different options\&. In the first, we\'ll do a fast scan (\fB\-F\fR), which scans fewer ports for speed\&. In the second, we\'ll scan the larger default set of ports, and run an NSE script\&.
+Let\*(Aqs use Ndiff to compare the output of two Nmap scans that use different options\&. In the first, we\*(Aqll do a fast scan (\fB\-F\fR), which scans fewer ports for speed\&. In the second, we\*(Aqll scan the larger default set of ports, and run an NSE script\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-# nmap \-F scanme\&.nmap\&.org \-oX scanme\-1\&.xml
-# nmap \-\-script=html\-title scanme\&.nmap\&.org \-oX scanme\-2\&.xml
-$ ndiff \-v scanme\-1\&.xml scanme\-2\&.xml
-\-Nmap 4\&.90RC2 at 2009\-07\-16 13:29
-+Nmap 4\&.90RC2 at 2009\-07\-16 13:33
+# \fBnmap \-F scanme\&.nmap\&.org \-oX scanme\-1\&.xml\fR
+# \fBnmap \-\-script=html\-title scanme\&.nmap\&.org \-oX scanme\-2\&.xml\fR
+$ \fBndiff \-v scanme\-1\&.xml scanme\-2\&.xml\fR
+\-Nmap 5\&.35DC1 at 2010\-07\-16 12:09
++Nmap 5\&.35DC1 at 2010\-07\-16 12:13
 
  scanme\&.nmap\&.org (64\&.13\&.134\&.52):
  Host is up\&.
@@ -153,19 +160,19 @@ or
 at the beginning of a line\&. We can see from the output that the scan without the
 \fB\-F\fR
 fast scan option found two additional ports: 70 and 31337\&. The
-html\-title\&.nse
+html\-title
 script produced some additional output for port 80\&. From the port counts, we may infer that the fast scan scanned 100 ports (95 filtered, 3 open, and 2 closed), while the normal scan scanned 1000 (993 filtered, 3 open, and 4 closed)\&.
 .PP
 The
 \fB\-v\fR
 (or
-\fB\-\-verbose\fR) option to Ndiff made it show even the ports that didn\'t change, like 22 and 25\&. Without
+\fB\-\-verbose\fR) option to Ndiff made it show even the ports that didn\*(Aqt change, like 22 and 25\&. Without
 \fB\-v\fR, they would not have been shown\&.
 .SH "OUTPUT"
 .PP
-There are two output modes: text and XML\&. Text output is the default, and is also selected with the
+There are two output modes: text and XML\&. Text output is the default, and can also be selected with the
 \fB\-\-text\fR
-option\&. Text output resembles a unified diff of Nmap\'s normal terminal output\&. Each line is preceded by a character indicating whether and how it changed\&.
+option\&. Text output resembles a unified diff of Nmap\*(Aqs normal terminal output\&. Each line is preceded by a character indicating whether and how it changed\&.
 \-
 means that the line was in the first scan but not in the second;
 +
@@ -176,10 +183,8 @@ line followed by a
 line\&. Lines that did not change are preceded by a blank space\&.
 .PP
 
-Example\ \&1, \(lqNdiff text output\(rq
-is an example of text output\&. Here, port 80 on the host
-photos\-cache\-snc1\&.facebook\&.com
-gained a service version (lighttpd 1\&.5\&.0)\&. The host at 69\&.63\&.179\&.25 changed its reverse DNS name\&. The host at 69\&.63\&.184\&.145 was completely absent in the first scan but came up in the second\&.
+Example\ \&1
+is an example of text output\&. Here, port 80 on the host photos\-cache\-snc1\&.facebook\&.com gained a service version (lighttpd 1\&.5\&.0)\&. The host at 69\&.63\&.179\&.25 changed its reverse DNS name\&. The host at 69\&.63\&.184\&.145 was completely absent in the first scan but came up in the second\&.
 .PP
 \fBExample\ \&1.\ \&Ndiff text output\fR
 .sp
@@ -215,7 +220,7 @@ gained a service version (lighttpd 1\&.5\&.0)\&. The host at 69\&.63\&.179\&.25 
 .PP
 XML output, intended to be processed by other programs, is selected with the
 \fB\-\-xml\fR
-option\&. It is based on Nmap\'s XML output, with a few additional elements to indicate differences\&. The XML document is enclosed in
+option\&. It is based on Nmap\*(Aqs XML output, with a few additional elements to indicate differences\&. The XML document is enclosed in
 \fInmapdiff\fR
 and
 \fIscandiff\fR
@@ -233,11 +238,9 @@ and
 tags show the state of the host or port in the first scan (\fIa\fR) or the second scan (\fIb\fR)\&.
 .PP
 
-Example\ \&2, \(lqNdiff XML output\(rq
+Example\ \&2
 shows the XML diff of the same scans shown above in
-Example\ \&1\&. Notice how port 80 of
-photos\-cache\-snc1\&.facebook\&.com
-is enclosed in
+Example\ \&1\&. Notice how port 80 of photos\-cache\-snc1\&.facebook\&.com is enclosed in
 \fIportdiff\fR
 tags\&. For 69\&.63\&.179\&.25, the old hostname is in
 \fIa\fR
@@ -255,7 +258,6 @@ without a corresponding
 .RS 4
 .\}
 .nf
-
 <?xml version="1\&.0" encoding="UTF\-8"?>
 <nmapdiff version="1">
   <scandiff>
@@ -308,11 +310,13 @@ without a corresponding
             <extraports count="98" state="filtered"/>
             <port portid="80" protocol="tcp">
               <state state="open"/>
-              <service name="http" product="Apache httpd" version="1\&.3\&.41\&.fb1"/>
+              <service name="http" product="Apache httpd"
+                       version="1\&.3\&.41\&.fb1"/>
             </port>
             <port portid="443" protocol="tcp">
               <state state="open"/>
-              <service name="http" product="Apache httpd" tunnel="ssl" version="1\&.3\&.41\&.fb1"/>
+              <service name="http" product="Apache httpd" tunnel="ssl"
+                       version="1\&.3\&.41\&.fb1"/>
             </port>
           </ports>
         </host>
@@ -320,15 +324,14 @@ without a corresponding
     </hostdiff>
   </scandiff>
 </nmapdiff>
-
 .fi
 .if n \{\
 .RE
 .\}
 .SH "PERIODIC DIFFS"
 .PP
-Using Nmap, Ndiff, cron, and a shell script, it\'s possible to scan a network daily and get email reports of the state of the network and changes since the previous scan\&.
-Example\ \&3, \(lqScanning a network periodically with Ndiff and cron\(rq
+Using Nmap, Ndiff, cron, and a shell script, it\*(Aqs possible to scan a network daily and get email reports of the state of the network and changes since the previous scan\&.
+Example\ \&3
 shows the script that ties it together\&.
 .PP
 \fBExample\ \&3.\ \&Scanning a network periodically with Ndiff and cron\fR
@@ -358,7 +361,7 @@ ln \-sf scan\-$date\&.xml scan\-prev\&.xml
 .\}
 .PP
 If the script is saved as
-/root/scan\-ndiff\&.sh, add the following line to root\'s crontab:
+/root/scan\-ndiff\&.sh, add the following line to root\*(Aqs crontab:
 .sp
 .if n \{\
 .RS 4
@@ -407,7 +410,6 @@ The exit code indicates whether the scans are equal\&.
 2 indicates a runtime error, such as the failure to open a file\&.
 .RE
 .sp
-.RE
 .SH "BUGS"
 .PP
 Report bugs to the
@@ -434,5 +436,5 @@ mpattrick@rhinovirus\&.org
 .IP " 1." 4
 released
 .RS 4
-\%http://seclists.org/nmap-hackers/2000/0315.html
+\%http://seclists.org/nmap-hackers/2000/315
 .RE

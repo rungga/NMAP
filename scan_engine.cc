@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -28,7 +28,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -51,8 +51,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -89,7 +89,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: scan_engine.cc 16578 2010-01-26 23:03:21Z david $ */
+/* $Id: scan_engine.cc 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
@@ -127,7 +127,7 @@ struct ultra_scan_performance_vars {
 		       increments. */
   int initial_ssthresh;
   /* When a successful ping response comes back, it counts as this many
-     "normal" responses, because the fact that pings are neccessary means
+     "normal" responses, because the fact that pings are necessary means
      we aren't getting much input. */
   int ping_magnifier;
 /* Try to send a scanping if no response has been received from a target host
@@ -498,7 +498,7 @@ public:
   unsigned int num_probes_active;
   /* Probes timed out but not yet retransmitted because of congestion
      control limits or because more retransmits may not be
-     neccessary.  Note that probes on probe_bench are not included
+     necessary.  Note that probes on probe_bench are not included
      in this value. */
   unsigned int num_probes_waiting_retransmit;
   unsigned int num_probes_outstanding() { return probes_outstanding.size(); }
@@ -924,7 +924,7 @@ GroupScanStats::GroupScanStats(UltraScanInfo *UltraSI) {
   initialize_timeout_info(&to);
   /* Default timout should be much lower for arp */
   if (USI->ping_scan_arp)
-    to.timeout = MIN(o.initialRttTimeout(), 100) * 1000;
+    to.timeout = MAX(o.minRttTimeout(), MIN(o.initialRttTimeout(), INITIAL_ARP_RTT_TIMEOUT)) * 1000;
   num_probes_active = 0;
   numtargets = USI->numIncompleteHosts(); // They are all incomplete at the beginning
   numprobes = USI->numProbesPerHost();
@@ -1341,7 +1341,7 @@ unsigned int HostScanStats::allowedTryno(bool *capped, bool *mayincrease) {
   /* Decide if the tryno can possibly increase.  */
   if (tryno_mayincrease && num_probes_active == 0 && freshPortsLeft() == 0) {
     /* If every outstanding probe is timedout and at maxval, then no further
-       retransmits are neccessary. */
+       retransmits are necessary. */
     for(probeI = probes_outstanding.begin(); 
 	probeI != probes_outstanding.end(); probeI++) {
       probe = *probeI;
@@ -2038,22 +2038,9 @@ static int get_next_target_probe(UltraScanInfo *USI, HostScanStats *hss,
         return 0;
       }
     }
-    if (USI->ptech.rawsctpscan && hss->next_sctpportpingidx < USI->ports->sctp_ping_count) {
-      pspec->type = PS_SCTP;
-      pspec->proto = IPPROTO_SCTP;
-      pspec->pd.sctp.dport = USI->ports->sctp_ping_ports[hss->next_sctpportpingidx++];
-      pspec->pd.sctp.chunktype = SCTP_INIT;
-      return 0;
-    }
     if (USI->ptech.rawicmpscan) {
       pspec->type = PS_ICMP;
       pspec->proto = IPPROTO_ICMP;
-      if ((o.pingtype & PINGTYPE_ICMP_MASK) && !hss->sent_icmp_mask) {
-        hss->sent_icmp_mask = true;
-        pspec->pd.icmp.type = ICMP_MASK;
-        pspec->pd.icmp.code = 0;
-        return 0;
-      }
       if ((o.pingtype & PINGTYPE_ICMP_TS) && !hss->sent_icmp_ts) {
         hss->sent_icmp_ts = true;
         pspec->pd.icmp.type = ICMP_TSTAMP;
@@ -2067,6 +2054,13 @@ static int get_next_target_probe(UltraScanInfo *USI, HostScanStats *hss,
       pspec->pd.udp.dport = USI->ports->udp_ping_ports[hss->next_udpportpingidx++];
       return 0;
     }
+    if (USI->ptech.rawsctpscan && hss->next_sctpportpingidx < USI->ports->sctp_ping_count) {
+      pspec->type = PS_SCTP;
+      pspec->proto = IPPROTO_SCTP;
+      pspec->pd.sctp.dport = USI->ports->sctp_ping_ports[hss->next_sctpportpingidx++];
+      pspec->pd.sctp.chunktype = SCTP_INIT;
+      return 0;
+    }
     if (USI->ptech.rawprotoscan) {
       pspec->type = PS_PROTO;
       pspec->proto = USI->ports->proto_ping_ports[hss->next_protoportpingidx++];
@@ -2078,6 +2072,16 @@ static int get_next_target_probe(UltraScanInfo *USI, HostScanStats *hss,
       pspec->pd.tcp.dport = USI->ports->syn_ping_ports[hss->next_synportpingidx++];
       pspec->pd.tcp.flags = TH_SYN;
       return 0;
+    }
+    if (USI->ptech.rawicmpscan) {
+      pspec->type = PS_ICMP;
+      pspec->proto = IPPROTO_ICMP;
+      if ((o.pingtype & PINGTYPE_ICMP_MASK) && !hss->sent_icmp_mask) {
+        hss->sent_icmp_mask = true;
+        pspec->pd.icmp.type = ICMP_MASK;
+        pspec->pd.icmp.code = 0;
+        return 0;
+      }
     }
   }
   assert(0); /* TODO: need to handle other protocols */
@@ -2270,7 +2274,7 @@ static void ultrascan_adjust_timing(UltraScanInfo *USI, HostScanStats *hss,
     //    printf("SDELAY: increasing good to %d (bad: %d)\n", hss->sdn.goodRespSinceDelayChanged, hss->sdn.droppedRespSinceDelayChanged);
   }
 
-  /* Now change the send delay if neccessary */
+  /* Now change the send delay if necessary */
   unsigned int oldgood = hss->sdn.goodRespSinceDelayChanged;
   unsigned int oldbad = hss->sdn.droppedRespSinceDelayChanged;
   double threshold = (o.timing_level >= 4)? 0.40 : 0.30;
@@ -2640,8 +2644,8 @@ static bool ultrascan_port_pspec_update(UltraScanInfo *USI,
   /*    printf("TCP port %hu has changed from state %s to %s!\n", portno, statenum2str(oldstate), statenum2str(newstate)); */
   switch(oldstate) {
     /* TODO: I need more code here to determine when a state should
-       be overridden, for example PORT_OPEN trumps PORT_FIREWALLED
-       in a SYN scan, but not neccessarily for UDP scan */
+       be overridden, for example PORT_OPEN trumps PORT_FILTERED
+       in a SYN scan, but not necessarily for UDP scan */
   case PORT_TESTING:
     /* Brand new port -- add it to the list */
     hss->target->ports.setPortState(portno, proto, newstate);
@@ -2947,6 +2951,30 @@ static void ultrascan_port_probe_update(UltraScanInfo *USI, HostScanStats *hss,
 
 
 
+/* Set the socket lingering so we will RST connections instead of wasting
+   bandwidth with the four-step close. Set the source address if needed. */
+static void init_socket(int sd) {
+  static int bind_failed = 0;
+  struct linger l;
+  struct sockaddr_storage ss;
+  size_t sslen;
+
+  l.l_onoff = 1;
+  l.l_linger = 0;
+
+  if (setsockopt(sd, SOL_SOCKET, SO_LINGER, (const char *) &l, sizeof(l)) != 0) {
+    error("Problem setting socket SO_LINGER, errno: %d", socket_errno());
+    perror("setsockopt");
+  }
+  if (o.spoofsource && !bind_failed) {
+    o.SourceSockAddr(&ss, &sslen);
+    if (bind(sd, (struct sockaddr*)&ss, sslen) != 0) {
+      error("%s: Problem binding source address (%s), errno: %d", __func__, inet_socktop(&ss), socket_errno());
+      perror("bind");
+      bind_failed = 1;
+    }
+  }
+}
 
 /* If this is NOT a ping probe, set pingseq to 0.  Otherwise it will be the
    ping sequence number (they start at 1).  The probe sent is returned. */
@@ -3093,7 +3121,7 @@ static UltraProbe *sendArpScanProbe(UltraScanInfo *USI, HostScanStats *hss,
     int err = socket_errno();
     error("WARNING:  eth_send of ARP packet returned %i rather than expected %d (errno=%i: %s)", rc, (int) sizeof(frame), err, strerror(err));
   }
-  PacketTrace::traceArp(PacketTrace::SENT, (u8 *) frame, sizeof(frame), &USI->now);
+  PacketTrace::traceArp(PacketTrace::SENT, (u8 *) frame + ETH_HDR_LEN, sizeof(frame) - ETH_HDR_LEN, &USI->now);
   probe->tryno = tryno;
   probe->pingseq = pingseq;
   /* First build the probe */
@@ -3132,6 +3160,8 @@ static UltraProbe *sendIPScanProbe(UltraScanInfo *USI, HostScanStats *hss,
   u32 vtag = 0;
   char *chunk = NULL;
   int chunklen = 0;
+  /* Some hosts do not respond to ICMP requests if the identifier is 0. */
+  u16 icmp_ident = (get_random_u16() % 0xffff) + 1;
 
   if (USI->ethsd) {
     memcpy(eth.srcmac, hss->target->SrcMACAddress(), 6);
@@ -3258,13 +3288,6 @@ static UltraProbe *sendIPScanProbe(UltraScanInfo *USI, HostScanStats *hss,
 			       &packetlen);
 	break;
       case IPPROTO_ICMP:
-    u16 icmp_ident;
-
-    /* Some hosts do not respond to ICMP requests if the identifier is 0. */
-    do {
-      icmp_ident = get_random_u16();
-    } while (icmp_ident == 0);
-
 	packet = build_icmp_raw(&o.decoys[decoy], hss->target->v4hostip(),
 				o.ttl, ipid, IP_TOS_DEFAULT, false,
 				o.ipoptions, o.ipoptionslen,
@@ -3325,13 +3348,6 @@ static UltraProbe *sendIPScanProbe(UltraScanInfo *USI, HostScanStats *hss,
       free(packet);
     }
   } else if (pspec->type == PS_ICMP) {
-    u16 icmp_ident;
-
-    /* Some hosts do not respond to ICMP requests if the identifier is 0. */
-    do {
-      icmp_ident = get_random_u16();
-    } while (icmp_ident == 0);
-
     for(decoy = 0; decoy < o.numdecoys; decoy++) {
       packet = build_icmp_raw(&o.decoys[decoy], hss->target->v4hostip(),
                               o.ttl, ipid, IP_TOS_DEFAULT, false,
@@ -3571,12 +3587,11 @@ static void doAnyOutstandingRetransmits(UltraScanInfo *USI) {
   unsigned int maxtries;
 
   struct timeval tv_start = {0};
-  if (o.debugging) {
-    gettimeofday(&USI->now, NULL);
-    tv_start = USI->now;
-  }
 
   gettimeofday(&USI->now, NULL);
+
+  if (o.debugging)
+    tv_start = USI->now;
 
   /* Loop until we get through all the hosts without a retransmit or we're not
      OK to send any more. */
@@ -3630,10 +3645,9 @@ static void doAnyOutstandingRetransmits(UltraScanInfo *USI) {
     }
   } while (USI->gstats->sendOK(NULL) && retrans != 0);
 
+  gettimeofday(&USI->now, NULL);
   if (o.debugging) {
-    long tv_diff;
-    gettimeofday(&USI->now, NULL);
-    tv_diff = TIMEVAL_MSEC_SUBTRACT(USI->now, tv_start);
+    long tv_diff = TIMEVAL_MSEC_SUBTRACT(USI->now, tv_start);
     if (tv_diff > 30) log_write(LOG_PLAIN, "%s took %lims\n", __func__, tv_diff);
   }
 }
@@ -3931,9 +3945,9 @@ static bool get_arp_result(UltraScanInfo *USI, struct timeval *stime) {
   do {
     to_usec = TIMEVAL_SUBTRACT(*stime, USI->now);
     if (to_usec < 2000) to_usec = 2000;
-    rc = read_arp_reply_pcap(USI->pd, rcvdmac, &rcvdIP, to_usec, &rcvdtime);
+    rc = read_arp_reply_pcap(USI->pd, rcvdmac, &rcvdIP, to_usec, &rcvdtime, PacketTrace::traceArp);
     gettimeofday(&USI->now, NULL);
-    if (rc == -1) fatal("Received -1 response from readarp_reply_pcap");
+    if (rc == -1) fatal("Received -1 response from read_arp_reply_pcap");
     if (rc == 0) {
       if (TIMEVAL_SUBTRACT(*stime, USI->now) < 0) {
 	timedout = true;
@@ -4107,6 +4121,10 @@ static bool get_pcap_result(UltraScanInfo *USI, struct timeval *stime) {
 	    } else if (USI->scantype == ACK_SCAN) {
 	      newstate = PORT_UNFILTERED;
 	    } else newstate = PORT_CLOSED;
+	  } else if (USI->scantype == SYN_SCAN && (tcp->th_flags & TH_SYN)) {
+	    /* A SYN from a TCP Split Handshake - http://nmap.org/misc/split-handshake.pdf - open port */
+	    newstate = PORT_OPEN;
+	    current_reason = ER_SYN;
 	  } else {
 	    if (o.debugging)
 	      error("Received scan response with unexpected TCP flags: %d", tcp->th_flags);
@@ -4118,7 +4136,7 @@ static bool get_pcap_result(UltraScanInfo *USI, struct timeval *stime) {
       }
     } else if (ip->ip_p == IPPROTO_SCTP && !USI->prot_scan) {
       struct sctp_hdr *sctp = (struct sctp_hdr *) ((u8 *) ip + ip->ip_hl * 4);
-      struct sctp_chunkhdr *chunk = (struct sctp_chunkhdr *) ((u8 *) sctp + 12);
+      struct dnet_sctp_chunkhdr *chunk = (struct dnet_sctp_chunkhdr *) ((u8 *) sctp + 12);
       /* Now ensure this host is even in the incomplete list */
       memset(&sin, 0, sizeof(sin));
       sin.sin_addr.s_addr = ip->ip_src.s_addr;
@@ -4731,7 +4749,7 @@ static int get_ping_pcap_result(UltraScanInfo *USI, struct timeval *stime) {
       }
     } else if (ip->ip_p == IPPROTO_SCTP && USI->ptech.rawsctpscan) {
       struct sctp_hdr *sctp = (struct sctp_hdr *) (((char *) ip) + 4 * ip->ip_hl);
-      struct sctp_chunkhdr *chunk = (struct sctp_chunkhdr *) ((u8 *) sctp + 12);
+      struct dnet_sctp_chunkhdr *chunk = (struct dnet_sctp_chunkhdr *) ((u8 *) sctp + 12);
       /* Search for this host on the incomplete list */
       memset(&sin, 0, sizeof(sin));
       sin.sin_addr.s_addr = ip->ip_src.s_addr;
@@ -4878,7 +4896,9 @@ static void begin_sniffer(UltraScanInfo *USI, vector<Target *> &Targets) {
     }
   }
 
-  USI->pd = my_pcap_open_live(Targets[0]->deviceName(), 100,  (o.spoofsource)? 1 : 0, pcap_selectable_fd_valid()? 200 : 2);
+  if((USI->pd=my_pcap_open_live(Targets[0]->deviceName(), 100,  (o.spoofsource)? 1 : 0, pcap_selectable_fd_valid()? 200 : 2))==NULL)
+    fatal("%s", PCAP_OPEN_ERRMSG);
+    
   if (USI->ping_scan_arp){
     /* Some OSs including Windows 7 and Solaris 10 have been seen to send their
        ARP replies to the broadcast address, not to the (unicast) address that
@@ -4925,7 +4945,7 @@ static void begin_sniffer(UltraScanInfo *USI, vector<Target *> &Targets) {
       pcap_filter+=" and (icmp or tcp or udp or sctp)";
     }
   }else assert(0);
-  if (o.debugging > 2) log_write(LOG_PLAIN, "Pcap filter: %s\n", pcap_filter.c_str());
+  if (o.debugging) log_write(LOG_PLAIN, "Packet capture filter (device %s): %s\n", Targets[0]->deviceFullName(), pcap_filter.c_str());
   set_pcap_filter(Targets[0]->deviceFullName(), USI->pd, pcap_filter.c_str());
   /* pcap_setnonblock(USI->pd, 1, NULL); */
   return;
@@ -4944,11 +4964,12 @@ static void processData(UltraScanInfo *USI) {
 
   bool tryno_capped = false, tryno_mayincrease = false;
   struct timeval tv_start = {0};
-  if (o.debugging) {
-    gettimeofday(&USI->now, NULL);
+
+  gettimeofday(&USI->now, NULL);
+
+  if (o.debugging)
     tv_start = USI->now;
-  }
-    
+
   /* First go through hosts and remove any completed ones from incompleteHosts */
   USI->removeCompletedHosts();
   if (USI->incompleteHostsEmpty())
@@ -5061,10 +5082,9 @@ static void processData(UltraScanInfo *USI) {
     }
   }
 
+  gettimeofday(&USI->now, NULL);
   if (o.debugging) {
-    long tv_diff;
-    gettimeofday(&USI->now, NULL);
-    tv_diff = TIMEVAL_MSEC_SUBTRACT(USI->now, tv_start);
+    long tv_diff = TIMEVAL_MSEC_SUBTRACT(USI->now, tv_start);
     if (tv_diff > 30) log_write(LOG_PLAIN, "%s took %lims\n", __func__, tv_diff);
   }
 }
@@ -5091,6 +5111,8 @@ void ultra_scan(vector<Target *> &Targets, struct scan_lists *ports,
 		stype scantype, struct timeout_info *to) {
   UltraScanInfo *USI = NULL;
   o.current_scantype = scantype;
+
+  init_payloads(); /* Load up _all_ payloads into a mapped table */
 
   if (Targets.size() == 0) {
     return;

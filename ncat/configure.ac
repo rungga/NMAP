@@ -32,10 +32,12 @@ if test -n "$GCC"; then
 fi
 AC_PROG_INSTALL
 
+AC_PATH_TOOL([STRIP], [strip], [/bin/true])
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/param.h sys/socket.h sys/time.h sys/timeb.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/param.h sys/socket.h sys/time.h sys/timeb.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT
@@ -51,6 +53,12 @@ AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([dup2 gettimeofday inet_ntoa memset select socket strcasecmp strchr strdup strerror strncasecmp strtol])
 AC_SEARCH_LIBS(setsockopt, socket)
+# Ncat does not call gethostbyname directly, but some of the libraries
+# it links to (such as libpcap) do. Instead it calls getaddrinfo. At
+# one point we changed this test to use getaddrinfo rather than
+# gethostbyname, but on a Solaris 9 SPARC box that function could be
+# called without -lnsl, while gethostbyname sitll required -lnsl, so
+# we changed the test back.
 AC_SEARCH_LIBS(gethostbyname, nsl)
 # OpenSSL requires dlopen on some platforms
 AC_SEARCH_LIBS(dlopen, dl)
@@ -96,6 +104,7 @@ fi
 OPENSSL_LIBS=
 if test "$use_openssl" = "yes"; then
   AC_DEFINE([HAVE_OPENSSL], [1], [Define to 1 if you have OpenSSL.])
+  AC_DEFINE([HAVE_HTTP_DIGEST], [1], [Define to 1 to enable HTTP Digest authentication (requires OpenSSL).])
   OPENSSL_LIBS="-lssl -lcrypto"
   # Define in Makefile also.
   HAVE_OPENSSL=yes

@@ -9,9 +9,9 @@ penetration tester, since they can effectively do the same thing with metasploit
 or other tools. It does, however, provide for a quick way to get process lists
 for a bunch of systems at the same time.
 
-WARNING: I have experienced crashes in regsvc.exe while making registry calls
+WARNING: I have experienced crashes in <code>regsvc.exe</code> while making registry calls
 against a fully patched Windows 2000 system; I've fixed the issue that caused
-it, but there's no guarantee that it (or a similar vuln in the same code) won't
+it, but there's no guarantee that it (or a similar vulnerability in the same code) won't
 show up again. Since the process automatically restarts, it doesn't negatively
 impact the system, besides showing a message box to the user.
 ]]
@@ -203,10 +203,8 @@ hostrule = function(host)
 end
 
 action = function(host)
-	local process, response, result, status
-
 	-- Get the process list
-	status, result = msrpcperformance.get_performance_data(host, "230")
+	local status, result = msrpcperformance.get_performance_data(host, "230")
 	if status == false then
 		if nmap.debugging() > 0 then
 			return "ERROR: " .. result
@@ -216,7 +214,7 @@ action = function(host)
 	end
 
 	-- Get the process table
-	process = result["Process"]
+	local process = result["Process"]
 
 	-- Put the processes into an array, and sort them by pid.
 	local names = {}
@@ -281,10 +279,11 @@ action = function(host)
 	end
 
 	-- Produce final output.
+	local response
 	if nmap.verbosity() == 0 then
 		response = "|_ " .. stdnse.strjoin(", ", names)
 	else
-		response = " \n" .. psl_print(psl, nmap.verbosity())
+		response = "\n" .. psl_print(psl, nmap.verbosity())
 	end
 
 	return response

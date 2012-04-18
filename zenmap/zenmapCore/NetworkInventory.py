@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -100,21 +100,21 @@ class NetworkInventory(object):
     def __init__(self, filename=None):
         # A list of all scans that make up this inventory
         self.scans = []
-        
+
         # A dictionary mapping parsed scans to filenames they were loaded from
         self.filenames = {}
-        
+
         # A dictionary mapping IP addresses into HostInfo objects
         self.hosts = {}
-        
+
         if filename != None:
             self.open_from_file(filename)
-    
+
     def add_scan(self, scan, filename=None):
         """Adds a scan to the list of scans. The object passed as an argument
         should be a parsed nmap result."""
         from time import localtime
-        
+
         for host in scan.get_hosts():
             addr = ""
             if host.ipv6 is not None:
@@ -123,7 +123,7 @@ class NetworkInventory(object):
             elif host.ip is not None:
                 # IPv4
                 addr = host.ip["addr"]
-            
+
             if addr not in self.hosts:
                 # Add this host to the hosts dictionary, mapped by IP address
                 self.hosts[addr] = host.make_clone()
@@ -138,12 +138,12 @@ class NetworkInventory(object):
                         old_date = old_scan.get_date()
                 new_date = scan.get_date()
                 self._update_host_info(old_host, host, old_date, new_date)
-        
+
         self.scans.append(scan)
-        
+
         if filename != None:
             basename = os.path.basename(filename)
-            
+
             if basename in self.filenames.values():
                 # We need to generate a new filename, since this basename already exists
                 base = basename
@@ -152,46 +152,46 @@ class NetworkInventory(object):
                     base, ext = basename.rsplit(".", 1)
                 except ValueError:
                     pass
-                
+
                 counter = 2
                 while basename in self.filenames.values():
                     basename = "%s %s.%s" % (base, counter, ext)
                     counter += 1
-            
+
             self.filenames[scan] = basename
-                    
+
     def remove_scan(self, scan):
         """Removes a scan and any host information it contained from the inventory."""
         # Note: If a scan is passed in that isn't in the inventory then this
         # method will throw a ValueError Exception and will not finish
         # Remove the scan from our scan list
         self.scans.remove(scan)
-        
+
         # Clear the host dictionary
         self.hosts = {}
-        
+
         # Remember the scan list
         scans = self.scans
-        
+
         # Empty it
         self.scans = []
-        
+
         # Delete the filename entry, if any
         if scan in self.filenames:
             del self.filenames[scan]
-        
+
         # For each scan in the remembered list, append it to the scan list and update
         # the host list accordingly
         for scan in scans:
             self.add_scan(scan)
-    
+
     def _update_host_info(self, old_host, new_host, old_date, new_date):
         """This function is called when a host needs to be added to the hosts
         dictionary, but another HostInfo object for that host already exists
         in the dictionary (from a previous scan). In that case, we need to
         update the original HostInfo object so that it holds information from
         both scans."""
-        
+
         # Ports
         for new_port in new_host.ports:
             # Check if new_port is already present in old_host's ports
@@ -207,7 +207,7 @@ class NetworkInventory(object):
                 # This new_port isn't present in old_host, so we simply append it to
                 # old_host's port info
                 old_host.ports.append(new_port)
-        
+
         # extraports, ipidsequence, state, tcpsequence, tcptssequence, uptime
         if old_date < new_date:
             old_host.extraports = new_host.extraports
@@ -216,27 +216,27 @@ class NetworkInventory(object):
             old_host.tcpsequence = new_host.tcpsequence
             old_host.tcptssequence = new_host.tcptssequence
             old_host.uptime = new_host.uptime
-        
+
         # Comment
         if old_host.comment == "":
             old_host.comment = new_host.comment
         elif new_host.comment != "":
             old_host.comment = "%s\n\n%s" % (old_host.comment, new_host.comment)
-        
+
         # Hostnames
         # Replace old_host's hostname with new_host's if old_host has no
         # hostname or new_host's is newer.
         if len(new_host.hostnames) > 0 and \
            (len(old_host.hostnames) == 0 or old_date < new_date):
             old_host.hostnames = new_host.hostnames
-        
+
         # MAC address
         # If there was no MAC address set in old_host, set it to whatever is in new_host.mac.
         # Do the same if both hosts have a MAC address set, but new_host's address is newer.
         if old_host.mac is None or \
            (old_host.mac is not None and new_host.mac is not None and old_date < new_date):
             old_host.mac = new_host.mac
-        
+
         # OS detection fields
         # Replace old_host's OS detection fields with new_host's if old_host has no
         # OS detection info or new_host's info is newer.
@@ -244,14 +244,14 @@ class NetworkInventory(object):
             old_host.osclasses = new_host.osclasses
             old_host.osmatches = new_host.osmatches
             old_host.ports_used = new_host.ports_used
-        
+
         # Traceroute information
         if len(new_host.trace) > 0 and (len(old_host.trace) == 0 or old_date < new_date):
             old_host.trace = new_host.trace
-    
+
     def get_scans(self):
         return self.scans
-    
+
     def get_hosts(self):
         return self.hosts.values()
 
@@ -260,19 +260,19 @@ class NetworkInventory(object):
 
     def get_hosts_down(self):
         return filter(lambda h: h.get_state() == 'down', self.hosts.values())
-    
+
     def open_from_file(self, path):
         """Loads a scan from the given file."""
         from zenmapCore.NmapParser import NmapParser
-        
+
         parsed = NmapParser(path)
         parsed.parse()
         self.add_scan(parsed, path)
-    
+
     def open_from_dir(self, path):
         """Loads all scans from the given directory into the network inventory."""
         from zenmapCore.NmapParser import NmapParser
-        
+
         for filename in os.listdir(path):
             fullpath = os.path.join(path, filename)
             if os.path.isdir(fullpath):
@@ -280,14 +280,19 @@ class NetworkInventory(object):
             parsed = NmapParser(fullpath)
             parsed.parse()
             self.add_scan(parsed, filename=fullpath)
-    
-    def save_to_file(self, path, index):
-        """Saves the scan with the given list index into a file with a given path."""
+
+    def save_to_file(self, path, index, format = "xml"):
+        """Saves the scan with the given list index into a file with a given
+        path. With format = "xml", saves Nmap XML; otherwise saves plain text
+        output."""
         f = open(path, 'w')
-        self.get_scans()[index].write_xml(f)
-        self.filenames[self.get_scans()[index]] = f
+        if format == "xml":
+            self.get_scans()[index].write_xml(f)
+            self.filenames[self.get_scans()[index]] = f
+        else:
+            self.get_scans()[index].write_text(f)
         f.close()
-    
+
     def _generate_filenames(self, path):
         """Generates filenames for all scans that don't already have a filename."""
         # The directory must not contain filenames other than those in the self.filenames dictionary
@@ -296,34 +301,31 @@ class NetworkInventory(object):
                 raise Exception("The destination directory contains a file (%s) that's not a part "
                                 "of the current inventory. The inventory will not be saved." %
                                 os.path.basename(filename))
-        
+
         for scan in self.scans:
             if scan in self.filenames:
                 # This scan already has a filename
                 continue
-            
+
             date = "%04d%02d%02d%02d%02d" % (scan.date[0], scan.date[1], scan.date[2],
                                              scan.date[3], scan.date[4])
-            if scan.profile_name != "":
-                filename = "%s on %s" % (scan.profile_name, scan.target)
-            else:
-                filename = scan.nmap_command
-            
+            filename = scan.get_scan_name()
+
             # Prepend the date
             filename = "%s %s" % (date, filename)
-            
+
             # Sanitize the filename
             for char in ["\"", "'", "/", "\\", "?", "*", ":", ";"]:
                 if char in filename:
                     filename = filename.replace(char, "_")
-            
+
             # Filename length check
             # (http://en.wikipedia.org/wiki/Filename#Comparison_of_file_name_limitations)
             if len(filename) > 250:
                 filename = filename[:250]
-            
+
             # TODO: Filename security checks?
-            
+
             # Try to open the file in append mode. If file.tell() returns a greater-than-zero
             # value, this means that the file already exists and has some data in it, so we
             # choose another filename until we successfully open a zero-length file.
@@ -334,41 +336,38 @@ class NetworkInventory(object):
                 # the counter value before the file extension.
                 filename_full = "%s %s.xml" % (filename, str(counter))
                 counter += 1
-            
+
             # Add the filename to the list of saved filenames
             self.filenames[scan] = filename_full
-    
+
     def save_to_dir(self, path):
         """Saves all scans in the inventory into a given directory and returns
         a list of (full-path) filenames that were used to save the scans."""
         self._generate_filenames(path)
-        
+
         for scan, filename in self.filenames.iteritems():
             f = open(os.path.join(path, filename), "w")
             scan.write_xml(f)
             f.close()
-        
+
         return self.filenames.values()
-    
+
     def open_from_db(self, id):
         pass
-    
+
     def save_to_db(self):
         # For now, this saves each scan making up the inventory separately in
         # the database.
         from time import time
-        from tempfile import mktemp
+        from cStringIO import StringIO
         from zenmapCore.UmitDB import Scans
 
-        filename = mktemp()
-
         for parsed in self.get_scans():
-            f = open(filename, "w")
+            f = StringIO()
             parsed.write_xml(f)
-            f.close()
 
             scan = Scans(scan_name = parsed.scan_name,
-                         nmap_xml_output = open(filename).read(),
+                         nmap_xml_output = f.getvalue(),
                          date = time())
 
 class FilteredNetworkInventory(NetworkInventory):
@@ -567,16 +566,16 @@ class FilteredNetworkInventoryTest(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main()
     if False:
-        
+
         scan1 = NmapParser("/home/ndwi/scanz/neobee_1.xml")
         scan1.parse()
         scan2 = NmapParser("/home/ndwi/scanz/scanme_nmap_org.usr")
         scan2.parse()
-        
+
         inventory1 = NetworkInventory()
         inventory1.add_scan(scan1)
         inventory1.add_scan(scan2)
-        
+
         for host in inventory1.get_hosts():
             print "%s" % host.ip["addr"],
             #if len(host.hostnames) > 0:
@@ -591,23 +590,23 @@ if __name__ == "__main__":
             #print "  Trace: %s" % host.trace
             #if "hops" in host.trace:
             #    print "         (%d)" % len(host.trace["hops"])
-        
+
         inventory1.remove_scan(scan2)
         print
         for host in inventory1.get_hosts():
             print "%s" % host.ip["addr"],
-        
+
         inventory1.add_scan(scan2)
         print
         for host in inventory1.get_hosts():
             print "%s" % host.ip["addr"],
-        
+
         dir = "/home/ndwi/scanz/top01"
         inventory1.save_to_dir(dir)
-        
+
         inventory2 = NetworkInventory()
         inventory2.open_from_dir(dir)
-        
+
         print
         for host in inventory2.get_hosts():
             print "%s" % host.ip["addr"],

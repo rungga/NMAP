@@ -1,5 +1,5 @@
 description = [[
-Checks for a vulnerability in IIS 5.1/6.0 that allows arbitrary users to access secured WebDAV folders by searching for a password-protected folder and attempting to access it. This vulnerability was patched in Microsoft Security Bulletin MS09-020 <http://www.microsoft.com/technet/security/bulletin/ms09-020.mspx>.
+Checks for a vulnerability in IIS 5.1/6.0 that allows arbitrary users to access secured WebDAV folders by searching for a password-protected folder and attempting to access it. This vulnerability was patched in Microsoft Security Bulletin MS09-020, http://nmap.org/r/ms09-020.
 
 A list of well known folders (almost 900) is used by default. Each one is checked, and if returns an authentication request (401), another attempt is tried with the malicious encoding. If that attempt returns a successful result (207), then the folder is marked as vulnerable.
 
@@ -7,7 +7,7 @@ This script is based on the Metasploit modules/auxiliary/scanner/http/wmap_dir_w
 
 For more information on this vulnerability and script, see:
 * http://blog.zoller.lu/2009/05/iis-6-webdac-auth-bypass-and-data.html
-* http://seclists.org/fulldisclosure/2009/May/att-0134/IIS_Advisory_pdf
+* http://seclists.org/fulldisclosure/2009/May/att-134/IIS_Advisory_pdf.bin
 * http://www.skullsecurity.org/blog/?p=271
 * http://www.kb.cert.org/vuls/id/787932
 * http://www.microsoft.com/technet/security/advisory/971492.mspx
@@ -21,9 +21,9 @@ For more information on this vulnerability and script, see:
 -- 80/tcp open  http    syn-ack
 -- |_ http-iis-webdav-vuln: WebDAV is ENABLED. Vulnerable folders discovered: /secret, /webdav
 --
--- @args webdavfolder Selects a single folder to use, instead of using a built-in list
+-- @args webdavfolder Selects a single folder to use, instead of using a built-in list.
 -- @args folderdb The filename of an alternate list of folders.
--- @args basefolder The folder to start in; eg, "/web" will try "/web/xxx"
+-- @args basefolder The folder to start in; eg, <code>"/web"</code> will try <code>"/web/xxx"</code>.
 -----------------------------------------------------------------------
 
 author = "Ron Bowes and Andrew Orr"
@@ -33,7 +33,7 @@ categories = {"vuln", "intrusive"}
 require "http"
 require "shortport"
 
-portrule = shortport.port_or_service({80, 443, 8080}, {"http", "https"})
+portrule = shortport.http
 
 ---Enumeration for results
 local enum_results = 
@@ -47,7 +47,7 @@ local enum_results =
 local function get_response(host, port, folder)
 	local webdav_req = '<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DAV:"><prop><getcontentlength xmlns="DAV:"/><getlastmodified xmlns="DAV:"/><executable xmlns="http://apache.org/dav/props/"/><resourcetype xmlns="DAV:"/><checked-in xmlns="DAV:"/><checked-out xmlns="DAV:"/></prop></propfind>'
 
-	local mod_options = {
+	local options = {
 		header = {
 			Host = host.ip,
 			Connection = "close",
@@ -57,7 +57,7 @@ local function get_response(host, port, folder)
 		content = webdav_req
 	}
 
-	return http.request(host, port, "PROPFIND " .. folder .. " HTTP/1.1\r\n", mod_options)
+	return http.generic_request(host, port, "PROPFIND", folder, options)
 end
 
 ---Check a single folder on a single host for the vulnerability. Returns one of the enum_results codes. 
@@ -105,16 +105,16 @@ local function go(host, port)
 	if(nmap.registry.args.folderdb ~= nil) then
 		folder_file = nmap.fetchfile(nmap.registry.args.folderdb)
 	else
-		folder_file = nmap.fetchfile('nselib/data/folders.lst')
+		folder_file = nmap.fetchfile('nselib/data/http-folders.txt')
 	end
 
 	if(folder_file == nil) then
-		return false, "Couldn't find folders.lst (should be in nselib/data)"
+		return false, "Couldn't find http-folders.txt (should be in nselib/data)"
 	end
 
 	local file = io.open(folder_file, "r")
 	if not file then
-		return false, "Couldn't find folders.lst (should be in nselib/data)"
+		return false, "Couldn't find http-folders.txt (should be in nselib/data)"
 	end
 
 	while true do

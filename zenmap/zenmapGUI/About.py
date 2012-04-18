@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -224,20 +224,20 @@ class UmitCredits(HIGWindow):
         self.set_title(_("%s credits") % UMIT_DISPLAY_NAME)
         self.set_size_request(-1,250)
         self.set_position(gtk.WIN_POS_CENTER)
-        
+
         self.__create_widgets()
         self.__packing()
         self.set_text()
-    
+
     def __create_widgets(self):
         self.vbox = HIGVBox()
         self.hbox = HIGHBox()
         self.notebook = HIGNotebook()
         self.btn_close = HIGButton(stock=gtk.STOCK_CLOSE)
-        
+
         self.written_by_scroll = HIGScrolledWindow()
         self.written_by_text = HIGTextView()
-        
+
         self.design_scroll = HIGScrolledWindow()
         self.design_text = HIGTextView()
 
@@ -246,7 +246,7 @@ class UmitCredits(HIGWindow):
 
         self.contributors_scroll = HIGScrolledWindow()
         self.contributors_text = HIGTextView()
-        
+
         self.translation_scroll = HIGScrolledWindow()
         self.translation_text = HIGTextView()
 
@@ -258,20 +258,20 @@ class UmitCredits(HIGWindow):
         self.vbox.set_spacing(12)
         self.vbox._pack_expand_fill(self.notebook)
         self.vbox._pack_noexpand_nofill(self.hbox)
-        
+
         self.hbox._pack_expand_fill(hig_box_space_holder())
         self.hbox._pack_noexpand_nofill(self.btn_close)
-        
+
         self.notebook.append_page(self.written_by_scroll, gtk.Label(_("Written by")))
         self.notebook.append_page(self.design_scroll, gtk.Label(_("Design")))
         self.notebook.append_page(self.soc2007_scroll, gtk.Label(_("SoC 2007")))
         self.notebook.append_page(self.contributors_scroll, gtk.Label(_("Contributors")))
         self.notebook.append_page(self.translation_scroll, gtk.Label(_("Translation")))
         self.notebook.append_page(self.nokia_scroll, gtk.Label(_("Maemo")))
-        
+
         self.written_by_scroll.add(self.written_by_text)
         self.written_by_text.set_wrap_mode(gtk.WRAP_NONE)
-        
+
         self.design_scroll.add(self.design_text)
         self.design_text.set_wrap_mode(gtk.WRAP_NONE)
 
@@ -280,19 +280,19 @@ class UmitCredits(HIGWindow):
 
         self.contributors_scroll.add(self.contributors_text)
         self.contributors_text.set_wrap_mode(gtk.WRAP_NONE)
-        
+
         self.translation_scroll.add(self.translation_text)
         self.translation_text.set_wrap_mode(gtk.WRAP_NONE)
-        
+
         self.nokia_scroll.add(self.nokia_text)
         self.nokia_text.set_wrap_mode(gtk.WRAP_NONE)
 
         self.btn_close.connect('clicked', lambda x,y=None:self.destroy())
-    
+
     def set_text(self):
         b = self.written_by_text.get_buffer()
         b.set_text("""Adriano Monteiro Marques <py.adriano@gmail.com>""")
-        
+
         b = self.design_text.get_buffer()
         b.set_text("""Operating System and Vulnerability Icons:
 Takeshi Alexandre Gondo <sinistrofumanchu@yahoo.com.br>
@@ -363,11 +363,11 @@ Luis Antonio Bastião Silva <luis.kop@gmail.com>
 Initial attempt on Maemo port:
 Adriano Monteiro Marques <py.adriano@gmail.com>
 Osvaldo Santana Neto <osantana@gmail.com>""")
-        
+
         b = self.translation_text.get_buffer()
         b.set_text("""Brazilian Portuguese:
 Adriano Monteiro Marques <py.adriano@gmail.com>""")
-        
+
         b = self.nokia_text.get_buffer()
         b.set_text("""Adriano Monteiro Marques <py.adriano@gmail.com>""")
 

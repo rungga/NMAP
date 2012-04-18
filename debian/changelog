@@ -1,3 +1,17 @@
+nmap (5.51.6-0.1) unstable; urgency=low
+
+  * Non-maintainer upload
+  * New upstream version (Closes: #630144) 
+  * Added watch file
+  * Simplified debian/*.files, added translated manpages (Closes: #358336)
+  * Added Python dependency for ndiff to nmap package
+  * Removed empty postinst, prerm scripts
+  * No longer append the build directory to zenmap's sys.path (Closes: #663217)
+  * Use dh_python2 instead of dh_pycentral. Thanks to Arthur de Jong for
+    the patch. Closes: #616917
+
+ -- Hilko Bengen <bengen@debian.org>  Wed, 18 Apr 2012 21:54:53 +0200
+
 nmap (5.21-1.1) unstable; urgency=low
 
   * Non-maintainer upload.

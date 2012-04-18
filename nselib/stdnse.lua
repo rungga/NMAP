@@ -1,7 +1,7 @@
---- Standard Nmap Scripting Engine functions.
+---
+-- Standard Nmap Scripting Engine functions. This module contains various handy
+-- functions that are too small to justify modules of their own.
 --
--- This module contains various handy functions that are too small to justify
--- modules of their own.
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
 local assert = assert;
@@ -10,6 +10,8 @@ local pairs = pairs
 local ipairs = ipairs
 local tonumber = tonumber;
 local type = type
+local select = select
+local unpack = unpack
 
 local ceil = math.ceil
 local max = math.max
@@ -20,6 +22,8 @@ local insert = table.insert;
 local os = os
 local math = math
 local string = string
+
+local io = require 'io'; -- TODO: Remove
 
 local nmap = require "nmap";
 
@@ -48,7 +52,8 @@ c = nil
 
 -- sleep is a C function defined in nse_nmaplib.cc.
 
---- Prints a formatted debug message if the current verbosity level is greater
+---
+-- Prints a formatted debug message if the current verbosity level is greater
 -- than or equal to a given level.
 -- 
 -- This is a convenience wrapper around
@@ -130,7 +135,7 @@ function make_buffer(socket, sep)
     if done then
       return nil, msg; -- must be nil for stdnse.lines (below)
     elseif not buffer then
-      local status, str = socket:receive_lines(1);
+      local status, str = socket:receive();
       if not status then
         if #left > 0 then
           done, msg = not status, str;
@@ -265,6 +270,50 @@ function string_or_blank(string, blank)
   end
 end
 
+---
+-- Parses a time duration specification, which is a number followed by a
+-- unit, and returns a number of seconds. The unit is optional and
+-- defaults to seconds. The possible units (case-insensitive) are
+-- * <code>ms</code>: milliseconds,
+-- * <code>s</code>: seconds,
+-- * <code>m</code>: minutes,
+-- * <code>h</code>: hours.
+-- In case of a parsing error, the function returns <code>nil</code>
+-- followed by an error message.
+--
+-- @usage
+-- parse_timespec("10") --> 10
+-- parse_timespec("10ms") --> 0.01
+-- parse_timespec("10s") --> 10
+-- parse_timespec("10m") --> 600
+-- parse_timespec("10h") --> 36000
+-- parse_timespec("10z") --> nil, "Can't parse time specification \"10z\" (bad unit \"z\")"
+--
+-- @param timespec A time specification string.
+-- @return A number of seconds, or <code>nil</code> followed by an error
+-- message.
+function parse_timespec(timespec)
+  local n, unit, t, m
+  local multipliers = {[""] = 1, s = 1, m = 60, h = 60 * 60, ms = 0.001}
+
+  n, unit = string.match(timespec, "^([%d.]+)(.*)$")
+  if not n then
+    return nil, string.format("Can't parse time specification \"%s\"", timespec)
+  end
+
+  t = tonumber(n)
+  if not t then
+    return nil, string.format("Can't parse time specification \"%s\" (bad number \"%s\")", timespec, n)
+  end
+
+  m = multipliers[unit]
+  if not m then
+    return nil, string.format("Can't parse time specification \"%s\" (bad unit \"%s\")", timespec, unit)
+  end
+
+  return t * m
+end
+
 --- Format the difference between times <code>t2</code> and <code>t1</code>
 -- into a string in one of the forms (signs may vary):
 -- * 0s
@@ -344,25 +393,126 @@ function format_difftime(t2, t1)
   return sign .. s
 end
 
+--- Returns the current time in milliseconds since the epoch
+-- @return The current time in milliseconds since the epoch
+function clock_ms()
+  return nmap.clock() * 1000
+end
+
+--- Returns the current time in microseconds since the epoch
+-- @return The current time in microseconds since the epoch
+function clock_us()
+  return nmap.clock() * 1000000
+end
+
 ---Get the indentation symbols at a given level. 
 local function format_get_indent(indent, at_end)
-	local str = ""
-	local had_continue = false
+  local str = ""
+  local had_continue = false
 
-	if(not(at_end)) then
-		str = rep('  ', #indent) -- Was: "|  "
-	else
-		for i = #indent, 1, -1 do
-			if(indent[i] and not(had_continue)) then
-				str = str .. "  " -- Was: "|_ "
-			else
-				had_continue = true
-				str = str .. "  " -- Was: "|  "
-			end
-		end
-	end
+  if(not(at_end)) then
+    str = rep('  ', #indent) -- Was: "|  "
+  else
+    for i = #indent, 1, -1 do
+      if(indent[i] and not(had_continue)) then
+        str = str .. "  " -- Was: "|_ "
+      else
+        had_continue = true
+        str = str .. "  " -- Was: "|  "
+      end
+    end
+  end
 
-	return str
+  return str
+end
+
+local function splitlines(s)
+  local result = {}
+  local i = 0
+
+  while i <= #s do
+    local b, e
+    b, e = string.find(s, "\r?\n", i)
+    if not b then
+      break
+    end
+    result[#result + 1] = string.sub(s, i, b - 1)
+    i = e + 1
+  end
+
+  if i <= #s then
+    result[#result + 1] = string.sub(s, i)
+  end
+
+  return result
+end
+
+
+-- A helper for format_output (see below).
+local function format_output_sub(status, data, indent)
+  if (#data == 0) then
+    return ""
+  end
+
+  -- Used to put 'ERROR: ' in front of all lines on error messages
+  local prefix = ""
+  -- Initialize the output string to blank (or, if we're at the top, add a newline)
+  local output = ""
+  if(not(indent)) then
+    output = '\n'
+  end
+
+  if(not(status)) then
+    if(nmap.debugging() < 1) then
+      return nil
+    end
+    prefix = "ERROR: "
+  end
+
+  -- If a string was passed, turn it into a table
+  if(type(data) == 'string') then
+    data = {data}
+  end
+
+  -- Make sure we have an indent value
+  indent = indent or {}
+
+  if(data['name']) then
+    if(data['warning'] and nmap.debugging() > 0) then
+      output = output .. format("%s%s%s (WARNING: %s)\n", format_get_indent(indent), prefix, data['name'], data['warning'])
+    else
+      output = output .. format("%s%s%s\n", format_get_indent(indent), prefix, data['name'])
+    end
+  elseif(data['warning'] and nmap.debugging() > 0) then
+      output = output .. format("%s%s(WARNING: %s)\n", format_get_indent(indent), prefix, data['warning'])
+  end
+
+  for i, value in ipairs(data) do
+    if(type(value) == 'table') then
+      -- Do a shallow copy of indent
+      local new_indent = {}
+      for _, v in ipairs(indent) do
+        insert(new_indent, v)
+      end
+
+      if(i ~= #data) then
+        insert(new_indent, false)
+      else
+        insert(new_indent, true)
+      end
+
+      output = output .. format_output_sub(status, value, new_indent)
+        
+    elseif(type(value) == 'string') then
+      local lines = splitlines(value)
+
+      for j, line in ipairs(lines) do
+        output = output .. format_get_indent(indent, i == #data and j == #lines) .. "  " .. prefix .. line .. "\n"
+      end
+    end
+  end
+
+  return output
 end
 
 ---Takes a table of output on the commandline and formats it for display to the 
@@ -411,80 +561,188 @@ end
 --@param data   The table of output. 
 --@param indent Used for indentation on recursive calls; should generally be set to
 --              nil when callling from a script. 
+-- @return <code>nil</code>, if <code>data</code> is empty, otherwise a
+-- multiline string.
 function format_output(status, data, indent)
-	-- Don't bother if we don't have any data
-	if(#data == 0) then
-		return ""
-	end
+  -- If data is nil, die with an error (I keep doing that by accident)
+  assert(data, "No data was passed to format_output()")
 
-	-- Return a single line of output as-is (assuming it's top-level and a string)
-	if(indent == nil and #data == 1 and type(data) == 'string' and not(data['name']) and not(data['warning'])) then
-		return data[1]
-	end
+  -- Don't bother if we don't have any data
+  if (#data == 0) then
+    return nil
+  end
 
-	-- If data is nil, die with an error (I keep doing that by accident)
-	assert(data, "No data was passed to format_output()")
+  local result = format_output_sub(status, data, indent)
 
-	-- Used to put 'ERROR: ' in front of all lines on error messages
-	local prefix = ""
-	-- Initialize the output string to blank (or, if we're at the top, add a newline)
-	local output = ""
-	if(not(indent)) then
-		output = ' \n'
-	end
+  -- Check for an empty result
+  if(result == nil or #result == "" or result == "\n" or result == "\n") then
+    return nil
+  end
 
-	if(not(status)) then
-		if(nmap.debugging() < 1) then
-			return nil
-		end
-		prefix = "ERROR: "
-	end
-
-	-- If a string was passed, turn it into a table
-	if(type(data) == 'string') then
-		data = {data}
-	end
-
-	-- Make sure we have an indent value
-	indent = indent or {}
-
-	for i, value in ipairs(data) do
-		if(type(value) == 'table') then
-			if(value['name']) then
-				if(value['warning'] and nmap.debugging() > 0) then
-					output = output .. format("%s  %s%s (WARNING: %s)\n", format_get_indent(indent), prefix, value['name'], value['warning'])
-				else
-					output = output .. format("%s  %s%s\n", format_get_indent(indent), prefix, value['name'])
-				end
-			elseif(value['warning'] and nmap.debugging() > 0) then
-					output = output .. format("%s  %s(WARNING: %s)\n", format_get_indent(indent), prefix, value['warning'])
-			end
-
-			-- Do a shallow copy of indent
-			local new_indent = {}
-			for _, v in ipairs(indent) do
-				insert(new_indent, v)
-			end
-
-			if(i ~= #data) then
-				insert(new_indent, false)
-			else
-				insert(new_indent, true)
-			end
-
-			output = output .. format_output(status, value, new_indent)
-				
-		elseif(type(value) == 'string') then
-			if(i ~= #data) then
-				output = output .. format("%s  %s%s\n", format_get_indent(indent, false), prefix, value)
-			else
-				output = output .. format("%s  %s%s\n", format_get_indent(indent, true), prefix, value)
-			end
-		end
-	end
-
-	return output
+  return result
 end
+
+-- Get the value of a script argument, or nil if the script argument was not
+-- given. This works also for arguments given as top-level array values, like
+-- --script-args=unsafe; for these it returns the value 1.
+local function arg_value(argname)
+  if nmap.registry.args[argname] then
+    return nmap.registry.args[argname]
+  end
+  for _, v in ipairs(nmap.registry.args) do
+    if v == argname then
+      return 1
+    end
+  end
+end
+
+--- Parses the script arguments passed to the --script-args option.
+--
+-- @usage
+-- --script-args 'script.arg1=value,script.arg3,script-x.arg=value'
+-- local arg1, arg2, arg3 = get_script_args('script.arg1','script.arg2','script.arg3')
+--      => arg1 = value
+--      => arg2 = nil
+--      => arg3 = 1
+--
+-- --script-args 'displayall,unsafe,script-x.arg=value,script-y.arg=value'
+-- local displayall, unsafe = get_script_args('displayall','unsafe')
+--      => displayall = 1
+--      => unsafe     = 1
+--
+-- --script-args 'dns-cache-snoop.mode=timed,dns-cache-snoop.domains={host1,host2}'
+-- local mode, domains = get_script_args('dns-cache-snoop.mode',
+--                                       'dns-cache-snoop.domains')
+--      => mode    = 'timed'
+--      => domains = {host1,host2}
+--
+-- @param Arguments  Script arguments to check.
+-- @return Arguments values.
+function get_script_args (...)
+  local args = {}
+
+  for i, set in ipairs({...}) do 
+    if type(set) == "string" then
+      set = {set}
+    end
+    for _, test in ipairs(set) do
+      local v = arg_value(test)
+      if v then
+        args[i] = v
+        break
+      end
+    end
+  end
+
+  return unpack(args, 1, select("#", ...))
+end
+
+---Get the best possible hostname for the given host. This can be the target as given on 
+-- the commandline, the reverse dns name, or simply the ip address. 
+--@param host The host table (or a string that'll simply be returned). 
+--@return The best possible hostname, as a string. 
+function get_hostname(host)
+  if type(host) == "table" then
+    return host.targetname or ( host.name ~= '' and host.name ) or host.ip
+  else
+    return host
+  end
+end
+
+---Retrieve an item from the registry, checking if each sub-key exists. If any key doesn't
+-- exist, return nil. 
+function registry_get(subkeys)
+  local registry = nmap.registry
+  local i = 1
+
+  while(subkeys[i]) do
+    if(not(registry[subkeys[i]])) then
+      return nil
+    end
+
+    registry = registry[subkeys[i]]
+
+    i = i + 1
+  end
+
+  return registry
+end
+
+--Check if the given element exists in the registry. If 'key' is nil, it isn't checked. 
+function registry_exists(subkeys, key, value)
+  local subkey = registry_get(subkeys)
+
+  if(not(subkey)) then
+    return false
+  end
+
+  for k, v in pairs(subkey) do
+    if((key == nil or key == k) and (v == value)) then -- TODO: if 'value' is a table, this fails
+      return true
+    end
+  end
+
+  return false
+end
+
+---Add an item to an array in the registry, creating all sub-keys if necessary. 
+-- For example, calling:
+-- <code>registry_add_array({'192.168.1.100', 'www', '80', 'pages'}, 'index.html')</code>
+-- Will create nmap.registry['192.168.1.100'] as a table, if necessary, then add a table
+-- under the 'www' key, and so on. 'pages', finally, is treated as an array and the value
+-- given is added to the end. 
+function registry_add_array(subkeys, value, allow_duplicates)
+  local registry = nmap.registry
+  local i = 1
+
+  -- Unless the user wants duplicates, make sure there aren't any
+  if(allow_duplicates ~= true) then
+    if(registry_exists(subkeys, nil, value)) then
+      return
+    end
+  end
+
+  while(subkeys[i]) do
+    if(not(registry[subkeys[i]])) then
+      registry[subkeys[i]] = {}
+    end
+    registry = registry[subkeys[i]]
+    i = i + 1
+  end
+
+  -- Make sure the value isn't already in the table
+  for _, v in pairs(registry) do
+    if(v == value) then
+      return
+    end
+  end
+  insert(registry, value)
+end
+
+---Similar to <code>registry_add_array</code>, except instead of adding a value to the
+-- end of an array, it adds a key:value pair to the table. 
+function registry_add_table(subkeys, key, value)
+  local registry = nmap.registry
+  local i = 1
+
+  -- Unless the user wants duplicates, make sure there aren't any
+  if(allow_duplicates ~= true) then
+    if(registry_exists(subkeys, key, value)) then
+      return
+    end
+  end
+
+  while(subkeys[i]) do
+    if(not(registry[subkeys[i]])) then
+      registry[subkeys[i]] = {}
+    end
+    registry = registry[subkeys[i]]
+    i = i + 1
+  end
+
+  registry[key] = value
+end
+
 
 --- This function allows you to create worker threads that may perform
 -- network tasks in parallel with your script thread.
@@ -520,7 +778,7 @@ end
 -- and mutex (<code>nmap.mutex</code>) facilities to coordinate with your
 -- worker threads. Keep in mind that Nmap is single threaded so there are
 -- no (memory) issues in synchronization to worry about; however, there
--- <em>is</em> resource contention. Your resources are usually network
+-- is resource contention. Your resources are usually network
 -- bandwidth, network sockets, etc. Condition variables are also useful if the
 -- work for any single thread is dynamic. For example, a web server spider
 -- script with a pool of workers will initially have a single root html

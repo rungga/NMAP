@@ -7,6 +7,11 @@ Attempts to find an SNMP community string by brute force guessing.
 -- @args snmpcommunity The SNMP community string to use. If not supplied, this
 -- script will not run.
 -- @args snmplist The filename of a list of community strings to try.
+--
+-- @output
+-- PORT    STATE SERVICE
+-- 161/udp open  snmp
+-- |_snmp-brute: public
 
 author = "Philip Pickering"
 
@@ -37,7 +42,7 @@ action = function(host, port)
   local try = nmap.new_try(catch)
 	
 	-- connect to the potential SNMP system
-  try(socket:connect(host.ip, port.number, "udp"))
+  try(socket:connect(host, port))
 
 	
   local request = snmp.buildGetRequest({}, "1.3.6.1.2.1.1.3.0")

@@ -1,8 +1,27 @@
 description=[[
 Checks to see if an FTP server allows port scanning using the FTP bounce method.
 ]]
-author="Marek Majkowski <majek04<at>gmail.com>"
-license="Same as Nmap--See http://nmap.org/book/man-legal.html"
+author = "Marek Majkowski"
+license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+
+---
+-- @args ftp-bounce.username Username to log in with. Default
+-- <code>"anonymous"</code>.
+-- @args ftp-bounce.password Password to log in with. Default
+-- <code>"IEUser@"</code>.
+--
+-- @output
+-- PORT   STATE SERVICE
+-- 21/tcp open  ftp
+-- |_ftp-bounce: bounce working!
+--
+-- PORT   STATE SERVICE
+-- 21/tcp open  ftp
+-- |_ftp-bounce: server forbids bouncing to low ports <1025
+-- 
+-- PORT   STATE SERVICE
+-- 21/tcp open  ftp
+-- |_ftp-bounce: no banner
 
 categories = {"default", "intrusive"}
 
@@ -58,6 +77,27 @@ get_ftp_code = function(socket)
 	return fcode
 end
 
+local get_login = function()
+	local user, pass
+	local k
+
+	for _, k in ipairs({"ftp-bounce.username", "username"}) do
+		if nmap.registry.args[k] then
+			user = nmap.registry.args[k]
+			break
+		end
+	end
+
+	for _, k in ipairs({"ftp-bounce.password", "password"}) do
+		if nmap.registry.args[k] then
+			pass = nmap.registry.args[k]
+			break
+		end
+	end
+
+	return user or "anonymous", pass or "IEUser@"
+end
+
 action = function(host, port)
 	local socket = nmap.new_socket()
 	local result;
@@ -65,10 +105,11 @@ action = function(host, port)
 	local isAnon = false
 	local isOk   = false
 	local sendPass = true
+	local user, pass = get_login()
 	local fc
 	
 	socket:set_timeout(10000)
-	socket:connect(host.ip, port.number)
+	socket:connect(host, port)
 
 	-- BANNER
 	fc = get_ftp_code(socket)
@@ -91,7 +132,7 @@ action = function(host, port)
 	
 	socket:set_timeout(5000)
 	-- USER
-	socket:send("USER anonymous\r\n")
+	socket:send("USER " .. user .. "\r\n")
 	fc = get_ftp_code(socket)
 	if (fc >= 400 and fc <= 499) or (fc >= 500 and fc <= 599) then
 		socket:close()
@@ -116,7 +157,7 @@ action = function(host, port)
 
 	-- PASS
 	if sendPass then
-		socket:send("PASS IEUser@\r\n")
+		socket:send("PASS " .. pass .. "\r\n")
 		fc = get_ftp_code(socket)
 		if (fc >= 500 and fc <= 599) or (fc >= 400 and fc <= 499) then
 			socket:close()

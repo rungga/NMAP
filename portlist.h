@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -26,7 +26,7 @@
  *   nmap-os-db or nmap-service-probes.                                    *
  * o Executes Nmap and parses the results (as opposed to typical shell or  *
  *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                * 
+ *   not derivative works.)                                                *
  * o Integrates/includes/aggregates Nmap into a proprietary executable     *
  *   installer, such as those produced by InstallShield.                   *
  * o Links to a library or executes a program that does any of the above   *
@@ -49,8 +49,8 @@
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included COPYING.OpenSSL file, and distribute linked      *
- * combinations including the two. You must obey the GNU GPL in all        *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two. You must obey the GNU GPL in all *
  * respects for all of the code used other than OpenSSL.  If you modify    *
  * this file, you may extend this exception to your version of the file,   *
  * but you are not obligated to do so.                                     *
@@ -87,7 +87,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: portlist.h 16578 2010-01-26 23:03:21Z david $ */
+/* $Id: portlist.h 21904 2011-01-21 00:04:16Z fyodor $ */
 
 #ifndef PORTLIST_H
 #define PORTLIST_H
@@ -245,16 +245,16 @@ class PortList {
   int numscriptresults; /* Total number of scripts which produced output */
 
   /* Get number of ports in this state. This a sum for protocols. */
-  int getStateCounts(int state);
+  int getStateCounts(int state) const;
   /* Get number of ports in this state for requested protocol. */
-  int getStateCounts(int protocol, int state);
+  int getStateCounts(int protocol, int state) const;
 
   // sname should be NULL if sres is not
   // PROBESTATE_FINISHED_MATCHED. product,version, and/or extrainfo
   // will be NULL if unavailable. Note that this function makes its
   // own copy of sname and product/version/extrainfo.  This function
   // also takes care of truncating the version strings to a
-  // 'reasonable' length if neccessary, and cleaning up any unprinable
+  // 'reasonable' length if necessary, and cleaning up any unprinable
   // chars. (these tests are to avoid annoying DOS (or other) attacks
   // by malicious services).  The fingerprint should be NULL unless
   // one is available and the user should submit it.  tunnel must be
@@ -299,6 +299,7 @@ class PortList {
   int numIgnoredStates();
   int numIgnoredPorts();
   int numPorts() const;
+  bool hasOpenPorts() const;
 
  private:
   bool mapPort(u16 *portno, u8 *protocol) const;

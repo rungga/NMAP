@@ -1,6 +1,7 @@
 description = [[
 Attempts to find the owner of an open TCP port by querying an auth
-(identd - port 113) daemon which must also be open on the target system.
+daemon which must also be open on the target system. The auth service,
+also known as identd, normally runs on port 113.
 ]]
 ---
 --@output
@@ -50,8 +51,8 @@ action = function(host, port)
 
 	local try = nmap.new_try(catch)
 
-	try(client_ident:connect(host.ip, 113))
-	try(client_service:connect(host.ip, port.number))
+	try(client_ident:connect(host, 113))
+	try(client_service:connect(host, port))
 
 	local localip, localport, remoteip, remoteport =
         	try(client_service:get_info())
@@ -65,7 +66,8 @@ action = function(host, port)
 	if string.match(owner, "ERROR") then 
 		owner = nil
 	else
-		owner = string.match(owner, "%d+%s*,%s*%d+%s*:%s*USERID%s*:%s*.+%s*:%s*(.+)\r?\n", 1)
+		owner = string.match(owner,
+                	"%d+%s*,%s*%d+%s*:%s*USERID%s*:%s*.+%s*:%s*(.+)\r?\n")
 	end
 
 	try(client_ident:close())

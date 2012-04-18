@@ -26,6 +26,18 @@ author = "Eddie Bell"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
+---
+-- @args sql-injection.start The path at which to start spidering; default <code>/</code>.
+-- @args sql-injection.maxdepth The maximum depth to spider; default 10.
+--
+-- @output
+-- PORT   STATE SERVICE
+-- 80/tcp open  http
+-- | sql-injection: Host might be vulnerable
+-- | /a_index.php?id_str=1'%20OR%20sqlspider
+-- | /a_index.php?id_str=1'%20OR%20sqlspider
+-- | /a_index.php?id_str=2'%20OR%20sqlspider
+
 -- Change this to increase depth of crawl
 local maxdepth = 10
 local get_page_from_host
@@ -89,11 +101,10 @@ Creates a pipeline table and returns the result
 ]]--
 local function inject(host, port, injectable)
   local all = {}
-  local pOpts = {}
   for k, v in pairs(injectable) do
-    all = http.pGet(host, port, v, nil, nil, all)
+    all = http.pipeline_add(v, nil, all, 'GET')
   end
-  return http.pipeline(host, port, all, pOpts)
+  return http.pipeline_go(host, port, all)
 end
 
 --[[
@@ -221,7 +232,7 @@ action = function(host, port)
   end
 
   if #injectable > 0 then
-    stdnse.print_debug(1, "%s: Testing %d suspicious URLs", filename, #injectable )
+    stdnse.print_debug(1, "%s: Testing %d suspicious URLs", SCRIPT_NAME, #injectable )
     -- test all potentially vulnerable queries
     injectableQs = build_injection_vector(injectable)
     local responses = inject(host, port, injectableQs)

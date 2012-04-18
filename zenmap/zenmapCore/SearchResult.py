@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2009 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -25,7 +25,7 @@
 # *   nmap-os-db or nmap-service-probes.                                    *
 # * o Executes Nmap and parses the results (as opposed to typical shell or  *
 # *   execution-menu apps, which simply display raw Nmap output and so are  *
-# *   not derivative works.)                                                * 
+# *   not derivative works.)                                                *
 # * o Integrates/includes/aggregates Nmap into a proprietary executable     *
 # *   installer, such as those produced by InstallShield.                   *
 # * o Links to a library or executes a program that does any of the above   *
@@ -48,8 +48,8 @@
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
 # * OpenSSL library which is distributed under a license identical to that  *
-# * listed in the included COPYING.OpenSSL file, and distribute linked      *
-# * combinations including the two. You must obey the GNU GPL in all        *
+# * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+# * linked combinations including the two. You must obey the GNU GPL in all *
 # * respects for all of the code used other than OpenSSL.  If you modify    *
 # * this file, you may extend this exception to your version of the file,   *
 # * but you are not obligated to do so.                                     *
@@ -96,6 +96,7 @@ from glob import glob
 from types import StringTypes
 
 from zenmapCore.Name import APP_NAME
+from zenmapCore.NmapOptions import NmapOptions
 from zenmapCore.NmapParser import NmapParser
 from zenmapCore.UmitLogging import log
 
@@ -169,20 +170,20 @@ class HostSearch(object):
         else:
             return False
 
-class SearchResult(object):    
+class SearchResult(object):
     def __init__(self):
         """This constructor is always called by SearchResult subclasses."""
         pass
-    
+
     def search(self, **kargs):
         """Performs a search on each parsed scan. Since the 'and' operator is
         implicit, the search fails as soon as one of the tests fails. The
         kargs argument is a map having operators as keys and argument lists as
         values."""
-        
+
         for scan_result in self.get_scan_results():
             self.parsed_scan = scan_result
-            
+
             # Test each given operator against the current parsed result
             for operator, args in kargs.iteritems():
                 if not self._match_all_args(operator, args):
@@ -203,7 +204,7 @@ class SearchResult(object):
         else:
             # All arguments for this operator produced a match
             return True
-    
+
     def get_scan_results(self):
         # To be implemented by classes that are going to inherit this one
         pass
@@ -211,12 +212,12 @@ class SearchResult(object):
     def basic_match(self, keyword, property):
         if keyword == "*" or keyword == "":
             return True
-        
+
         return keyword.lower() in str(self.parsed_scan.__getattribute__(property)).lower()
 
     def match_keyword(self, keyword):
         log.debug("Match keyword: %s" % keyword)
-        
+
         return self.basic_match(keyword, "nmap_output") or \
                self.match_profile(keyword) or \
                self.match_target(keyword)
@@ -229,36 +230,34 @@ class SearchResult(object):
            profile.lower() in str(self.parsed_scan.profile_name).lower():
             return True
         return False
-    
+
     def match_option(self, option):
         log.debug("Match option: %s" % option)
-        
+
         if option == "*" or option == "":
             return True
-        
+
         # NOTE: Option matching treats "_" and "-" the same, just like the optcmp
         #       function in utils.cc . Also, option matching is case-sensitive.
         option = option.replace("_", "-")
-        
-        # We get to the options by taking out "nmap " and targets from the command line
-        targets = self.parsed_scan.get_target()
-        cmd = self.parsed_scan.get_nmap_command()
-        if targets != "":
-            options = cmd[4:cmd.find(targets)]
-        else:
-            options = cmd[4:]
-        
+
+        ops = NmapOptions()
+        ops.parse_string(self.parsed_scan.get_nmap_command())
+
         if "(" in option and ")" in option:
             # The syntax allows matching option arguments as "opt:option_name(value)".
             # Since we've received only the "option_name(value)" part, we need to parse it.
             optname = option[:option.find("(")]
             optval = option[option.find("(")+1:option.find(")")]
-            
-            return (optname + "=" + optval) in options or \
-                   (optname + " " + optval) in options or \
-                   (optname + optval) in options
+
+            val = ops["--" + optname]
+            if val is None:
+                val = ops["-" + optname]
+            if val is None:
+                return False
+            return str(val) == optval or str(val) == optval
         else:
-            return ("-" + option) in options
+            return ops["--" + option] is not None or ops["-" + option] is not None
 
     def match_date(self, date_arg, operator="date"):
         # The parsed scan's get_date() returns a time.struct_time, so we
@@ -266,14 +265,14 @@ class SearchResult(object):
         from datetime import date, datetime
         scd = self.parsed_scan.get_date()
         scan_date = date(scd.tm_year, scd.tm_mon, scd.tm_mday)
-        
+
         # Check if we have any fuzzy operators ("~") in our string
         fuzz = 0
         if "~" in date_arg:
             # Count 'em, and strip 'em
             fuzz = date_arg.count("~")
             date_arg = date_arg.replace("~", "")
-        
+
         if re.match("\d\d\d\d-\d\d-\d\d$", date_arg) != None:
             year, month, day = date_arg.split("-")
             parsed_date = date(int(year), int(month), int(day))
@@ -284,7 +283,7 @@ class SearchResult(object):
         else:
             # Fail silently
             return False
-        
+
         # Now that we have both the scan date and the user date converted to date objects,
         # we need to make a comparison based on the operator (date, after, before).
         if operator == "date":
@@ -294,54 +293,55 @@ class SearchResult(object):
             return (scan_date - parsed_date).days >= 0
         elif operator == "before":
             return (parsed_date - scan_date).days >= 0
-    
+
     def match_after(self, date_arg):
         return self.match_date(date_arg, operator="after")
-    
+
     def match_before(self, date_arg):
         return self.match_date(date_arg, operator="before")
-    
+
     def match_target(self, target):
         log.debug("Match target: %s" % target)
-        
-        if self.basic_match(target, "target"):
-            return True
+
+        for spec in self.parsed_scan.get_targets():
+            if target in spec:
+                return True
         else:
             # We search the (rDNS) hostnames list
             for host in self.parsed_scan.get_hosts():
                 if HostSearch.match_target(host, target):
                     return True
         return False
-    
+
     def match_os(self, os):
         # If you have lots of big scans in your DB (with a lot of hosts scanned),
         # you're probably better off using the keyword (freetext) search. Keyword
         # search just greps through the nmap output, while this function iterates
-        # through all parsed OS-related values for every host in every scan! 
+        # through all parsed OS-related values for every host in every scan!
         hosts = self.parsed_scan.get_hosts()
         os = os.lower()
         for host in hosts:
             if HostSearch.match_os(host, os):
                 return True
         return False
-    
+
     def match_scanned(self, ports):
         if ports == "":
             return True
-        
+
         # Transform a comma-delimited string containing ports into a list
         ports = filter(lambda not_empty: not_empty, ports.split(","))
-        
+
         # Check if they're parsable, if not return False silently
         for port in ports:
             if re.match("^\d+$", port) == None:
                 return False
-        
+
         # Make a list of all scanned ports
         services = []
         for scaninfo in self.parsed_scan.get_scaninfo():
             services = services + scaninfo["services"].split(",")
-        
+
         # These two loops iterate over search ports and over scanned ports. As soon as
         # the search finds a given port among the scanned ports, it breaks from the services
         # loop and continues with the next port in the ports list. If a port isn't
@@ -360,10 +360,10 @@ class SearchResult(object):
         else:
             # The ports loop finished for all ports, which means the search was successful.
             return True
-    
+
     def match_port(self, ports, port_state):
         log.debug("Match port:%s" % ports)
-        
+
         # Transform a comma-delimited string containing ports into a list
         ports = filter(lambda not_empty: not_empty, ports.split(","))
 
@@ -375,40 +375,40 @@ class SearchResult(object):
                 return True
         else:
             return False
-        
+
     def match_open(self, port):
         return self.match_port(port, "open")
-    
+
     def match_filtered(self, port):
         return self.match_port(port, "filtered")
-    
+
     def match_closed(self, port):
         return self.match_port(port, "closed")
-    
+
     def match_unfiltered(self, port):
         return self.match_port(port, "unfiltered")
-    
+
     def match_open_filtered(self, port):
         return self.match_port(port, "open|filtered")
-    
+
     def match_closed_filtered(self, port):
         return self.match_port(port, "closed|filtered")
-    
+
     def match_service(self, sversion):
         if sversion == "" or sversion == "*":
             return True
-        
+
         versions = []
         for host in self.parsed_scan.get_hosts():
             if HostSearch.match_service(host, sversion):
                 return True
         else:
             return False
-    
+
     def match_in_route(self, host):
         if host == "" or host == "*":
             return True
-        
+
         # Since the parser doesn't parse traceroute output, we need to cheat and look
         # the host up in the Nmap output, in the Traceroute section of the scan.
         nmap_out = self.parsed_scan.get_nmap_output()
@@ -421,13 +421,13 @@ class SearchResult(object):
             tr_end_pos = nmap_out.find("\n\n", tr_pos)
             if tr_pos != -1:
                 traceroutes.append(nmap_out[tr_pos:tr_end_pos])
-        
+
         for tr in traceroutes:
             if host.lower() in tr.lower():
                 return True
         else:
             return False
-    
+
     def match_dir(self, dir):
         # The dir: operator is handled by the SearchParser class, we ignore it here.
         return True
@@ -449,7 +449,7 @@ class SearchDB(SearchResult, object):
         for scan in u.get_scans():
             log.debug(">>> Retrieving result of scans_id %s" % scan.scans_id)
             log.debug(">>> Nmap xml output: %s" % scan.nmap_xml_output)
-            
+
             try:
                 buffer = StringIO.StringIO(scan.nmap_xml_output)
                 parsed = NmapParser()
@@ -459,7 +459,7 @@ class SearchDB(SearchResult, object):
                 log.warning(">>> Error loading scan with ID %u from database: %s" % (scan.scans_id, str(e)))
             else:
                 self.scan_results.append(parsed)
-    
+
     def get_scan_results(self):
         return self.scan_results
 
@@ -475,7 +475,7 @@ class SearchDir(SearchResult, object):
             self.file_extensions = file_extensions
         else:
             raise Exception("Wrong file extension format! '%s'" % file_extensions)
-        
+
         log.debug(">>> Getting directory's scan results")
         self.scan_results = []
         files = []
@@ -494,7 +494,7 @@ class SearchDir(SearchResult, object):
                     pass
                 else:
                     self.scan_results.append(parsed)
-        
+
     def get_scan_results(self):
         return self.scan_results
 

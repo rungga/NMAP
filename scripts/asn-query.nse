@@ -4,14 +4,11 @@ Maps IP addresses to autonomous system (AS) numbers.
 The script works by sending DNS TXT queries to a DNS server which in
 turn queries a third-party service provided by Team Cymru
 (team-cymru.org) using an in-addr.arpa style zone set up especially for
-use by Nmap.
-
-The responses to these queries contain both Origin and Peer ASNs and
-their descriptions, displayed along with the BGP Prefix and Country Code.
-
-The script caches results to reduce the number of queries and should
-perform a single query for all scanned targets in a BGP Prefix present in
-Team Cymru's database.
+use by Nmap. The responses to these queries contain both Origin and Peer
+ASNs and their descriptions, displayed along with the BGP Prefix and
+Country Code. The script caches results to reduce the number of queries
+and should perform a single query for all scanned targets in a BGP
+Prefix present in Team Cymru's database.
 
 Be aware that any targets against which this script is run will be sent
 to and potentially recorded by one or more DNS servers and Team Cymru.
@@ -22,7 +19,7 @@ server (your default DNS server, or whichever one you specified with the
 
 ---
 -- @usage
--- nmap --script asn-query.nse [--script-args dns=<DNS server>] <target>
+-- nmap --script asn-query [--script-args dns=<DNS server>] <target>
 -- @args dns The address of a recursive nameserver to use (optional).
 -- @output
 -- Host script results:
@@ -34,7 +31,7 @@ server (your default DNS server, or whichever one you specified with the
 -- |    Origin AS: 10565 SVCOLO-AS - Silicon Valley Colocation, Inc.
 -- |_     Peer AS: 174 2914 6461
 
-author = "jah, Michael"
+author = "jah, Michael Pattrick"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "external", "safe"}
 
@@ -212,7 +209,7 @@ function ip_to_asn( query )
   local status, decoded_response = dns.query( query, options)
 
   if not status then
-    stdnse.print_debug( "%s Error from dns.query(): %s", filename, decoded_response )
+    stdnse.print_debug( "%s Error from dns.query(): %s", SCRIPT_NAME, decoded_response )
   end
 
   return status, decoded_response
@@ -460,6 +457,6 @@ function nice_output( output, combined_records )
   end
 
   -- return combined and formatted answers
-  return (" \n%s"):format( table.concat( output, "\n" ) )
+  return "\n" .. table.concat( output, "\n" )
 
 end
