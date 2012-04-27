@@ -79,8 +79,7 @@ binary-common:
 	dh_movefiles
 	dh_undocumented
 	dh_desktop
-	dh_pycentral
-	dh_python
+	dh_python2
 	[ -n "$(STRIP)" ] || dh_strip
 	dh_compress
 	dh_fixperms 

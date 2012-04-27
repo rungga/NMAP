@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: Ncat
 .\"    Author: [see the "Authors" section]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 02/11/2011
+.\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
+.\"      Date: 12/12/2011
 .\"    Manual: Ncat Reference Guide
 .\"    Source: Ncat
 .\"  Language: English
 .\"
-.TH "NCAT" "1" "02/11/2011" "Ncat" "Ncat Reference Guide"
+.TH "NCAT" "1" "12/12/2011" "Ncat" "Ncat Reference Guide"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -27,7 +36,7 @@ ncat \- Concatenate and redirect sockets
 .PP
 Ncat is a feature\-packed networking utility which reads and writes data across networks from the command line\&. Ncat was written for the Nmap Project and is the culmination of the currently splintered family of Netcat incarnations\&. It is designed to be a reliable back\-end tool to instantly provide network connectivity to other applications and users\&. Ncat will not only work with IPv4 and IPv6 but provides the user with a virtually limitless number of potential uses\&.
 .PP
-Among Ncat\'s vast number of features there is the ability to chain Ncats together; redirection of TCP, UDP, and SCTP ports to other sites; SSL support; and proxy connections via SOCKS4 or HTTP proxies (with optional proxy authentication as well)\&. Some general principles apply to most applications and thus give you the capability of instantly adding networking support to software that would normally never support it\&.
+Among Ncat\*(Aqs vast number of features there is the ability to chain Ncats together; redirection of TCP, UDP, and SCTP ports to other sites; SSL support; and proxy connections via SOCKS4 or HTTP proxies (with optional proxy authentication as well)\&. Some general principles apply to most applications and thus give you the capability of instantly adding networking support to software that would normally never support it\&.
 .SH "OPTIONS SUMMARY"
 .PP
 
@@ -36,11 +45,11 @@ Among Ncat\'s vast number of features there is the ability to chain Ncats togeth
 .RS 4
 .\}
 .nf
-Ncat 5\&.51 ( http://nmap\&.org/ncat )
+Ncat 5\&.51\&.6 ( http://nmap\&.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
-Options taking a time assume seconds\&. Append \'ms\' for milliseconds,
-\'s\' for seconds, \'m\' for minutes, or \'h\' for hours (e\&.g\&. 500ms)\&.
+Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
+\*(Aqs\*(Aq for seconds, \*(Aqm\*(Aq for minutes, or \*(Aqh\*(Aq for hours (e\&.g\&. 500ms)\&.
   \-4                         Use IPv4 only
   \-6                         Use IPv6 only
   \-C, \-\-crlf                 Use CRLF for EOL sequence
@@ -55,7 +64,7 @@ Options taking a time assume seconds\&. Append \'ms\' for milliseconds,
   \-x, \-\-hex\-dump             Dump session data as hex to a file
   \-i, \-\-idle\-timeout <time>  Idle read/write timeout
   \-p, \-\-source\-port port     Specify source port to use
-  \-s, \-\-source addr          Specify source address to use (doesn\'t affect \-l)
+  \-s, \-\-source addr          Specify source address to use (doesn\*(Aqt affect \-l)
   \-l, \-\-listen               Bind and listen for incoming connections
   \-k, \-\-keep\-open            Accept multiple connections in listen mode
   \-n, \-\-nodns                Do not resolve hostnames via DNS
@@ -70,7 +79,7 @@ Options taking a time assume seconds\&. Append \'ms\' for milliseconds,
       \-\-allowfile            A file of hosts allowed to connect to Ncat
       \-\-deny                 Deny given hosts from connecting to Ncat
       \-\-denyfile             A file of hosts denied from connecting to Ncat
-      \-\-broker               Enable Ncat\'s connection brokering mode
+      \-\-broker               Enable Ncat\*(Aqs connection brokering mode
       \-\-chat                 Start a simple Ncat chat server
       \-\-proxy <addr[:port]>  Specify address of host to proxy through
       \-\-proxy\-type <type>    Specify proxy type ("http" or "socks4")
@@ -80,7 +89,7 @@ Options taking a time assume seconds\&. Append \'ms\' for milliseconds,
       \-\-ssl\-key              Specify SSL private key (PEM) for listening
       \-\-ssl\-verify           Verify trust and domain name of certificates
       \-\-ssl\-trustfile        PEM file containing trusted SSL certificates
-      \-\-version              Display Ncat\'s version information and exit
+      \-\-version              Display Ncat\*(Aqs version information and exit
 
 See the ncat(1) manpage for full options, descriptions and usage examples
 .fi
@@ -251,7 +260,7 @@ Requests proxying through
 \fIhost\fR:\fIport\fR, using the protocol specified by
 \fB\-\-proxy\-type\fR\&.
 .sp
-If no port is specified, the proxy protocol\'s well\-known port is used (1080 for SOCKS and 3128 for HTTP)\&. However, when specifying an IPv6 HTTP proxy server using the IP address rather than the hostname, the port number MUST be specified as well\&. If the proxy requires authentication, use
+If no port is specified, the proxy protocol\*(Aqs well\-known port is used (1080 for SOCKS and 3128 for HTTP)\&. However, when specifying an IPv6 HTTP proxy server using the IP address rather than the hostname, the port number MUST be specified as well\&. If the proxy requires authentication, use
 \fB\-\-proxy\-auth\fR\&.
 .RE
 .PP
@@ -291,7 +300,7 @@ option\&. By default this is set to 100\&.
 .RS 4
 Same as
 \fB\-e\fR, except it tries to execute the command via
-/bin/sh\&. This means you don\'t have to specify the full path for the command, and shell facilities like environment variables are available\&.
+/bin/sh\&. This means you don\*(Aqt have to specify the full path for the command, and shell facilities like environment variables are available\&.
 .RE
 .SH "ACCESS CONTROL OPTIONS"
 .PP
@@ -465,7 +474,7 @@ or
 \(lqConnection reset\(rq\&. 2 is reserved for all other errors, like an invalid option or a nonexistent file\&.
 .SH "BUGS"
 .PP
-Like its authors, Ncat isn\'t perfect\&. But you can help make it better by sending bug reports or even writing patches\&. If Ncat doesn\'t behave the way you expect, first upgrade to the latest version available from
+Like its authors, Ncat isn\*(Aqt perfect\&. But you can help make it better by sending bug reports or even writing patches\&. If Ncat doesn\*(Aqt behave the way you expect, first upgrade to the latest version available from
 \m[blue]\fB\%http://nmap.org\fR\m[]\&. If the problem persists, do some research to determine whether it has already been discovered and addressed\&. Try Googling the error message or browsing the
 nmap\-dev
 archives at
@@ -530,6 +539,6 @@ fyodor@insecure\&.org
 .RE
 .PP
 The original Netcat was written by *Hobbit*
-hobbit@avian\&.org\&. While Ncat isn\'t built on any code from the
+hobbit@avian\&.org\&. While Ncat isn\*(Aqt built on any code from the
 \(lqtraditional\(rq
 Netcat (or any other implementation), Ncat is most definitely based on Netcat in spirit and functionality\&.

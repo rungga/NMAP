@@ -85,7 +85,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: util.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: util.c 26831 2011-10-07 04:03:04Z david $ */
 
 #include "sys_wrap.h"
 #include "util.h"
@@ -317,11 +317,12 @@ int addr_is_local(const union sockaddr_u *su)
                 break;
         }
     }
-    freeaddrinfo(addrs);
-    if (addr != NULL)
+    if (addr != NULL) {
+        freeaddrinfo(addrs);
         return 1;
-
-    return 0;
+    } else {
+        return 0;
+    }
 }
 
 /* Converts an IP address given in a sockaddr_u to an IPv4 or

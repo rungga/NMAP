@@ -3,11 +3,11 @@
 # Well known service port numbers -*- mode: fundamental; -*-
 # From the Nmap Security Scanner ( http://nmap.org )
 #
-# $Id: nmap-services 21940 2011-01-21 21:00:04Z fyodor $
+# $Id: nmap-services 26824 2011-10-05 18:33:01Z david $
 #
 # Derived from IANA data and our own research
 # 
-# This collection of service data is (C) 1996-2011 by Insecure.Com
+# This collection of service data is (C) 1996-2010 by Insecure.Com
 # LLC.  It is distributed under the Nmap Open Source license as
 # provided in the COPYING file of the source distribution or at
 # http://nmap.org/data/COPYING .  Note that this license
@@ -5946,7 +5946,6 @@ unknown	9915/tcp	0.000076
 unknown	9917/tcp	0.000228
 unknown	9919/tcp	0.000076
 unknown	9921/udp	0.000661
-nping-echo	9929/tcp	0.000163	# Nping echo server mode - http://nmap.org/book/nping-man-echo-mode.html - The port frequency is made up to keep it (barely) in top 1000 TCP
 unknown	9941/tcp	0.000152
 unknown	9943/tcp	0.000304
 unknown	9944/tcp	0.000304

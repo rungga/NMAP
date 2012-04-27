@@ -2,12 +2,14 @@
 #     --define "static 1"
 # to the rpmbuild command line. To build without Ncat, add
 #     --define "buildncat 0"
+# To build without Nping, add
+#     --define "buildnping 0"
 #
 # To specify openssl dir, add something like:
 #     --define "openssl /usr/local/ssl"
 
 %define name nmap
-%define version 4.90RC1
+%define version 5.51.6
 %define release 1
 %define _prefix /usr
 
@@ -51,6 +53,9 @@ both console and graphical versions are available.
 %if "%{buildncat}" == "0"
 %configure --without-ncat
 %endif
+%if "%{buildnping}" == "0"
+%configure --without-nping
+%endif
 %if "%{static}" == "1"
 make static
 %else
@@ -72,6 +77,7 @@ gzip $RPM_BUILD_ROOT%{_mandir}/man1/* || :
 %doc docs/README
 %doc docs/nmap.usage.txt
 %doc %{_prefix}/share/man/man1/nmap.1.gz
+%doc %{_prefix}/share/man/*/man1/nmap.1.gz
 %{_bindir}/nmap
 %{_datadir}/nmap
 
@@ -98,6 +104,30 @@ uses.
 %doc %{_prefix}/share/man/man1/ncat.1.gz
 %{_bindir}/ncat
 %{_datadir}/ncat
+
+%endif
+
+# Nping subpackage
+%if "%{buildnping}" != "0"
+%package -n nping
+# If this 0. prefix is removed it must also be removed from Makefile.in.
+Version: 0.%{version}
+Summary: Nping packet generator
+Group: Applications/System
+
+%description -n nping
+Nping is an open source tool for network packet generation, response
+analysis and response time measurement. Nping allows to generate network
+packets of a wide range of protocols, letting users to tune virtually
+any field of the protocol headers. While Nping can be used as a simple
+ping utility to detect active hosts, it can also be used as a raw packet
+generator for network stack stress tests, ARP poisoning, Denial of
+Service attacks, route tracing, etc.
+
+%files -n nping
+%defattr(-,root,root)
+%doc %{_prefix}/share/man/man1/nping.1.gz
+%{_bindir}/nping
 
 %endif
 

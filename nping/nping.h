@@ -306,7 +306,7 @@
 /* General tunable defines  **************************************************/
 #define NPING_NAME "Nping"
 #define NPING_URL "http://nmap.org/nping"
-#define NPING_VERSION "0.5.51"
+#define NPING_VERSION "0.5.51.6"
 
 #define DEFAULT_VERBOSITY VB_0
 #define DEFAULT_DEBUGGING DBG_0
