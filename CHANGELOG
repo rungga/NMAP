@@ -1,4 +1,10 @@
-# Nmap Changelog ($Id: CHANGELOG 22229 2011-02-11 21:20:23Z fyodor $); -*-text-*-
+# Nmap Changelog ($Id: CHANGELOG 27445 2011-12-13 00:04:42Z david $); -*-text-*-
+
+o The --exclude and --excludefile options can be used together now. [David]
+
+o Added checks that the argument to freeaddrinfo is not NULL, avoiding
+  a segmentation fault on Android and possibly other platforms.
+  Suggested by Vlatko Kosturjak and Alexismm2.
 
 Nmap 5.51 [2011-02-11]
 

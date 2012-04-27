@@ -116,6 +116,12 @@ dnl If any socket libraries needed
 AC_SEARCH_LIBS(setsockopt, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 
+# OpenSSL and NSE C modules can require dlopen
+AC_SEARCH_LIBS(dlopen, dl)
+
+# libpcap can require libnl
+AC_SEARCH_LIBS(nl_handle_alloc, nl)
+
 # We test whether they specified openssl desires explicitly
 use_openssl="yes"
 specialssldir=""
@@ -318,13 +324,6 @@ AC_SUBST(DNET_DEPENDS)
 AC_SUBST(DNET_BUILD)
 AC_SUBST(DNET_CLEAN)
 AC_SUBST(DNET_DIST_CLEAN)
-
-
-# OpenSSL and NSE C modules can require dlopen
-AC_SEARCH_LIBS(dlopen, dl)
-
-# libpcap can require libnl
-AC_SEARCH_LIBS(nl_handle_alloc, nl)
 
 
 dnl This test is from the configure.in of Unix Network Programming second

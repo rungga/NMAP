@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.h 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: targets.h 27445 2011-12-13 00:04:42Z david $ */
 
 #ifndef TARGETS_H
 #define TARGETS_H
@@ -159,8 +159,7 @@ struct pingtech {
    you can just pass NULL (it is only a stupid optimization that needs it) */
 Target *nexthost(HostGroupState *hs, TargetGroup *exclude_group, 
 		 struct scan_lists *ports, int pingtype);
-TargetGroup* load_exclude_file(FILE *fp);
-TargetGroup* load_exclude_string(const char *s);
+TargetGroup *load_exclude_group(FILE *fp, const char *spec);
 /* a debugging routine to dump an exclude list to stdout. */
 int dumpExclude(TargetGroup*exclude_group);
 /* Returns the last host obtained by nexthost.  It will be given again the next

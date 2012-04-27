@@ -1,4 +1,4 @@
-Ncat 5.51 ( http://nmap.org/ncat )
+Ncat 5.51.6 ( http://nmap.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
 Options taking a time assume seconds. Append 'ms' for milliseconds,

@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 22209 2011-02-09 02:37:53Z david $ */
+/* $Id: nmap.cc 27445 2011-12-13 00:04:42Z david $ */
 
 #include "nmap.h"
 #include "osscan.h"
@@ -683,15 +683,11 @@ int nmap_main(int argc, char *argv[]) {
           fatal("Since April 2010, the default unit for --initial-rtt-timeout is seconds, so your time of \"%s\" is %g seconds. Use \"%sms\" for %g milliseconds.", optarg, l / 1000.0, optarg, l / 1000.0);
         pre_init_rtt_timeout = l;
       } else if (strcmp(long_options[option_index].name, "excludefile") == 0) {
-        if (exclude_spec)
-          fatal("--excludefile and --exclude options are mutually exclusive.");
         excludefd = fopen(optarg, "r");
         if (!excludefd) {
           fatal("Failed to open exclude file %s for reading", optarg);
         }
       } else if (strcmp(long_options[option_index].name, "exclude") == 0) {
-        if (excludefd)
-          fatal("--excludefile and --exclude options are mutually exclusive.");
         exclude_spec = strdup(optarg);
       } else if (optcmp(long_options[option_index].name, "max-hostgroup") == 0) {
         o.setMaxHostGroupSz(atoi(optarg));
@@ -1596,15 +1592,12 @@ int nmap_main(int argc, char *argv[]) {
   }
 
   /* lets load our exclude list */
-  if (excludefd != NULL) {
-    exclude_group = load_exclude_file(excludefd);
-    fclose(excludefd);
-  }
-  if (exclude_spec != NULL) {
-    /* Simultaneous --excludefile and --exclude are not supported. */
-    assert(exclude_group == NULL);
-    exclude_group = load_exclude_string(exclude_spec);
-    free(exclude_spec);
+  if (excludefd != NULL || exclude_spec != NULL) {
+    exclude_group = load_exclude_group(excludefd, exclude_spec);
+    if (exclude_spec != NULL)
+      free(exclude_spec);
+    if (excludefd != NULL)
+      fclose(excludefd);
   }
 
   if (exclude_group != NULL) {

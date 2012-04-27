@@ -86,7 +86,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_hostmatch.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: ncat_hostmatch.c 26831 2011-10-07 04:03:04Z david $ */
 
 /* The code in this file has tests in the file tests/test-addrset.sh. Run that
    program after making any big changes. Also, please add tests for any new
@@ -346,7 +346,8 @@ int addrset_add_spec(struct addrset *set, const char *spec)
         set->head = elem;
     }
 
-    freeaddrinfo(addrs);
+    if (addrs != NULL)
+        freeaddrinfo(addrs);
 
     return 1;
 }

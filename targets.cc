@@ -89,7 +89,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.cc 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: targets.cc 27445 2011-12-13 00:04:42Z david $ */
 
 
 #include "targets.h"
@@ -250,36 +250,34 @@ static TargetGroup *specs_to_targetgroups(const std::vector<std::string> &specs)
   return excludelist;
 }
 
-/* Load an exclude list from a file for --excludefile. */
-TargetGroup* load_exclude_file(FILE *fp) {
+/* Load an exclude list from --excludefile and --exclude. */
+TargetGroup *load_exclude_group(FILE *fp, const char *spec) {
   std::vector<std::string> specs;
-  char host_spec[1024];
-  size_t n;
 
-  while ((n = read_host_from_file(fp, host_spec, sizeof(host_spec))) > 0) {
-    if (n >= sizeof(host_spec))
-      fatal("One of your exclude file specifications was too long to read (>= %u chars)", (unsigned int) sizeof(host_spec));
-    specs.push_back(host_spec);
+  if (fp != NULL) {
+    char host_spec[1024];
+    size_t n;
+
+    while ((n = read_host_from_file(fp, host_spec, sizeof(host_spec))) > 0) {
+      if (n >= sizeof(host_spec))
+        fatal("One of your exclude file specifications was too long to read (>= %u chars)", (unsigned int) sizeof(host_spec));
+      specs.push_back(host_spec);
+    }
   }
 
-  return specs_to_targetgroups(specs);
-}
+  if (spec != NULL) {
+    const char *begin, *p;
 
-/* Load a comma-separated exclude list from a string, the argument to
-   --exclude. */
-TargetGroup* load_exclude_string(const char *s) {
-  std::vector<std::string> specs;
-  const char *begin, *p;
-
-  p = s;
-  while (*p != '\0') {
-    begin = p;
-    while (*p != '\0' && *p != ',')
+    p = spec;
+    while (*p != '\0') {
+      begin = p;
+      while (*p != '\0' && *p != ',')
+        p++;
+      specs.push_back(std::string(begin, p - begin));
+      if (*p == '\0')
+        break;
       p++;
-    specs.push_back(std::string(begin, p - begin));
-    if (*p == '\0')
-      break;
-    p++;
+    }
   }
 
   return specs_to_targetgroups(specs);
