@@ -1,3 +1,16 @@
+nmap (5.51.6-0.2) unstable; urgency=low
+
+  * Non-maintainer upload
+  * use DESTDIR instead of prefix for make install. This fixes the zenmap
+    sys.path issue (#663217) as well as the path in the .desktop files.
+    Closes: #542958
+  * revert change to zenmap setup.py script
+  * Got rid of country-specific part in the directory
+  * Disable pcap compatibility check that caused the internal libpcap copy
+    to be used on kfreebsd-* (Closes: #671064).
+
+ -- Hilko Bengen <bengen@debian.org>  Sat, 26 May 2012 13:31:37 +0200
+
 nmap (5.51.6-0.1) unstable; urgency=low
 
   * Non-maintainer upload
