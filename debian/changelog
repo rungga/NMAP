@@ -1,6 +1,7 @@
 nmap (6.00-0kali1) UNRELEASED; urgency=low
 
   * New upstream version.
+  * Add a desktop file for nmap.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Wed, 30 May 2012 12:29:18 +0200
 

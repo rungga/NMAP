@@ -71,6 +71,8 @@ binary-common:
 	dh_installdirs
 	dh_installman
 	mv debian/tmp/usr/lib/python* debian/zenmap/usr/lib/
+	mkdir -p debian/nmap/usr/share/applications
+	cp debian/nmap.desktop debian/nmap/usr/share/applications
 	cp debian/zenmap.desktop debian/zenmap/usr/share/applications
 	cp debian/zenmap-root.desktop debian/zenmap/usr/share/applications
 	cp debian/zenmap.xpm debian/zenmap/usr/share/zenmap/pixmaps
