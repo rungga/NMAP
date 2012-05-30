@@ -1,6 +1,20 @@
 ---
 -- URI parsing, composition, and relative URL resolution.
 --
+-- A URL is represented as a table with the following entries:
+-- * <code>scheme</code>
+-- * <code>fragment</code>
+-- * <code>query</code>
+-- * <code>params</code>
+-- * <code>authority</code>
+-- * <code>userinfo</code>
+-- * <code>path</code>
+-- * <code>password</code>
+-- These correspond to these parts of a URL (some may be <code>nil</code>):
+-- <code>
+-- scheme://userinfo@password:authority:port/path;params?query#fragment
+-- </code>
+--
 -- @author Diego Nehab
 -- @author Eddie Bell <ejlbell@gmail.com>
 
@@ -257,8 +271,8 @@ function parse_path(path)
 	path = path or ""
 	--path = string.gsub(path, "%s", "")
 	string.gsub(path, "([^/]+)", function (s) table.insert(parsed, s) end)
-	for i = 1, table.getn(parsed) do
-		parsed[i] = unescape(parsed[i])
+	for i, v in ipairs(parsed) do
+		parsed[i] = unescape(v)
 	end
 	if string.sub(path, 1, 1) == "/" then parsed.is_absolute = 1 end
 	if string.sub(path, -1, -1) == "/" then parsed.is_directory = 1 end
@@ -273,7 +287,7 @@ end
 -----------------------------------------------------------------------------
 function build_path(parsed, unsafe)
 	local path = ""
-	local n = table.getn(parsed)
+	local n = #parsed
 	if unsafe then
 		for i = 1, n-1 do
 			path = path .. parsed[i]
@@ -350,5 +364,5 @@ function build_query(query)
 	for i,v in pairs(query) do 
 		qstr = qstr .. i .. '=' .. v .. '&'
 	end
-	return string.sub(qstr, 0, string.len(qstr)-1)
+	return string.sub(qstr, 0, #qstr-1)
 end	

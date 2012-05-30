@@ -8,7 +8,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -18,11 +18,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -36,19 +37,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -72,15 +74,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -106,6 +109,10 @@ extern "C" {
 
 #include "dnet.h"
 
+
+/* It is VERY important to never change the value of these two constants. 
+ * Specially, OP_FAILURE should never be positive, as some pieces of code take
+ * that for granted. */
 enum { OP_FAILURE = -1, OP_SUCCESS = 0 };
 
 
@@ -114,9 +121,21 @@ enum { OP_FAILURE = -1, OP_SUCCESS = 0 };
 #define IPPROTO_SCTP 132
 #endif
 
-int netutil_fatal(const char *str, ...)
+/* Container used for information common to IPv4 and IPv6 headers, used by
+   ip_get_data. */
+struct abstract_ip_hdr {
+  u8 version; /* 4 or 6. */
+  struct sockaddr_storage src;
+  struct sockaddr_storage dst;
+  u8 proto; /* IPv4 proto or IPv6 next header. */
+  u8 ttl;   /* IPv4 TTL or IPv6 hop limit. */
+  u16 ipid;  /* IPv4 IP ID or IPv6 flow label. */
+};
+
+void netutil_fatal(const char *str, ...)
+     __attribute__ ((noreturn))
      __attribute__ ((format (printf, 1, 2)));
-         
+
 int netutil_error(const char *str, ...)
      __attribute__ ((format (printf, 1, 2)));
 
@@ -171,22 +190,42 @@ int ip_is_reserved(struct in_addr *ip);
 
 
 /* A couple of trivial functions that maintain a cache of IP to MAC
- * Address entries. Function arp_cache_get() looks for the IPv4 address
+ * Address entries. Function mac_cache_get() looks for the IPv4 address
  * in ss and fills in the 'mac' parameter and returns true if it is
  * found.  Otherwise (not found), the function returns false.
- * Function arp_cache_set() adds an entry with the given ip (ss) and
+ * Function mac_cache_set() adds an entry with the given ip (ss) and
  * mac address.  An existing entry for the IP ss will be overwritten
- * with the new MAC address.  arp_cache_set() always returns true. */
-int arp_cache_get(struct sockaddr_storage *ss, u8 *mac);
-int arp_cache_set(struct sockaddr_storage *ss, u8 *mac);
+ * with the new MAC address.  mac_cache_set() always returns true. */
+int mac_cache_get(const struct sockaddr_storage *ss, u8 *mac);
+int mac_cache_set(const struct sockaddr_storage *ss, u8 *mac);
+
+const void *ip_get_data(const void *packet, unsigned int *len,
+  struct abstract_ip_hdr *hdr);
+const void *ip_get_data_any(const void *packet, unsigned int *len,
+  struct abstract_ip_hdr *hdr);
+/* Get the upper-layer protocol from an IPv4 packet. */
+const void *ipv4_get_data(const struct ip *ip, unsigned int *len);
+/* Get the upper-layer protocol from an IPv6 packet. This skips over known
+   extension headers. The length of the upper-layer payload is stored in *len.
+   The protocol is stored in *nxt. Returns NULL in case of error. */
+const void *ipv6_get_data(const struct ip6_hdr *ip6, unsigned int *len, u8 *nxt);
+const void *ipv6_get_data_any(const struct ip6_hdr *ip6, unsigned int *len, u8 *nxt);
+const void *icmp_get_data(const struct icmp_hdr *icmp, unsigned int *len);
+const void *icmpv6_get_data(const struct icmpv6_hdr *icmpv6, unsigned int *len);
 
 /* Standard BSD internet checksum routine. */
 unsigned short in_cksum(u16 *ptr, int nbytes);
 
-/* For computing TCP/UDP checksums, see RFC 1071 and TCP/IP Illustrated
-   sections 3.2, 11.3, and 17.3.*/
-unsigned short tcpudp_cksum(const struct in_addr *src, const struct in_addr *dst,
-                            u8 proto, u16 len, const void *hstart);
+/* Calculate the Internet checksum of some given data concatentated with the
+   IPv4 pseudo-header. See RFC 1071 and TCP/IP Illustrated sections 3.2, 11.3,
+   and 17.3. */
+unsigned short ipv4_pseudoheader_cksum(const struct in_addr *src,
+  const struct in_addr *dst, u8 proto, u16 len, const void *hstart);
+
+/* Calculate the Internet checksum of some given data concatenated with the
+   IPv6 pseudo-header. See RFC 2460 section 8.1. */
+u16 ipv6_pseudoheader_cksum(const struct in6_addr *src,
+  const struct in6_addr *dst, u8 nxt, u32 len, const void *hstart);
 
 void sethdrinclude(int sd);
 void set_ipoptions(int sd, void *opts, size_t optslen);
@@ -194,6 +233,7 @@ void set_ttl(int sd, int ttl);
 
 /* Returns whether the system supports pcap_get_selectable_fd() properly */
 int pcap_selectable_fd_valid();
+int pcap_selectable_fd_one_to_one();
 
 /* Call this instead of pcap_get_selectable_fd directly (or your code
    won't compile on Windows).  On systems which don't seem to support
@@ -227,6 +267,7 @@ struct interface_info {
   struct sockaddr_storage addr;
   u16 netmask_bits; /* CIDR-style.  So 24 means class C (255.255.255.0)*/
   devtype device_type; /* devt_ethernet, devt_loopback, devt_p2p, devt_other */
+  unsigned int ifindex; /* index (as used by if_indextoname and sin6_scope_id) */
   int device_up; /* True if the device is up (enabled) */
   int mtu; /* Interface's MTU size */
   u8 mac[6]; /* Interface MAC address if device_type is devt_ethernet */
@@ -237,12 +278,12 @@ struct route_nfo {
 
 /* true if the target is directly connected on the network (no routing
    required). */
-  int direct_connect; 
+  int direct_connect;
 
 /* This is the source address that should be used by the packets.  It
    may be different than ii.addr if you are using localhost interface
    to scan the IP of another interface on the machine */
-  struct sockaddr_storage srcaddr; 
+  struct sockaddr_storage srcaddr;
 
   /* If direct_connect is 0, this is filled in with the next hop
      required to route to the target */
@@ -251,9 +292,9 @@ struct route_nfo {
 
 struct sys_route {
   struct interface_info *device;
-  u32 dest;
-  u32 netmask;
-  struct in_addr gw; /* gateway - 0 if none */
+  struct sockaddr_storage dest;
+  u16 netmask_bits;
+  struct sockaddr_storage gw; /* gateway - 0 if none */
 };
 
 struct eth_nfo {
@@ -293,11 +334,19 @@ void tcppacketoptinfo(u8 *optp, int len, char *result, int bufsize);
 /* Convert an IP address to the device (IE ppp0 eth0) using that
  * address.  Supplied "dev" must be able to hold at least 32 bytes.
  * Returns 0 on success or -1 in case of error. */
-int ipaddr2devname( char *dev, const struct in_addr *addr );
+int ipaddr2devname( char *dev, const struct sockaddr_storage *addr );
 
-/* Convert a network interface name (IE ppp0 eth0) to an IPv4 address.
+/* Convert a network interface name (IE ppp0 eth0) to an IP address.
  * Returns 0 on success or -1 in case of error. */
-int devname2ipaddr(char *dev, struct in_addr *addr);
+int devname2ipaddr(char *dev, struct sockaddr_storage *addr);
+
+int sockaddr_equal(const struct sockaddr_storage *a,
+  const struct sockaddr_storage *b);
+
+int sockaddr_equal_netmask(const struct sockaddr_storage *a,
+  const struct sockaddr_storage *b, u16 nbits);
+
+int sockaddr_equal_zero(const struct sockaddr_storage *s);
 
 /* Returns an allocated array of struct interface_info representing the
    available interfaces. The number of interfaces is returned in *howmany. This
@@ -317,10 +366,11 @@ struct dnet_collector_route_nfo {
   int numifaces;
 };
 
-/* Looks for an interface with the given name (iname), and returns the
-   corresponding interface_info if found.  Will accept a match of
-   devname or devfullname.  Returns NULL if none found */
-struct interface_info *getInterfaceByName(const char *iname);
+/* Looks for an interface with the given name (iname) and address
+   family type, and returns the corresponding interface_info if found.
+   Will accept a match of devname or devfullname. Returns NULL if
+   none found */
+struct interface_info *getInterfaceByName(const char *iname, int af);
 
 /* Parse the system routing table, converting each route into a
    sys_route entry.  Returns an array of sys_routes.  numroutes is set
@@ -336,18 +386,18 @@ struct sys_route *getsysroutes(int *howmany, char *errstr, size_t errstrlen);
  * localhost. (eg: the address is something like 127.x.x.x, the address
  * matches one of the local network interfaces' address, etc).
  * Returns 1 if the address is thought to be localhost and 0 otherwise */
-int islocalhost(const struct in_addr *const addr);
+int islocalhost(const struct sockaddr_storage *ss);
 
 /* Determines whether the supplied address corresponds to a private,
  * non-Internet-routable address. See RFC1918 for details.
  * Returns 1 if the address is private or 0 otherwise. */
-int isipprivate(const struct in_addr *const addr);
+int isipprivate(const struct sockaddr_storage *addr);
 
 /* Takes binary data found in the IP Options field of an IPv4 packet
  * and returns a string containing an ASCII description of the options
  * found. The function returns a pointer to a static buffer that
  * subsequent calls will overwrite. On error, NULL is returned. */
-char *format_ip_options(u8* ipopt, int ipoptlen);
+char *format_ip_options(const u8* ipopt, int ipoptlen);
 
 /* Returns a buffer of ASCII information about an IP packet that may
  * look like "TCP 127.0.0.1:50923 > 127.0.0.1:3 S ttl=61 id=39516
@@ -362,7 +412,7 @@ char *format_ip_options(u8* ipopt, int ipoptlen);
  * The function provides full support for IPv4,TCP,UDP,SCTP and ICMPv4.
  * It also provides support for standard IPv6 but not for its extension
  * headers. If an IPv6 packet contains an ICMPv6 Header, the output will
- * reflect this but no parsing of ICMPv6 contents will be performed. 
+ * reflect this but no parsing of ICMPv6 contents will be performed.
  *
  * The output has three different levels of detail. Parameter "detail"
  * determines how verbose the output should be. It should take one of
@@ -386,28 +436,34 @@ const char *ippackethdrinfo(const u8 *packet, u32 len, int detail);
  * of the routing details. If the source address needs to be spoofed,
  * it should be passed through "spoofss" (otherwise NULL should be
  * specified), along with a suitable network device (parameter "device").
- * Even if spoofss is NULL, if user specified a network device with -e, 
- * it should still be passed. Note that it's OK to pass either NULL or 
+ * Even if spoofss is NULL, if user specified a network device with -e,
+ * it should still be passed. Note that it's OK to pass either NULL or
  * an empty string as the "device", as long as spoofss==NULL. */
-int route_dst(const struct sockaddr_storage * const dst, struct route_nfo *rnfo,
-              char *device, struct sockaddr_storage *spoofss);
+int route_dst(const struct sockaddr_storage *dst, struct route_nfo *rnfo,
+              const char *device, const struct sockaddr_storage *spoofss);
 
 /* Send an IP packet over a raw socket. */
-int send_ip_packet_sd(int sd, u8 *packet, unsigned int packetlen);
+int send_ip_packet_sd(int sd, const struct sockaddr_in *dst, const u8 *packet, unsigned int packetlen);
 
 /* Send an IP packet over an ethernet handle. */
-int send_ip_packet_eth(struct eth_nfo *eth, u8 *packet, unsigned int packetlen);
+int send_ip_packet_eth(const struct eth_nfo *eth, const u8 *packet, unsigned int packetlen);
 
 /* Sends the supplied pre-built IPv4 packet. The packet is sent through
  * the raw socket "sd" if "eth" is NULL. Otherwise, it gets sent at raw
  * ethernet level. */
-int send_ip_packet_eth_or_sd(int sd, struct eth_nfo *eth, u8 *packet, unsigned int packetlen);
+int send_ip_packet_eth_or_sd(int sd, const struct eth_nfo *eth,
+  const struct sockaddr_in *dst, const u8 *packet, unsigned int packetlen);
+
+/* Sends an IPv4 packet. */
+int send_ipv6_packet_eth_or_sd(int sd, const struct eth_nfo *eth,
+  const struct sockaddr_in6 *dst, const u8 *packet, unsigned int packetlen);
 
 /* Create and send all fragments of a pre-built IPv4 packet.
  * Minimal MTU for IPv4 is 68 and maximal IPv4 header size is 60
  * which gives us a right to cut TCP header after 8th byte */
-int send_frag_ip_packet(int sd, struct eth_nfo *eth, u8 *packet,
-                        unsigned int packetlen, u32 mtu);
+int send_frag_ip_packet(int sd, const struct eth_nfo *eth,
+  const struct sockaddr_in *dst,
+  const u8 *packet, unsigned int packetlen, u32 mtu);
 
 /* Wrapper for system function sendto(), which retries a few times when
  * the call fails. It also prints informational messages about the
@@ -441,6 +497,23 @@ bool doArp(const char *dev, const u8 *srcmac,
                   u8 *targetmac,
                   void (*traceArp_callback)(int, const u8 *, u32 , struct timeval *));
 
+
+/* Issues an Neighbor Solicitation for the MAC of targetss (which will be placed
+   in targetmac if obtained) from the source IP (srcip) and source mac
+   (srcmac) given.  "The request is ussued using device dev to the
+   multicast MAC address.  The transmission is attempted up to 3
+   times.  If none of these elicit a response, false will be returned.
+   If the mac is determined, true is returned. The last parameter is
+   a pointer to a callback function that can be used for packet tracing.
+   This is intended to be used by Nmap only. Any other calling this
+   should pass NULL instead. */
+bool doND(const char *dev, const u8 *srcmac,
+                  const struct sockaddr_storage *srcip,
+                   const struct sockaddr_storage *targetip,
+                   u8 *targetmac,
+                   void (*traceArp_callback)(int, const u8 *, u32 , struct timeval *)
+                    ) ;
+
 /* Attempts to read one IPv4/Ethernet ARP reply packet from the pcap
    descriptor pd.  If it receives one, fills in sendermac (must pass
    in 6 bytes), senderIP, and rcvdtime (can be NULL if you don't care)
@@ -452,6 +525,10 @@ bool doArp(const char *dev, const u8 *srcmac,
    by Nmap only. Any other calling this should pass NULL instead. */
 int read_arp_reply_pcap(pcap_t *pd, u8 *sendermac,
                         struct in_addr *senderIP, long to_usec,
+                        struct timeval *rcvdtime,
+                        void (*traceArp_callback)(int, const u8 *, u32 , struct timeval *));
+int read_ns_reply_pcap(pcap_t *pd, u8 *sendermac,
+                        struct sockaddr_in6 *senderIP, long to_usec,
                         struct timeval *rcvdtime,
                         void (*traceArp_callback)(int, const u8 *, u32 , struct timeval *));
 

@@ -1,6 +1,6 @@
 author = "jah"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"discovery", "intrusive"}
+categories = {"auth", "intrusive"}
 description = [[
 Attempts to enumerate valid usernames on web servers running with the mod_userdir
 module or similar enabled.
@@ -126,7 +126,7 @@ end
 function init()
   local customlist = nmap.registry.args.users or
     (nmap.registry.args.userdir and nmap.registry.args.userdir.users) or
-    nmap.registry.args['userdir.users']
+    stdnse.get_script_args('userdir.users')
   local read, usernames = datafiles.parse_file(customlist or "nselib/data/usernames.lst", {})
   if not read then
     stdnse.print_debug(1, "%s %s", SCRIPT_NAME,

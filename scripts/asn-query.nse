@@ -287,8 +287,8 @@ function asn_description( asn )
 
   -- send query
   local query = ( "AS%s.asn.cymru.com" ):format( asn )
-  local decoded_response, other_response = dns.query( query, options)
-  if type( decoded_response ) ~= "string" then
+  local status, decoded_response = dns.query( query, options )
+  if not status then
     return ""
   end
 
@@ -366,7 +366,7 @@ function get_prefix_length( range )
   last = ipOps.ip_to_bin( last ):reverse()
 
   local hostbits = 0
-  for pos = 1, string.len( first ), 1 do
+  for pos = 1, # first , 1 do
 
     if first:sub( pos, pos ) == "0" and last:sub( pos, pos ) == "1" then
       hostbits = hostbits + 1
@@ -376,7 +376,7 @@ function get_prefix_length( range )
 
   end
 
-  return ( string.len( first ) - hostbits )
+  return ( # first  - hostbits )
 
 end
 
@@ -394,7 +394,7 @@ function get_assignment( ip, prefix )
   if err then return nil, err end
 
   prefix = tonumber( prefix )
-  if not prefix or ( prefix < 0 ) or ( prefix > string.len( some_ip ) ) then
+  if not prefix or ( prefix < 0 ) or ( prefix > # some_ip  ) then
     return nil, "Error in get_assignment: Invalid prefix length."
   end
 
@@ -445,8 +445,8 @@ function nice_output( output, combined_records )
     for j=1,#output,1 do
       -- does everything after the first pipe match for i ~= j?
       if i ~= j and output[i]:match( "[^|]+|([^$]+$)" ) == output[j]:match( "[^|]+|([^$]+$)" ) then
-        first = output[i]:match( "([%x%d:\.]+/%d+)%s|" ) -- the lastmost BGP before the pipe in i.
-        second = output[j]:match( "([%x%d:\.]+/%d+)" ) -- first BGP in j
+        first = output[i]:match( "([%x%d:%.]+/%d+)%s|" ) -- the lastmost BGP before the pipe in i.
+        second = output[j]:match( "([%x%d:%.]+/%d+)" ) -- first BGP in j
         -- add in the new BGP from j and delete j
         if first and second then
           output[i] = output[i]:gsub( first, ("%s and %s"):format( first, second ) )

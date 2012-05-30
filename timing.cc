@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -17,11 +17,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -35,19 +36,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -71,15 +73,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -90,7 +93,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: timing.cc 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: timing.cc 28415 2012-04-07 08:16:08Z david $ */
 
 #include "timing.h"
 #include "NmapOps.h"
@@ -148,23 +151,24 @@ void adjust_timeouts2(const struct timeval *sent,
     to->srtt = delta;
     to->rttvar = MAX(5000, MIN(to->srtt, 2000000));
     to->timeout = to->srtt + (to->rttvar << 2);
-  }
-  else {
+  } else {
+    long rttdelta;
+
     if (delta >= 8000000 || delta < 0) {
       if (o.verbose)
 	error("%s: packet supposedly had rtt of %ld microseconds.  Ignoring time.", __func__, delta);
       return;
     }
-    delta -= to->srtt;
+    rttdelta = delta - to->srtt;
     /* sanity check 2*/
-    if (delta > 1500000 && delta > 3 * to->srtt + 2 * to->rttvar) {
+    if (rttdelta > 1500000 && rttdelta > 3 * to->srtt + 2 * to->rttvar) {
       if (o.debugging) {
-	log_write(LOG_STDOUT, "Bogus delta: %ld (srtt %d) ... ignoring\n", delta, to->srtt);
+	log_write(LOG_STDOUT, "Bogus rttdelta: %ld (srtt %d) ... ignoring\n", rttdelta, to->srtt);
       }
       return;
     }
-    to->srtt += delta >> 3;
-    to->rttvar += (ABS(delta) - to->rttvar) >> 2;
+    to->srtt += rttdelta >> 3;
+    to->rttvar += (ABS(rttdelta) - to->rttvar) >> 2;
     to->timeout = to->srtt + (to->rttvar << 2);  
   }
   if (to->rttvar > 2300000) {
@@ -227,6 +231,93 @@ void enforce_scan_delay(struct timeval *tv) {
   }
 
   return;    
+}
+
+
+/* Returns the scaling factor to use when incrementing the congestion
+   window. */
+double ultra_timing_vals::cc_scale(const struct scan_performance_vars *perf) {
+  double ratio;
+
+  assert(num_replies_received > 0);
+  ratio = (double) num_replies_expected / num_replies_received;
+
+  return MIN(ratio, perf->cc_scale_max);
+}
+
+/* Update congestion variables for the receipt of a reply. */
+void ultra_timing_vals::ack(const struct scan_performance_vars *perf, double scale) {
+  num_replies_received++;
+
+  if (cwnd < ssthresh) {
+    /* In slow start mode. "During slow start, a TCP increments cwnd by at most
+       SMSS bytes for each ACK received that acknowledges new data." */
+    cwnd += perf->slow_incr * cc_scale(perf) * scale;
+    if (cwnd > ssthresh)
+      cwnd = ssthresh;
+  } else {
+    /* Congestion avoidance mode. "During congestion avoidance, cwnd is
+       incremented by 1 full-sized segment per round-trip time (RTT). The
+       equation
+         cwnd += SMSS*SMSS/cwnd
+       provides an acceptable approximation to the underlying principle of
+       increasing cwnd by 1 full-sized segment per RTT." */
+    cwnd += perf->ca_incr / cwnd * cc_scale(perf) * scale;
+  }
+  if (cwnd > perf->max_cwnd)
+    cwnd = perf->max_cwnd;
+}
+
+/* Update congestion variables for a detected drop. */
+void ultra_timing_vals::drop(unsigned in_flight,
+  const struct scan_performance_vars *perf, const struct timeval *now) {
+  /* "When a TCP sender detects segment loss using the retransmission timer, the
+     value of ssthresh MUST be set to no more than the value
+       ssthresh = max (FlightSize / 2, 2*SMSS)
+     Furthermore, upon a timeout cwnd MUST be set to no more than the loss
+     window, LW, which equals 1 full-sized segment (regardless of the value of
+     IW)." */
+  cwnd = perf->low_cwnd;
+  ssthresh = (int) MAX(in_flight / perf->host_drop_ssthresh_divisor, 2);
+  last_drop = *now;
+}
+
+/* Update congestion variables for a detected drop, but less aggressively for
+   group congestion control. */
+void ultra_timing_vals::drop_group(unsigned in_flight,
+  const struct scan_performance_vars *perf, const struct timeval *now) {
+  cwnd = MAX(perf->low_cwnd, cwnd / perf->group_drop_cwnd_divisor);
+  ssthresh = (int) MAX(in_flight / perf->group_drop_ssthresh_divisor, 2);
+  last_drop = *now;
+}
+
+/* Do initialization after the global NmapOps table has been filled in. */
+void scan_performance_vars::init() {
+  /* TODO: I should revisit these values for tuning.  They should probably
+     at least be affected by -T. */
+  low_cwnd = o.min_parallelism ? o.min_parallelism : 1;
+  max_cwnd = MAX(low_cwnd, o.max_parallelism ? o.max_parallelism : 300);
+  group_initial_cwnd = box(low_cwnd, max_cwnd, 10);
+  host_initial_cwnd = group_initial_cwnd;
+  slow_incr = 1;
+  /* The congestion window grows faster with more aggressive timing. */
+  if (o.timing_level < 4)
+    ca_incr = 1;
+  else
+    ca_incr = 2;
+  cc_scale_max = 50;
+  initial_ssthresh = 75;
+  group_drop_cwnd_divisor = 2.0;
+  /* Change the amount that ssthresh drops based on the timing level. */
+  double ssthresh_divisor;
+  if (o.timing_level <= 3)
+    ssthresh_divisor = (3.0 / 2.0);
+  else if (o.timing_level <= 4)
+    ssthresh_divisor = (4.0 / 3.0);
+  else
+    ssthresh_divisor = (5.0 / 4.0);
+  group_drop_ssthresh_divisor = ssthresh_divisor;
+  host_drop_ssthresh_divisor = ssthresh_divisor;
 }
 
 /* current_rate_history defines how far back (in seconds) we look when

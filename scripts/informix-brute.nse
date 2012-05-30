@@ -11,7 +11,7 @@ Performs brute force password auditing against IBM Informix Dynamic Server.
 -- 9088/tcp open  unknown
 -- | informix-brute:  
 -- |   Accounts
--- |     ifxnoob:ifxnoob => Login correct
+-- |     ifxnoob:ifxnoob => Valid credentials
 -- |   Statistics
 -- |_    Perfomed 25024 guesses in 75 seconds, average tps: 320
 --
@@ -28,11 +28,12 @@ Performs brute force password auditing against IBM Informix Dynamic Server.
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"intrusive", "auth"}
+categories = {"intrusive", "brute"}
 
 require 'shortport'
 require 'brute'
 require 'informix'
+require 'creds'
 
 portrule = shortport.port_or_service( { 1526, 9088, 9090, 9092 }, "informix", "tcp", "open") 
 
@@ -78,10 +79,10 @@ Driver =
 				nmap.registry['informix-brute'] = {}
 			end
 			table.insert( nmap.registry['informix-brute'], { ["username"] = username, ["password"] = password } )
-			return true, brute.Account:new(username, password, "OPEN")
+			return true, brute.Account:new(username, password, creds.State.VALID)
 		-- Check for account locked message
 		elseif ( data:match("INFORMIXSERVER does not match either DBSERVERNAME or DBSERVERALIASES") ) then
-			return true, brute.Account:new(username, password, "OPEN")
+			return true, brute.Account:new(username, password, creds.State.VALID)
 		end
 
 		return false, brute.Error:new( data )
@@ -93,21 +94,13 @@ Driver =
 		self.helper:Close()
 	end,
 	
-	--- Perform a connection with the helper, this makes sure that the Informix
-	-- instance is correct.
-	--
-	-- @return status true on success false on failure
-	-- @return err containing the error message on failure
-	check = function( self )
-		return true
-	end,
-	
 }
 
 
 action = function(host, port)
 	local status, result 
 	local engine = brute.Engine:new(Driver, host, port )
+	engine.options.script_name = SCRIPT_NAME
 	
 	status, result = engine:start()
 

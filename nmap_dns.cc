@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -14,11 +14,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -32,19 +33,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -68,15 +70,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -142,7 +145,7 @@
 // * Tune performance parameters
 //
 // * Figure out best way to estimate completion time
-//   and display it in a ScanProgressMeter 
+//   and display it in a ScanProgressMeter
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
@@ -301,7 +304,7 @@ static void addto_etchosts(u32 ip, const char *hname);
 #define ACTION_CNAME_LIST 1
 #define ACTION_TIMEOUT 2
 
-//------------------- Misc code --------------------- 
+//------------------- Misc code ---------------------
 
 static void output_summary() {
   int tp = stat_ok + stat_nx + stat_dropped;
@@ -600,21 +603,39 @@ static u32 parse_inaddr_arpa(unsigned char *buf, int maxlen) {
 // Turns a DNS packet encoded name (see the RFC) and turns it into
 // a normal decimal separated hostname.
 // ASSUMES NAME LENGTH/VALIDITY HAS ALREADY BEEN VERIFIED
-static int encoded_name_to_normal(unsigned char *buf, char *output, int outputsize){
-  while (buf[0]) {
-    if (buf[0] >= outputsize-1) return -1;
-    memcpy(output, buf+1, buf[0]);
-    outputsize -= buf[0];
-    output += buf[0];
-    buf += buf[0]+1;
+static int encoded_name_to_normal(const unsigned char *buf, char *output, int outputsize) {
+  int len;
+  char *p;
 
-    if (buf[0]) {
-      *output++ = '.';
-      outputsize--;
-    } else {
-      *output = '\0';
-    }
+  p = output;
+
+  /* Special case: keep the trailing dot only for the name ".". */
+  if (buf[0] == 0) {
+    if (p + 2 > output + outputsize)
+      return -1;
+    *p++ = '.';
+    *p++ = '\0';
+    return 0;
   }
+
+  while ((len = buf[0]) != 0) {
+    /* Add a dot before every component but the first. */
+    if (p > output) {
+      if (p + 1 > output + outputsize)
+        return -1;
+      *p++ = '.';
+    }
+
+    if (p + len > output + outputsize)
+      return -1;
+    memcpy(p, buf + 1, len);
+    p += len;
+    buf += 1 + len;
+  }
+
+  if (p + 1 > output + outputsize)
+    return -1;
+  *p++ = '\0';
 
   return 0;
 }
@@ -622,7 +643,7 @@ static int encoded_name_to_normal(unsigned char *buf, char *output, int outputsi
 
 // Takes a pointer to the start of a DNS name inside a packet. It makes
 // sure that there is enough space in the name, deals with compression, etc.
-static int advance_past_dns_name(u8 *buf, int buflen, int curbuf, 
+static int advance_past_dns_name(u8 *buf, int buflen, int curbuf,
 			  int *nameloc) {
   int compression=0;
 
@@ -1031,7 +1052,7 @@ static void addto_etchosts(u32 ip, const char *hname) {
   host_elem *he;
   int i;
 
-  if(lookup_etchosts(ip) != NULL) 
+  if(lookup_etchosts(ip) != NULL)
     return;
 
   while(total_size >= HASH_TABLE_SIZE) {
@@ -1191,7 +1212,7 @@ static void nmap_mass_rdns_core(Target **targets, int num_targets) {
 
   if ((lasttrace = o.packetTrace()))
     nsp_settrace(dnspool, NULL, NSOCK_TRACE_LEVEL, o.getStartTime());
-  
+
   connect_dns_servers();
 
   cname_reqs.clear();
@@ -1284,7 +1305,7 @@ static void nmap_system_rdns_core(Target **targets, int num_targets) {
 
   for(i=0, hostI = targets; hostI < targets+num_targets; hostI++, i++) {
     currenths = *hostI;
-      
+
     if (keyWasPressed())
       SPM->printStats((double) i / stat_actual, NULL);
 

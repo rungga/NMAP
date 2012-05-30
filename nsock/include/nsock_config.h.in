@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -55,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_config.h.in 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: nsock_config.h.in 28415 2012-04-07 08:16:08Z david $ */
 
 #undef HAVE_PCAP
 #undef DEC
@@ -70,7 +70,12 @@
 #undef NETBSD
 #undef MACOSX
 
+#undef SOLARIS_BPF_PCAP_CAPTURE
+
 #undef HAVE_NET_BPF_H
 #undef HAVE_SYS_IOCTL_H
 
 #undef HAVE_SSL_SET_TLSEXT_HOST_NAME
+
+#undef HAVE_EPOLL
+

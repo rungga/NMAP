@@ -18,6 +18,7 @@ extern "C" {
 #include "nmap_dns.h"
 #include "osscan.h"
 #include "protocols.h"
+#include "libnetutil/netutil.h"
 
 #include "nse_nmaplib.h"
 #include "nse_utility.h"
@@ -31,6 +32,8 @@ static const int NSE_PROTOCOL[] = {IPPROTO_TCP, IPPROTO_UDP, IPPROTO_SCTP};
 
 void set_version (lua_State *L, const struct serviceDeductions *sd)
 {
+  size_t i;
+
   setsfield(L, -1, "name", sd->name);
   setnfield(L, -1, "name_confidence", sd->name_confidence);
   setsfield(L, -1, "product", sd->product);
@@ -60,6 +63,13 @@ void set_version (lua_State *L, const struct serviceDeductions *sd)
     setnfield(L, -1, "rpc_lowver", sd->rpc_lowver);
     setnfield(L, -1, "rpc_highver", sd->rpc_highver);
   }
+
+  lua_newtable(L);
+  for (i = 0; i < sd->cpe.size(); i++) {
+    lua_pushstring(L, sd->cpe[i]);
+    lua_rawseti(L, -2, i+1);
+  }
+  lua_setfield(L, -2, "cpe");
 }
 
 /* set some port state information onto the
@@ -79,6 +89,68 @@ void set_portinfo (lua_State *L, const Target *target, const Port *port)
   lua_newtable(L);
   set_version(L, &sd);
   lua_setfield(L, -2, "version");
+}
+
+/* Push a string containing the binary contents of the given address. If ss has
+   an unknown address family, push nil. */
+static void push_bin_ip(lua_State *L, const struct sockaddr_storage *ss)
+{
+  if (ss->ss_family == AF_INET) {
+    const struct sockaddr_in *sin;
+
+    sin = (struct sockaddr_in *) ss;
+    lua_pushlstring(L, (char *) &sin->sin_addr.s_addr, IP_ADDR_LEN);
+  } else if (ss->ss_family == AF_INET6) {
+    const struct sockaddr_in6 *sin6;
+
+    sin6 = (struct sockaddr_in6 *) ss;
+    lua_pushlstring(L, (char *) &sin6->sin6_addr.s6_addr, IP6_ADDR_LEN);
+  } else {
+    lua_pushnil(L);
+  }
+}
+
+static void set_string_or_nil(lua_State *L, const char *fieldname, const char *value) {
+  if (value != NULL) {
+    lua_pushstring(L, value);
+    lua_setfield(L, -2, fieldname);
+  }
+}
+
+static void push_osclass_table(lua_State *L,
+  const struct OS_Classification *osclass) {
+  unsigned int i;
+
+  lua_newtable(L);
+
+  set_string_or_nil(L, "vendor", osclass->OS_Vendor);
+  set_string_or_nil(L, "osfamily", osclass->OS_Family);
+  set_string_or_nil(L, "osgen", osclass->OS_Generation);
+  set_string_or_nil(L, "type", osclass->Device_Type);
+
+  lua_newtable(L);
+  for (i = 0; i < osclass->cpe.size(); i++) {
+    lua_pushstring(L, osclass->cpe[i]);
+    lua_rawseti(L, -2, i + 1);
+  }
+  lua_setfield(L, -2, "cpe");
+}
+
+static void push_osmatch_table(lua_State *L, const FingerMatch *match,
+  const OS_Classification_Results *OSR) {
+  int i;
+
+  lua_newtable(L);
+
+  lua_pushstring(L, match->OS_name);
+  lua_setfield(L, -2, "name");
+
+  lua_newtable(L);
+  for (i = 0; i < OSR->OSC_num_matches; i++) {
+    push_osclass_table(L, OSR->OSC[i]);
+    lua_rawseti(L, -2, i + 1);
+  }
+  lua_setfield(L, -2, "classes");
 }
 
 /* set host ip, host name and target name onto the
@@ -113,24 +185,20 @@ void set_hostinfo(lua_State *L, Target *currenths) {
   }
   setsfield(L, -1, "interface", currenths->deviceName());
   setnfield(L, -1, "interface_mtu", currenths->MTU());
-  if ((u32)(currenths->v4host().s_addr))
-  {
-    struct in_addr adr = currenths->v4host();
-    lua_pushlstring(L, (const char *) &adr, 4);
-    lua_setfield(L, -2, "bin_ip");
-  }
-  if ((u32)(currenths->v4source().s_addr))
-  {
-    struct in_addr adr = currenths->v4source();
-    lua_pushlstring(L, (const char *) &adr, 4);
-    lua_setfield(L, -2, "bin_ip_src");
-  }
+
+  push_bin_ip(L, currenths->TargetSockAddr());
+  lua_setfield(L, -2, "bin_ip");
+  push_bin_ip(L, currenths->SourceSockAddr());
+  lua_setfield(L, -2, "bin_ip_src");
 
   lua_newtable(L);
   setnfield(L, -1, "srtt", (lua_Number) currenths->to.srtt / 1000000.0);
   setnfield(L, -1, "rttvar", (lua_Number) currenths->to.rttvar / 1000000.0);
   setnfield(L, -1, "timeout", (lua_Number) currenths->to.timeout / 1000000.0);
   lua_setfield(L, -2, "times");
+
+  lua_newtable(L);
+  lua_setfield(L, -2, "registry");
 
   /* add distance (in hops) if traceroute has been performed */
   if (currenths->traceroute_hops.size() > 0)
@@ -167,12 +235,12 @@ void set_hostinfo(lua_State *L, Target *currenths) {
       FPR->num_perfect_matches <= 8 )
   {
     int i;
+    const OS_Classification_Results *OSR = FPR->getOSClassification();
 
     lua_newtable(L);
-    // this will run at least one time and at most 8 times, see if condition
-    for(i = 0; FPR->accuracy[i] == 1; i++) {
-      lua_pushstring(L, FPR->prints[i]->OS_name);
-      lua_rawseti(L, -2, i+1);
+    for (i = 0; i < FPR->num_perfect_matches; i++) {
+      push_osmatch_table(L, FPR->matches[i], OSR);
+      lua_rawseti(L, -2, i + 1);
     }
     lua_setfield(L, -2, "os");
   }
@@ -321,6 +389,8 @@ static int aux_condvar (lua_State *L)
       return nse_yield(L, 0, NULL);
     case SIGNAL:
       n = lua_objlen(L, lua_upvalueindex(1));
+      if (n == 0)
+        n = 1;
       break;
     case BROADCAST:
       n = 1;
@@ -469,7 +539,7 @@ static int l_set_port_state (lua_State *L)
         target->ports.setPortState(p->portno, p->proto, PORT_CLOSED);
         break;
     }
-    target->ports.setStateReason(p->portno, p->proto, ER_SCRIPT, 0, 0);
+    target->ports.setStateReason(p->portno, p->proto, ER_SCRIPT, 0, NULL);
   }
   return 0;
 }
@@ -493,6 +563,7 @@ static int l_set_port_version (lua_State *L)
   Target *target;
   Port *p;
   Port port;
+  std::vector<const char *> cpe;
   enum service_tunnel_type tunnel = SERVICE_TUNNEL_NONE;
   enum serviceprobestate probestate =
       opversion[luaL_checkoption(L, 3, "hardmatched", ops)];
@@ -522,14 +593,25 @@ static int l_set_port_version (lua_State *L)
   else
     luaL_argerror(L, 2, "invalid value for port.version.service_tunnel");
 
+  lua_getfield(L, 4, "cpe");
+  if (lua_isnil(L, -1))
+    ;
+  else if(lua_istable(L, -1))
+    for (lua_pushnil(L); lua_next(L, -2); lua_pop(L, 1)) {
+      cpe.push_back(lua_tostring(L, -1));
+    }
+  else
+    luaL_error(L, "port.version 'cpe' field must be a table");
+
   if (o.servicescan)
     target->ports.setServiceProbeResults(p->portno, p->proto,
         probestate, name, tunnel, product,
-        version, extrainfo, hostname, ostype, devicetype, NULL);
+        version, extrainfo, hostname, ostype, devicetype,
+        (cpe.size() > 0) ? &cpe : NULL, NULL);
   else
     target->ports.setServiceProbeResults(p->portno, p->proto,
         probestate, name, tunnel, NULL, NULL,
-        NULL, NULL, NULL, NULL, NULL);
+        NULL, NULL, NULL, NULL, NULL, NULL);
 
   return 0;
 }
@@ -695,12 +777,8 @@ static int l_resolve(lua_State *L)
   struct sockaddr_storage ss;
   struct addrinfo *addr, *addrs;
   int i;
-  char *host;
+  const char *host = luaL_checkstring(L, 1);
   int af = fams[luaL_checkoption(L, 2, "unspec", fam_op)];
-
-  if (!lua_isstring(L, 1))
-    luaL_error(L, "Host to resolve must be a string");
-  host = (char *) lua_tostring(L, 1);
 
   addrs = resolve_all(host, af);
 
@@ -739,6 +817,116 @@ static int l_address_family(lua_State *L)
   return 1;
 }
 
+/* return the interface name that was specified with
+ * the -e option
+ */
+static int l_get_interface (lua_State *L)
+{
+  if (*o.device)
+    lua_pushstring(L, o.device);
+  else
+    lua_pushnil(L);
+  return 1;
+}
+
+/* returns a list of tables where each table contains information about each 
+ * interface.
+ */
+static int l_list_interfaces (lua_State *L)
+{
+  int numifs = 0;
+  struct interface_info *iflist;
+  char errstr[256];
+  errstr[0]='\0';
+  char ipstr[INET6_ADDRSTRLEN];
+  struct addr src, bcast;
+
+  iflist = getinterfaces(&numifs, errstr, sizeof(errstr));
+ 
+  int i;
+  
+  if (iflist==NULL || numifs<=0) {
+    lua_pushnil(L);
+    lua_pushstring(L, errstr);
+    return 2;
+  } else {
+    memset(ipstr, 0, INET6_ADDRSTRLEN);
+    memset(&src, 0, sizeof(src));
+    memset(&bcast, 0, sizeof(bcast));
+    lua_newtable(L); //base table
+    
+    for(i=0; i< numifs; i++) {
+      lua_newtable(L); //interface table
+      setsfield(L, -1, "device", iflist[i].devfullname);
+      setsfield(L, -1, "shortname", iflist[i].devname);
+      setnfield(L, -1, "netmask", iflist[i].netmask_bits);
+      setsfield(L, -1, "address", inet_ntop_ez(&(iflist[i].addr), 
+	    sizeof(iflist[i].addr) ));
+      
+      switch (iflist[i].device_type){
+        case devt_ethernet:
+          setsfield(L, -1, "link", "ethernet");
+          lua_pushlstring(L, (const char *) iflist[i].mac, 6);
+          lua_setfield(L, -2, "mac");
+          
+          /* calculate the broadcast address */
+          if (iflist[i].addr.ss_family == AF_INET) {
+          src.addr_type = ADDR_TYPE_IP;
+          src.addr_bits = iflist[i].netmask_bits;
+          src.addr_ip = ((struct sockaddr_in *)&(iflist[i].addr))->sin_addr.s_addr;
+          addr_bcast(&src, &bcast);
+          memset(ipstr, 0, INET6_ADDRSTRLEN);
+          if (addr_ntop(&bcast, ipstr, INET6_ADDRSTRLEN) != NULL)
+            setsfield(L, -1, "broadcast", ipstr);
+          }
+          break;
+        case devt_loopback:
+          setsfield(L, -1, "link", "loopback");
+          break;
+        case devt_p2p:
+          setsfield(L, -1, "link", "p2p");
+          break;
+        case devt_other:
+        default:
+          setsfield(L, -1, "link", "other");
+      }
+      
+      setsfield(L, -1, "up", (iflist[i].device_up ? "up" : "down"));
+      setnfield(L, -1, "mtu", iflist[i].mtu);
+      
+      /* After setting the fields, add the interface table to the base table */
+      lua_rawseti(L, -2, i);
+    }
+  }
+  return 1;
+}
+
+/* return the ttl (time to live) specified with the 
+ * --ttl command line option. If a wrong value is 
+ * specified it defaults to 64.
+ */
+static int l_get_ttl (lua_State *L)
+{
+  if (o.ttl < 0 || o.ttl > 255)
+    lua_pushnumber(L, 64); //default TTL
+  else
+    lua_pushnumber(L, o.ttl);
+  return 1;
+}
+
+/* return the payload length specified by the --data-length 
+ * command line option. If it  * isn't specified or the value 
+ * is out of range then the default value (0) is returned.
+ */
+static int l_get_payload_length(lua_State *L)
+{
+  if (o.extra_payload_length < 0)
+    lua_pushnumber(L, 0); //default payload length
+  else
+    lua_pushnumber(L, o.extra_payload_length);
+  return 1;
+}
+
 int luaopen_nmap (lua_State *L)
 {
   static const luaL_reg nmaplib [] = {
@@ -749,7 +937,6 @@ int luaopen_nmap (lua_State *L)
     {"port_is_excluded", l_port_is_excluded},
     {"new_socket", l_nsock_new},
     {"new_dnet", l_dnet_new},
-    {"get_interface_link", l_dnet_get_interface_link},
     {"clock_ms", l_clock_ms},
     {"clock", l_clock},
     {"log_write", l_log_write},
@@ -765,6 +952,11 @@ int luaopen_nmap (lua_State *L)
     {"is_privileged", l_is_privileged},
     {"resolve", l_resolve},
     {"address_family", l_address_family},
+    {"get_interface", l_get_interface},
+    {"get_interface_info", l_dnet_get_interface_info},
+    {"list_interfaces", l_list_interfaces},
+    {"get_ttl", l_get_ttl},
+    {"get_payload_length",l_get_payload_length},
     {NULL, NULL}
   };
 

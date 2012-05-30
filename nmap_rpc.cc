@@ -1,13 +1,13 @@
 
 /***************************************************************************
- * nmap_rpc.cc -- Functions related to the RPCGrind (-sR) facility of Nmap *
+ * nmap_rpc.cc -- Functions related to the RPCGrind facility of Nmap.      *
  * This includes reading the nmap-rpc services file and sending rpc        *
  * queries and interpreting responses.  The actual scan engine used for    *
  * rpc grinding is pos_scan (which is not in this file)                    *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -17,11 +17,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -35,19 +36,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -71,15 +73,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -90,7 +93,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_rpc.cc 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: nmap_rpc.cc 28519 2012-04-29 23:43:51Z david $ */
 
 
 #include "nmap_rpc.h"
@@ -223,7 +226,7 @@ int send_rpc_query(Target *target_host, unsigned short portno,
      if (numruns++ > 2)
      fatal("Done");  */
 
-  rpch = (struct rpc_hdr *) ((char *)rpch_buf + sizeof(unsigned long));
+  rpch = (struct rpc_hdr *) ((char *)rpch_buf + sizeof(u32));
   memset(rpch, 0, sizeof(struct rpc_hdr));
 
 
@@ -329,16 +332,16 @@ int send_rpc_query(Target *target_host, unsigned short portno,
     if (res == -1) {
       if (o.debugging) {
 	gh_perror("Sendto in %s", __func__);
-	close(udp_rpc_socket);
-	udp_rpc_socket = -1;
       }
+      close(udp_rpc_socket);
+      udp_rpc_socket = -1;
       return -1;
     }
   } else {
     /* TCP socket */
     /* 0x80000000 means only 1 record marking */
-    *(unsigned long *)rpch_buf = htonl(sizeof(struct rpc_hdr) | 0x80000000);
-    res = Send(tcp_rpc_socket, rpch_buf, sizeof(struct rpc_hdr) + sizeof(unsigned long), 0);
+    *(u32 *)rpch_buf = htonl(sizeof(struct rpc_hdr) | 0x80000000);
+    res = Send(tcp_rpc_socket, rpch_buf, sizeof(struct rpc_hdr) + sizeof(u32), 0);
     if (res == -1) {
       if (o.debugging) {
 	gh_perror("Write in %s", __func__);
@@ -406,7 +409,8 @@ static int rpc_are_we_done(char *msg, int msg_len, Target *target,
   }
   if (ntohl(rpc_pack->auth_flavor) != 0 /* AUTH_NULL */ ||
       ntohl(rpc_pack->opaque_length != 0)) {
-    error("Strange -- auth flavor/opaque_length are %lu/%lu should generally be 0/0", rpc_pack->auth_flavor, rpc_pack->opaque_length);
+    error("Strange -- auth flavor/opaque_length are %lu/%lu should generally be 0/0",
+      (unsigned long) rpc_pack->auth_flavor, (unsigned long) rpc_pack->opaque_length);
     rsi->rpc_status = RPC_STATUS_NOT_RPC;
     ss->numqueries_outstanding = 0;
     return 1;
@@ -496,6 +500,19 @@ static int rpc_are_we_done(char *msg, int msg_len, Target *target,
   return 0;
 }
 
+static unsigned short sockaddr_port(const struct sockaddr_storage *ss) {
+  unsigned short port;
+
+  if (ss->ss_family == AF_INET)
+    port = ((struct sockaddr_in *) ss)->sin_port;
+  else if (ss->ss_family == AF_INET6)
+    port = ((struct sockaddr_in6 *) ss)->sin6_port;
+  else
+    port = 0;
+
+  return ntohs(port);
+}
+
 void get_rpc_results(Target *target, struct portinfo *scan,
 		     struct scanstats *ss, struct portinfolist *pil, 
                      struct rpcscaninfo *rsi) {
@@ -505,8 +522,6 @@ void get_rpc_results(Target *target, struct portinfo *scan,
   struct timeval tv;
   int res;
   static char readbuf[512];
-  struct sockaddr_in from;
-  recvfrom6_t fromlen = sizeof(struct sockaddr_in);
   char *current_msg;
   unsigned long current_msg_len;
 
@@ -541,6 +556,10 @@ void get_rpc_results(Target *target, struct portinfo *scan,
     if (sres == -1 && socket_errno() == EINTR)
       continue;
     if (udp_rpc_socket >= 0 && FD_ISSET(udp_rpc_socket, &fds_r)) {
+      struct sockaddr_storage from;
+      recvfrom6_t fromlen = sizeof(from);
+      unsigned short fromport;
+
       res = recvfrom(udp_rpc_socket, readbuf, sizeof(readbuf), 0, (struct sockaddr *) &from, &fromlen);
 
       if (res < 0) {
@@ -551,13 +570,15 @@ void get_rpc_results(Target *target, struct portinfo *scan,
         rsi->rpc_status = RPC_STATUS_NOT_RPC;
         return;
       }
+      fromport = sockaddr_port(&from);
       if (o.debugging > 1)
         log_write(LOG_PLAIN, "Received %d byte UDP packet\n", res);
       /* Now we check that the response is from the expected host/port */
-      if (from.sin_addr.s_addr != target->v4host().s_addr ||
-          from.sin_port != htons(rsi->rpc_current_port->portno)) {
+      if (!sockaddr_storage_equal(&from, target->TargetSockAddr()) ||
+          fromport != rsi->rpc_current_port->portno) {
         if (o.debugging > 1) {
-          log_write(LOG_PLAIN, "Received UDP packet from %d.%d.%d.%d/%hu when expecting packet from %d.%d.%d.%d/%hu\n", NIPQUAD(from.sin_addr.s_addr), ntohs(from.sin_port), NIPQUAD(target->v4host().s_addr), rsi->rpc_current_port->portno);
+          log_write(LOG_PLAIN, "Received UDP packet from %s/%hu", inet_ntop_ez(&from, fromlen), fromport);
+          log_write(LOG_PLAIN, " when expecting packet from %s/%hu\n", target->targetipstr(), rsi->rpc_current_port->portno);
         }
         continue;
       }

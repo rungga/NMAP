@@ -672,9 +672,7 @@ class NmapOptions(object):
                 self.extras.append("-P%s" % arg)
         elif opt == "s":
             for type in arg:
-                if type in "Nn":
-                    self["-sn"] = True
-                elif type in "ACFLMOPRSTUVWXYZ":
+                if type in "ACFLMNOPRSTUVWXYZn":
                     self["-s%s" % type] = True
                 else:
                     self.extras.append("-s%s" % type)

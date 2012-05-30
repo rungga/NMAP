@@ -21,11 +21,7 @@ categories = {"default", "safe"}
 
 require "shortport"
 
-local portfunction = shortport.port_or_service({443,993,995},{'https','imaps','pop3s'})
-
-portrule = function( host, port )
-  return portfunction( host, port ) or port.version.service_tunnel == 'ssl'
-end
+portrule = shortport.ssl
 
 hex2dec = function(hex)
 
@@ -65,7 +61,7 @@ cyphers = function(cypher_list, len)
 
 	if (len == 0) then return "none"; end
 -- something's got broken along the way if these aren't equal
-	if (len ~= string.len(cypher_list)) then
+	if (len ~= #cypher_list) then
 		return "";
 	end
 
@@ -98,7 +94,7 @@ give_n_bytes = function(idx, n, str)
 
 -- returns the next n bytes of a string
 
-	if (idx + (n - 1) > string.len(str)) then
+	if (idx + (n - 1) > #str) then
 		return (idx + n), string.rep(string.char(0x00), n);
 	end
 
@@ -177,8 +173,8 @@ action = function(host, port)
 		return;
 	end
 --try to get entire hello, if we don't already
-	if (string.len(server_hello) < server_hello_len) then
-		status, tmp = socket:receive_bytes(server_hello_len - string.len(server_hello));
+	if (#server_hello < server_hello_len) then
+		status, tmp = socket:receive_bytes(server_hello_len - #server_hello);
 
 		if (not status) then
 			socket:close();

@@ -2,12 +2,12 @@
 .\"     Title: nping
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 12/12/2011
+.\"      Date: 05/19/2012
 .\"    Manual: Nping Reference Guide
 .\"    Source: Nping
 .\"  Language: English
 .\"
-.TH "NPING" "1" "12/12/2011" "Nping" "Nping Reference Guide"
+.TH "NPING" "1" "05/19/2012" "Nping" "Nping Reference Guide"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -92,7 +92,7 @@ This options summary is printed when Nping is run with no arguments\&. It helps 
 .RS 4
 .\}
 .nf
-Nping 0\&.5\&.36TEST2 ( http://nmap\&.org/nping )
+Nping 0\&.5\&.59BETA1 ( http://nmap\&.org/nping )
 Usage: nping [Probe mode] [Options] {target specification}
 
 TARGET SPECIFICATION:
@@ -171,10 +171,11 @@ PAYLOAD OPTIONS:
   \-\-data\-length <len>              : Include len random bytes as payload\&.
 ECHO CLIENT/SERVER:
   \-\-echo\-client <passphrase>       : Run Nping in client mode\&.
-  \-\-echo\-client <passphrase>       : Run Nping in server mode\&.
+  \-\-echo\-server <passphrase>       : Run Nping in server mode\&.
   \-\-echo\-port <port>               : Use custom <port> to listen or connect\&.
   \-\-no\-crypto                      : Disable encryption and authentication\&.
   \-\-once                           : Stop the server after one connection\&.
+  \-\-safe\-payloads                  : Erase application data in echoed packets\&.
 TIMING AND PERFORMANCE:
   Options which take <time> are in seconds, or append \*(Aqms\*(Aq (milliseconds),
   \*(Aqs\*(Aq (seconds), \*(Aqm\*(Aq (minutes), or \*(Aqh\*(Aq (hours) to the value (e\&.g\&. 30m, 0\&.25h)\&.
@@ -1472,6 +1473,13 @@ The \-\-no\-crypto flag might be useful when setting up a public Echo server, be
 This option asks the Echo server to quit after serving one client\&. This is useful when only a single Echo session wants to be established as it eliminates the need to access the remote host to shutdown the server\&.
 .RE
 .PP
+\fB\-\-safe\-payloads\fR (Zero application data before echoing a packet) .\" --safe-payloads (Nping option)
+.RS 4
+This option asks the Echo server to erase any application layer data found in client packets before echoing them\&. When the option is enabled, the Echo server parses the packets received from Echo clients and tries to determine if they contain data beyond the transport layer\&. If such data is found, it is overwritten with zeroes before transmitting the packets to the appropriate Echo client\&.
+.sp
+Echo servers can handle multiple simultaneous clients running multiple echo sessions in parallel\&. In order to determine which packet needs to be echoed to which client and through which session, the Echo server uses an heuristic algorithm\&. Although we have taken every security measure that we could think of to prevent that a client receives an echoed packet that it did not generate, there is always a risk that our algorithm makes a mistake and delivers a packet to the wrong client\&. The \-\-safe\-payloads option is useful for public echo servers or critical deployments where that kind of mistake cannot be afforded\&.
+.RE
+.PP
 The following examples illustrate how Nping\*(Aqs Echo mode can be used to discover intermediate devices\&.
 .PP
 \fBExample\ \&2.\ \&Discovering NAT devices\fR
@@ -1689,9 +1697,9 @@ Level 3
 Like level 2 but also displays the raw hexadecimal dump of sent and received packets\&.
 .RE
 .PP
-Level 4
+Level 4 and higher
 .RS 4
-Currently unused\&.
+Same as level 3\&.
 .RE
 .RE
 .PP
@@ -1780,7 +1788,7 @@ are far more likely to be answered than those sent to Fyodor directly\&. If you 
 \m[blue]\fB\%http://cgi.insecure.org/mailman/listinfo/nmap-dev\fR\m[]\&.
 .PP
 Code patches to fix bugs are even better than bug reports\&. Basic instructions for creating patch files with your changes are available at
-\m[blue]\fB\%http://nmap.org/data/HACKING\fR\m[]\&. Patches may be sent to
+\m[blue]\fB\%https://svn.nmap.org/nmap/HACKING\fR\m[]\&. Patches may be sent to
 nmap\-dev
 (recommended) or to any of the authors listed in the next section directly\&.
 .SH "AUTHORS"

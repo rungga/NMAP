@@ -7,7 +7,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -17,11 +17,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -35,19 +36,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -71,15 +73,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -90,13 +93,14 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: TargetGroup.cc 26831 2011-10-07 04:03:04Z david $ */
+/* $Id: TargetGroup.cc 28519 2012-04-29 23:43:51Z david $ */
 
 #include "tcpip.h"
 #include "TargetGroup.h"
 #include "NmapOps.h"
 #include "nmap_error.h"
 #include "global_structures.h"
+#include "libnetutil/netutil.h"
 
 extern NmapOps o;
 
@@ -115,48 +119,10 @@ void TargetGroup::Initialize() {
   ipsleft = 0;
 }
 
-/* take the object back to the beginning without  (mdmcl)
- * reinitalizing the data structures */  
-int TargetGroup::rewind() {
-
-  /* For netmasks we must set the current address to the
-   * starting address and calculate the ips by distance */
-  if (targets_type == IPV4_NETMASK) {
-    currentaddr = startaddr;
-    if (startaddr.s_addr <= endaddr.s_addr) { 
-      ipsleft = ((unsigned long long) (endaddr.s_addr - startaddr.s_addr)) + 1;
-      return 0; 
-    }
-    else
-      assert(0);
-  }
-  /* For ranges, we easily set current to zero and calculate
-   * the ips by the number of values in the columns */
-  else if (targets_type == IPV4_RANGES) {
-    memset((char *)current, 0, sizeof(current));
-    ipsleft = (unsigned long long) (last[0] + 1) *
-              (unsigned long long) (last[1] + 1) *
-              (unsigned long long) (last[2] + 1) *
-              (unsigned long long) (last[3] + 1);
-    return 0;
-  }
-#if HAVE_IPV6
-  /* For IPV6 there is only one address, this function doesn't
-   * make much sence for IPv6 does it? */
-  else if (targets_type == IPV6_ADDRESS) {
-    ipsleft = 1;
-    return 0;
-  }
-#endif 
-
-  /* If we got this far there must be an error, wrong type */
-  return -1;
-}
-
  /* Initializes (or reinitializes) the object with a new expression, such
     as 192.168.0.0/16 , 10.1.0-5.1-254 , or fe80::202:e3ff:fe14:1102 .  
     Returns 0 for success */  
-int TargetGroup::parse_expr(const char * const target_expr, int af) {
+int TargetGroup::parse_expr(const char *target_expr, int af) {
 
   int i=0,j=0,k=0;
   int start, end;
@@ -174,8 +140,10 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
 
   if (af == AF_INET) {
 
-    if (strchr(hostexp, ':'))
-      fatal("Invalid host expression: %s -- colons only allowed in IPv6 addresses, and then you need the -6 switch", hostexp);
+    if (strchr(hostexp, ':')) {
+      error("Invalid host expression: %s -- colons only allowed in IPv6 addresses, and then you need the -6 switch", hostexp);
+      return 1;
+    }
 
     /*struct in_addr current_in;*/
     addy[0] = addy[1] = addy[2] = addy[3] = addy[4] = NULL;
@@ -224,7 +192,7 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
         freeaddrinfo(addrs);
 
       if (resolvedaddrs.empty()) {
-        error("Failed to resolve given hostname/IP: %s.  Note that you can't use '/mask' AND '1-4,7,100-' style IP ranges", target_net);
+        error("Failed to resolve given hostname/IP: %s.  Note that you can't use '/mask' AND '1-4,7,100-' style IP ranges. If the machine only has an IPv6 address, add the Nmap -6 flag to scan that.", target_net);
         free(hostexp);
         return 1;
       } else {
@@ -266,11 +234,16 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
           *r = '\0';
           addy[i] = r + 1;
         }
-        else if (*r != '*' && *r != ',' && *r != '-' && !isdigit((int) (unsigned char) *r)) 
-          fatal("Invalid character in host specification.  Note in particular that square brackets [] are no longer allowed.  They were redundant and can simply be removed.");
-        *r++;
+        else if (*r != '*' && *r != ',' && *r != '-' && !isdigit((int) (unsigned char) *r)) {
+          error("Invalid character in host specification: %s.  Note in particular that square brackets [] are no longer allowed.  They were redundant and can simply be removed.", target_expr);
+          return 1;
+        }
+        r++;
       }
-      if (i != 3) fatal("Invalid target host specification: %s", target_expr);
+      if (i != 3) {
+        error("Invalid target host specification: %s", target_expr);
+        return 1;
+      }
       
       for(i=0; i < 4; i++) {
         j=0;
@@ -290,10 +263,14 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
           }
        /* if (o.debugging > 2)
         *   log_write(LOG_STDOUT, "The first host is %d, and the last one is %d\n", start, end); */
-          if (start < 0 || start > end || start > 255 || end > 255)
-            fatal("Your host specifications are illegal!");
-          if (j + (end - start) > 255) 
-            fatal("Your host specifications are illegal!");
+          if (start < 0 || start > end || start > 255 || end > 255) {
+            error("Your host specifications are illegal!");
+            return 1;
+          }
+          if (j + (end - start) > 255) {
+            error("Your host specifications are illegal!");
+            return 1;
+          }
           for(k=start; k <= end; k++)
             addresses[i][j++] = k;
           last[i] = j-1;
@@ -315,7 +292,9 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
 
     assert(af == AF_INET6);
     if (strchr(hostexp, '/')) {
-      fatal("Invalid host expression: %s -- slash not allowed.  IPv6 addresses can currently only be specified individually", hostexp);
+      error("Invalid host expression: %s -- slash not allowed.  IPv6 addresses can currently only be specified individually", hostexp);
+      free(hostexp);
+      return 1;
     }
     resolvedname = hostexp;
     if (strchr(hostexp, ':') == NULL)
@@ -420,6 +399,21 @@ int TargetGroup::skip_range(_octet_nums octet) {
   return hosts_skipped;
 }
 
+/* Get the sin6_scope_id member of a sockaddr_in6, based on a device name. This
+   is used to assign scope to all addresses that otherwise lack a scope id when
+   the -e option is used. */
+static int get_scope_id(const char *devname) {
+  struct interface_info *ii;
+
+  if (devname == NULL || devname[0] == '\0')
+    return 0;
+  ii = getInterfaceByName(devname, AF_INET6);
+  if (ii != NULL)
+    return ii->ifindex;
+  else
+    return 0;
+}
+
  /* Grab the next host from this expression (if any) and updates its internal
     state to reflect that the IP was given out.  Returns 0 and
     fills in ss if successful.  ss must point to a pre-allocated
@@ -502,7 +496,10 @@ int TargetGroup::get_next_host(struct sockaddr_storage *ss, size_t *sslen) {
     sin6->sin6_len = *sslen;
 #endif /* SIN_LEN */
     memcpy(sin6->sin6_addr.s6_addr, ip6.sin6_addr.s6_addr, 16);
-    sin6->sin6_scope_id = ip6.sin6_scope_id;
+    if (ip6.sin6_scope_id == 0)
+      sin6->sin6_scope_id = get_scope_id(o.device);
+    else
+      sin6->sin6_scope_id = ip6.sin6_scope_id;
 #else
     fatal("IPV6 not supported on this platform");
 #endif // HAVE_IPV6
@@ -565,7 +562,7 @@ bool TargetGroup::is_resolved_address(const struct sockaddr_storage *ss)
     return false;
   resolvedaddr = *resolvedaddrs.begin();
 
-  return sockaddr_storage_cmp(&resolvedaddr, ss) == 0;
+  return sockaddr_storage_equal(&resolvedaddr, ss);
 }
 
 /* Return a string of the name or address that was resolved for this group. */
@@ -673,6 +670,10 @@ unsigned long NewTargets::insert (const char *target) {
     }
     if (o.current_scantype == SCRIPT_POST_SCAN) {
       error("ERROR: adding targets is disabled in the Post-scanning phase.");
+      return 0;
+    }
+    if (strlen(target) >= 1024) {
+      error("ERROR: new target is too long (>= 1024), failed to add it.");
       return 0;
     }
   }

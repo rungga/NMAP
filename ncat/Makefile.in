@@ -68,8 +68,8 @@ SHTOOL = ../shtool
 # usual directory structure into a different tree.
 DESTDIR = 
 
-SRCS = ncat_main.c ncat_connect.c ncat_core.c ncat_posix.c ncat_listen.c ncat_proxy.c ncat_broker.c ncat_hostmatch.c ncat_ssl.c base64.c http.c util.c sys_wrap.c
-OBJS = ncat_main.o ncat_connect.o ncat_core.o ncat_posix.o ncat_listen.o ncat_proxy.o ncat_broker.o ncat_hostmatch.o ncat_ssl.o base64.o http.o util.o sys_wrap.o
+SRCS = ncat_main.c ncat_connect.c ncat_core.c ncat_posix.c ncat_listen.c ncat_proxy.c ncat_ssl.c base64.c http.c util.c sys_wrap.c
+OBJS = ncat_main.o ncat_connect.o ncat_core.o ncat_posix.o ncat_listen.o ncat_proxy.o ncat_ssl.o base64.o http.o util.o sys_wrap.o
 DATAFILES =
 
 ifneq ($(HAVE_OPENSSL),)
@@ -112,19 +112,23 @@ config.h:
 		        $(SHELL) ./config.status; \
 	fi
 
-test/addrset: test/addrset.o ncat_core.o ncat_hostmatch.o sys_wrap.o util.o
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS) $(LIBS)
+test/addrset: test/addrset.o ncat_core.o sys_wrap.o util.o
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS) $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS) 
 
-test/test-uri: test/test-uri.o base64.o http.o ncat_core.o ncat_hostmatch.o sys_wrap.o util.o
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS) $(LIBS)
+test/test-uri: test/test-uri.o base64.o http.o ncat_core.o  sys_wrap.o util.o
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS) $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS) 
 
-test/test-cmdline-split: test/test-cmdline-split.o ncat_posix.o ncat_core.o ncat_hostmatch.o sys_wrap.o util.o
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS) $(LIBS)
+test/test-cmdline-split: test/test-cmdline-split.o ncat_posix.o ncat_core.o sys_wrap.o util.o
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS) $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS)
 
-test/test-wildcard: test/test-wildcard.o ncat_core.o ncat_hostmatch.o ncat_ssl.o sys_wrap.o util.o
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS) $(LIBS)
+test/test-wildcard: test/test-wildcard.o ncat_core.o ncat_ssl.o sys_wrap.o util.o
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $^ $(LIBS) $(NSOCKLIB) $(NBASELIB) $(OPENSSL_LIBS) $(PCAP_LIBS)
 
 .PHONY: uninstall all clean distclean
+
+../libnetutil/libnetutil.a: ../libnetutil/Makefile
+	@echo Compiling libnetutil;
+	cd ../libnetutil && $(MAKE)
 
 $(NBASEDIR)/libnbase.a: $(NBASEDIR)/Makefile
 	@echo Compiling libnbase;

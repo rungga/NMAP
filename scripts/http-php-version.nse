@@ -28,6 +28,8 @@ categories = {"discovery", "safe"}
 
 require "http"
 require "shortport"
+require "stdnse"
+stdnse.silent_require "openssl"
 
 portrule = shortport.http
 
@@ -50,12 +52,14 @@ local LOGO_HASHES = {
 	-- Brown Dog In Grass (Nadia)
 	["a57bd73e27be03a62dd6b3e1b537a72c"] = {"4.3.0 - 4.3.10"},
 	-- Elephant
-	["fb3bbd9ccc4b3d9e0b3be89c5ff98a14"] = {"5.3.0 - 5.3.5"},
+	["fb3bbd9ccc4b3d9e0b3be89c5ff98a14"] = {"5.3.0 - 5.3.10"},
 }
 
 local CREDITS_HASHES = {
 	["1776a7c1b3255b07c6b9f43b9f50f05e"] = {"5.2.6"},
 	["1ffc970c5eae684bebc0e0133c4e1f01"] = {"5.2.8"},
+	["23f183b78eb4e3ba8b3df13f0a15e5de"] = {"5.3.9 - 5.3.10"},
+	["2e7f5372931a7f6f86786e95871ac947"] = {"5.3.6"},
 	["3422eded2fcceb3c89cabb5156b5d4e2"] = {"4.2.3"},
 	["3c31e4674f42a49108b5300f8e73be26"] = {"5.0.0 - 5.0.5"},
 	["50ac182f03fc56a719a41fc1786d937d"] = {"4.3.11", "4.4.0 - 4.4.4", "4.4.9", "5.0.5-2ubuntu1.1", "5.0.5-pl3-gentoo", "5.1.0 - 5.1.2"},
@@ -81,6 +85,7 @@ local CREDITS_HASHES = {
 	["db23b07a9b426d0d033565b878b1e384"] = {"5.3.0"},
 	["e3b18899d0ffdf8322ed18d7bce3c9a0"] = {"5.3.4 - 5.3.5"},
 	["e54dbf41d985bfbfa316dba207ad6bce"] = {"5.0.0"},
+	["f1f1f60ac0dcd700a1ad30aa81175d34"] = {"5.3.7 - 5.3.8"},
 }
 
 action = function(host, port)
@@ -105,7 +110,7 @@ action = function(host, port)
 	end
 
 	for name, value in pairs(response.header) do
-		if string.match(value, "^PHP") then
+		if string.match(value, "^PHP/") then
 			header_name = name
 			header_value = value
 			break

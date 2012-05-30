@@ -9,6 +9,10 @@
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Static|Win32">
+      <Configuration>Static</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C1E04411-E021-468B-83F1-CB624BBA7589}</ProjectGuid>
@@ -16,6 +20,11 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Static|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
@@ -32,6 +41,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Static|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
@@ -43,8 +56,11 @@
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.\$(Configuration)\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">.\Release\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">.\Release\</IntDir>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">true</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Midl>
@@ -74,12 +90,12 @@
       </ResourceOutputFileName>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>nbase.lib;ws2_32.lib;IPHlpAPI.Lib;wpcap.lib;packet.lib;nsock.lib;advapi32.lib;libeay32.lib;ssleay32.lib</AdditionalDependencies>
+      <AdditionalDependencies>nbase.lib;ws2_32.lib;IPHlpAPI.Lib;wpcap.lib;nsock.lib;advapi32.lib;libeay32.lib;ssleay32.lib</AdditionalDependencies>
       <OutputFile>.\Debug\ncat.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>..\mswin32\lib;..\nsock;..\nbase;..\mswin32\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>packet.dll;wpcap.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>.\Debug/ncat.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
@@ -117,12 +133,12 @@
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>nsock.lib;nbase.lib;ws2_32.lib;IPHlpAPI.Lib;wpcap.lib;packet.lib;advapi32.lib;libeay32.lib;ssleay32.lib</AdditionalDependencies>
+      <AdditionalDependencies>nsock.lib;nbase.lib;ws2_32.lib;IPHlpAPI.Lib;wpcap.lib;advapi32.lib;libeay32.lib;ssleay32.lib</AdditionalDependencies>
       <OutputFile>.\Release/ncat.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>..\mswin32\lib;..\nsock;..\nbase;..\mswin32\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>packet.dll;wpcap.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>wpcap.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
       <ProgramDatabaseFile>.\Release/ncat.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
       <RandomizedBaseAddress>true</RandomizedBaseAddress>
@@ -133,15 +149,55 @@
       <Command>xcopy "..\mswin32\OpenSSL\bin\*.dll" "$(Configuration)\" /y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">
+    <Midl>
+      <TypeLibraryName>.\Release/ncat.tlb</TypeLibraryName>
+      <HeaderFileName>
+      </HeaderFileName>
+    </Midl>
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>.;..;../nbase;..\nsock\include;..\mswin32\pcap-include;..\mswin32\OpenSSL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <PrecompiledHeaderOutputFile>.\Release/ncat.pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>.\Release/</AssemblerListingLocation>
+      <ObjectFileName>.\Release/</ObjectFileName>
+      <ProgramDataBaseFileName>.\Release/</ProgramDataBaseFileName>
+      <WarningLevel>Level2</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>nsock.lib;nbase.lib;ws2_32.lib;IPHlpAPI.Lib;advapi32.lib;libeay32.lib;ssleay32.lib;user32.lib;gdi32.lib</AdditionalDependencies>
+      <OutputFile>.\Release/ncat.exe</OutputFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>..\mswin32\lib;..\nsock;..\nbase;..\mswin32\OpenSSL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <DelayLoadDLLs>%(DelayLoadDLLs)</DelayLoadDLLs>
+      <ProgramDatabaseFile>.\Release/ncat.pdb</ProgramDatabaseFile>
+      <SubSystem>Console</SubSystem>
+      <RandomizedBaseAddress>true</RandomizedBaseAddress>
+      <DataExecutionPrevention>true</DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+    </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="base64.c" />
     <ClCompile Include="http.c" />
     <ClCompile Include="http_digest.c" />
-    <ClCompile Include="ncat_broker.c" />
     <ClCompile Include="ncat_connect.c" />
     <ClCompile Include="ncat_core.c" />
     <ClCompile Include="ncat_exec_win.c" />
-    <ClCompile Include="ncat_hostmatch.c" />
     <ClCompile Include="ncat_listen.c" />
     <ClCompile Include="ncat_main.c" />
     <ClCompile Include="ncat_proxy.c" />
@@ -152,16 +208,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="base64.h" />
-    <ClInclude Include="config.h" />
     <ClInclude Include="http.h" />
     <ClInclude Include="..\mswin32\ifaddrlist.h" />
     <ClInclude Include="..\mswin32\IPExport.h" />
     <ClInclude Include="ncat.h" />
-    <ClInclude Include="ncat_broker.h" />
     <ClInclude Include="ncat_connect.h" />
     <ClInclude Include="ncat_core.h" />
     <ClInclude Include="ncat_exec.h" />
-    <ClInclude Include="ncat_hostmatch.h" />
     <ClInclude Include="ncat_listen.h" />
     <ClInclude Include="ncat_proxy.h" />
     <ClInclude Include="ncat_ssl.h" />
@@ -170,31 +223,6 @@
     <ClInclude Include="sockaddr_u.h" />
     <ClInclude Include="sys_wrap.h" />
     <ClInclude Include="util.h" />
-    <ClInclude Include="NET\Bpf.h" />
-    <ClInclude Include="winip\iphlpapi.h" />
-    <ClInclude Include="..\mswin32\pcap-include\bittypes.h" />
-    <ClInclude Include="..\mswin32\pcap-include\bucket_lookup.h" />
-    <ClInclude Include="..\mswin32\pcap-include\count_packets.h" />
-    <ClInclude Include="..\mswin32\pcap-include\Devioctl.h" />
-    <ClInclude Include="..\mswin32\pcap-include\Gnuc.h" />
-    <ClInclude Include="..\mswin32\pcap-include\ip6_misc.h" />
-    <ClInclude Include="..\mswin32\pcap-include\memory_t.h" />
-    <ClInclude Include="..\mswin32\pcap-include\normal_lookup.h" />
-    <ClInclude Include="..\mswin32\pcap-include\Ntddndis.h" />
-    <ClInclude Include="..\mswin32\pcap-include\Ntddpack.h" />
-    <ClInclude Include="..\mswin32\pcap-include\Packet32.h" />
-    <ClInclude Include="..\mswin32\pcap-include\pcap-bpf.h" />
-    <ClInclude Include="..\mswin32\pcap-include\pcap-int.h" />
-    <ClInclude Include="..\mswin32\pcap-include\pcap-stdinc.h" />
-    <ClInclude Include="..\mswin32\pcap-include\pcap.h" />
-    <ClInclude Include="..\mswin32\pcap-include\pthread.h" />
-    <ClInclude Include="..\mswin32\pcap-include\remote-ext.h" />
-    <ClInclude Include="..\mswin32\pcap-include\sched.h" />
-    <ClInclude Include="..\mswin32\pcap-include\semaphore.h" />
-    <ClInclude Include="..\mswin32\pcap-include\tcp_session.h" />
-    <ClInclude Include="..\mswin32\pcap-include\time_calls.h" />
-    <ClInclude Include="..\mswin32\pcap-include\tme.h" />
-    <ClInclude Include="..\mswin32\pcap-include\Win32-Extensions.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="certs\ca-bundle.crt">
@@ -203,9 +231,13 @@
 </Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(TargetDir)%(Filename).crt;%(Outputs)</Outputs>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Copying %(Filename).crt to output directory...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">Copying %(Filename).crt to output directory...</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">copy /y "%(FullPath)" "$(TargetDir)%(Filename).crt" &gt; nul
 </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">copy /y "%(FullPath)" "$(TargetDir)%(Filename).crt" &gt; nul
+</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(TargetDir)%(Filename).crt;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Static|Win32'">$(TargetDir)%(Filename).crt;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

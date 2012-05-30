@@ -41,18 +41,26 @@ Attempts to get build info and server status from a MongoDB database.
 -- |       note = fields vary by platform
 -- |_      page_faults = 0
 
--- version 0.2
+-- version 0.3
 -- Created 01/12/2010 - v0.1 - created by Martin Holst Swende <martin@swende.se>
+-- Revised 01/03/2012 - v0.3 - added authentication support <patrik@cqure.net>
 
 
 author = "Martin Holst Swende"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
-require "mongodb"
+dependencies = {"mongodb-brute"}
+
+require "creds"
 require "shortport"
+require 'stdnse'
+stdnse.silent_require('mongodb')
+
+local arg_db = stdnse.get_script_args(SCRIPT_NAME .. ".db") or "admin"
 
 portrule = shortport.port_or_service({27017}, {"mongodb"})
+
 function action(host,port)
 
 	local socket = nmap.new_socket()
@@ -68,15 +76,33 @@ function action(host,port)
 
 	try( socket:connect(host, port) )
 	
-	local req, status, statusresponse, buildinfo, packet, err
+	local req, statusresponse, buildinfo, err
 	
-	status, packet = mongodb.serverStatusQuery()
+	-- uglyness to allow creds.mongodb to work, as the port is not recognized
+	-- as mongodb, unless a service scan was run
+	local ps = port.service
+	port.service = 'mongodb'
+	local c = creds.Credentials:new(creds.ALL_DATA, host, port)
+	for cred in c:getCredentials(creds.State.VALID + creds.State.PARAM) do
+		local status, err = mongodb.login(socket, arg_db, cred.user, cred.pass)
+		if ( not(status) ) then
+			return err
+		end
+	end
+	port.service = ps
+	
+	local status, packet = mongodb.serverStatusQuery()
 	if not status then return packet end
 	
 	status,statQResult = mongodb.query(socket, packet)
 	
-	if not status then return statResult end
+	if not status then return statQResult end
 	
+	port.version.name ='mongodb'
+	port.version.product='MongoDB'
+	port.version.name_confidence = 100
+	nmap.set_port_version(host,port,'hardmatched')
+
 	status, packet = mongodb.buildInfoQuery()
 	if not status then return packet end
 	
@@ -86,6 +112,10 @@ function action(host,port)
 		stdnse.log_error(buildQResult) 
 		return buildQResult
 	end
+
+	local versionNumber = buildQResult['version']
+	port.version.product='MongoDB '..versionNumber
+	nmap.set_port_version(host,port,'hardmatched')
 
 	local stat_out = mongodb.queryResultToTable(statQResult)
 	local build_out = mongodb.queryResultToTable(buildQResult)

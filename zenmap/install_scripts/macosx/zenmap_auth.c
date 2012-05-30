@@ -6,11 +6,6 @@
 
 	This program is the first link in the chain
 		zenmap_auth -> zenmap_wrapper.py -> zenmap.bin
-
-	Apart from enabling authorization, as a binary executable this program
-	has the benefit of convincing the operating system that the application
-	is universal when compiled universal. A pure Python wrapper does not
-	have this advantage.
 */
 
 #include <errno.h>

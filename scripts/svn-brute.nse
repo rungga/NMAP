@@ -32,10 +32,11 @@ Performs brute force password auditing against Subversion source code control se
 
 require 'shortport'
 require 'brute'
+require 'creds'
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"intrusive", "auth"}
+categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(3690, "svnserve", "tcp", "open")
 
@@ -117,7 +118,7 @@ svn =
 				return false, "error"
 			end
 		
-			challenge = msg:match("\<.+\>")
+			challenge = msg:match("<.+>")
 		
 			if ( not(challenge) ) then
 				return false, "Failed to read challenge"
@@ -163,7 +164,7 @@ Driver =
         self.__index = self
 		o.host = host
 		o.port = port
-		o.repo = nmap.registry.args['svn-brute.repo']
+		o.repo = stdnse.get_script_args('svn-brute.repo')
 		o.invalid_users = invalid_users
 		return o
 	end,
@@ -207,7 +208,7 @@ Driver =
 			self.invalid_users[username] = true
 			return false, brute.Error:new("Username not found")
 		elseif ( status and msg:match("success") ) then
-			return true, brute.Account:new(username, password, "OPEN")
+			return true, brute.Account:new(username, password, creds.State.VALID)
 		else
 			return false, brute.Error:new( "Incorrect password" )
 		end
@@ -236,8 +237,8 @@ Driver =
 action = function(host, port)
 	local status, accounts 
 	
-	local repo = nmap.registry.args['svn-brute.repo']
-	local force = nmap.registry.args['svn-brute.force']
+	local repo = stdnse.get_script_args('svn-brute.repo')
+	local force = stdnse.get_script_args('svn-brute.force')
 	
 	if ( not(repo) ) then
 		return "No repository specified (see svn-brute.repo)"
@@ -250,12 +251,14 @@ action = function(host, port)
 		return "  \n  Anonymous SVN detected, no authentication needed"
 	end
 	
-	if ( not( svn.auth_mech["CRAM-MD5"] ) ) then
+	if ( not(svn.auth_mech) or not( svn.auth_mech["CRAM-MD5"] ) ) then
 		return "  \n  No supported authentication mechanisms detected"
 	end
 	
 	local invalid_users = {}
-	status, accounts = brute.Engine:new(Driver, host, port, invalid_users):start()
+	local engine = brute.Engine:new(Driver, host, port, invalid_users)
+	engine.options.script_name = SCRIPT_NAME
+	status, accounts = engine:start()
 	if( not(status) ) then
 		return accounts
 	end

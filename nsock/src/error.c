@@ -1,11 +1,10 @@
-
 /***************************************************************************
  * error.c -- a few simple routines for dealing with errors (quitting,     *
  * printing error messages, etc.                                           *
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -54,33 +53,45 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: error.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: error.c 28190 2012-03-01 06:32:23Z fyodor $ */
 
 #include "error.h"
 
 void fatal(char *fmt, ...) {
-va_list  ap;va_start(ap, fmt);
-fflush(stdout);vfprintf(stderr, fmt, ap);
-fprintf(stderr, "\n");va_end(ap);
-exit(1);}
+  va_list ap;
+
+  va_start(ap, fmt);
+  fflush(stdout);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  va_end(ap);
+
+  exit(1);
+}
 
 void pfatal(char *fmt, ...) {
-va_list  ap;va_start(ap, fmt);
-fflush(stdout);
-vfprintf(stderr, fmt, ap);
-fprintf(stderr, ": ");
-perror("");
-fprintf(stderr, "\n");
-va_end(ap);
-exit(1);
+  va_list ap;
+
+  va_start(ap, fmt);
+  fflush(stdout);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, ": ");
+  perror("");
+  fprintf(stderr, "\n");
+  va_end(ap);
+
+  exit(1);
 }
 
 void gh_perror(char *err, ...) {
-va_list  ap;va_start(ap, err);
-fflush(stdout);
-vfprintf(stderr, err, ap);
-va_end(ap);
-perror(" ");
-fflush(stderr);
-return;
+  va_list ap;
+
+  va_start(ap, err);
+  fflush(stdout);
+  vfprintf(stderr, err, ap);
+  va_end(ap);
+
+  perror(" ");
+  fflush(stderr);
 }
+

@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -13,11 +13,12 @@
 # * technology into proprietary software, we sell alternative licenses      *
 # * (contact sales@insecure.com).  Dozens of software vendors already       *
 # * license Nmap technology such as host discovery, port scanning, OS       *
-# * detection, and version detection.                                       *
+# * detection, version detection, and the Nmap Scripting Engine.            *
 # *                                                                         *
 # * Note that the GPL places important restrictions on "derived works", yet *
 # * it does not provide a detailed definition of that term.  To avoid       *
-# * misunderstandings, we consider an application to constitute a           *
+# * misunderstandings, we interpret that term as broadly as copyright law   *
+# * allows.  For example, we consider an application to constitute a        *
 # * "derivative work" for the purpose of this license if it does any of the *
 # * following:                                                              *
 # * o Integrates source code from Nmap                                      *
@@ -31,19 +32,20 @@
 # * o Links to a library or executes a program that does any of the above   *
 # *                                                                         *
 # * The term "Nmap" should be taken to also include any portions or derived *
-# * works of Nmap.  This list is not exclusive, but is meant to clarify our *
-# * interpretation of derived works with some common examples.  Our         *
-# * interpretation applies only to Nmap--we don't speak for other people's  *
-# * GPL works.                                                              *
+# * works of Nmap, as well as other software we distribute under this       *
+# * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+# * but is meant to clarify our interpretation of derived works with some   *
+# * common examples.  Our interpretation applies only to Nmap--we don't     *
+# * speak for other people's GPL works.                                     *
 # *                                                                         *
 # * If you have any questions about the GPL licensing restrictions on using *
 # * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
 # * we also offer alternative license to integrate Nmap into proprietary    *
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
-# * as providing for priority support and updates as well as helping to     *
-# * fund the continued development of Nmap technology.  Please email        *
-# * sales@insecure.com for further information.                             *
+# * as providing for priority support and updates.  They also fund the      *
+# * continued development of Nmap.  Please email sales@insecure.com for     *
+# * further information.                                                    *
 # *                                                                         *
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
@@ -67,15 +69,16 @@
 # * and add new features.  You are highly encouraged to send your changes   *
 # * to nmap-dev@insecure.org for possible incorporation into the main       *
 # * distribution.  By sending these changes to Fyodor or one of the         *
-# * Insecure.Org development mailing lists, it is assumed that you are      *
-# * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
-# * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
-# * will always be available Open Source, but this is important because the *
-# * inability to relicense code has caused devastating problems for other   *
-# * Free Software projects (such as KDE and NASM).  We also occasionally    *
-# * relicense the code to third parties as discussed above.  If you wish to *
-# * specify special license conditions of your contributions, just say so   *
-# * when you send them.                                                     *
+# * Insecure.Org development mailing lists, or checking them into the Nmap  *
+# * source code repository, it is understood (unless you specify otherwise) *
+# * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+# * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+# * code.  Nmap will always be available Open Source, but this is important *
+# * because the inability to relicense code has caused devastating problems *
+# * for other Free Software projects (such as KDE and NASM).  We also       *
+# * occasionally relicense the code to third parties as discussed above.    *
+# * If you wish to specify special license conditions of your               *
+# * contributions, just say so when you send them.                          *
 # *                                                                         *
 # * This program is distributed in the hope that it will be useful, but     *
 # * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -108,6 +111,8 @@ from radialnet.bestwidgets.windows import *
 from radialnet.util.integration import make_graph_from_hosts
 
 
+SLOW_LIMIT = 1000
+
 class TopologyPage(HIGVBox):
     def __init__(self, inventory):
         HIGVBox.__init__(self)
@@ -134,8 +139,24 @@ class TopologyPage(HIGVBox):
                                self.control,
                                self.fisheye)
 
+        self.display_panel = HIGVBox()
+
+        self.radialnet.set_no_show_all(True)
+
+        self.slow_vbox = HIGVBox()
+        self.slow_label = gtk.Label()
+        self.slow_vbox.pack_start(self.slow_label, False, False)
+        show_button = gtk.Button(_("Show the topology anyway"))
+        show_button.connect("clicked", self.show_anyway)
+        self.slow_vbox.pack_start(show_button, False, False)
+        self.slow_vbox.show_all()
+        self.slow_vbox.set_no_show_all(True)
+        self.slow_vbox.hide()
+
+        self.radialnet.show()
+
     def _pack_widgets(self):
-        self.rn_hbox.pack_start(self.radialnet, True, True)
+        self.rn_hbox.pack_start(self.display_panel, True, True)
         self.rn_hbox.pack_start(self.control, False)
 
         self.rn_vbox.pack_start(self.rn_hbox, True, True)
@@ -144,6 +165,9 @@ class TopologyPage(HIGVBox):
         self.pack_start(self.rn_toolbar, False, False)
         self.pack_start(self.rn_vbox, True, True)
 
+        self.display_panel.pack_start(self.slow_vbox, True, False)
+        self.display_panel.pack_start(self.radialnet, True, True)
+
     def add_scan(self, scan):
         """Parses a given XML file and adds the parsed result to the network inventory."""
         self.network_inventory.add_scan(scan)
@@ -151,7 +175,29 @@ class TopologyPage(HIGVBox):
 
     def update_radialnet(self):
         """Creates a graph from network inventory's host list and displays it."""
-        graph = make_graph_from_hosts(self.network_inventory.get_hosts_up())
+        hosts_up = self.network_inventory.get_hosts_up()
+
+        self.slow_label.set_text(_("""\
+Topology is disabled because too many hosts can cause it
+to run slowly. The limit is %d hosts and there are %d.\
+""" % (SLOW_LIMIT, len(hosts_up))))
+
+        if len(hosts_up) <= SLOW_LIMIT:
+            self.radialnet.show()
+            self.slow_vbox.hide()
+            self.update_radialnet_unchecked()
+        else:
+            self.radialnet.hide()
+            self.slow_vbox.show()
+
+    def update_radialnet_unchecked(self):
+        hosts_up = self.network_inventory.get_hosts_up()
+        graph = make_graph_from_hosts(hosts_up)
         self.radialnet.set_empty()
         self.radialnet.set_graph(graph)
         self.radialnet.show()
+
+    def show_anyway(self, widget):
+        self.radialnet.show()
+        self.slow_vbox.hide()
+        self.update_radialnet_unchecked()

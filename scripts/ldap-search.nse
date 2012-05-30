@@ -11,16 +11,25 @@ anonymous bind will be used as a last attempt.
 -- @args ldap.username If set, the script will attempt to perform an LDAP bind using the username and password
 -- @args ldap.password If set, used together with the username to authenticate to the LDAP server
 -- @args ldap.qfilter If set, specifies a quick filter. The library does not support parsing real LDAP filters.
---       The following values are valid for the filter parameter: computer, users or all. If no value is specified it defaults to all.
+--       The following values are valid for the filter parameter: computer, users, ad_dcs, custom or all. If no value is specified it defaults to all.
+-- @args ldap.searchattrib When used with the 'custom' qfilter, this parameter works in conjunction with ldap.searchvalue to allow the user to specify a custom attribute and value as search criteria.
+-- @args ldap.searchvalue When used with the 'custom' qfilter, this parameter works in conjunction with ldap.searchattrib to allow the user to specify a custom attribute and value as search criteria.
+--       This parameter DOES PERMIT the use of the asterisk '*' as a wildcard.
 -- @args ldap.base If set, the script will use it as a base for the search. By default the defaultNamingContext is retrieved and used.
 --       If no defaultNamingContext is available the script iterates over the available namingContexts
 -- @args ldap.attrib If set, the search will include only the attributes specified. For a single attribute a string value can be used, if
 --       multiple attributes need to be supplied a table should be used instead.
 -- @args ldap.maxobjects If set, overrides the number of objects returned by the script (default 20). 
 --       The value -1 removes the limit completely.
+-- @args ldap.savesearch If set, the script will save the output to a file beginning with the specified path and name.  The file suffix 
+--       of .CSV as well as the hostname and port will automatically be added based on the output type selected.
+--
 -- @usage
--- nmap -p 389 --script ldap-search --script-args ldap.username="'cn=ldaptest,cn=users,dc=cqure,dc=net'",ldap.password=ldaptest,
--- ldap.qfilter=users,ldap.attrib=sAMAccountName <host>
+-- nmap -p 389 --script ldap-search --script-args 'ldap.username="cn=ldaptest,cn=users,dc=cqure,dc=net",ldap.password=ldaptest,
+-- ldap.qfilter=users,ldap.attrib=sAMAccountName' <host>
+--
+-- nmap -p 389 --script ldap-search --script-args 'ldap.username="cn=ldaptest,cn=users,dc=cqure,dc=net",ldap.password=ldaptest,
+-- ldap.qfilter=custom,ldap.searchattrib="operatingSystem",ldap.searchvalue="Windows *Server*",ldap.attrib={operatingSystem,whencreated,OperatingSystemServicePack}' <host>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -43,18 +52,37 @@ anonymous bind will be used as a last attempt.
 -- |         sAMAccountName: VMABUSEXP008$
 -- |     dn: CN=ldaptest,CN=Users,DC=cqure,DC=net
 -- |_        sAMAccountName: ldaptest
+-- 
+--
+-- PORT    STATE SERVICE REASON
+-- 389/tcp open  ldap    syn-ack
+-- | ldap-search:
+-- |   Context: DC=cqure,DC=net; QFilter: custom; Attributes: operatingSystem,whencreated,OperatingSystemServicePack
+-- |     dn: CN=USDC01,OU=Domain Controllers,DC=cqure,DC=net
+-- |         whenCreated: 2010/08/27 17:30:16 UTC
+-- |         operatingSystem: Windows Server 2008 R2 Datacenter
+-- |         operatingSystemServicePack: Service Pack 1
+-- |     dn: CN=TESTBOX,OU=Test Servers,DC=cqure,DC=net
+-- |         whenCreated: 2010/09/04 00:33:02 UTC
+-- |         operatingSystem: Windows Server 2008 R2 Standard
+-- |_        operatingSystemServicePack: Service Pack 1
+
 
 -- Credit 
 -- ------
 -- o Martin Swende who provided me with the initial code that got me started writing this.
 
--- Version 0.5
+-- Version 0.8
 -- Created 01/12/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 01/20/2010 - v0.2 - added SSL support
 -- Revised 01/26/2010 - v0.3 - Changed SSL support to comm.tryssl, prefixed arguments with ldap, changes in determination of namingContexts
 -- Revised 02/17/2010 - v0.4 - Added dependencie to ldap-brute and the abilitity to check for ldap accounts (credentials) stored in nmap registry
 --                             Capped output to 20 entries, use ldap.maxObjects to override
 -- Revised 07/16/2010 - v0.5 - Fixed bug with empty contexts, added objectClass person to qfilter users, add error msg for invalid credentials
+-- Revised 09/05/2011 - v0.6 - Added support for saving searches to a file via argument ldap.savesearch
+-- Revised 10/29/2011 - v0.7 - Added support for custom searches and the ability to leverage LDAP substring search functionality added to LDAP.lua
+-- Revised 10/30/2011 - v0.8 - Added support for ad_dcs (AD domain controller ) searches and the ability to leverage LDAP extensibleMatch filter added to LDAP.lua
+
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -73,14 +101,17 @@ function action(host,port)
 	local status
 	local socket, opt	
 	local args = nmap.registry.args
-	local username = args['ldap.username']
-	local password = args['ldap.password']
-	local qfilter = args['ldap.qfilter']
-	local base = args['ldap.base']
-	local attribs = args['ldap.attrib']
+	local username = stdnse.get_script_args('ldap.username')
+	local password = stdnse.get_script_args('ldap.password')
+	local qfilter = stdnse.get_script_args('ldap.qfilter')
+	local searchAttrib = stdnse.get_script_args('ldap.searchattrib')
+	local searchValue = stdnse.get_script_args('ldap.searchvalue')
+	local base = stdnse.get_script_args('ldap.base')
+	local attribs = stdnse.get_script_args('ldap.attrib')
+	local saveFile = stdnse.get_script_args('ldap.savesearch')
 	local accounts
 	local objCount = 0
-	local maxObjects = nmap.registry.args['ldap.maxobjects'] and tonumber(nmap.registry.args['ldap.maxobjects']) or 20
+	local maxObjects = stdnse.get_script_args('ldap.maxobjects') and tonumber(stdnse.get_script_args('ldap.maxobjects')) or 20
 
 	-- In order to discover what protocol to use (SSL/TCP) we need to send a few bytes to the server
 	-- An anonymous bind should do it
@@ -162,6 +193,20 @@ function action(host,port)
 				   }
 	elseif qfilter == "computers" or qfilter == "computer" then
 		filter = { op=ldap.FILTER.equalityMatch, obj='objectClass', val='computer' }
+	
+	elseif qfilter == "ad_dcs" then
+		filter = { op=ldap.FILTER.extensibleMatch, obj='userAccountControl', val='1.2.840.113556.1.4.803:=8192' }
+		
+	elseif qfilter == "custom" then
+		if searchAttrib == nil or searchValue == nil then
+			return "\n\nERROR: Please specify both ldap.searchAttrib and ldap.searchValue using using the custom qfilter."
+		end
+		if string.find(searchValue, '*') == nil then
+			filter = { op=ldap.FILTER.equalityMatch, obj=searchAttrib, val=searchValue }
+		else
+			filter = { op=ldap.FILTER.substrings, obj=searchAttrib, val=searchValue }
+		end
+	
 	elseif qfilter == "all" or qfilter == nil then
 		filter = nil -- { op=ldap.FILTER}
 	else
@@ -195,6 +240,15 @@ function action(host,port)
 		end
 				
 		local result_part = ldap.searchResultToTable( searchResEntries )
+
+		if saveFile then
+			local output_file = saveFile .. "_" .. host.ip .. "_" .. port.number .. ".csv"
+			local save_status, save_err = ldap.searchResultToFile(searchResEntries,output_file)
+			if not save_status then
+				stdnse.print_debug(save_err)
+			end
+		end
+		
 		objCount = objCount + (result_part and #result_part or 0)
 		result_part.name = ""
 

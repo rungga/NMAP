@@ -3,7 +3,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -13,11 +13,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -31,19 +32,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -67,15 +69,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -88,6 +91,7 @@
 
 /*
  * Written by Eddie Bell <ejlbell@gmail.com> 2007
+ * Modified by Colin Rice <dah4k0r@gmail.com> 2011
  */
 
 #include "nmap.h"
@@ -99,38 +103,166 @@
 #ifdef WIN32
 #include "winfix.h"
 #endif
-
 #include <iostream>
 
 extern NmapOps o;
 class PortList;
 
-/* Possible plural and singular reasons */
-const char *reason_text[ER_MAX+1]={ 
-        "reset", "conn-refused", "syn-ack", "syn-ack", "split-handshake-syn",
-        "udp-response", "proto-response", "perm-denied",
-        "net-unreach", "host-unreach", "proto-unreach",
-        "port-unreach", "echo-reply", "unknown", "unknown", "dest-unreach",
-        "source-quench", "net-prohibited", "host-prohibited", "unknown", 
-        "unknown", "admin-prohibited", "unknown", "time-exceeded", "unknown", "unknown",
-        "timestamp-reply", "unknown", "unknown", "unknown", "addressmask-reply",
-        "no-ipid-change", "ipid-change", "arp-response", "tcp-response",
-        "no-response", "init-ack", "abort",
-        "localhost-response", "script-set", "unknown-response","user-set"
+/* reason_string initializer */
+reason_string::reason_string(){
+    this->plural = "unknown";
+    this->singular = this->plural;
+}
+reason_string::reason_string(const char * singular, const char * plural){
+    this->plural = plural;
+    this->singular = singular;
 };
 
-const char *reason_pl_text[ER_MAX+1]={ 
-        "resets", "conn-refused", "syn-acks", "syn-acks", "split-handshake-syns",
-        "udp-responses", "proto-responses", "perm-denieds",
-        "net-unreaches", "host-unreaches", "proto-unreaches",
-        "port-unreaches", "echo-replies", "unknowns", "unknowns", "dest-unreaches",
-        "source-quenches", "net-prohibiteds", "host-prohibiteds", "unknowns", 
-        "unknowns", "admin-prohibiteds", "unknowns", "time-exceededs", "unknowns",
-        "unknowns", "timestamp-replies", "unknowns", "unknowns", "unknowns", 
-        "addressmask-replies", "no-ipid-changes", "ipid-changes", "arp-responses",
-        "tcp-responses", "no-responses", "init-acks", "aborts",
-        "localhost-response", "script-set", "unknown-responses"
+reason_map_type::reason_map_type(){
+    reason_map[ER_RESETPEER] = reason_string("reset","resets");
+    reason_map[ER_CONREFUSED] = reason_string("conn-refused","conn-refused");
+    reason_map[ER_CONACCEPT] = reason_string("syn-ack","syn-acks");
+
+    reason_map[ER_SYNACK] = reason_string("syn-ack","syn-acks");
+    reason_map[ER_SYN] = reason_string("split-handshake-syn","split-handshake-syns");
+    reason_map[ER_UDPRESPONSE] = reason_string("udp-response","udp-responses");
+    reason_map[ER_PROTORESPONSE] = reason_string("proto-response","proto-responses");
+    reason_map[ER_ACCES] = reason_string("perm-denied","perm-denieds");
+
+
+    reason_map[ER_NETUNREACH] = reason_string("net-unreach","net-unreaches");
+    reason_map[ER_HOSTUNREACH] = reason_string("host-unreach","host-unreaches");
+    reason_map[ER_PROTOUNREACH] = reason_string("proto-unreach","proto-unreaches");
+
+    reason_map[ER_PORTUNREACH] = reason_string("port-unreach","port-unreaches");
+    reason_map[ER_ECHOREPLY] = reason_string("echo-reply","echo-replies");
+
+
+    reason_map[ER_DESTUNREACH] = reason_string("dest-unreach","dest-unreaches");
+    reason_map[ER_SOURCEQUENCH] = reason_string("source-quench","source-quenches");
+    reason_map[ER_NETPROHIBITED] = reason_string("net-prohibited","net-prohibiteds");
+
+    reason_map[ER_HOSTPROHIBITED] = reason_string("host-prohibited","host-prohibiteds");
+    reason_map[ER_ADMINPROHIBITED] = reason_string("admin-prohibited","admin-prohibiteds");
+
+    reason_map[ER_TIMEEXCEEDED] = reason_string("time-exceeded","time-exceededs");
+    reason_map[ER_TIMESTAMPREPLY] = reason_string("timestamp-reply","timestamp-replies");
+
+    reason_map[ER_ADDRESSMASKREPLY] = reason_string("addressmask-reply","addressmask-replies");
+    reason_map[ER_NOIPIDCHANGE] = reason_string("no-ipid-change","no-ipid-changes");
+    reason_map[ER_IPIDCHANGE] = reason_string("ipid-change","ipid-changes");
+
+    reason_map[ER_ARPRESPONSE] = reason_string("arp-response","arp-responses");
+    reason_map[ER_NDRESPONSE] = reason_string("nd-response","nd-responses");
+    reason_map[ER_TCPRESPONSE] = reason_string("tcp-response","tcp-responses");
+    reason_map[ER_NORESPONSE] = reason_string("no-response","no-responses");
+
+    reason_map[ER_INITACK] = reason_string("init-ack","init-acks");
+    reason_map[ER_ABORT] = reason_string("abort","aborts");
+
+    reason_map[ER_LOCALHOST] = reason_string("localhost-response","localhost-responses");
+    reason_map[ER_SCRIPT] = reason_string("script-set","script-set");
+    reason_map[ER_UNKNOWN] = reason_string("unknown-response","unknown-responses");
+    reason_map[ER_USER] = reason_string("user-set","user-sets");
+
+    reason_map[ER_NOROUTE] = reason_string("no-route", "no-routes");
+    reason_map[ER_BEYONDSCOPE] = reason_string("beyond-scope", "beyond-scopes");
+    reason_map[ER_REJECTROUTE] = reason_string("reject-route", "reject-routes");
+    reason_map[ER_PARAMPROBLEM] = reason_string("param-problem", "param-problems");
+}
+
+/* Map holding plural and singular versions of error codes */
+reason_map_type reason_map;
+
+/* Function to Translate ICMP codes and types to *
+ * Reason Codes                  */
+
+static reason_codes icmpv4_to_reason(int icmp_type, int icmp_code) {
+
+    switch(icmp_type){
+
+	case ICMP_ECHOREPLY:
+	    return ER_ECHOREPLY;
+
+        case ICMP_UNREACH:
+            switch(icmp_code){
+            case ICMP_UNREACH_NET:
+                return ER_NETUNREACH;
+            case ICMP_UNREACH_HOST:
+                return ER_HOSTUNREACH;
+            case ICMP_UNREACH_PROTO:
+                return ER_PROTOUNREACH;
+            case ICMP_UNREACH_PORT:
+                return ER_PORTUNREACH;
+            case ICMP_UNREACH_NET_PROHIB:
+                return ER_NETPROHIBITED;
+            case ICMP_UNREACH_HOST_PROHIB:
+                return ER_HOSTPROHIBITED;
+            case ICMP_UNREACH_FILTER_PROHIB:
+                return ER_ADMINPROHIBITED;
+            }
+            return ER_UNKNOWN;
+
+        case ICMP_SRCQUENCH:
+            return ER_SOURCEQUENCH;
+
+        case ICMP_TIMEXCEED:
+            return ER_TIMEEXCEEDED;
+
+        case ICMP_TSTAMPREPLY:
+            return ER_TIMESTAMPREPLY;
+
+        case ICMP_MASKREPLY:
+            return ER_ADDRESSMASKREPLY;
+
+
+    }
+    return ER_UNKNOWN;
 };
+
+static reason_codes icmpv6_to_reason(int icmp_type, int icmp_code) {
+
+    switch(icmp_type){
+
+	case ICMPV6_ECHOREPLY:
+	    return ER_ECHOREPLY;
+
+        case ICMPV6_UNREACH:
+            switch(icmp_code) {
+            case ICMPV6_UNREACH_NOROUTE:
+                return ER_NOROUTE;
+            case ICMPV6_UNREACH_PROHIB:
+                return ER_ADMINPROHIBITED;
+            case ICMPV6_UNREACH_SCOPE:
+                return ER_BEYONDSCOPE;
+            case ICMPV6_UNREACH_ADDR:
+                return ER_HOSTUNREACH;
+            case ICMPV6_UNREACH_PORT:
+                return ER_PORTUNREACH;
+            case ICMPV6_UNREACH_FILTER_PROHIB:
+                return ER_ADMINPROHIBITED;
+            case ICMPV6_UNREACH_REJECT_ROUTE:
+                return ER_REJECTROUTE;
+            }
+            return ER_UNKNOWN;
+
+        case ICMPV6_PARAMPROBLEM:
+	    return ER_PARAMPROBLEM;
+
+        case ICMPV6_TIMEXCEED:
+            return ER_TIMEEXCEEDED;
+    }
+    return ER_UNKNOWN;
+};
+
+reason_codes icmp_to_reason(u8 proto, int icmp_type, int icmp_code) {
+	if (proto == IPPROTO_ICMP)
+		return icmpv4_to_reason(icmp_type, icmp_code);
+	else if (proto == IPPROTO_ICMPV6)
+		return icmpv6_to_reason(icmp_type, icmp_code);
+	else
+		return ER_UNKNOWN;
+}
 
 static void state_reason_summary_init(state_reason_summary_t *r) {
 	r->reason_id = ER_UNKNOWN;
@@ -140,7 +272,7 @@ static void state_reason_summary_init(state_reason_summary_t *r) {
 
 static void state_reason_summary_dinit(state_reason_summary_t *r) {
 	state_reason_summary_t *tmp;
-	
+
 	while(r != NULL) {
 		tmp = r->next;
 		free(r);
@@ -161,14 +293,14 @@ static int state_summary_size(state_reason_summary_t *head) {
 	return size;
 }
 
-/* Simon Tatham's linked list merge sort 
+/* Simon Tatham's linked list merge sort
  *
  * Merge sort works really well on linked lists
- * because it does not require the O(N) extra space 
- * needed with arrays */ 
-static state_reason_summary_t *reason_sort(state_reason_summary_t *list) { 
-	state_reason_summary_t *p, *q, *e, *tail; 
-	int insize = 1, nmerges, psize, qsize, i; 
+ * because it does not require the O(N) extra space
+ * needed with arrays */
+static state_reason_summary_t *reason_sort(state_reason_summary_t *list) {
+	state_reason_summary_t *p, *q, *e, *tail;
+	int insize = 1, nmerges, psize, qsize, i;
 
     if (!list)
 	  return NULL;
@@ -177,7 +309,7 @@ static state_reason_summary_t *reason_sort(state_reason_summary_t *list) {
         p = list;
         list = NULL;
         tail = NULL;
-        nmerges = 0;  
+        nmerges = 0;
 
         while (p) {
             nmerges++;
@@ -212,7 +344,7 @@ static state_reason_summary_t *reason_sort(state_reason_summary_t *list) {
       if (!tail)
         return NULL;
       tail->next = NULL;
-      if (nmerges <= 1)  
+      if (nmerges <= 1)
         return list;
       insize *= 2;
     }
@@ -288,17 +420,17 @@ static state_reason_summary_t *print_state_summary_internal(PortList *Ports, int
  * string representation. If 'number' is equal to 1 then the
  * singular is used, otherwise the plural */
 const char *reason_str(reason_t reason_code, unsigned int number) {
-	if(reason_code > ER_MAX) 
-		return "unknown";
-	if(number == 1)
-		return reason_text[reason_code];
-	else
-		return reason_pl_text[reason_code];
+    std::map<reason_codes,reason_string>::iterator itr = reason_map.find((reason_codes)reason_code);
+    reason_string temp = (*itr).second;
+    if (number == SINGULAR){
+        return temp.singular;
+    }
+    return temp.plural;
 }
 
 void state_reason_init(state_reason_t *reason) {
 	reason->reason_id = ER_UNKNOWN;
-	reason->ip_addr.s_addr = 0;
+	reason->ip_addr.ss_family = AF_UNSPEC;
 	reason->ttl = 0;
 }
 
@@ -312,22 +444,22 @@ void print_state_summary(PortList *Ports, unsigned short type) {
 
 	if((reason_head = print_state_summary_internal(Ports, 0)) == NULL)
 		return;
-	
+
 	if(type == STATE_REASON_EMPTY)
-		log_write(LOG_PLAIN, " because of"); 
+		log_write(LOG_PLAIN, " because of");
 	else if(type == STATE_REASON_FULL)
-		log_write(LOG_PLAIN, "Reason:"); 
+		log_write(LOG_PLAIN, "Reason:");
 	else
 		assert(0);
 
 	states = state_summary_size(reason_head);
 	currentr = reason_head;
-
+	
 	while(currentr != NULL) {
 		if(states == 1 && (!first_time))
 			separator = " and ";
 		if(currentr->count > 0) {
-			log_write(LOG_PLAIN, "%s%d %s", (first_time) ? " " : separator, 
+			log_write(LOG_PLAIN, "%s%d %s", (first_time) ? " " : separator,
 				currentr->count, reason_str(currentr->reason_id, currentr->count));
 			first_time = false;
 
@@ -345,7 +477,7 @@ void print_xml_state_summary(PortList *Ports, int state) {
 
 	if((currentr = reason_head = print_state_summary_internal(Ports, state)) == NULL)
 		return;
-	
+
 	while(currentr != NULL) {
 		if(currentr->count > 0) {
 			xml_open_start_tag("extrareasons");
@@ -364,7 +496,7 @@ void print_xml_state_summary(PortList *Ports, int state) {
 char *target_reason_str(Target *t) {
 	static char reason[128];
 	memset(reason,'\0', 128);
-	Snprintf(reason, 128, "received %s", reason_str(t->reason.reason_id, SINGULAR)); 
+	Snprintf(reason, 128, "received %s", reason_str(t->reason.reason_id, SINGULAR));
 	return reason;
 }
 
@@ -375,7 +507,7 @@ char *port_reason_str(state_reason_t r) {
 	static char reason[128];
 	memset(reason,'\0', 128);
 	Snprintf(reason, 128, "%s%s%s", reason_str(r.reason_id, SINGULAR),
-            (r.ip_addr.s_addr==0)?"":" from ",
-            (r.ip_addr.s_addr==0)?"":inet_ntoa(r.ip_addr));
-	return reason;	
+            (r.ip_addr.ss_family==AF_UNSPEC)?"":" from ",
+            (r.ip_addr.ss_family==AF_UNSPEC)?"":inet_ntop_ez(&r.ip_addr, sizeof(r.ip_addr)));
+	return reason;
 }

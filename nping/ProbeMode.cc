@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -14,11 +14,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -32,19 +33,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -68,15 +70,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -93,7 +96,6 @@
 #include "nsock.h"
 #include "output.h"
 #include "NpingOps.h"
-#include "IPv4Header.h"
 
 extern NpingOps o;
 
@@ -233,7 +235,7 @@ int ProbeMode::start(){
                 if( first_time ){
                     ev=nsock_timer_create(nsp, tcpconnect_event_handler, 1, &pkts2send[pc]);
                     first_time=false;
-                    loopret=nsock_loop(nsp, 1);
+                    loopret=nsock_loop(nsp, 2);
                 }else{
                     ev=nsock_timer_create(nsp, tcpconnect_event_handler, o.getDelay()+1, &pkts2send[pc]);
                     loopret=nsock_loop(nsp, o.getDelay()+1);
@@ -281,7 +283,7 @@ int ProbeMode::start(){
                 if( first_time ){
                     ev=nsock_timer_create(nsp, udpunpriv_event_handler, 1, &pkts2send[pc]);
                     first_time=false;
-                    loopret=nsock_loop(nsp, 1);
+                    loopret=nsock_loop(nsp, 2);
                 }else{
                     ev=nsock_timer_create(nsp, udpunpriv_event_handler, o.getDelay(), &pkts2send[pc]);
                     loopret=nsock_loop(nsp, o.getDelay());
@@ -354,7 +356,7 @@ int ProbeMode::start(){
             /* Do user requested times */
             for( c=0; c < o.getPacketCount(); c++){
                 o.targets.rewind();
-                o.setCurrentRound(c+1);
+                o.setCurrentRound( o.issetTTL() ?  ((c%(256-o.getTTL()))+o.getTTL()) : ((c%255)+1 ) ); /* Used in traceroute mode */
                 /* Iterate through all destination ports */
                 for (p=0; p < numTargetPorts; p++){
                     o.targets.rewind();
@@ -391,7 +393,7 @@ int ProbeMode::start(){
                         if( first_time ){
                             ev=nsock_timer_create(nsp, nping_event_handler, 1, &pkts2send[pc]);
                             first_time=false;
-                            loopret=nsock_loop(nsp, 1);
+                            loopret=nsock_loop(nsp, 2);
                         }else{
                             ev=nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
                             loopret=nsock_loop(nsp, o.getDelay()+1);
@@ -408,7 +410,7 @@ int ProbeMode::start(){
             /* Do user requested times */
             for( c=0; c < o.getPacketCount(); c++){
                 o.targets.rewind();
-                o.setCurrentRound(c+1); /* Used in traceroute mode */
+                o.setCurrentRound( o.issetTTL() ?  ((c%(256-o.getTTL()))+o.getTTL()) : ((c%255)+1 ) ); /* Used in traceroute mode */
                 /* Iterate trough all target IP adresses */
                 while( (target=o.targets.getNextTarget()) != NULL ){
 
@@ -437,7 +439,7 @@ int ProbeMode::start(){
                     if( first_time ){
                         ev=nsock_timer_create(nsp, nping_event_handler, 1, &pkts2send[pc]);
                         first_time=false;
-                        loopret=nsock_loop(nsp, 1);
+                        loopret=nsock_loop(nsp, 2);
                     }else{
                         ev=nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
                         loopret=nsock_loop(nsp, o.getDelay()+1);
@@ -587,15 +589,15 @@ int ProbeMode::createIPv4(IPv4Header *i, PacketElement *next_element, const char
     outFatal(QT_3,"createIPv4(): NULL pointer supplied.");
 
   i->setNextElement( next_element );   /* Set datagram payload */
-  i->setDstIP( target->getIPv4Address() );   /* Destination IP */
-  i->setSrcIP( o.spoofSource() ? o.getIPv4SourceAddress() : target->getIPv4SourceAddress());   /* Source IP */
+  i->setDestinationAddress( target->getIPv4Address() );   /* Destination IP */
+  i->setSourceAddress( o.spoofSource() ? o.getIPv4SourceAddress() : target->getIPv4SourceAddress());   /* Source IP */
   i->setTOS( o.getTOS() ); /* Type of service */
   i->setIdentification( o.getIdentification() );   /* Identification */
   i->setNextProto(next_proto);
 
   /* Time to live */
   if(o.issetTraceroute()){
-    i->setTTL( (o.getCurrentRound()<255)? o.getCurrentRound() : (o.getCurrentRound()%255)+1 );
+      i->setTTL( o.getCurrentRound() );
   }else{
     i->setTTL( o.getTTL() );
   }
@@ -644,7 +646,7 @@ int ProbeMode::createIPv6(IPv6Header *i, PacketElement *next_element, const char
     
     /* Hop Limit */
     if ( o.issetTraceroute() ){
-        i->setHopLimit( (o.getCurrentRound()<255)? o.getCurrentRound() : (o.getCurrentRound()%255)+1 );
+        i->setHopLimit( o.getCurrentRound() );
     }else{
         i->setHopLimit( o.getHopLimit() );
     }
@@ -747,7 +749,7 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
  IPv6Header i6;
  TCPHeader t;
  RawData p;
- struct in_addr tip;
+ struct in_addr tip, sip;
 
   if( buff==NULL || filledlen==NULL || target==NULL)
     outFatal(QT_3,"fillPacketTCP(): NULL pointer supplied.");
@@ -756,7 +758,7 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
   if ( o.issetPayloadType() ){
     switch( o.getPayloadType() ){
         case PL_RAND: case PL_HEX: case PL_STRING:
-            p.storeRecvData(o.getPayloadBuffer(), o.getPayloadLen());
+            p.store(o.getPayloadBuffer(), o.getPayloadLen());
         break;
 
         case PL_FILE:
@@ -769,8 +771,8 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
   }
 
   /* Craft TCP Header */
-  t.setSrcPort( o.getSourcePort() );
-  t.setDstPort( port );
+  t.setSourcePort( o.getSourcePort() );
+  t.setDestinationPort( port );
   t.setSeq( o.getTCPSequence() );
   t.setAck( o.getTCPAck() );
   t.setOffset();
@@ -782,7 +784,7 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
   if( o.getFlagTCP(FLAG_ECN) == 1 )  t.setECN();
   if( o.getFlagTCP(FLAG_URG) == 1 )  t.setURG();
   if( o.getFlagTCP(FLAG_ACK) == 1 )  t.setACK();
-  if( o.getFlagTCP(FLAG_PUSH)== 1 )  t.setPUSH();
+  if( o.getFlagTCP(FLAG_PSH) == 1 )  t.setPSH();
   if( o.getFlagTCP(FLAG_RST) == 1 )  t.setRST();
   if( o.getFlagTCP(FLAG_SYN) == 1 )  t.setSYN();
   if( o.getFlagTCP(FLAG_FIN) == 1 )  t.setFIN();
@@ -797,10 +799,12 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
         createIPv4(&i, &t, "TCP", target);
 
         tip=target->getIPv4Address();
-        if( o.getBadsum() == true )
-            t.setSumRandom(tip, i.getSrcIP());
-        else
-            t.setSum(tip, i.getSrcIP() );
+        i.getSourceAddress(&sip);
+        if( o.getBadsum() == true ){
+            t.setSumRandom(tip, sip);
+        }else{
+            t.setSum();
+        }
         /* Store result in user supplied buffer */
         *filledlen = i.dumpToBinaryBuffer(buff, bufflen);
 
@@ -877,7 +881,7 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
  IPv6Header i6;
  UDPHeader u;
  RawData p;
- struct in_addr tip;
+ struct in_addr tip, sip;
 
   if( buff==NULL || filledlen==NULL || target==NULL)
     outFatal(QT_3,"fillPacketUDP(): NULL pointer supplied.");
@@ -887,7 +891,7 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
   if ( o.issetPayloadType() ){
     switch( o.getPayloadType() ){
         case PL_RAND: case PL_HEX:  case PL_STRING:
-            p.storeRecvData(o.getPayloadBuffer(), o.getPayloadLen());
+            p.store(o.getPayloadBuffer(), o.getPayloadLen());
         break;
 
         case PL_FILE:
@@ -900,8 +904,8 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
   }
 
   /* Craft UDP Header */
-  u.setSrcPort( o.getSourcePort() );
-  u.setDstPort( port );
+  u.setSourcePort( o.getSourcePort() );
+  u.setDestinationPort( port );
   u.setTotalLength();
 
  /* Now let's encapsule the TCP packet into an IP packet */
@@ -914,10 +918,12 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
 
         /* Set checksum */
         tip=target->getIPv4Address();
-        if( o.getBadsum() == true )
-            u.setSumRandom(tip, i.getSrcIP());
-        else
-            u.setSum(tip, i.getSrcIP() );
+        i.getSourceAddress(&sip);
+        if( o.getBadsum() == true ){
+            u.setSumRandom(tip, sip);
+        }else{
+            u.setSum();
+        }
         /* Store result in user supplied buffer */
         *filledlen = i.dumpToBinaryBuffer(buff, bufflen);
 
@@ -975,22 +981,21 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
   * Currently this function only supports ICMPv4 packet creation. ICMPv6 will
   * be added in the future.*/
 int ProbeMode::fillPacketICMP(NpingTarget *target, u8 *buff, int bufflen, int *filledlen, int rawfd){
-
- IPv4Header i;
- IPv6Header i6;
- ICMPv4Header c;
- RawData p;
+  IPv4Header i;
+  IPv6Header i6;
+  ICMPv4Header c4;
+  ICMPv6Header c6;
+  RawData p;
 
   if( buff==NULL || filledlen==NULL || target==NULL)
     outFatal(QT_3,"fillPacketICMP(): NULL pointer supplied.");
-
-   outPrint(DBG_4, "fillPacketICMP(target=%p, buff=%p, bufflen=%d, filledlen=%p)", target, buff, bufflen, filledlen);
+  outPrint(DBG_4, "fillPacketICMP(target=%p, buff=%p, bufflen=%d, filledlen=%p)", target, buff, bufflen, filledlen);
 
   /* Add Payload if neccessary */
   if ( o.issetPayloadType() ){
     switch( o.getPayloadType() ){
         case PL_RAND: case PL_HEX: case PL_STRING:
-            p.storeRecvData(o.getPayloadBuffer(), o.getPayloadLen());
+            p.store(o.getPayloadBuffer(), o.getPayloadLen());
         break;
 
         case PL_FILE:
@@ -999,142 +1004,131 @@ int ProbeMode::fillPacketICMP(NpingTarget *target, u8 *buff, int bufflen, int *f
         default:
         break;
     }
-    c.setNextElement( &p );
+    c4.setNextElement( &p );
+    c6.setNextElement( &p );
   }
 
-  c.setType( o.getICMPType() );
-  c.setCode( o.getICMPCode() );
-    
-  /* Lets go for type specific options */
-  switch ( c.getType() ){
+  if( o.ipv4() ){
 
-    case ICMP_UNREACH:
-    break;
+    c4.setType( o.getICMPType() );
+    c4.setCode( o.getICMPCode() );
 
+    /* Lets go for type specific options */
+    switch ( c4.getType() ){
 
-    case ICMP_SOURCEQUENCH:
-    break;
+        case ICMP_REDIRECT:
+            c4.setGatewayAddress( o.getICMPRedirectAddress() );
+        break;
 
+        case ICMP_ECHO:
+        case ICMP_ECHOREPLY:
+            if( o.issetICMPIdentifier() )
+                c4.setIdentifier( o.getICMPIdentifier() );
+            else
+                c4.setIdentifier( target->getICMPIdentifier() );
 
-    case ICMP_REDIRECT:
-        c.setPreferredRouter( o.getICMPRedirectAddress() );
-    break;
+            if( o.issetICMPSequence() )
+                c4.setSequence( o.getICMPSequence() );
+            else
+                c4.setSequence( target->obtainICMPSequence() );
+        break;
 
+        case ICMP_ROUTERADVERT:
+               c4.setAddrEntrySize( 2 );
+               c4.setLifetime( o.getICMPRouterAdvLifetime() );
 
-    case ICMP_ECHO:
-    case ICMP_ECHOREPLY:
-        if( o.issetICMPIdentifier() )
-            c.setIdentifier( o.getICMPIdentifier() );
-        else
-            c.setIdentifier( target->getICMPIdentifier() );
+               if( o.issetICMPAdvertEntry() )
+                    for (int z=0; z<o.getICMPAdvertEntryCount(); z++){
+                        struct in_addr entryaddr;
+                        u32 entrypref;
+                        o.getICMPAdvertEntry(z, &entryaddr, &entrypref );
+                        c4.addRouterAdvEntry(entryaddr, entrypref);
+                    }
+        break;
 
-        if( o.issetICMPSequence() )
-            c.setSequence( o.getICMPSequence() );
-        else
-            c.setSequence( target->obtainICMPSequence() );
-    break;
+        case ICMP_PARAMPROB:
+            c4.setParameterPointer( o.getICMPParamProblemPointer() );
+        break;
 
+        case ICMP_TSTAMP:
+        case ICMP_TSTAMPREPLY:
+            if( o.issetICMPIdentifier() )
+                c4.setIdentifier( o.getICMPIdentifier() );
+            else
+                c4.setIdentifier( target->getICMPIdentifier() );
 
-    case ICMP_ROUTERADVERT:
-           c.setAddrEntrySize( 2 );
-           c.setLifetime( o.getICMPRouterAdvLifetime() );
+            if( o.issetICMPSequence() )
+                c4.setSequence( o.getICMPSequence() );
+            else
+                c4.setSequence( target->obtainICMPSequence() );
+            c4.setOriginateTimestamp( o.getICMPOriginateTimestamp() );
+            c4.setReceiveTimestamp( o.getICMPReceiveTimestamp() );
+            c4.setTransmitTimestamp( o.getICMPTransmitTimestamp() );
+        break;
 
-           if( o.issetICMPAdvertEntry() )
-                for (int z=0; z<o.getICMPAdvertEntryCount(); z++){
-                    struct in_addr entryaddr;
-                    u32 entrypref;
-                    o.getICMPAdvertEntry(z, &entryaddr, &entrypref );
-                    c.addRouterAdvEntry(entryaddr, entrypref);
-                }
-    break;
+        case ICMP_INFO:
+        case ICMP_INFOREPLY:
+        case ICMP_MASK:
+        case ICMP_MASKREPLY:
+        case ICMP_TRACEROUTE:
+        case ICMP_UNREACH:
+        case ICMP_SOURCEQUENCH:
+        case ICMP_ROUTERSOLICIT:
+        case ICMP_TIMXCEED:
+        break;
 
+        default:
+          /* TODO: What do we do here if user specified a non standard type? */
+        break;
 
-    case ICMP_ROUTERSOLICIT:
-    break;
-
-
-    case ICMP_TIMXCEED:
-    break;
-
-
-    case ICMP_PARAMPROB:
-        c.setPointer( o.getICMPParamProblemPointer() );
-    break;
-
-
-    case ICMP_TSTAMP:
-    case ICMP_TSTAMPREPLY:
-        if( o.issetICMPIdentifier() )
-            c.setIdentifier( o.getICMPIdentifier() );
-        else
-            c.setIdentifier( target->getICMPIdentifier() );
-
-        if( o.issetICMPSequence() )
-            c.setSequence( o.getICMPSequence() );
-        else
-            c.setSequence( target->obtainICMPSequence() );
-        c.setOriginateTimestamp( o.getICMPOriginateTimestamp() );
-        c.setReceiveTimestamp( o.getICMPReceiveTimestamp() );
-        c.setTransmitTimestamp( o.getICMPTransmitTimestamp() );
-    break;
-
-
-    case ICMP_INFO:
-    break;
-
-
-    case ICMP_INFOREPLY:
-    break;
-
-
-    case ICMP_MASK:
-    break;
-
-
-    case ICMP_MASKREPLY:
-    break;
-
-
-    case ICMP_TRACEROUTE:
-    break;
-
-
-    default:
-      /* TODO: What do we do here if user specified a non standard type? */
-    break;
-
-}
- /* Compute checksum */
- c.setSum(); /* TODO: Do we want to implement --badsum-icmp? */
-
-
- switch( o.getIPVersion() ){
-
-  case IP_VERSION_4:
+    }
+    /* Compute checksum */
+    c4.setSum(); /* TODO: Do we want to implement --badsum-icmp? */
 
     /* Fill the IPv4Header object with the info from NpingOps */
-    createIPv4(&i, &c, "ICMP", target);
+    createIPv4(&i, &c4, "ICMP", target);
 
     /* Store result in user supplied buffer */
     *filledlen = i.dumpToBinaryBuffer(buff, bufflen);
 
-  break; /* Break case IP_VERSION_4 */
+  }else{
 
-  case IP_VERSION_6:
-    outFatal(QT_3,"IPv6 not supported yet.");
+    c6.setType( o.getICMPType() );
+    c6.setCode( o.getICMPCode() );
+
+    switch( c6.getType() ){
+
+        case ICMPv6_ECHO:
+        case ICMPv6_ECHOREPLY:
+            c6.setIdentifier(o.issetICMPIdentifier() ?  o.getICMPIdentifier() : target->getICMPIdentifier());
+            c6.setSequence(o.issetICMPSequence() ? o.getICMPSequence() : target->obtainICMPSequence());
+        break;
+
+        case ICMPv6_UNREACH:
+        case ICMPv6_PKTTOOBIG:
+        case ICMPv6_TIMXCEED:
+        case ICMPv6_PARAMPROB:
+
+        case ICMPv6_ROUTERSOLICIT:
+        case ICMPv6_ROUTERADVERT:
+        case ICMPv6_NGHBRSOLICIT:
+        case ICMPv6_NGHBRADVERT:
+        case ICMPv6_REDIRECT:
+        case ICMPv6_RTRRENUM:
+        default:
+        break;
+    }
 
     /* Fill the IPv4Header object with the info from NpingOps */
-    createIPv6(&i6, &c, "ICMP", target);
+    createIPv6(&i6, &c6, "ICMPv6", target);
+
+    /* Compute checksum */
+    c6.setSum();
 
     /* Store result in user supplied buffer */
     *filledlen = i6.dumpToBinaryBuffer(buff, bufflen);
-  break;
 
-  default:
-    outFatal(QT_3, "fillPacketICMP(): Wrong IP version in NpingOps\n");
-  break;
-
- }
+  }
 
  return OP_SUCCESS;
 
@@ -1566,7 +1560,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
 
             /* Read a packet */
             nse_readpcap(nse, &link, &linklen, &packet, &packetlen, NULL, &pcaptime);
-
+            
             /* If we are on a Ethernet network, extract the next packet protocol
              * from the Ethernet frame. */
             if( nsi_pcap_linktype(nsi) == DLT_EN10MB ){
@@ -1631,7 +1625,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                         if( prt!=NULL )
                             trg->setProbeRecvTCP(*prt, 0);
                     }
-                }else if (proto==IPPROTO_ICMP){
+                }else if (proto==IPPROTO_ICMP || proto==IPPROTO_ICMPV6){
                     /* we look for a target based on first src addr and second the dest addr of
                     the packet header which is returned in the ICMP packet */
                     trg=o.targets.findTarget( getSrcSockAddrFromIPPacket((u8*)packet, packetlen) );
@@ -1660,6 +1654,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                 getPacketStrInfo("ARP",(const u8*)packet, packetlen, buffer, 512);
                 outPrint(VB_0, "RCVD (%.4fs) %s", o.stats.elapsedRuntime(t), buffer );
                 o.stats.addRecvPacket(packetlen);
+                print_hexdump(VB_3 | NO_NEWLINE, packet, packetlen);
                 /* TODO: find target and call setProbeRecvARP() */
             }
 

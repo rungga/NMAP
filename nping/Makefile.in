@@ -48,7 +48,7 @@ export CFLAGS = $(CXXFLAGS)
 STATIC =
 LDFLAGS = @LDFLAGS@ $(DBGFLAGS) $(STATIC)
 OPENSSL_LIBS = @OPENSSL_LIBS@
-LIBS =  $(NBASEDIR)/libnbase.a $(NSOCKDIR)/src/libnsock.a ../libnetutil/libnetutil.a $(OPENSSL_LIBS) @LIBPCAP_LIBS@ @LIBDNET_LIBS@ @LIBS@ -lpthread
+LIBS =  $(NBASEDIR)/libnbase.a $(NSOCKDIR)/src/libnsock.a ../libnetutil/libnetutil.a $(OPENSSL_LIBS) @LIBPCAP_LIBS@ @LIBDNET_LIBS@ @LIBS@
 # LIBS =  -lefence @LIBS@
 # LIBS =  -lrmalloc @LIBS@
 INSTALL = @INSTALL@
@@ -64,11 +64,11 @@ DESTDIR =
 TARGET = nping
 
 
-export SRCS = ArgParser.cc NetworkLayerElement.cc PacketElement.cc common.cc common_modified.cc nping.cc RawData.cc UDPHeader.cc NpingOps.cc TCPHeader.cc utils.cc utils_net.cc IPv4Header.cc IPv6Header.cc ICMPv4Header.cc output.cc TransportLayerElement.cc stats.cc NpingTargets.cc NpingTarget.cc EthernetHeader.cc ARPHeader.cc EchoHeader.cc EchoServer.cc EchoClient.cc ProbeMode.cc NEPContext.cc Crypto.cc PacketDiff.cc @COMPAT_SRCS@
+export SRCS = ArgParser.cc common.cc common_modified.cc nping.cc NpingOps.cc utils.cc utils_net.cc output.cc stats.cc NpingTargets.cc NpingTarget.cc EchoHeader.cc EchoServer.cc EchoClient.cc ProbeMode.cc NEPContext.cc Crypto.cc PacketDiff.cc @COMPAT_SRCS@
 
-export HDRS = ApplicationLayerElement.h NetworkLayerElement.h TCPHeader.h ArgParser.h nping_config.h TransportLayerElement.h common.h common_modified.h nping.h NpingOps.h UDPHeader.h global_structures.h output.h utils.h utils_net.h IPv4Header.h IPv6Header.h ICMPv4Header.h PacketElement.h RawData.h stats.h NpingTargets.h NpingTarget.h DataLinkLayerElement.h EthernetHeader.h ARPHeader.h EchoHeader.h EchoServer.h EchoClient.h ProbeMode.h NEPContext.h Crypto.h PacketDiff.h
+export HDRS = ArgParser.h nping_config.h common.h common_modified.h nping.h NpingOps.h global_structures.h output.h utils.h utils_net.h stats.h NpingTargets.h NpingTarget.h EchoHeader.h EchoServer.h EchoClient.h ProbeMode.h NEPContext.h Crypto.h PacketDiff.h 
 
-OBJS = ArgParser.o NetworkLayerElement.o PacketElement.o common.o common_modified.o nping.o RawData.o UDPHeader.o  NpingOps.o TCPHeader.o utils.o utils_net.o IPv4Header.o ICMPv4Header.o IPv6Header.o output.o TransportLayerElement.o stats.o NpingTargets.o NpingTarget.o EthernetHeader.o ARPHeader.o EchoHeader.o EchoServer.o EchoClient.o ProbeMode.o NEPContext.o Crypto.o PacketDiff.o @COMPAT_OBJS@
+OBJS = ArgParser.o common.o common_modified.o nping.o NpingOps.o utils.o utils_net.o output.o stats.o NpingTargets.o NpingTarget.o EchoHeader.o EchoServer.o EchoClient.o ProbeMode.o NEPContext.o Crypto.o PacketDiff.o @COMPAT_OBJS@
 
 export DOCS2DIST = leet-nping-ascii-art.txt nping.1 nping-man.html
 

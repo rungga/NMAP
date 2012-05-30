@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -15,11 +15,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -33,19 +34,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -69,15 +71,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -88,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: FingerPrintResults.cc 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: FingerPrintResults.cc 28229 2012-03-07 18:23:33Z david $ */
 
 #include "FingerPrintResults.h"
 #include "osscan.h"
@@ -104,14 +107,18 @@ FingerPrintResults::FingerPrintResults() {
   osscan_opentcpport = osscan_closedtcpport = osscan_closedudpport = -1;
   distance = -1;
   distance_guess = -1;
-  /* We keep FPs holding at least 10 records because Gen1 OS detection
-     doesn't support maxOSTries() */
-  FPs = (FingerPrint **) safe_zalloc(MAX(o.maxOSTries(), 10) * sizeof(FingerPrint *));
   maxTimingRatio = 0;
-  numFPs = 0;
 }
 
 FingerPrintResults::~FingerPrintResults() {
+}
+
+FingerPrintResultsIPv4::FingerPrintResultsIPv4() {
+  FPs = (FingerPrint **) safe_zalloc(o.maxOSTries() * sizeof(FingerPrint *));
+  numFPs = 0;
+}
+
+FingerPrintResultsIPv4::~FingerPrintResultsIPv4() {
   int i;
 
   /* Free OS fingerprints of OS scanning was done */
@@ -121,6 +128,25 @@ FingerPrintResults::~FingerPrintResults() {
   }
   numFPs = 0;
   free(FPs);
+}
+
+FingerPrintResultsIPv6::FingerPrintResultsIPv6() {
+  unsigned int i;
+
+  begin_time.tv_sec = 0;
+  begin_time.tv_usec = 0;
+  for (i = 0; i < sizeof(fp_responses) / sizeof(*fp_responses); i++)
+    fp_responses[i] = NULL;
+  flow_label = 0;
+}
+
+FingerPrintResultsIPv6::~FingerPrintResultsIPv6() {
+  unsigned int i;
+
+  for (i = 0; i < sizeof(fp_responses) / sizeof(*fp_responses); i++) {
+    if (fp_responses[i])
+      delete fp_responses[i];
+  }
 }
 
 const struct OS_Classification_Results *FingerPrintResults::getOSClassification() {
@@ -170,11 +196,24 @@ const char *FingerPrintResults::OmitSubmissionFP() {
 
   if (osscan_closedudpport < 0 && !o.udpscan) {
     /* If we didn't get a U1 response, that might be just
-       because we didn't search for an open port rather than
+       because we didn't search for an closed port rather than
        because this OS doesn't respond to that sort of probe.
        So we don't print FP if U1 response is lacking AND no UDP
        scan was performed. */
     return "Didn't receive UDP response. Please try again with -sSU";
+  }
+
+  return NULL;
+}
+
+/* IPv6 classification is more robust to errors than IPv4, so apply less
+   stringent conditions than the general OmitSubmissionFP. */
+const char *FingerPrintResultsIPv6::OmitSubmissionFP() {
+  static char reason[128];
+
+  if (o.scan_delay > 500) { // This can screw up the sequence timing
+    Snprintf(reason, sizeof(reason), "Scan delay (%d) is greater than 500", o.scan_delay);
+    return reason;
   }
 
   return NULL;
@@ -198,29 +237,31 @@ void FingerPrintResults::populateClassification() {
 
   for(printno = 0; printno < num_matches; printno++) {
     // a single print may have multiple classifications
-    for (osclass = prints[printno]->OS_class.begin();
-         osclass != prints[printno]->OS_class.end();
+    for (osclass = matches[printno]->OS_class.begin();
+         osclass != matches[printno]->OS_class.end();
          osclass++) {
       if (!classAlreadyExistsInResults(&*osclass)) {
-	// Then we have to add it ... first ensure we have room
-	if (OSR.OSC_num_matches == MAX_FP_RESULTS) {
-	  // Out of space ... if the accuracy of this one is 100%, we have a problem
-	  if (accuracy[printno] == 1.0) OSR.overall_results = OSSCAN_TOOMANYMATCHES;
-	  return;
-	}
+        // Then we have to add it ... first ensure we have room
+        if (OSR.OSC_num_matches == MAX_FP_RESULTS) {
+          // Out of space ... if the accuracy of this one is 100%, we have a problem
+          if (printno < num_perfect_matches)
+            OSR.overall_results = OSSCAN_TOOMANYMATCHES;
+          return;
+        }
 
-	// We have space, but do we even want this one?  No point
-	// including lesser matches if we have 1 or more perfect
-	// matches.
-	if (OSR.OSC_num_perfect_matches > 0 && accuracy[printno] < 1.0) {
-	  return;
-	}
+        // We have space, but do we even want this one?  No point
+        // including lesser matches if we have 1 or more perfect
+        // matches.
+        if (OSR.OSC_num_perfect_matches > 0 && printno >= num_perfect_matches) {
+          return;
+        }
 
-	// OK, we will add the new class
-       OSR.OSC[OSR.OSC_num_matches] = &*osclass;
-	OSR.OSC_Accuracy[OSR.OSC_num_matches] = accuracy[printno];
-	if (accuracy[printno] == 1.0) OSR.OSC_num_perfect_matches++;
-	OSR.OSC_num_matches++;
+        // OK, we will add the new class
+        OSR.OSC[OSR.OSC_num_matches] = &*osclass;
+        OSR.OSC_Accuracy[OSR.OSC_num_matches] = accuracy[printno];
+        if (printno < num_perfect_matches)
+          OSR.OSC_num_perfect_matches++;
+        OSR.OSC_num_matches++;
       }
     }
   }
@@ -231,16 +272,25 @@ void FingerPrintResults::populateClassification() {
   return;
 }
 
+/* Return true iff s and t are both NULL or both the same string. */
+static bool strnulleq(const char *s, const char *t) {
+  if (s == NULL && t == NULL)
+    return true;
+  else if (s == NULL || t == NULL)
+    return false;
+  else
+    return strcmp(s, t) == 0;
+}
+
 // Go through any previously enterted classes to see if this is a dupe;
 bool FingerPrintResults::classAlreadyExistsInResults(struct OS_Classification *OSC) {
   int i;
 
   for (i=0; i < OSR.OSC_num_matches; i++) {
-    if (!strcmp(OSC->OS_Vendor, OSR.OSC[i]->OS_Vendor)  &&
-	!strcmp(OSC->OS_Family, OSR.OSC[i]->OS_Family)  &&
-	!strcmp(OSC->Device_Type, OSR.OSC[i]->Device_Type) &&
-	!strcmp(OSC->OS_Generation? OSC->OS_Generation : "", 
-		OSR.OSC[i]->OS_Generation? OSR.OSC[i]->OS_Generation : "")) {
+    if (strnulleq(OSC->OS_Vendor, OSR.OSC[i]->OS_Vendor) &&
+        strnulleq(OSC->OS_Family, OSR.OSC[i]->OS_Family) &&
+        strnulleq(OSC->Device_Type, OSR.OSC[i]->Device_Type) &&
+        strnulleq(OSC->OS_Generation, OSR.OSC[i]->OS_Generation)) {
     // Found a duplicate!
     return true;
     }

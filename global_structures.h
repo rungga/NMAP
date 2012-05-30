@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -15,11 +15,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -33,19 +34,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -69,15 +71,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -88,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: global_structures.h 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: global_structures.h 28192 2012-03-01 06:53:35Z fyodor $ */
 
 
 #ifndef GLOBAL_STRUCTURES_H
@@ -159,6 +162,10 @@ struct ftpinfo {
 struct AVal {
   const char *attribute;
   const char *value;
+
+  bool operator<(const AVal& other) const {
+    return strcmp(attribute, other.attribute) < 0;
+  }
 };
 
 struct OS_Classification {
@@ -166,21 +173,38 @@ struct OS_Classification {
   const char *OS_Family;
   const char *OS_Generation; /* Can be NULL if unclassified */
   const char *Device_Type;
+  std::vector<const char *> cpe;
+};
+
+/* A description of an operating system: a human-readable name and a list of
+   classifications. */
+struct FingerMatch {
+  int line; /* For reference prints, the line # in nmap-os-db */
+  char *OS_name;
+  std::vector<OS_Classification> OS_class;
+
+  FingerMatch() {
+    line = -1;
+    OS_name = NULL;
+  }
 };
 
 struct FingerTest {
   const char *name;
   std::vector<struct AVal> results;
   const struct AVal *getattrbyname(const char *name) const;
+
+  bool operator<(const FingerTest& other) const {
+    return strcmp(name, other.name) < 0;
+  }
 };
 
 struct FingerPrint {
-  int line; /* For reference prints, the line # in nmap-os-db */
-  char *OS_name;
-  std::vector<OS_Classification> OS_class;
+  FingerMatch match;
   std::vector<FingerTest> tests;
   const FingerTest *gettestbyname(const char *name) const;
   FingerPrint();
+  void sort();
 };
 
 /* This structure contains the important data from the fingerprint
@@ -191,6 +215,58 @@ struct FingerPrintDB {
 
   FingerPrintDB();
   ~FingerPrintDB();
+};
+
+/* Based on TCP congestion control techniques from RFC2581. */
+struct ultra_timing_vals {
+  double cwnd; /* Congestion window - in probes */
+  int ssthresh; /* The threshold above which mode is changed from slow start
+		   to congestion avoidance */
+  /* The number of replies we would expect if every probe produced a reply. This
+     is almost like the total number of probes sent but it is not incremented
+     until a reply is received or a probe times out. This and
+     num_replies_received are used to scale congestion window increments. */
+  int num_replies_expected;
+  /* The number of replies we've received to probes of any type. */
+  int num_replies_received;
+  /* Number of updates to this timing structure (generally packet receipts). */
+  int num_updates;
+  /* Last time values were adjusted for a drop (you usually only want
+     to adjust again based on probes sent after that adjustment so a
+     sudden batch of drops doesn't destroy timing.  Init to now */
+  struct timeval last_drop;
+
+  double cc_scale(const struct scan_performance_vars *perf);
+  void ack(const struct scan_performance_vars *perf, double scale = 1.0);
+  void drop(unsigned in_flight,
+    const struct scan_performance_vars *perf, const struct timeval *now);
+  void drop_group(unsigned in_flight,
+    const struct scan_performance_vars *perf, const struct timeval *now);
+};
+
+/* These are mainly initializers for ultra_timing_vals. */
+struct scan_performance_vars {
+  int low_cwnd;  /* The lowest cwnd (congestion window) allowed */
+  int host_initial_cwnd; /* Initial congestion window for ind. hosts */
+  int group_initial_cwnd; /* Initial congestion window for all hosts as a group */
+  int max_cwnd; /* I should never have more than this many probes
+		   outstanding */
+  int slow_incr; /* How many probes are incremented for each response
+		    in slow start mode */
+  int ca_incr; /* How many probes are incremented per (roughly) rtt in 
+		  congestion avoidance mode */
+  int cc_scale_max; /* The maximum scaling factor for congestion window
+		       increments. */
+  int initial_ssthresh;
+  double group_drop_cwnd_divisor; /* all-host group cwnd divided by this
+				     value if any packet drop occurs */
+  double group_drop_ssthresh_divisor; /* used to drop the group ssthresh when
+					 any drop occurs */
+  double host_drop_ssthresh_divisor; /* used to drop the host ssthresh when
+					 any drop occurs */
+
+  /* Do initialization after the global NmapOps table has been filled in. */
+  void init();
 };
 
 struct timeout_info {
@@ -244,6 +320,6 @@ struct scan_lists {
 	int prot_count;
 };
 
-typedef enum { STYPE_UNKNOWN, HOST_DISCOVERY, ACK_SCAN, SYN_SCAN, FIN_SCAN, XMAS_SCAN, UDP_SCAN, CONNECT_SCAN, NULL_SCAN, WINDOW_SCAN, SCTP_INIT_SCAN, SCTP_COOKIE_ECHO_SCAN, RPC_SCAN, MAIMON_SCAN, IPPROT_SCAN, PING_SCAN, PING_SCAN_ARP, IDLE_SCAN, BOUNCE_SCAN, SERVICE_SCAN, OS_SCAN, SCRIPT_PRE_SCAN, SCRIPT_SCAN, SCRIPT_POST_SCAN, TRACEROUTE}stype;
+typedef enum { STYPE_UNKNOWN, HOST_DISCOVERY, ACK_SCAN, SYN_SCAN, FIN_SCAN, XMAS_SCAN, UDP_SCAN, CONNECT_SCAN, NULL_SCAN, WINDOW_SCAN, SCTP_INIT_SCAN, SCTP_COOKIE_ECHO_SCAN, RPC_SCAN, MAIMON_SCAN, IPPROT_SCAN, PING_SCAN, PING_SCAN_ARP, IDLE_SCAN, BOUNCE_SCAN, SERVICE_SCAN, OS_SCAN, SCRIPT_PRE_SCAN, SCRIPT_SCAN, SCRIPT_POST_SCAN, TRACEROUTE, PING_SCAN_ND }stype;
 
 #endif /*GLOBAL_STRUCTURES_H */

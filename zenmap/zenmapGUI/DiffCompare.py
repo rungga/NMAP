@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -13,11 +13,12 @@
 # * technology into proprietary software, we sell alternative licenses      *
 # * (contact sales@insecure.com).  Dozens of software vendors already       *
 # * license Nmap technology such as host discovery, port scanning, OS       *
-# * detection, and version detection.                                       *
+# * detection, version detection, and the Nmap Scripting Engine.            *
 # *                                                                         *
 # * Note that the GPL places important restrictions on "derived works", yet *
 # * it does not provide a detailed definition of that term.  To avoid       *
-# * misunderstandings, we consider an application to constitute a           *
+# * misunderstandings, we interpret that term as broadly as copyright law   *
+# * allows.  For example, we consider an application to constitute a        *
 # * "derivative work" for the purpose of this license if it does any of the *
 # * following:                                                              *
 # * o Integrates source code from Nmap                                      *
@@ -31,19 +32,20 @@
 # * o Links to a library or executes a program that does any of the above   *
 # *                                                                         *
 # * The term "Nmap" should be taken to also include any portions or derived *
-# * works of Nmap.  This list is not exclusive, but is meant to clarify our *
-# * interpretation of derived works with some common examples.  Our         *
-# * interpretation applies only to Nmap--we don't speak for other people's  *
-# * GPL works.                                                              *
+# * works of Nmap, as well as other software we distribute under this       *
+# * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+# * but is meant to clarify our interpretation of derived works with some   *
+# * common examples.  Our interpretation applies only to Nmap--we don't     *
+# * speak for other people's GPL works.                                     *
 # *                                                                         *
 # * If you have any questions about the GPL licensing restrictions on using *
 # * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
 # * we also offer alternative license to integrate Nmap into proprietary    *
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
-# * as providing for priority support and updates as well as helping to     *
-# * fund the continued development of Nmap technology.  Please email        *
-# * sales@insecure.com for further information.                             *
+# * as providing for priority support and updates.  They also fund the      *
+# * continued development of Nmap.  Please email sales@insecure.com for     *
+# * further information.                                                    *
 # *                                                                         *
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
@@ -67,15 +69,16 @@
 # * and add new features.  You are highly encouraged to send your changes   *
 # * to nmap-dev@insecure.org for possible incorporation into the main       *
 # * distribution.  By sending these changes to Fyodor or one of the         *
-# * Insecure.Org development mailing lists, it is assumed that you are      *
-# * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
-# * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
-# * will always be available Open Source, but this is important because the *
-# * inability to relicense code has caused devastating problems for other   *
-# * Free Software projects (such as KDE and NASM).  We also occasionally    *
-# * relicense the code to third parties as discussed above.  If you wish to *
-# * specify special license conditions of your contributions, just say so   *
-# * when you send them.                                                     *
+# * Insecure.Org development mailing lists, or checking them into the Nmap  *
+# * source code repository, it is understood (unless you specify otherwise) *
+# * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+# * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+# * code.  Nmap will always be available Open Source, but this is important *
+# * because the inability to relicense code has caused devastating problems *
+# * for other Free Software projects (such as KDE and NASM).  We also       *
+# * occasionally relicense the code to third parties as discussed above.    *
+# * If you wish to specify special license conditions of your               *
+# * contributions, just say so when you send them.                          *
 # *                                                                         *
 # * This program is distributed in the hope that it will be useful, but     *
 # * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -119,10 +122,10 @@ class ScanChooser(HIGVBox):
         "changed": (gobject.SIGNAL_RUN_FIRST, gobject.TYPE_NONE, ())
     }
 
-    def __init__(self, scan_dict, title):
+    def __init__(self, scans, title):
         self.__gobject_init__()
         self.title = title
-        self.scan_dict = scan_dict
+        self.scan_dict = {}
 
         # Setting HIGVBox
         self.set_border_width(5)
@@ -135,8 +138,8 @@ class ScanChooser(HIGVBox):
         self._set_text_view()
         self._set_open_button()
 
-        for scan in scan_dict:
-            self.list_scan.append([scan])
+        for scan in scans:
+            self.add_scan(scan.scan_name or scan.get_nmap_command(), scan)
 
         self.combo_scan.connect('changed', self.show_scan)
         self.combo_scan.connect('changed', lambda x: self.emit('changed'))
@@ -269,11 +272,8 @@ The parsing error that occurred was\n%s") % str(e))
 
 class DiffWindow(gtk.Window):
     def __init__(self, scans):
-        """scans in the format: {"scan_title":parsed_scan}
-        """
         gtk.Window.__init__(self)
         self.set_title(_("Compare Results"))
-        self.scans = scans
         self.ndiff_process = None
         # We allow the user to start a new diff before the old one has finished.
         # We have to keep references to old processes until they finish to avoid
@@ -281,16 +281,6 @@ class DiffWindow(gtk.Window):
         self.old_processes = []
         self.timer_id = None
 
-        self._create_widgets()
-        self._pack_widgets()
-        self._connect_widgets()
-
-        self.set_default_size(-1, 500)
-
-        # Initial Size Request
-        self.initial_size = self.get_size()
-
-    def _create_widgets(self):
         self.main_vbox = HIGVBox()
         self.diff_view = DiffView()
         self.diff_view.set_size_request(-1, 100)
@@ -298,8 +288,16 @@ class DiffWindow(gtk.Window):
         self.progress = gtk.ProgressBar()
         self.btn_close = HIGButton(stock=gtk.STOCK_CLOSE)
         self.hbox_selection = HIGHBox()
-        self.scan_chooser_a = ScanChooser(self.scans, _(u"A Scan"))
-        self.scan_chooser_b = ScanChooser(self.scans, _(u"B Scan"))
+        self.scan_chooser_a = ScanChooser(scans, _(u"A Scan"))
+        self.scan_chooser_b = ScanChooser(scans, _(u"B Scan"))
+
+        self._pack_widgets()
+        self._connect_widgets()
+
+        self.set_default_size(-1, 500)
+
+        # Initial Size Request
+        self.initial_size = self.get_size()
 
     def _pack_widgets(self):
         self.main_vbox.set_border_width(6)

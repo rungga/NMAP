@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -12,11 +12,12 @@
 # * technology into proprietary software, we sell alternative licenses      *
 # * (contact sales@insecure.com).  Dozens of software vendors already       *
 # * license Nmap technology such as host discovery, port scanning, OS       *
-# * detection, and version detection.                                       *
+# * detection, version detection, and the Nmap Scripting Engine.            *
 # *                                                                         *
 # * Note that the GPL places important restrictions on "derived works", yet *
 # * it does not provide a detailed definition of that term.  To avoid       *
-# * misunderstandings, we consider an application to constitute a           *
+# * misunderstandings, we interpret that term as broadly as copyright law   *
+# * allows.  For example, we consider an application to constitute a        *
 # * "derivative work" for the purpose of this license if it does any of the *
 # * following:                                                              *
 # * o Integrates source code from Nmap                                      *
@@ -30,19 +31,20 @@
 # * o Links to a library or executes a program that does any of the above   *
 # *                                                                         *
 # * The term "Nmap" should be taken to also include any portions or derived *
-# * works of Nmap.  This list is not exclusive, but is meant to clarify our *
-# * interpretation of derived works with some common examples.  Our         *
-# * interpretation applies only to Nmap--we don't speak for other people's  *
-# * GPL works.                                                              *
+# * works of Nmap, as well as other software we distribute under this       *
+# * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+# * but is meant to clarify our interpretation of derived works with some   *
+# * common examples.  Our interpretation applies only to Nmap--we don't     *
+# * speak for other people's GPL works.                                     *
 # *                                                                         *
 # * If you have any questions about the GPL licensing restrictions on using *
 # * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
 # * we also offer alternative license to integrate Nmap into proprietary    *
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
-# * as providing for priority support and updates as well as helping to     *
-# * fund the continued development of Nmap technology.  Please email        *
-# * sales@insecure.com for further information.                             *
+# * as providing for priority support and updates.  They also fund the      *
+# * continued development of Nmap.  Please email sales@insecure.com for     *
+# * further information.                                                    *
 # *                                                                         *
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
@@ -66,15 +68,16 @@
 # * and add new features.  You are highly encouraged to send your changes   *
 # * to nmap-dev@insecure.org for possible incorporation into the main       *
 # * distribution.  By sending these changes to Fyodor or one of the         *
-# * Insecure.Org development mailing lists, it is assumed that you are      *
-# * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
-# * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
-# * will always be available Open Source, but this is important because the *
-# * inability to relicense code has caused devastating problems for other   *
-# * Free Software projects (such as KDE and NASM).  We also occasionally    *
-# * relicense the code to third parties as discussed above.  If you wish to *
-# * specify special license conditions of your contributions, just say so   *
-# * when you send them.                                                     *
+# * Insecure.Org development mailing lists, or checking them into the Nmap  *
+# * source code repository, it is understood (unless you specify otherwise) *
+# * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+# * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+# * code.  Nmap will always be available Open Source, but this is important *
+# * because the inability to relicense code has caused devastating problems *
+# * for other Free Software projects (such as KDE and NASM).  We also       *
+# * occasionally relicense the code to third parties as discussed above.    *
+# * If you wish to specify special license conditions of your               *
+# * contributions, just say so when you send them.                          *
 # *                                                                         *
 # * This program is distributed in the hope that it will be useful, but     *
 # * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -235,32 +238,32 @@ def nsedoc_tags_iter(f):
     tag_text = None
     for line in f:
         # New LuaDoc comment?
-	if re.match(r'^\s*---', line):
-	    in_doc_comment = True
-	if not in_doc_comment:
-	    continue
+        if re.match(r'^\s*---', line):
+            in_doc_comment = True
+        if not in_doc_comment:
+            continue
         # New LuaDoc tag?
-	m = re.match(r'^\s*--+\s*@(\w+)\s*(.*)', line, re.S)
-	if m:
-	    if tag_name:
+        m = re.match(r'^\s*--+\s*@(\w+)\s*(.*)', line, re.S)
+        if m:
+            if tag_name:
                 yield tag_name, tag_text
-	    tag_name = None
-	    tag_text = None
+            tag_name = None
+            tag_text = None
             tag_name = m.group(1)
             tag_text = m.group(2)
-	else:
+        else:
             # Still in comment?
-	    m = re.match(r'^\s*--+\s*(.*)', line)
-	    if m:
+            m = re.match(r'^\s*--+\s*(.*)', line)
+            if m:
                 # Add to text if we're in a tag.
-		if tag_name:
-		    tag_text += m.group(1) + "\n"
-	    else:
-		in_doc_comment = False
-		if tag_name:
+                if tag_name:
+                    tag_text += m.group(1) + "\n"
+            else:
+                in_doc_comment = False
+                if tag_name:
                     yield tag_name, tag_text
-		tag_name = None
-		tag_text = None
+                tag_name = None
+                tag_text = None
 
 class ScriptMetadata (object):
     """Class responsible for parsing all the script information."""
@@ -414,7 +417,10 @@ def get_script_entries(scripts_dir, nselib_dir):
     """Merge the information obtained so far into one single entry for
     each script and return it."""
     metadata = ScriptMetadata(scripts_dir, nselib_dir)
-    scriptdb = ScriptDB(os.path.join(scripts_dir, "script.db"))
+    try:
+        scriptdb = ScriptDB(os.path.join(scripts_dir, "script.db"))
+    except IOError:
+        return []
     entries = []
     for dbentry in scriptdb.get_entries_list():
         entry = metadata.get_metadata(dbentry["filename"])

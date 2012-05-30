@@ -10,6 +10,12 @@ module(... or "netbios", package.seeall)
 require 'bit'
 require 'bin'
 require 'stdnse'
+require 'dns'
+
+types = {
+	NB = 32,
+	NBSTAT = 33,
+}
 
 --- Encode a NetBIOS name for transport. Most packets that use the NetBIOS name
 --  require this encoding to happen first. It takes a name containing any possible
@@ -31,7 +37,7 @@ function name_encode(name, scope)
 
 	stdnse.print_debug(3, "Encoding name '%s'", name)
 	-- Truncate or pad the string to 16 bytes
-	if(string.len(name) >= 16) then
+	if(#name >= 16) then
 		name = string.sub(name, 1, 16)
 	else
 		local padding = " "
@@ -41,7 +47,7 @@ function name_encode(name, scope)
 
 		repeat
 			name = name .. padding
-		until string.len(name) == 16
+		until #name == 16
 	end
 
 	-- Convert to uppercase
@@ -49,7 +55,7 @@ function name_encode(name, scope)
 
 	-- Do the L1 encoding
 	local L1_encoded = ""
-	for i=1, string.len(name), 1 do
+	for i=1, #name, 1 do
 		local b = string.byte(name, i)
 		L1_encoded = L1_encoded .. string.char(bit.rshift(bit.band(b, 0xF0), 4) + 0x41)
 		L1_encoded = L1_encoded .. string.char(bit.rshift(bit.band(b, 0x0F), 0) + 0x41)
@@ -62,7 +68,7 @@ function name_encode(name, scope)
 		-- Split the scope at its periods
 		local piece
 		for piece in string.gmatch(scope, "[^.]+") do
-			L2_encoded = L2_encoded .. string.char(string.len(piece)) .. piece
+			L2_encoded = L2_encoded .. string.char(#piece) .. piece
 		end
 	end
 
@@ -97,15 +103,15 @@ function name_decode(encoded_name)
 
 	-- Decode the scope
 	local pos = 34
-	while string.len(encoded_name) > pos do
+	while #encoded_name > pos do
 		local len = string.byte(encoded_name, pos)
 		scope = scope .. string.sub(encoded_name, pos + 1, pos + len) .. "."
 		pos = pos + 1 + len
 	end
 
 	-- If there was a scope, remove the trailing period
-	if(string.len(scope) > 0) then
-		scope = string.sub(scope, 1, string.len(scope) - 1)
+	if(#scope > 0) then
+		scope = string.sub(scope, 1, #scope - 1)
 	end
 
 	stdnse.print_debug(3, "=> '%s'", name)
@@ -367,6 +373,41 @@ function do_nbstat(host)
 	else
 		return false, "Name query failed: " .. result
 	end
+end
+
+function nbquery(host, nbname, options)
+	-- override any options or set the default values
+	local options = options or {}
+	options.port = options.port or 137
+	options.retPkt = options.retPkt or true
+	options.dtype = options.dtype or types.NB
+	options.host = host.ip
+	options.flags = options.flags or ( options.multiple and 0x0110 )
+	options.id = math.random(0xFFFF)
+	
+	-- encode and chop off the leading byte, as the dns library takes care of
+	-- specifying the length
+	local encoded_name = name_encode(nbname):sub(2)
+
+	local status, response = dns.query( encoded_name, options )
+	if ( not(status) ) then return false, "ERROR: nbquery failed" end
+	
+	local results = {}
+	-- discard any additional responses
+	if ( options.multiple and #response > 0 ) then
+		for _, resp in ipairs(response) do
+			assert( options.id == resp.output.id, "Received packet with invalid transaction ID" )
+			if ( not(resp.output.answers) or #resp.output.answers < 1 ) then
+				return false, "ERROR: Response contained no answers"
+			end
+			local dname = string.char(#resp.output.answers[1].dname) .. resp.output.answers[1].dname
+			table.insert( results, { peer = resp.peer, name = name_decode(dname) } )
+		end
+		return true, results
+	else
+		local dname = string.char(#response.answers[1].dname) .. response.answers[1].dname
+		return true, { { peer = host.ip, name = name_decode(dname) } }
+	end		
 end
 
 ---Convert the 16-bit flags field to a string. 

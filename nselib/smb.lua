@@ -1,13 +1,16 @@
 ---
--- Implements functionality related to Server Message Block (SMB, also known 
--- as CIFS) traffic, which is a Windows protocol.
+-- Implements functionality related to Server Message Block (SMB, an extension 
+-- of CIFS) traffic, which is a Windows protocol.
 --
 -- SMB traffic is normally sent to/from ports 139 or 445 of Windows systems. Other systems
 -- implement SMB as well, including Samba and a lot of embedded devices. Some of them implement
 -- it properly and many of them not. Although the protocol has been documented decently 
 -- well by Samba and others, many 3rd party implementations are broken or make assumptions. 
--- Even Samba's and Windows' implementations aren't completely compatiable. As a result, 
--- creating an implementation that accepts everything is a bit of a minefield. 
+-- Even Samba's and Windows' implementations aren't completely compatible. As a result, 
+-- creating an implementation that accepts everything is a bit of a minefield. Microsoft's
+-- extensive documentation is available at the following URLs:
+-- * SMB: http://msdn.microsoft.com/en-us/library/cc246231(v=prot.13).aspx
+-- * CIFS: http://msdn.microsoft.com/en-us/library/ee442092(v=prot.13).aspx
 --
 -- Where possible, this implementation, since it's intended for scanning, will attempt to 
 -- accept any invalid implementations it can, and fail gracefully if it can't. This has
@@ -131,6 +134,8 @@ command_codes = {}
 command_names = {}
 status_codes = {}
 status_names = {}
+filetype_codes = {}
+filetype_names = {}
 
 local TIMEOUT = 10000
 
@@ -258,10 +263,10 @@ function start(host)
 	state['sequence'] = -1
 
 	-- Check whether or not the user requested basic authentication
-	if(nmap.registry.args.smbbasic == nil) then
-		state['extended_security'] = true
-	else
+	if(stdnse.get_script_args( "smbbasic" )) then
 		state['extended_security'] = false
+	else
+		state['extended_security'] = true
 	end
 
 	-- Store the name of the server
@@ -305,7 +310,7 @@ end
 -- initialization packets. Note that each packet depends on the previous one, so if you want
 -- to go all the way up to create_file, you have to set all parameters. 
 --
--- If anything fails, we back out of the connection and return an error, so the calling functino
+-- If anything fails, we back out of the connection and return an error, so the calling function
 -- doesn't have to call smb.stop(). 
 --
 --@param host               The host object. 
@@ -552,7 +557,7 @@ function start_netbios(host, port, name)
 			return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [1]"
 		end
 	
-		-- Check for a position session response (0x82)
+		-- Check for a positive session response (0x82)
 		if result == 0x82 then
 			stdnse.print_debug(3, "SMB: Successfully established NetBIOS session with server name %s", name)
 			return true, socket
@@ -668,7 +673,7 @@ local function smb_encode_parameters(parameters, overrides)
 	-- Make sure we have an overrides array
 	overrides = overrides or {}
 	
-	return bin.pack("<CA", (overrides['parameters_length'] or (string.len(parameters) / 2)), parameters)
+	return bin.pack("<CA", (overrides['parameters_length'] or (#parameters / 2)), parameters)
 end
 
 --- Converts a string containing the data section into the encoded data string. 
@@ -684,7 +689,7 @@ local function smb_encode_data(data, overrides)
 	-- Make sure we have an overrides array
 	overrides = overrides or {}
 
-	return bin.pack("<SA", (overrides['data_length'] or string.len(data)), data)
+	return bin.pack("<SA", (overrides['data_length'] or #data), data)
 end
 
 ---Sign the message, if possible. This is done by replacing the signature with the sequence
@@ -772,12 +777,12 @@ function smb_send(smb, header, parameters, data, overrides)
 	-- Calculate the message signature
 	body = message_sign(smb, body)
 
-    local out = bin.pack(">I<A", string.len(body), body)
+    local out = bin.pack(">I<A", #body, body)
 
 
 	repeat
 		attempts = attempts - 1
-		stdnse.print_debug(3, "SMB: Sending SMB packet (len: %d, attempts remaining: %d)", string.len(out), attempts)
+		stdnse.print_debug(3, "SMB: Sending SMB packet (len: %d, attempts remaining: %d)", #out, attempts)
 		status, err = smb['socket']:send(out)
 	until(status or (attempts == 0))
 
@@ -897,7 +902,7 @@ function smb_read(smb, read_data)
 		data = nil
 	end
 
-	stdnse.print_debug(3, "SMB: Received %d bytes", string.len(result))
+	stdnse.print_debug(3, "SMB: Received %d bytes", #result)
 	return true, header, parameters, data
 end
 
@@ -906,9 +911,9 @@ end
 -- * List of known protocols
 --
 -- Receives:
--- * The prefered dialect
+-- * The preferred dialect
 -- * The security mode
--- * Max number of multiplexed connectiosn, virtual circuits, and buffer sizes
+-- * Max number of multiplexed connections, virtual circuits, and buffer sizes
 -- * The server's system time and timezone
 -- * The "encryption key" (aka, the server challenge)
 -- * The capabilities
@@ -930,7 +935,7 @@ end
 --      * 'timezone'         The server's timezone, in hours from UTC
 --      * 'timezone_str'     The server's timezone, as a string
 --      * 'server_challenge' A random string used for challenge/response
---      * 'domain'           The server's primary domain
+--      * 'domain'           The server's primary domain or workgroup
 --      * 'server'           The server's name
 function negotiate_protocol(smb, overrides)
 	local header, parameters, data
@@ -1078,6 +1083,8 @@ function negotiate_protocol(smb, overrides)
 end
 
 
+--- This is an internal function and should not be called externally. Use
+--  the start_session() function instead.
 local function start_session_basic(smb, log_errors, overrides)
 	local i, err
 	local status, result
@@ -1228,9 +1235,15 @@ local function start_session_basic(smb, log_errors, overrides)
 		stdnse.print_debug(1, "SMB: ERROR: %s", username)
 	end
 
-	return false, username
+	if (status ~= nil) then
+		return false, get_status_name(status)
+	else
+		return false, username
+	end
 end
 
+--- This is an internal function and should not be called externally. Use
+--  the start_session() function instead.
 local function start_session_extended(smb, log_errors, overrides)
 	local i
 	local status, status_name, result, err
@@ -1322,7 +1335,7 @@ local function start_session_extended(smb, log_errors, overrides)
 			status_name = get_status_name(status)
 	
 			-- Only parse the parameters if it's ok or if we're going to keep going
-			if(status_name == "NT_STATUS_OK" or status_name == "NT_STATUS_MORE_PROCESSING_REQUIRED") then
+			if(status_name == "NT_STATUS_SUCCESS" or status_name == "NT_STATUS_MORE_PROCESSING_REQUIRED") then
 				-- Parse the parameters
 				pos, andx_command, andx_reserved, andx_offset, action, security_blob_length = bin.unpack("<CCSSS", parameters)
 				if(andx_command == nil or security_blob_length == nil) then
@@ -1337,9 +1350,19 @@ local function start_session_extended(smb, log_errors, overrides)
 				end
 				smb['os']         = os
 				smb['lanmanager'] = lanmanager
+				
+				local host_info = smbauth.get_host_info_from_security_blob(security_blob)
+				if ( host_info ) then
+					smb['fqdn'] = host_info['fqdn']
+					smb['domain_dns'] = host_info['dns_domain_name']
+					smb['forest_dns'] = host_info['dns_forest_name']
+					smb['server'] = host_info['netbios_computer_name']
+					smb['domain'] = host_info['netbios_domain_name']
+				end
+				
 	
 				-- If it's ok, do a cleanup and return true
-				if(status_name == "NT_STATUS_OK") then
+				if(status_name == "NT_STATUS_SUCCESS") then
 					-- Check if they're using an un-supported system
 					if(os == nil or lanmanager == nil) then
 						stdnse.print_debug(1, "SMB: WARNING: the server is using a non-standard SMB implementation; your mileage may vary (%s)", smb['ip'])
@@ -1350,9 +1373,9 @@ local function start_session_extended(smb, log_errors, overrides)
 					-- Check if they were logged in as a guest
 					if(log_errors == nil or log_errors == true) then
 						if(smb['is_guest'] == 1) then
-							stdnse.print_debug(1, string.format("SMB: Extended login as %s\\%s failed, but was given guest access (username may be wrong, or system may only allow guest)", domain, stdnse.string_or_blank(username)))
+							stdnse.print_debug(1, string.format("SMB: Extended login to %s as %s\\%s failed, but was given guest access (username may be wrong, or system may only allow guest)", smb['ip'], domain, stdnse.string_or_blank(username)))
 						else
-							stdnse.print_debug(2, string.format("SMB: Extended login as %s\\%s succeeded", domain, stdnse.string_or_blank(username)))
+							stdnse.print_debug(2, string.format("SMB: Extended login to %s as %s\\%s succeeded", smb['ip'], domain, stdnse.string_or_blank(username)))
 						end
 					end
 	
@@ -1378,7 +1401,7 @@ local function start_session_extended(smb, log_errors, overrides)
 		else
 			-- Display a message to the user, and try the next account
 			if(log_errors == nil or log_errors == true) then
-				stdnse.print_debug(1, "SMB: Extended login as %s\\%s failed (%s)", domain, stdnse.string_or_blank(username), status_name)
+				stdnse.print_debug(1, "SMB: Extended login to %s as %s\\%s failed (%s)", smb['ip'], domain, stdnse.string_or_blank(username), status_name)
 			end
 
 			-- Go to the next account
@@ -1429,11 +1452,19 @@ end
 --    *  'os'          The operating system
 --    *  'lanmanager'  The servers's LAN Manager
 function start_session(smb, overrides, log_errors)
+	-- Use a mutex to avoid some issues (see http://seclists.org/nmap-dev/2011/q1/464)
+	local smb_auth_mutex = nmap.mutex( "SMB Authentication Mutex" )
+	smb_auth_mutex( "lock" )
+	
+	local status, result
 	if(smb['extended_security'] == true) then
-		return start_session_extended(smb, log_errors, overrides)
+		status, result = start_session_extended(smb, log_errors, overrides)
 	else
-		return start_session_basic(smb, log_errors, overrides)
+		status, result = start_session_basic(smb, log_errors, overrides)
 	end
+	
+	smb_auth_mutex( "done" )
+	return status, result
 end
  
 --- Sends out <code>SMB_COM_SESSION_TREE_CONNECT_ANDX</code>, which attempts to connect to a share. 
@@ -1553,7 +1584,7 @@ end
 --
 --@param smb    The SMB object associated with the connection
 --@param overrides THe overrides table
---@return (status, result) If statis is false, result is an error message. If status is true, 
+--@return (status, result) If status is false, result is an error message. If status is true, 
 --              the logoff was successful. 
 function logoff(smb, overrides)
 	overrides = overrides or {}
@@ -1636,7 +1667,7 @@ function create_file(smb, path, overrides)
 						0x00,   -- ANDX reserved
 						0x0000, -- ANDX offset
 						0x00,   -- Reserved
-						string.len(path), -- Path length
+						#path, -- Path length
 						(overrides['file_create_flags']            or 0x00000016),         -- Create flags
 						(overrides['file_create_root_fid']         or 0x00000000),         -- Root FID
 						(overrides['file_create_access_mask']      or 0x02000000),         -- Access mask
@@ -1763,7 +1794,9 @@ function read_file(smb, offset, count, overrides)
 	if(header1 == nil or mid == nil) then
 		return false, "SMB: ERROR: Server returned less data than it was supposed to (one or more fields are missing); aborting [25]"
 	end
-	if(status ~= 0) then
+	if(status ~= 0 and 
+		(status ~= status_codes.NT_STATUS_BUFFER_OVERFLOW and (smb['filetype'] == filetype_codes.FILE_TYPE_BYTE_MODE_PIPE or
+																smb['filetype'] == filetype_codes.FILE_TYPE_MESSAGE_MODE_PIPE) ) ) then
 		return false, get_status_name(status)
 	end
 
@@ -1775,6 +1808,7 @@ function read_file(smb, offset, count, overrides)
 
 	response['remaining']   = remaining
 	response['data_length'] = bit.bor(data_length_low, bit.lshift(data_length_high, 16))
+	response['status']      = status
 
 
 	-- data_start is the offset of the beginning of the data section -- we use this to calculate where the read data lives
@@ -2089,9 +2123,9 @@ function send_transaction_named_pipe(smb, function_parameters, function_data, pi
 
 	-- Convert the parameter/data offsets into something more useful (the offset into the data section)
 	-- - 0x20 for the header, - 0x01 for the length. 
-	parameter_offset = parameter_offset - 0x20 - 0x01 - string.len(parameters) - 0x02;
+	parameter_offset = parameter_offset - 0x20 - 0x01 - #parameters - 0x02;
 	-- - 0x20 for the header, - 0x01 for parameter length, the parameter length, and - 0x02 for the data length. 
-	data_offset = data_offset - 0x20 - 0x01 - string.len(parameters) - 0x02;
+	data_offset = data_offset - 0x20 - 0x01 - #parameters - 0x02;
 
 	-- I'm not sure I entirely understand why the '+1' is here, but I think it has to do with the string starting at '1' and not '0'.
 	function_parameters = string.sub(data, parameter_offset + 1, parameter_offset + parameter_count)
@@ -2780,12 +2814,17 @@ function share_get_list(host)
 		extra = string.format("ERROR: Enumerating shares failed, guessing at common ones (%s)", shares)
 
 		-- Take some common share names I've seen (thanks to Brandon Enright for most of these, except the last few)
-		shares = {"IPC$", "ADMIN$", "TEST", "TEST$", "HOME", "HOME$", "PUBLIC", "PRINT", "PRINT$", "GROUPS", "USERS", "MEDIA", "SOFTWARE", "XSERVE", "NETLOGON", "INFO", "PROGRAMS", "FILES", "WWW", "STMP", "TMP", "DATA", "BACKUP", "DOCS", "HD", "WEBSERVER", "WEB DOCUMENTS", "SHARED", "DESKTOP", "MY DOCUMENTS", "PORN", "PRON", "PR0N", "PICTURES", "BACKUP" }
+		shares = {"ADMIN", "BACKUP", "DATA", "DESKTOP", "DOCS", "FILES", "GROUPS", "HD", "HOME", "INFO", "IPC", "MEDIA", "MY DOCUMENTS", "NETLOGON", "PICTURES", "PORN", "PR0N", "PRINT", "PROGRAMS", "PRON", "PUBLIC", "SHARE", "SHARED", "SOFTWARE", "STMP", "TEMP", "TEST", "TMP", "USERS", "WEB DOCUMENTS","WEBSERVER", "WWW", "XSERVE" }
 
-		-- Try every alphabetic share, with and without a trailing '$'
+		-- Try every alphabetic share
 		for i = string.byte("A", 1), string.byte("Z", 1), 1 do
 			shares[#shares + 1] = string.char(i)
-			shares[#shares + 1] = string.char(i) .. "$"
+		end
+		
+		-- For each share, add one with the same name and a trailing '$'
+		local sharesLength = #shares
+		for shareItr = 1, sharesLength, 1 do
+			shares[ sharesLength + shareItr ] = shares[ shareItr ] .. '$'
 		end
 	else
 		stdnse.print_debug(1, "SMB: Found %d shares, will attempt to find more information", #shares)
@@ -2898,16 +2937,41 @@ function get_os(host)
 		return false, "Server didn't return OS details"
 	end
 
-	-- Convert blank values to something useful
-	response['os']           = stdnse.string_or_blank(smbstate['os'],           "Unknown")
-	response['lanmanager']   = stdnse.string_or_blank(smbstate['lanmanager'],   "Unknown")
-	response['domain']       = stdnse.string_or_blank(smbstate['domain'],       "Unknown")
-	response['server']       = stdnse.string_or_blank(smbstate['server'],       "Unknown")
-	response['date']         = stdnse.string_or_blank(smbstate['date'],         "Unknown")
-	response['timezone_str'] = stdnse.string_or_blank(smbstate['timezone_str'], "Unknown")
-
+	response['os']           = smbstate['os']
+	response['lanmanager']   = smbstate['lanmanager']
+	response['domain']       = smbstate['domain']
+	response['server']       = smbstate['server']
+	response['date']         = smbstate['date']
+	response['timezone_str'] = smbstate['timezone_str']
+	
     -- Kill SMB
     smb.stop(smbstate)
+    
+    
+    -- Start another session with extended security. This will allow us to get
+    -- additional information about the target.
+    status, smbstate = smb.start_ex(host, true, true, nil, nil, false)
+    if(status == true) then
+		-- See if we actually got something
+		if (smbstate['fqdn'] or smbstate['domain_dns'] or smbstate['forest_dns']) then
+			response['fqdn']         = smbstate['fqdn']
+			response['domain_dns']   = smbstate['domain_dns']
+			response['forest_dns']   = smbstate['forest_dns']
+			-- After a non-extended security negotiation, smbstate['domain'] will
+			-- contain the NetBIOS domain name, or the workgroup name. However,
+			-- after an extended-security session setup, smbstate['domain'] will
+			-- contain the NetBIOS domain name. For hosts in a workgroup, Windows
+			-- uses the NetBIOS hostname as the NetBIOS domain name. Comparing the
+			-- two will reveal whether the target is in a domain or a workgroup.
+			if ( smbstate['domain'] ~= nil and response['domain'] ~= smbstate['domain'] ) then
+				response['workgroup']    = response['domain']
+				response['domain']       = nil
+			end
+		end
+		
+	    -- Kill SMB again
+	    smb.stop(smbstate)
+	end
 
 	return true, response
 end
@@ -3140,13 +3204,13 @@ for i, v in pairs(command_codes) do
 end
 
 
-
+-- see http://msdn.microsoft.com/en-us/library/cc231196(v=prot.10).aspx
 status_codes = 
 {
-	NT_STATUS_OK = 0x0000,
+	NT_STATUS_SUCCESS 							= 0x00000000,
 	NT_STATUS_WERR_BADFILE                      = 0x00000002,
 	NT_STATUS_WERR_ACCESS_DENIED                = 0x00000005,
-	NT_STATUS_WERR_UNKNOWN_57                   = 0x00000057,
+	NT_STATUS_WERR_INVALID_PARAMETER            = 0x00000057,
 	NT_STATUS_WERR_INVALID_NAME                 = 0x0000007b,
 	NT_STATUS_WERR_UNKNOWN_LEVEL                = 0x0000007c,
 	NT_STATUS_WERR_MORE_DATA                    = 0x000000ea,
@@ -3698,3 +3762,174 @@ for i, v in pairs(status_codes) do
 	status_names[v] = i
 end
 
+
+local NP_LIBRARY_NAME = "PIPE"
+
+namedpipes =
+{		
+	get_pipe_subpath = function( pipeName, writeToDebugLog )
+		local status, pipeSubPath
+		if not pipeName then return false end
+
+		local _, _, match = pipeName:match( "^(\\+)(.-)\\pipe(\\.-)$" )
+		if match then
+			pipeSubPath = match
+			status = true
+			if writeToDebugLog then
+				stdnse.print_debug( 2, "%s: Converting %s to subpath %s", NP_LIBRARY_NAME, pipeName, match )
+			end
+		else
+			status = false
+			pipeSubPath = pipeName
+		end
+
+		return status, pipeSubPath
+	end,
+
+
+	make_pipe_name = function( hostnameOrIp, pipeSubPath )
+		if pipeSubPath:sub(1,1) ~= "\\" then
+			pipeSubPath = "\\" .. pipeSubPath
+		end
+
+		return string.format( "\\\\%s\\pipe%s", hostnameOrIp, pipeSubPath )
+	end,
+
+
+	named_pipe = {
+
+		_smbstate = nil,
+		_host = nil,
+		_pipeSubPath = nil,
+		_overrides = nil,
+		name = nil,
+
+		new = function(self,o)
+			o = o or {}
+	        setmetatable(o, self)
+	        self.__index = self
+			return o
+	    end,
+
+
+	    connect = function( self, host, pipeSubPath, overrides )
+
+			stdnse.print_debug( 2, "%s: connect() called with %s", NP_LIBRARY_NAME, tostring( pipeSubPath ) )
+			self._overrides = overrides or {}
+			self._host = host
+			self._pipeSubPath = pipeSubPath
+			if not host and not host.ip then return false, "host table is required" end
+			if not pipeSubPath then return false, "pipeSubPath is required" end
+
+			-- If we got a full pipe name, not a sub-path, fix it
+			if ( pipeSubPath:match( "^\\\\(.-)$" ) ) then
+				local status
+				status, self._pipeSubPath = namedpipes.get_pipe_subpath( self._pipeSubPath, true )
+				if ( not status ) then
+					stdnse.print_debug( 1, "%s: Attempt to connect to invalid pipe name: %s", NP_LIBRARY_NAME, tostring( pipeSubPath ) )
+					return false, "Invalid pipe name"
+				end
+			end
+			self.name = namedpipes.make_pipe_name( self._host.ip, self._pipeSubPath )
+
+			stdnse.print_debug( 2, "%s: Connecting to named pipe: %s", NP_LIBRARY_NAME, self.name )
+			local status, result, errorMessage
+			local negotiate_protocol, start_session, disable_extended = true, true, false
+			status, result = smb.start_ex( self._host, negotiate_protocol, start_session,
+				"IPC$", self._pipeSubPath, disable_extended, self._overrides )
+
+			if status then
+				self._smbstate = result
+			else
+				errorMessage = string.format( "Connection failed: %s", result )
+				stdnse.print_debug( 2, "%s: Connection to named pipe (%s) failed: %s",
+					NP_LIBRARY_NAME, self.name, errorMessage )
+			end
+
+			return status, errorMessage, result
+		end,
+
+
+		disconnect = function( self )
+			if ( self._smbstate ) then
+				stdnse.print_debug( 2, "%s: Disconnecting named pipe: %s", NP_LIBRARY_NAME, self.name )
+				return smb.stop( self._smbstate )
+			else
+				stdnse.print_debug( 2, "%s: disconnect() called, but SMB connection is already closed: %s", NP_LIBRARY_NAME, self.name )
+			end
+		end,
+
+
+		send = function( self, messageData )
+			if not self._smbstate then
+				stdnse.print_debug( 2, "%s: send() called on closed pipe (%s)", NP_LIBRARY_NAME, self.name )
+				return false, "Failed to send message on named pipe"
+			end
+
+			local offset = 0 -- offset is actually ignored for named pipes, but we'll define the argument for clarity
+			local status, result, errorMessage
+
+			status, result = smb.write_file( self._smbstate, messageData, offset, self._overrides )
+
+			-- if status is true, result is data that we don't need to pay attention to
+			if not status then
+				stdnse.print_debug( 2, "%s: Write to named pipe (%s) failed: %s",
+					NP_LIBRARY_NAME, self.name, result )
+				errorMessage = "Failed to send message on named pipe", result
+			end
+
+			return status, errorMessage
+		end,
+
+
+		receive = function( self )
+			if not self._smbstate then
+				stdnse.print_debug( 2, "%s: receive() called on closed pipe (%s)", NP_LIBRARY_NAME, self.name )
+				return false, "Failed to read from named pipe"
+			end
+
+			local status, result, messageData
+			-- Packet header values
+			local offset = 0 -- offset is actually ignored for named pipes, but we'll define the argument for clarity
+			local MAX_BYTES_PER_READ = 4096
+
+			status, result = smb.read_file( self._smbstate, offset, MAX_BYTES_PER_READ, self._overrides )
+
+			if status and result.data then
+				messageData = result.data
+			else
+				stdnse.print_debug( 2, "%s: Read from named pipe (%s) failed: %s",
+					NP_LIBRARY_NAME, self.name, result )
+				return false, "Failed to read from named pipe", result
+			end
+
+			while (result["status"] == smb.status_codes.NT_STATUS_BUFFER_OVERFLOW) do
+				status, result = smb.read_file( self._smbstate, offset, MAX_BYTES_PER_READ, self._overrides )
+
+				if status and result.data then
+					messageData = messageData .. result.data
+				else
+					stdnse.print_debug( 2, "%s: Read additional data from named pipe (%s) failed: %s",
+						NP_LIBRARY_NAME, self.name, result )
+					return false, "Failed to read from named pipe", result
+				end
+			end
+
+			return status, messageData
+		end,
+	}
+	
+}
+
+filetype_codes = 
+{
+	FILE_TYPE_DISK              = 0x00,
+	FILE_TYPE_BYTE_MODE_PIPE    = 0x01,
+	FILE_TYPE_MESSAGE_MODE_PIPE = 0x02,
+	FILE_TYPE_PRINTER           = 0x03,
+	FILE_TYPE_UNKNOWN           = 0xFF
+}
+
+for i, v in pairs(filetype_codes) do
+	filetype_names[v] = i
+end

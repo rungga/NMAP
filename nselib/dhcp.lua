@@ -5,6 +5,14 @@
 -- which have a trivial one-function interface, can send out DHCP packets of many
 -- types and parse the responses. 
 --
+-- @author "Ron Bowes"
+
+--
+-- 2011-12-28 - Revised by Patrik Karlsson <patrik@cqure.net>
+--   o Split dhcp_send into dhcp_send, dhcp_receive
+--   o Added basic support for adding options to requests
+--   o Added possibility to ovverride transaction id
+--   o Added WPAD action
 
 module(... or "dhcp", package.seeall)
 
@@ -351,58 +359,61 @@ actions[58] = {name="Renewal Time Value",              func=read_time,          
 actions[59] = {name="Rebinding Time Value",            func=read_time,           default=false}
 actions[60] = {name="Class Identifier",                func=read_string,         default=false}
 actions[61] = {name="Client Identifier (client)",      func=read_string,         default=false}
+actions[252]= {name="WPAD",                            func=read_string,         default=false}
 
 --- Does the send/receive, doesn't build/parse anything. 
-local function dhcp_send(interface, host, packet, transaction_id)
-	local socket
-	local status, err, data
-	local result
-	local results = {}
-
-
-	local bind_socket = nmap.new_socket("udp")
-	bind_socket:bind(nil, 68)
-	bind_socket:set_timeout(5000)
-	stdnse.print_debug(1, "dhcp: Starting listener")
-
-	-- Create the UDP socket (TODO: enable SO_BROADCAST if we need to)
-	socket = nmap.new_socket()
-	status, err = socket:connect(host, 67, "udp")
-	if(status == false) then
-		return false, "Couldn't create socket: " .. err
-	end
-	stdnse.print_debug(1, "dhcp: Created UDP socket")
-
+local function dhcp_send(socket, host, packet)
 	-- Send out the packet
-	socket:send(packet)
-
-	-- Read the response
-	local status, data = bind_socket:receive()
-	-- This pulls back 4 bytes in the packet that correspond to the transaction id. This should be randomly
-	-- generated and different for every instance of a script (to prevent collisions)
-		while status and data:sub(5, 8) ~= transaction_id do
-			local status, data = bind_socket:receive()
-		end
-	if(status == false) then
-		stdnse.print_debug(1, "dhcp: Error calling bind_socket:receive(): %s", err)
-		return false, "Error calling bind_socket:receive(): " .. err
-	end
-
-	-- If no data was captured (ie, a timeout), return an error
-	if(data == nil) then
-		stdnse.print_debug(1, "dhcp: Error calling pcap_receive(): TIMEOUT")
-		return false, "TIMEOUT"
-	end
-
-	-- Close our sockets
-	socket:close()
-	bind_socket:close()
-
-	-- Finally, return the data
-	return true, data
+	return socket:sendto(host, { number=67, protocol="udp" }, packet)
 end
 
-local function dhcp_build(request_type, ip_address, mac_address, request_options, overrides, lease_time, transaction_id)
+local function dhcp_receive(socket, transaction_id)
+	
+	local status, data = socket:receive()
+	if ( not(status) ) then
+		socket:close()
+		return false, data
+	end
+
+	-- This pulls back 4 bytes in the packet that correspond to the transaction id. This should be randomly
+	-- generated and different for every instance of a script (to prevent collisions)
+	while status and data:sub(5, 8) ~= transaction_id do
+		status, data = socket:receive()
+	end	
+
+	return status, data
+end
+
+--- Builds a DHCP packet
+--
+--@param request_type    The type of request as an integer (use the <code>request_types</code> table at the
+--                       top of this file). 
+--@param ip_address      Your ip address (as a dotted-decimal string). This tells the DHCP server where to 
+--                       send the response. Setting it to "255.255.255.255" or "0.0.0.0" is generally acceptable (if not,
+--                       host.ip_src can work). 
+--@param mac_address     Your mac address (as a string up to 16 bytes) where the server will send the response. Like
+--                       <code>ip_address</code>, setting to the broadcast address (FF:FF:FF:FF:FF:FF) is 
+--                       common (host.mac_addr_src works). 
+--@param options         [optional] A table of additional request options where each option is a table containing the
+--                       following fields:
+--                         * <code>number</code> - The option number
+--                         * <code>type</code>   - The option type ("string" or "ip")
+--                         * <code>value</code>  - The option value
+--@param request_options [optional] The options to request from the server, as an array of integers. For the 
+--                       acceptable options, see the <code>actions</code> table above or have a look at rfc2132.
+--                       Some DHCP servers (such as my Linksys WRT54g) will ignore this list and send whichever
+--                       information it wants. Default: all options marked as 'default' in the <code>actions</code>
+--                       table above are requested (the typical interesting ones) if no verbosity is given. 
+--                       If any level of verbosity is on, get all types. 
+--@param overrides       [optional] A table of overrides. If a field in the table matches a field in the DHCP
+--                       packet (see rfc2131 section 2 for a list of possible fields), the value in the table
+--                       will be sent instead of the default value. 
+--@param lease_time      [optional] The lease time used when requestint an IP. Default: 1 second. 
+--@param transaction_id  The identity of the transaction.
+--
+--@return status (true or false)
+--@return The parsed response, as a table. 
+function dhcp_build(request_type, ip_address, mac_address, options, request_options, overrides, lease_time, transaction_id)
 	local packet = ''
 
 	-- Set up the default overrides
@@ -426,7 +437,7 @@ local function dhcp_build(request_type, ip_address, mac_address, request_options
 
 	-- Header
 	packet = packet .. bin.pack(">CCCC", overrides['op'] or 1, overrides['htype'] or 1, overrides['hlen'] or 6, overrides['hops'] or 0)  -- BOOTREQUEST, 10mb ethernet, 6 bytes long, 0 hops
-	packet = packet .. transaction_id                                                            -- Transaction ID
+	packet = packet .. ( overrides['xid'] or transaction_id )                                                         -- Transaction ID =
 	packet = packet .. bin.pack(">SS", overrides['secs'] or 0, overrides['flags'] or 0x0000)     -- Secs, flags
 	packet = packet .. bin.pack("A", ip_address)                                                 -- Client address
 	packet = packet .. bin.pack("<I", overrides['yiaddr'] or 0)                                  -- yiaddr
@@ -439,6 +450,16 @@ local function dhcp_build(request_type, ip_address, mac_address, request_options
 
 	-- Options
 	packet = packet .. bin.pack(">CCC", 0x35, 1, request_type)                                   -- Request type
+
+	for _, option in ipairs(options or {}) do
+		packet = packet .. bin.pack(">C", option.number)
+		if ( "string" == option.type ) then
+			packet = packet .. bin.pack("p", option.value)
+		elseif( "ip" == option.type ) then
+			packet = packet .. bin.pack(">CI", 4, option.value)
+		end
+	end
+
 	packet = packet .. bin.pack(">CCA", 0x37, #request_options, request_options)                 -- Request options
 	packet = packet .. bin.pack(">CCI", 0x33, 4, lease_time or 1)                                -- Lease time
 
@@ -455,7 +476,7 @@ end
 --
 --@param data The DHCP packet data. Any padding at the end of the packet will be ignored (by default, 
 --            DHCP packets are padded with \x00 bytes). 
-local function dhcp_parse(data, transaction_id)
+function dhcp_parse(data, transaction_id)
 	local pos = 1
 	local result = {}
 
@@ -574,6 +595,11 @@ end
 --@param mac_address     Your mac address (as a string up to 16 bytes) where the server will send the response. Like
 --                       <code>ip_address</code>, setting to the broadcast address (FF:FF:FF:FF:FF:FF) is 
 --                       common (host.mac_addr_src works). 
+--@param options         [optional] A table of additional request options where each option is a table containing the
+--                       following fields:
+--                         * <code>number</code> - The option number
+--                         * <code>type</code>   - The option type ("string" or "ip")
+--                         * <code>value</code>  - The option value
 --@param request_options [optional] The options to request from the server, as an array of integers. For the 
 --                       acceptable options, see the <code>actions</code> table above or have a look at rfc2132.
 --                       Some DHCP servers (such as my Linksys WRT54g) will ignore this list and send whichever
@@ -586,23 +612,35 @@ end
 --@param lease_time      [optional] The lease time used when requestint an IP. Default: 1 second. 
 --@return status (true or false)
 --@return The parsed response, as a table. 
-function make_request(target, interface, request_type, ip_address, mac_address, request_options, overrides, lease_time)
+function make_request(target, request_type, ip_address, mac_address, options, request_options, overrides, lease_time)
 	-- A unique id that identifies this particular session (and lets us filter out what we don't want to see)
-	local transaction_id = bin.pack("<I", math.random(0, 0x7FFFFFFF))
+	local transaction_id = overrides and overrides['xid'] or bin.pack("<I", math.random(0, 0x7FFFFFFF))
 
 	-- Generate the packet
-	local status, packet = dhcp_build(request_type, bin.pack(">I", ipOps.todword(ip_address)), mac_address, request_options, overrides, lease_time, transaction_id)
+	local status, packet = dhcp_build(request_type, bin.pack(">I", ipOps.todword(ip_address)), mac_address, options, request_options, overrides, lease_time, transaction_id)
 	if(not(status)) then
 		stdnse.print_debug(1, "dhcp: Couldn't build packet: " .. packet)
 		return false, "Couldn't build packet: "  .. packet
 	end
 
+	local socket = nmap.new_socket("udp")
+	socket:bind(nil, 68)
+	socket:set_timeout(5000)
+
 	-- Send the packet and get the response
-	local status, response = dhcp_send(interface, target, packet, transaction_id)
+	local status, response = dhcp_send(socket, target, packet)
 	if(not(status)) then
 		stdnse.print_debug(1, "dhcp: Couldn't send packet: " .. response)
 		return false, "Couldn't send packet: "  .. response
 	end
+
+	status, response = dhcp_receive(socket, transaction_id)
+	socket:close()
+
+	if ( not(status) ) then
+		stdnse.print_debug(1, "dhcp: Couldn't receive packet: " .. response)
+		return false, "Couldn't receive packet: "  .. response
+	end	
 
 	-- Parse the response
 	local status, parsed = dhcp_parse(response, transaction_id)

@@ -121,6 +121,12 @@ case "$host" in
     # use some AIX specific libraries
     AC_CHECK_LIB(odm, odm_initialize)	
     AC_CHECK_LIB(cfg, _system_configuration)
+    AC_CHECK_LIB(crypt, crypt_r)
+    ;;
+  *-solaris2.1[[1-9]]*)
+    AC_DEFINE(SOLARIS)
+    # Solaris 11 and later use BPF packet capture rather than DLPI.
+    AC_DEFINE(SOLARIS_BPF_PCAP_CAPTURE)
     ;;
   *-solaris2.0*)  
     AC_DEFINE(STUPID_SOLARIS_CHECKSUM_BUG)
@@ -173,6 +179,7 @@ AC_SUBST(LUA_CFLAGS)
 
 dnl Checks for header files.
 AC_CHECK_HEADERS(pwd.h termios.h sys/sockio.h)
+AC_CHECK_HEADERS(linux/rtnetlink.h,,,[#include <netinet/in.h>])
 dnl A special check required for <net/if.h> on Darwin. See
 dnl http://www.gnu.org/software/autoconf/manual/html_node/Header-Portability.html.
 AC_CHECK_HEADERS([sys/socket.h])
@@ -194,6 +201,9 @@ AC_CHECK_HEADERS([net/if.h], [], [],
 dnl If any socket libraries needed
 AC_SEARCH_LIBS(setsockopt, socket)
 AC_SEARCH_LIBS(gethostbyname, nsl)
+
+dnl Check IPv6 raw sending flavor.
+CHECK_IPV6_IPPROTO_RAW
 
 NDIFFDIR=ndiff
 
@@ -416,6 +426,10 @@ if test $have_libpcap != yes; then
   PCAP_BUILD="pcap_build"
   PCAP_CLEAN="pcap_clean"
   PCAP_DIST_CLEAN="pcap_dist_clean"
+  AC_DEFINE(PCAP_INCLUDED)
+
+  # libpcap can require libnl
+  AC_SEARCH_LIBS(nl_handle_alloc, nl)
 else
   AC_DEFINE(HAVE_LIBPCAP)
   LIBPCAP_LIBS="-lpcap"
@@ -472,6 +486,7 @@ if test $have_pcre != yes ; then
   PCRE_BUILD="pcre_build"
   PCRE_CLEAN="pcre_clean"
   PCRE_DIST_CLEAN="pcre_dist_clean"
+  AC_DEFINE(PCRE_INCLUDED)
 else
 # We only need to check for and use this if we are NOT using included pcre
   AC_CHECK_HEADERS(pcre/pcre.h)
@@ -524,6 +539,7 @@ if test $have_dnet != yes ; then
   DNET_BUILD="dnet_build"
   DNET_CLEAN="dnet_clean"
   DNET_DIST_CLEAN="dnet_dist_clean"
+  AC_DEFINE(DNET_INCLUDED)
 else
   LIBDNET_LIBS="-ldnet"
   DNET_DEPENDS=""
@@ -576,9 +592,6 @@ AC_HELP_STRING([--without-liblua], [Compile without lua (this will exclude all o
 # OpenSSL and NSE C modules can require dlopen
 AC_SEARCH_LIBS(dlopen, dl)
 
-# libpcap can require libnl
-AC_SEARCH_LIBS(nl_handle_alloc, nl)
-
 # They don't want lua
 if test "$no_lua" = "yes"; then
   CPPFLAGS="-DNOLUA $CPPFLAGS"
@@ -621,6 +634,7 @@ else
     LUA_BUILD="lua_build"
     LUA_CLEAN="lua_clean"
     LUA_DIST_CLEAN="lua_dist_clean"
+    AC_DEFINE(LUA_INCLUDED)
   else
     AC_MSG_RESULT(yes) 
   fi
@@ -637,21 +651,67 @@ AC_SUBST(LUA_DIST_CLEAN)
 AC_SUBST(INSTALLNSE)
 AC_SUBST(CXXFLAGS)
 
-dnl This test is from the configure.in of Unix Network Programming second
-dnl edition example code by W. Richard Stevens
-dnl ##################################################################
-dnl Check if sockaddr{} has sa_len member.
-dnl
-AC_CACHE_CHECK(if sockaddr{} has sa_len member, ac_cv_sockaddr_has_sa_len,
-        AC_TRY_COMPILE([
-               #include <sys/types.h>
-               #include <sys/socket.h>],
-                [unsigned int i = sizeof(((struct sockaddr *)0)->sa_len)],
-        ac_cv_sockaddr_has_sa_len=yes,
-        ac_cv_sockaddr_has_sa_len=no))
-if test $ac_cv_sockaddr_has_sa_len = yes ; then
-        AC_DEFINE(HAVE_SOCKADDR_SA_LEN)
+
+LIBLINEARDIR=liblinear
+have_liblinear=no
+
+# First we test whether they specified liblinear explicitly
+AC_ARG_WITH(liblinear,
+AC_HELP_STRING([--with-liblinear=DIR], [Use an existing (compiled) liblinear from DIR/include and DIR/lib.])
+AC_HELP_STRING([--with-liblinear=included], [Use the liblinear version included with Nmap]),
+[  case "$with_liblinear" in
+  yes)
+  ;;
+  included)
+    CPPFLAGS="-I\$(top_srcdir)/$LIBLINEARDIR $CPPFLAGS"
+    LIBLINEAR_LIBS="\$(top_srcdir)/$LIBLINEARDIR/liblinear.a"
+    LIBLINEAR_DEPENDS="\$(top_srcdir)/$LIBLINEARDIR/liblinear.a"
+    LIBLINEAR_BUILD="liblinear_build"
+    LIBLINEAR_CLEAN="liblinear_clean"
+    LIBLINEAR_DIST_CLEAN="liblinear_dist_clean"
+    have_liblinear=yes
+  ;;
+  *)
+    CPPFLAGS="-I$with_liblinear/include $CPPFLAGS"
+    LDFLAGS="-L$with_liblinear/lib $LDFLAGS"
+    have_liblinear=yes
+  ;;
+  esac]
+)
+
+# If they didn't specify it, we try to find it
+if test $have_liblinear != yes; then
+  AC_CHECK_HEADERS([linear.h],
+    AC_CHECK_LIB(linear, predict, [have_liblinear=yes; LIBLINEAR_LIBS="-llinear"; break],, [-lm])
+  )
+
+  LIBLINEAR_DEPENDS=""
+  LIBLINEAR_BUILD=""
+  LIBLINEAR_CLEAN=""
+  LIBLINEAR_DIST_CLEAN=""
 fi
+
+# if we didn't find we use our own
+if test $have_liblinear != yes; then
+  AC_MSG_RESULT(no) 
+  CPPFLAGS="-I\$(top_srcdir)/$LIBLINEARDIR $CPPFLAGS"
+  LIBLINEAR_LIBS="\$(top_srcdir)/$LIBLINEARDIR/liblinear.a"
+  LIBLINEAR_DEPENDS="\$(top_srcdir)/$LIBLINEARDIR/liblinear.a"
+  LIBLINEAR_BUILD="liblinear_build"
+  LIBLINEAR_CLEAN="liblinear_clean"
+  LIBLINEAR_DIST_CLEAN="liblinear_dist_clean"
+  AC_DEFINE(LIBLINEAR_INCLUDED)
+else
+  AC_MSG_RESULT(yes) 
+fi
+
+AC_SUBST(LIBLINEAR_LIBS)
+AC_SUBST(LIBLINEARDIR)
+AC_SUBST(LIBLINEAR_DEPENDS)
+AC_SUBST(LIBLINEAR_BUILD)
+AC_SUBST(LIBLINEAR_CLEAN)
+AC_SUBST(LIBLINEAR_DIST_CLEAN)
+
 
 #dnl check endedness
 AC_C_BIGENDIAN
@@ -798,6 +858,78 @@ AC_SUBST(NCAT_INSTALL)
 AC_SUBST(NCAT_UNINSTALL)
 AC_SUBST(NCAT_CLEAN)
 AC_SUBST(NCAT_DIST_CLEAN)
+
+
+AC_ARG_WITH([nmap-update],
+  AC_HELP_STRING([--without-nmap-update], [Skip build and installation of nmap-update]), [], [with_nmap_update=check])
+
+APR_FIND_APR(, , 1, 1)
+if test "$apr_found" = "no"; then
+  with_nmap_update=no
+fi
+
+AC_ARG_WITH(subversion,
+AC_HELP_STRING([--with-subversion=DIR], [Look for libsvn1 in DIR/include and DIR/libs.]),
+[
+case "$with_subversion" in
+  yes)
+    ;;
+  no)
+    with_nmap_update=no
+    ;;
+  *)
+    CPPFLAGS="-I$with_subversion/include $CPPFLAGS"
+    LDFLAGS="-L$with_subversion/lib $LDFLAGS"
+    ;;
+  esac
+])
+
+if test "$with_nmap_update" != "no"; then
+  have_libsvn=yes
+  if test "$have_libsvn" = "yes"; then
+    old_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $($apr_config --cppflags --includes)"
+    AC_CHECK_HEADER([svn_client.h], [], [
+      AC_CHECK_HEADER([subversion-1/svn_client.h], [], [have_libsvn=no])
+    ])
+    CPPFLAGS="$old_CPPFLAGS"
+  fi
+  if test "$have_libsvn" = "yes"; then
+    AC_CHECK_LIB([svn_client-1], [svn_client_create_context], [], [have_libsvn=no])
+  fi
+  if test "$have_libsvn" != "yes"; then
+    if test "$with_nmap_update" = "check"; then
+      AC_MSG_WARN([Not building nmap-update because libsvn1 was not found])
+    else
+      AC_MSG_FAILURE([--with-nmap-update requires libsvn1])
+    fi
+    with_nmap_update=no
+  else
+    with_nmap_update=yes
+  fi
+fi
+
+if test "$with_nmap_update" = "no"; then
+  NMAP_UPDATE_BUILD=""
+  NMAP_UPDATE_INSTALL=""
+  NMAP_UPDATE_UNINSTALL=""
+  NMAP_UPDATE_CLEAN=""
+  NMAP_UPDATE_DIST_CLEAN=""
+else
+  AC_CONFIG_SUBDIRS(nmap-update)
+  NMAP_UPDATE_BUILD="build-nmap-update"
+  NMAP_UPDATE_INSTALL="install-nmap-update"
+  NMAP_UPDATE_UNINSTALL="uninstall-nmap-update"
+  NMAP_UPDATE_CLEAN="clean-nmap-update"
+  NMAP_UPDATE_DIST_CLEAN="distclean-nmap-update"
+fi
+
+AC_SUBST(NMAP_UPDATE_BUILD)
+AC_SUBST(NMAP_UPDATE_INSTALL)
+AC_SUBST(NMAP_UPDATE_UNINSTALL)
+AC_SUBST(NMAP_UPDATE_CLEAN)
+AC_SUBST(NMAP_UPDATE_DIST_CLEAN)
+
 
 AC_OUTPUT(Makefile libnetutil/Makefile)
 # Krad ASCII ART#!#@$!@#$

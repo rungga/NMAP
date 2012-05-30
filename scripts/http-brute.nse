@@ -15,7 +15,7 @@ Performs brute force password auditing against http basic authentication.
 -- 80/tcp   open  http    syn-ack
 -- | http-brute:  
 -- |   Accounts
--- |     Patrik Karlsson:secret => Login correct
+-- |     Patrik Karlsson:secret => Valid credentials
 -- |   Statistics
 -- |_    Perfomed 60023 guesses in 467 seconds, average tps: 138
 --
@@ -35,11 +35,12 @@ Performs brute force password auditing against http basic authentication.
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"intrusive", "auth"}
+categories = {"intrusive", "brute"}
 
 require 'shortport'
 require 'http'
 require 'brute'
+require 'creds'
 
 portrule = shortport.port_or_service( {80, 443}, {"http", "https"}, "tcp", "open")
 
@@ -68,12 +69,10 @@ Driver = {
 		-- incorrectly tells us that the authentication was successfull
 		local response = http.generic_request( self.host, self.port, self.method, self.path, { auth = { username = username, password = password }, no_cache = true })
 
-		-- We should probably do more tests here, 500 error and redirects
-		-- should be possible candidates. checking for ~= 401 *should* work to
+		-- Checking for ~= 401 *should* work to
 		-- but gave me a number of false positives last time I tried.
-		-- After Davids initial review we decided to change it to not 4xx and
-		-- not 5xx. That would roughly equal the following:
-		if ( response.status < 400 or response.status > 599 ) then
+		-- We decided to change it to ~= 4xx.
+		if ( response.status < 400 or response.status > 499 ) then
 			if ( not( nmap.registry['credentials'] ) ) then
 				nmap.registry['credentials'] = {}
 			end
@@ -81,7 +80,7 @@ Driver = {
 				nmap.registry.credentials['http'] = {}
 			end
 			table.insert( nmap.registry.credentials.http, { username = username, password = password } )
-			return true, brute.Account:new( username, password, "OPEN")
+			return true, brute.Account:new( username, password, creds.State.VALID)
 		end
 		return false, brute.Error:new( "Incorrect password" )
 	end,
@@ -107,7 +106,8 @@ action = function( host, port )
 	local path = nmap.registry.args['http-brute.path']
 	local method = string.upper(nmap.registry.args['http-brute.method'] or "GET")
 	local engine = brute.Engine:new(Driver, host, port, method )
-
+	engine.options.script_name = SCRIPT_NAME
+	
 	if ( not(path) ) then
 		return "  \n  ERROR: No path was specified (see http-brute.path)"
 	end

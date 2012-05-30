@@ -67,8 +67,10 @@ local loadfile = loadfile;
 local loadstring = loadstring;
 local next = next;
 local pairs = pairs;
+local pcall = pcall;
 local rawget = rawget;
 local rawset = rawset;
+local require = require;
 local select = select;
 local setfenv = setfenv;
 local setmetatable = setmetatable;
@@ -94,6 +96,8 @@ local open = io.open;
 local math = require "math";
 local max = math.max;
 
+local package = require "package";
+
 local string = require "string";
 local byte = string.byte;
 local find = string.find;
@@ -113,10 +117,18 @@ local nmap = require "nmap";
 
 local cnse, rules = ...; -- The NSE C library and Script Rules
 
-do -- Append the nselib directory to the Lua search path
-  local t, path = assert(cnse.fetchfile_absolute("nselib/"));
-  assert(t == "directory", "could not locate nselib directory!");
-  package.path = path.."?.lua;"..package.path;
+do -- Add loader to look in nselib/?.lua (nselib/ can be in multiple places)
+  local function loader (lib)
+    lib = lib:gsub("%.", "/"); -- change Lua "module seperator" to directory separator
+    local name = "nselib/"..lib..".lua";
+    local type, path = cnse.fetchfile_absolute(name);
+    if type == "file" then
+      return loadfile(path);
+    else
+      return "\n\tNSE failed to find "..name.." in search paths.";
+    end
+  end
+  insert(package.loaders, 1, loader);
 end
 
 local script_database_type, script_database_path =
@@ -206,6 +218,25 @@ local function tcopy (t)
   end
   return tc;
 end
+
+-- copies the host table while preserving the registry
+local function host_copy(t)
+  local h = tcopy(t)
+  h.registry = t.registry
+  return h
+end
+
+local REQUIRE_ERROR = {};
+rawset(stdnse, "silent_require", function (...)
+  local status, mod = pcall(require, ...);
+  if not status then
+    print_debug(1, "%s", traceback(mod));
+    yield(REQUIRE_ERROR); -- use script yield
+    error(mod);
+  else
+    return mod;
+  end
+end);
 
 local Script = {}; -- The Script Class, its constructor is Script.new.
 local Thread = {}; -- The Thread Class, its constructor is Script:new_thread.
@@ -326,7 +357,7 @@ do
       print_debug(1,
     "A thread for %s yielded unexpectedly in the file or %s function:\n%s\n",
           self.filename, rule, traceback(co));
-    elseif s and rule_return then
+    elseif s and (rule_return or self.forced_to_run) then
       local thread = {
         co = co,
         env = env,
@@ -342,8 +373,8 @@ do
       thread.parent = thread; -- itself
       return thread;
     elseif not s then
-      print_debug(1, "a thread for %s failed to load:\n%s\n", self.filename,
-          traceback(co, tostring(rule_return)));
+      log_error("A thread for %s failed to load in %s function:\n%s\n",
+          self.filename, rule, traceback(co, tostring(value)));
     end
     return nil;
   end
@@ -354,23 +385,47 @@ do
     categories = "table",
     dependencies = "table",
   };
+  local quiet_errors = {
+    [REQUIRE_ERROR] = true,
+  }
+
   -- script = Script.new(filename)
   -- Creates a new Script Class for the script.
   -- Arguments:
   --   filename  The filename (path) of the script to load.
+  --   script_params  The script selection parameters table.
+  --     Possible key/value pairs:
+  --       selection: A string to indicate the script selection type.
+  --                  "name": Selected by name or pattern.
+  --                  "category" Selected by category.
+  --                  "file path" Selected by file path.
+  --                  "directory" Selected by directory.
+  --       verbosity: A boolean, if set to true the script will get a
+  --                verbosity boost. Scripts selected by name or
+  --                file paths must set this to true.
+  --       forced: A boolean to indicate if the script will be
+  --               forced to run regardless to its rule results.
+  --               (e.g. "+script").
   -- Returns:
   --   script  The script (class) created.
-  function Script.new (filename)
+  function Script.new (filename, script_params)
+    local script_params = script_params or {};
     assert(type(filename) == "string", "string expected");
     if not find(filename, "%.nse$") then
       log_error(
           "Warning: Loading '%s' -- the recommended file extension is '.nse'.",
           filename);
     end
-    local basename = match(filename, "[/\\]([^/\\]-)$") or filename;
-    local short_basename = match(filename, "[/\\]([^/\\]-)%.nse$") or
-                       match(filename, "[/\\]([^/\\]-)%.[^.]*$") or
-                       filename;
+
+    local basename = match(filename, "([^/\\]+)$") or filename;
+    local short_basename = match(filename, "([^/\\]+)%.nse$") or
+        match(filename, "([^/\\]+)%.[^.]*$") or filename;
+
+    print_debug(2, "Script %s was selected by %s%s.",
+        basename,
+        script_params.selection and
+        script_params.selection or "(unknown)",
+        script_params.forced and " and forced to run" or "");
     local file_closure = assert(loadfile(filename));
     -- Give the closure its own environment, with global access
     local env = {
@@ -381,7 +436,15 @@ do
     setmetatable(env, {__index = _G});
     setfenv(file_closure, env);
     local co = create(file_closure); -- Create a garbage thread
-    assert(resume(co)); -- Get the globals it loads in env
+    local status, e = resume(co); -- Get the globals it loads in env
+    if not status then
+      log_error("Failed to load %s:\n%s", filename, traceback(co, e));
+      error("could not load script");
+    end
+    if quiet_errors[e] then
+      print_verbose(1, "Failed to load '%s'.", filename);
+      return nil;
+    end
     -- Check that all the required fields were set
     for f, t in pairs(required_fields) do
       local field = rawget(env, f);
@@ -433,7 +496,9 @@ do
       license = rawget(env, "license"),
       dependencies = rawget(env, "dependencies"),
       threads = {},
-      selected_by_name = false,
+      -- Make sure that the following are boolean types.
+      selected_by_name = not not script_params.verbosity,
+      forced_to_run = not not script_params.forced,
     };
     return setmetatable(script, {__index = Script, __metatable = Script});
   end
@@ -463,7 +528,8 @@ local function get_chosen_scripts (rules)
     "database appears to be corrupt or out of date;\n"..
     "\tplease update using: nmap --script-updatedb");
 
-  local chosen_scripts, entry_rules, used_rules, files_loaded = {}, {}, {}, {};
+  local chosen_scripts, files_loaded = {}, {};
+  local entry_rules, used_rules, forced_rules = {}, {}, {};
 
   -- Tokens that are allowed in script rules (--script)
   local protected_lua_tokens = {
@@ -471,6 +537,20 @@ local function get_chosen_scripts (rules)
     ["or"] = true,
     ["not"] = true,
   };
+
+  -- Was this category selection forced to run (e.g. "+script").
+  -- Return:
+  --    Boolean: True if it's forced otherwise false.
+  --    String: The new cleaned string.
+  local function is_forced_set (str)
+    local specification = match(str, "^%+(.*)$");
+    if specification then
+      return true, specification;
+    else
+      return false, str;
+    end
+  end
+
   -- Globalize all names in str that are not protected_lua_tokens
   local function globalize (str)
     local lstr = lower(str);
@@ -483,7 +563,10 @@ local function get_chosen_scripts (rules)
 
   for i, rule in ipairs(rules) do
     rule = match(rule, "^%s*(.-)%s*$"); -- strip surrounding whitespace
+    local original_rule = rule;
+    local forced, rule = is_forced_set(rule);
     used_rules[rule] = false; -- has not been used yet
+    forced_rules[rule] = forced;
     -- Globalize all `names`, all visible characters not ',', '(', ')', and ';'
     local globalized_rule =
         gsub(rule, "[\033-\039\042-\043\045-\058\060-\126]+", globalize);
@@ -491,8 +574,9 @@ local function get_chosen_scripts (rules)
     local compiled_rule, err = loadstring("return "..globalized_rule, "rule");
     if not compiled_rule then
       err = err:match("rule\"]:%d+:(.+)$"); -- remove (luaL_)where in code
-      error("Bad script rule:\n\t"..rule.." -> "..err);
+      error("Bad script rule:\n\t"..original_rule.." -> "..err);
     end
+    -- These are used to reference and check all the rules later.
     entry_rules[globalized_rule] = {
       original_rule = rule,
       compiled_rule = compiled_rule,
@@ -514,36 +598,51 @@ local function get_chosen_scripts (rules)
       r_categories[lower(category)] = true; -- Lowercase the entry
     end
 
-    -- Was this entry selected by name with the --script option? We record
-    -- whether it was so that scripts so selected can get a verbosity boost.
-    -- See nmap.verbosity.
-    local selected_by_name = false;
+    -- The script selection parameters table.
+    local script_params = {};
+
     -- A matching function for each script rule.
     -- If the pattern directly matches a category (e.g. "all"), then
     -- we return true. Otherwise we test if it is a filename or if
     -- the script_entry.filename matches the pattern.
     local function m (pattern)
       -- Check categories
-      if r_categories[lower(pattern)] then return true end
+      if r_categories[lower(pattern)] then
+        script_params.selection = "category";
+        return true;
+      end
+
       -- Check filename with wildcards
       pattern = gsub(pattern, "%.nse$", ""); -- remove optional extension
       pattern = gsub(pattern, "[%^%$%(%)%%%.%[%]%+%-%?]", "%%%1"); -- esc magic
       pattern = gsub(pattern, "%*", ".*"); -- change to Lua wildcard
       pattern = "^"..pattern.."$"; -- anchor to beginning and end
-      local found = not not find(escaped_basename, pattern);
-      selected_by_name = selected_by_name or found;
-      return found;
+      if find(escaped_basename, pattern) then
+        script_params.selection = "name";
+        script_params.verbosity = true;
+        return true;
+      end
+
+      return false;
     end
     local env = {m = m};
 
-    local script;
     for globalized_rule, rule_table in pairs(entry_rules) do
-      if setfenv(rule_table.compiled_rule, env)() then -- run the compiled rule
+      -- Clear and set the environment of the compiled script rule
+      local compiled_rule = setfenv(rule_table.compiled_rule, env)
+      local status, found = pcall(compiled_rule)
+      if not status then
+        error("Bad script rule:\n\t"..rule_table.original_rule..
+              " -> script rule expression not supported.");
+      end
+      -- The script rule matches a category or a pattern
+      if found then 
         used_rules[rule_table.original_rule] = true;
-        local t, path = cnse.fetchfile_absolute(filename);
+        script_params.forced = not not forced_rules[rule_table.original_rule];
+        local t, path = cnse.fetchscript(filename);
         if t == "file" then
           if not files_loaded[path] then
-            script = Script.new(path);
+            local script = Script.new(path, script_params)
             chosen_scripts[#chosen_scripts+1] = script;
             files_loaded[path] = true;
             -- do not break so other rules can be marked as used
@@ -554,12 +653,6 @@ local function get_chosen_scripts (rules)
         end
       end
     end
-    if script then
-      script.selected_by_name = selected_by_name;
-      if script.selected_by_name then
-        print_debug(2, "Script %s was selected by name.", script.basename);
-      end
-    end
   end
 
   setfenv(db_closure, {Entry = entry});
@@ -568,23 +661,27 @@ local function get_chosen_scripts (rules)
   -- Now load any scripts listed by name rather than by category.
   for rule, loaded in pairs(used_rules) do
     if not loaded then -- attempt to load the file/directory
-      local t, path = cnse.fetchfile_absolute(rule);
+      local script_params = {};
+      script_params.forced = not not forced_rules[rule];
+      local t, path = cnse.fetchscript(rule);
       if t == nil then -- perhaps omitted the extension?
-        t, path = cnse.fetchfile_absolute(rule..".nse");
+        t, path = cnse.fetchscript(rule..".nse");
       end
       if t == nil then
         error("'"..rule.."' did not match a category, filename, or directory");
       elseif t == "file" and not files_loaded[path] then
-        local script = Script.new(path);
-        script.selected_by_name = true;
+        script_params.selection = "file path";
+        script_params.verbosity = true;
+        local script = Script.new(path, script_params);
         chosen_scripts[#chosen_scripts+1] = script;
-        print_debug(2, "Script %s was selected by name.", script.filename);
         files_loaded[path] = true;
       elseif t == "directory" then
         for f in cnse.dir(path) do
           local file = path .."/".. f
           if find(f, "%.nse$") and not files_loaded[file] then
-            chosen_scripts[#chosen_scripts+1] = Script.new(file);
+            script_params.selection = "directory";
+            local script = Script.new(path, script_params);
+            chosen_scripts[#chosen_scripts+1] = script;
             files_loaded[file] = true;
           end
         end
@@ -630,8 +727,7 @@ end
 -- The main loop function for NSE. It handles running all the script threads.
 -- Arguments:
 --   threads  An array of threads (a runlevel) to run.
---   scantype  A string that indicates the current script scan phase.
-local function run (threads_iter, scantype, hosts)
+local function run (threads_iter, hosts)
   -- running scripts may be resumed at any time. waiting scripts are
   -- yielded until Nsock wakes them. After being awakened with
   -- nse_restore, waiting threads become pending and later are moved all
@@ -726,18 +822,6 @@ local function run (threads_iter, scantype, hosts)
   end
   if num_threads == 0 then
     return
-  end
-
-  if (scantype == NSE_PRE_SCAN) then
-    print_verbose(1, "Script Pre-scanning.");
-  elseif (scantype == NSE_SCAN) then
-    if #hosts > 1 then
-      print_verbose(1, "Script scanning %d hosts.", #hosts);
-    elseif #hosts == 1 then
-      print_verbose(1, "Script scanning %s.", hosts[1].ip);
-    end
-  elseif (scantype == NSE_POST_SCAN) then
-    print_verbose(1, "Script Post-scanning.");
   end
 
   local progress = cnse.scan_progress_meter(NAME);
@@ -844,20 +928,20 @@ end
 local function format_nsedoc(nsedoc, indent)
   indent = indent or ""
 
-  return string.gsub(nsedoc, "([^\n]+)", indent .. "%1")
+  return gsub(nsedoc, "([^\n]+)", indent .. "%1")
 end
 
 -- Return the NSEDoc URL for the script with the given id.
 local function nsedoc_url(id)
-  return string.format("%s/nsedoc/scripts/%s.html", cnse.NMAP_URL, id)
+  return format("%s/nsedoc/scripts/%s.html", cnse.NMAP_URL, id)
 end
 
 local function script_help_normal(chosen_scripts)
   for i, script in ipairs(chosen_scripts) do
     log_write_raw("stdout", "\n");
-    log_write_raw("stdout", string.format("%s\n", script.id));
-    log_write_raw("stdout", string.format("Categories: %s\n", table.concat(script.categories, " ")));
-    log_write_raw("stdout", string.format("%s\n", nsedoc_url(script.id)));
+    log_write_raw("stdout", format("%s\n", script.id));
+    log_write_raw("stdout", format("Categories: %s\n", concat(script.categories, " ")));
+    log_write_raw("stdout", format("%s\n", nsedoc_url(script.id)));
     log_write_raw("stdout", format_nsedoc(script.description, "  "));
   end
 end
@@ -967,6 +1051,19 @@ do -- Load script arguments (--script-args)
     end
   end
   nmap.registry.args = parse_table("{"..args.."}", 1);
+  -- Check if user wants to read scriptargs from a file
+  if cnse.scriptargsfile ~= nil then --scriptargsfile path/to/file
+    local t, path = cnse.fetchfile_absolute(cnse.scriptargsfile)
+    assert(t == 'file', format("%s is not a file", path))
+    local argfile = assert(open(path, 'r'));
+    local argstring = argfile:read("*a")
+    argstring = gsub(argstring,"\n",",")
+    local tmpargs = parse_table("{"..argstring.."}",1)
+    for k,v in pairs(nmap.registry.args) do
+      tmpargs[k] = v
+    end
+    nmap.registry.args = tmpargs
+  end
 end
 
 -- Update Missing Script Database?
@@ -1059,12 +1156,24 @@ local function main (hosts, scantype)
     insert(runlevels[script.runlevel], script);
   end
 
+  if scantype == NSE_PRE_SCAN then
+    print_verbose(1, "Script Pre-scanning.");
+  elseif scantype == NSE_SCAN then
+    if #hosts > 1 then
+      print_verbose(1, "Script scanning %d hosts.", #hosts);
+    elseif #hosts == 1 then
+      print_verbose(1, "Script scanning %s.", hosts[1].ip);
+    end
+  elseif scantype == NSE_POST_SCAN then
+    print_verbose(1, "Script Post-scanning.");
+  end
+
   for runlevel, scripts in ipairs(runlevels) do
     -- This iterator is passed to the run function. It returns one new script
     -- thread on demand until exhausted.
     local function threads_iter ()
       -- activate prerule scripts
-      if (scantype == NSE_PRE_SCAN) then
+      if scantype == NSE_PRE_SCAN then
         for _, script in ipairs(scripts) do
            local thread = script:new_thread("prerule");
            if thread then
@@ -1073,29 +1182,29 @@ local function main (hosts, scantype)
            end
         end
       -- activate hostrule and portrule scripts
-      elseif (scantype == NSE_SCAN) then
+      elseif scantype == NSE_SCAN then
         -- Check hostrules for this host.
         for j, host in ipairs(hosts) do
           for _, script in ipairs(scripts) do
-            local thread = script:new_thread("hostrule", tcopy(host));
+            local thread = script:new_thread("hostrule", host_copy(host));
             if thread then
-              thread.args, thread.host = {n = 1, tcopy(host)}, host;
+              thread.args, thread.host = {n = 1, host_copy(host)}, host;
               yield(thread);
             end
           end
           -- Check portrules for this host.
           for port in cnse.ports(host) do
             for _, script in ipairs(scripts) do
-              local thread = script:new_thread("portrule", tcopy(host), tcopy(port));
+              local thread = script:new_thread("portrule", host_copy(host), tcopy(port));
               if thread then
-                thread.args, thread.host, thread.port = {n = 2, tcopy(host), tcopy(port)}, host, port;
+                thread.args, thread.host, thread.port = {n = 2, host_copy(host), tcopy(port)}, host, port;
                 yield(thread);
               end
             end
           end
         end
         -- activate postrule scripts
-      elseif (scantype == NSE_POST_SCAN) then
+      elseif scantype == NSE_POST_SCAN then
         for _, script in ipairs(scripts) do
           local thread = script:new_thread("postrule");
           if thread then
@@ -1106,7 +1215,7 @@ local function main (hosts, scantype)
       end
     end
     print_verbose(2, "Starting runlevel %u (of %u) scan.", runlevel, #runlevels);
-    run(wrap(threads_iter), scantype, hosts)
+    run(wrap(threads_iter), hosts)
   end
 
   collectgarbage "collect";

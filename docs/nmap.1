@@ -2,12 +2,12 @@
 .\"     Title: nmap
 .\"    Author: [see the "Author" section]
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 12/12/2011
+.\"      Date: 05/19/2012
 .\"    Manual: Nmap Reference Guide
 .\"    Source: Nmap
 .\"  Language: English
 .\"
-.TH "NMAP" "1" "12/12/2011" "Nmap" "Nmap Reference Guide"
+.TH "NMAP" "1" "05/19/2012" "Nmap" "Nmap Reference Guide"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,35 +77,32 @@ for faster execution; and then the two target hostnames\&.
 .nf
 # \fBnmap \-A \-T4 scanme\&.nmap\&.org\fR
 
-Nmap scan report for scanme\&.nmap\&.org (64\&.13\&.134\&.52)
-Host is up (0\&.045s latency)\&.
-Not shown: 993 filtered ports
-PORT      STATE  SERVICE VERSION
-22/tcp    open   ssh     OpenSSH 4\&.3 (protocol 2\&.0)
-| ssh\-hostkey: 1024 60:ac:4d:51:b1:cd:85:09:12:16:92:76:1d:5d:27:6e (DSA)
-|_2048 2c:22:75:60:4b:c3:3b:18:a2:97:2c:96:7e:28:dc:dd (RSA)
-25/tcp    closed smtp
-53/tcp    open   domain
-70/tcp    closed gopher
-80/tcp    open   http    Apache httpd 2\&.2\&.3 ((CentOS))
-|_html\-title: Go ahead and ScanMe!
-| http\-methods: Potentially risky methods: TRACE
-|_See http://nmap\&.org/nsedoc/scripts/http\-methods\&.html
-113/tcp   closed auth
-31337/tcp closed Elite
+Nmap scan report for scanme\&.nmap\&.org (74\&.207\&.244\&.221)
+Host is up (0\&.029s latency)\&.
+rDNS record for 74\&.207\&.244\&.221: li86\-221\&.members\&.linode\&.com
+Not shown: 995 closed ports
+PORT     STATE    SERVICE     VERSION
+22/tcp   open     ssh         OpenSSH 5\&.3p1 Debian 3ubuntu7 (protocol 2\&.0)
+| ssh\-hostkey: 1024 8d:60:f1:7c:ca:b7:3d:0a:d6:67:54:9d:69:d9:b9:dd (DSA)
+|_2048 79:f8:09:ac:d4:e2:32:42:10:49:d3:bd:20:82:85:ec (RSA)
+80/tcp   open     http        Apache httpd 2\&.2\&.14 ((Ubuntu))
+|_http\-title: Go ahead and ScanMe!
+646/tcp  filtered ldp
+1720/tcp filtered H\&.323/Q\&.931
+9929/tcp open     nping\-echo  Nping echo
 Device type: general purpose
 Running: Linux 2\&.6\&.X
-OS details: Linux 2\&.6\&.13 \- 2\&.6\&.31, Linux 2\&.6\&.18
-Network Distance: 13 hops
+OS CPE: cpe:/o:linux:kernel:2\&.6\&.39
+OS details: Linux 2\&.6\&.39
+Network Distance: 11 hops
+Service Info: OS: Linux; CPE: cpe:/o:linux:kernel
 
-TRACEROUTE (using port 80/tcp)
-HOP RTT       ADDRESS
+TRACEROUTE (using port 53/tcp)
+HOP RTT      ADDRESS
 [Cut first 10 hops for brevity]
-11  80\&.33 ms  layer42\&.car2\&.sanjose2\&.level3\&.net (4\&.59\&.4\&.78)
-12  137\&.52 ms xe6\-2\&.core1\&.svk\&.layer42\&.net (69\&.36\&.239\&.221)
-13  44\&.15 ms  scanme\&.nmap\&.org (64\&.13\&.134\&.52)
+11  17\&.65 ms li86\-221\&.members\&.linode\&.com (74\&.207\&.244\&.221)
 
-Nmap done: 1 IP address (1 host up) scanned in 22\&.19 seconds
+Nmap done: 1 IP address (1 host up) scanned in 14\&.40 seconds
 .fi
 .if n \{\
 .RE
@@ -118,7 +115,7 @@ It is also included as a chapter of Nmap Network Scanning: The Official Nmap Pro
 .SH "OPTIONS SUMMARY"
 .PP
 This options summary is printed when Nmap is run with no arguments, and the latest version is always available at
-\m[blue]\fB\%http://nmap.org/data/nmap.usage.txt\fR\m[]\&. It helps people remember the most common options, but is no substitute for the in\-depth documentation in the rest of this manual\&. Some obscure options aren\*(Aqt even included here\&.
+\m[blue]\fB\%https://svn.nmap.org/nmap/docs/nmap.usage.txt\fR\m[]\&. It helps people remember the most common options, but is no substitute for the in\-depth documentation in the rest of this manual\&. Some obscure options aren\*(Aqt even included here\&.
 .\" summary of options
 .\" command-line options: of Nmap
 .sp
@@ -126,7 +123,7 @@ This options summary is printed when Nmap is run with no arguments, and the late
 .RS 4
 .\}
 .nf
-Nmap 5\&.51\&.6 ( http://nmap\&.org )
+Nmap 6\&.00 ( http://nmap\&.org )
 Usage: nmap [Scan Type(s)] [Options] {target specification}
 TARGET SPECIFICATION:
   Can pass hostnames, IP addresses, networks, etc\&.
@@ -173,8 +170,12 @@ SCRIPT SCAN:
   \-\-script=<Lua scripts>: <Lua scripts> is a comma separated list of 
            directories, script\-files or script\-categories
   \-\-script\-args=<n1=v1,[n2=v2,\&.\&.\&.]>: provide arguments to scripts
+  \-\-script\-args\-file=filename: provide NSE script args in a file
   \-\-script\-trace: Show all data sent and received
   \-\-script\-updatedb: Update the script database\&.
+  \-\-script\-help=<Lua scripts>: Show help about scripts\&.
+           <Lua scripts> is a comma separted list of script\-files or
+           script\-categories\&.
 OS DETECTION:
   \-O: Enable OS detection
   \-\-osscan\-limit: Limit OS detection to promising targets
@@ -277,7 +278,15 @@ in the first octet so the target specification doesn\*(Aqt look like a command\-
 will perform an Internet\-wide scan for all IP addresses ending in 13\&.37\&. This sort of broad sampling can be useful for Internet surveys and research\&.
 .\" IPv6
 .PP
-IPv6 addresses can only be specified by their fully qualified IPv6 address or hostname\&. CIDR and octet ranges aren\*(Aqt supported for IPv6 because they are rarely useful\&.
+IPv6 addresses can only be specified by their fully qualified IPv6 address or hostname\&. CIDR and octet ranges aren\*(Aqt yet supported for IPv6\&.
+.\" link-local IPv6 address
+.\" IPv6 address: link-local
+.\" zone ID (IPv6 address)
+.PP
+IPv6 addresses with non\-global scope need to have a zone ID suffix\&. On Unix systems, this is a percent sign followed by an interface name; a complete address might be
+fe80::a8bb:ccff:fedd:eeff%eth0\&. On Windows, use an interface index number in place of an interface name:
+fe80::a8bb:ccff:fedd:eeff%1\&. You can see a list of interface indexes by running the command
+\fBnetsh\&.exe interface ipv6 show interface\fR\&.
 .PP
 Nmap accepts multiple host specifications on the command line, and they don\*(Aqt need to be the same type\&. The command
 \fBnmap scanme\&.nmap\&.org 192\&.168\&.0\&.0/8 10\&.0\&.0,1,3\-7\&.\-\fR
@@ -336,16 +345,17 @@ Because host discovery needs are so diverse, Nmap offers a wide variety of optio
 ping
 tool\&. Users can skip the ping step entirely with a list scan (\fB\-sL\fR) or by disabling ping (\fB\-Pn\fR), or engage the network with arbitrary combinations of multi\-port TCP SYN/ACK, UDP, SCTP INIT and ICMP probes\&. The goal of these probes is to solicit responses which demonstrate that an IP address is actually active (is being used by a host or network device)\&. On many networks, only a small percentage of IP addresses are active at any given time\&. This is particularly common with private address space such as 10\&.0\&.0\&.0/8\&. That network has 16 million IPs, but I have seen it used by companies with less than a thousand machines\&. Host discovery can find those machines in a sparsely allocated sea of IP addresses\&.
 .PP
-If no host discovery options are given, Nmap sends an ICMP echo request, a TCP SYN packet to port 443, a TCP ACK packet to port 80, and an ICMP timestamp request\&. These defaults are equivalent to the
+If no host discovery options are given, Nmap sends an ICMP echo request, a TCP SYN packet to port 443, a TCP ACK packet to port 80, and an ICMP timestamp request\&. (For IPv6, the ICMP timestamp request is omitted because it is not part of ICMPv6\&.) These defaults are equivalent to the
 \fB\-PE \-PS443 \-PA80 \-PP\fR
-options\&. An exception to this is that an ARP scan is used for any targets which are on a local ethernet network\&. For unprivileged Unix shell users, the default probes are a SYN packet to ports 80 and 443 using the
+options\&. The exceptions to this are the ARP (for IPv4) and Neighbor Discovery.\" Neighbor Discovery: for host discovery
+(for IPv6) scans which are used for any targets on a local ethernet network\&. For unprivileged Unix shell users, the default probes are a SYN packet to ports 80 and 443 using the
 \fBconnect\fR
 system call\&..\" unprivileged users: limitations of
 This host discovery is often sufficient when scanning local networks, but a more comprehensive set of discovery probes is recommended for security auditing\&.
 .PP
 The
 \fB\-P*\fR
-options (which select ping types) can be combined\&. You can increase your odds of penetrating strict firewalls by sending many probe types using different TCP ports/flags and ICMP codes\&. Also note that ARP discovery (\fB\-PR\fR).\" -PR
+options (which select ping types) can be combined\&. You can increase your odds of penetrating strict firewalls by sending many probe types using different TCP ports/flags and ICMP codes\&. Also note that ARP/Neighbor Discovery (\fB\-PR\fR).\" -PR
 is done by default against targets on a local ethernet network even if you specify other
 \fB\-P*\fR
 options, because it is almost always faster and more effective\&.
@@ -447,7 +457,7 @@ whereby the
 \fBconnect\fR
 system call is initiated against each target port\&. This has the effect of sending a SYN packet to the target host, in an attempt to establish a connection\&. If
 \fBconnect\fR
-returns with a quick success or an ECONNREFUSED failure, the underlying TCP stack must have received a SYN/ACK or RST and the host is marked available\&. If the connection attempt is left hanging until a timeout is reached, the host is marked as down\&. This workaround is also used for IPv6 connections, as raw IPv6 packet building support is not yet available in Nmap\&..\" IPv6: limitations of
+returns with a quick success or an ECONNREFUSED failure, the underlying TCP stack must have received a SYN/ACK or RST and the host is marked available\&. If the connection attempt is left hanging until a timeout is reached, the host is marked as down\&.
 .RE
 .PP
 \fB\-PA \fR\fB\fIport list\fR\fR (TCP ACK Ping) .\" -PA .\" ACK ping
@@ -456,7 +466,7 @@ The TCP ACK ping is quite similar to the just\-discussed SYN ping\&. The differe
 .sp
 The
 \fB\-PA\fR
-option uses the same default port as the SYN probe (80) and can also take a list of destination ports in the same format\&. If an unprivileged user tries this, or an IPv6 target is specified, the
+option uses the same default port as the SYN probe (80) and can also take a list of destination ports in the same format\&. If an unprivileged user tries this, the
 \fBconnect\fR
 workaround discussed previously is used\&. This workaround is imperfect because
 \fBconnect\fR
@@ -526,7 +536,6 @@ On Unix boxes, only the privileged user
 root.\" privileged users
 is generally able to send and receive raw SCTP packets\&..\" raw packets
 Using SCTP INIT Pings is currently not possible for unprivileged users\&..\" unprivileged users: limitations of
-The same limitation applies to IPv6, which is currently not supported for SCTP INIT Ping\&..\" IPv6: limitations of
 .RE
 .PP
 \fB\-PE\fR; \fB\-PP\fR; \fB\-PM\fR (ICMP Ping Types) .\" -PE .\" -PP .\" -PM .\" ICMP ping
@@ -573,6 +582,10 @@ ARP scan puts Nmap and its optimized algorithms in charge of ARP requests\&. And
 or
 \fB\-PS\fR) are specified, Nmap uses ARP instead for any of the targets which are on the same LAN\&. If you absolutely don\*(Aqt want to do an ARP scan, specify
 \fB\-\-send\-ip\fR\&.
+.sp
+For IPv6 (\-6 option),
+\fB\-PR\fR
+uses ICMPv6 Neighbor Discovery instead of ARP\&. Neighbor Discovery, defined in RFC 4861, can be seen as the IPv6 equivalent of ARP\&.
 .RE
 .PP
 \fB\-\-traceroute\fR (Trace path to host) .\" --traceroute .\" traceroute
@@ -681,7 +694,7 @@ This section documents the dozen or so port scan techniques supported by Nmap\&.
 \fB\-sZ\fR) may be combined with any one of the TCP scan types\&. As a memory aid, port scan type options are of the form
 \fB\-s\fR\fB\fIC\fR\fR, where
 \fIC\fR
-is a prominent character in the scan name, usually the first\&. The one exception to this is the deprecated FTP bounce scan (\fB\-b\fR)\&. By default, Nmap performs a SYN Scan, though it substitutes a connect scan if the user does not have proper privileges to send raw packets (requires root access on Unix) or if IPv6 targets were specified\&. Of the scans listed in this section, unprivileged users can only execute connect and FTP bounce scans\&.
+is a prominent character in the scan name, usually the first\&. The one exception to this is the deprecated FTP bounce scan (\fB\-b\fR)\&. By default, Nmap performs a SYN Scan, though it substitutes a connect scan if the user does not have proper privileges to send raw packets (requires root access on Unix)\&. Of the scans listed in this section, unprivileged users can only execute connect and FTP bounce scans\&.
 .PP
 \fB\-sS\fR (TCP SYN scan) .\" -sS .\" SYN scan
 .RS 4
@@ -697,7 +710,7 @@ This technique is often referred to as half\-open scanning, because you don\*(Aq
 .PP
 \fB\-sT\fR (TCP connect scan) .\" -sT .\" connect scan
 .RS 4
-TCP connect scan is the default TCP scan type when SYN scan is not an option\&. This is the case when a user does not have raw packet privileges or is scanning IPv6 networks\&. Instead of writing raw packets as most other scan types do, Nmap asks the underlying operating system to establish a connection with the target machine and port by issuing the
+TCP connect scan is the default TCP scan type when SYN scan is not an option\&. This is the case when a user does not have raw packet privileges\&. Instead of writing raw packets as most other scan types do, Nmap asks the underlying operating system to establish a connection with the target machine and port by issuing the
 \fBconnect\fR
 system call\&. This is the same high\-level system call that web browsers, P2P clients, and most other network\-enabled applications use to establish a connection\&. It is part of a programming interface known as the Berkeley Sockets API\&. Rather than read raw packet responses off the wire, Nmap uses this API to obtain status information on each connection attempt\&.
 .sp
@@ -1046,10 +1059,9 @@ Even if Nmap is right, and the hypothetical server above is running SMTP, HTTP, 
 .PP
 After TCP and/or UDP ports are discovered using one of the other scan methods, version detection interrogates those ports to determine more about what is actually running\&. The
 nmap\-service\-probes.\" nmap-service-probes
-database contains probes for querying various services and match expressions to recognize and parse responses\&. Nmap tries to determine the service protocol (e\&.g\&. FTP, SSH, Telnet, HTTP), the application name (e\&.g\&. ISC BIND, Apache httpd, Solaris telnetd), the version number, hostname, device type (e\&.g\&. printer, router), the OS family (e\&.g\&. Windows, Linux) and sometimes miscellaneous details like whether an X server is open to connections, the SSH protocol version, or the KaZaA user name)\&. Of course, most services don\*(Aqt provide all of this information\&. If Nmap was compiled with OpenSSL support, it will connect to SSL servers to deduce the service listening behind that encryption layer\&..\" SSL: in version detection
-When RPC services are discovered, the Nmap RPC grinder.\" RPC grinder
-(\fB\-sR\fR).\" -sR
-is automatically used to determine the RPC program and version numbers\&. Some UDP ports are left in the
+database contains probes for querying various services and match expressions to recognize and parse responses\&. Nmap tries to determine the service protocol (e\&.g\&. FTP, SSH, Telnet, HTTP), the application name (e\&.g\&. ISC BIND, Apache httpd, Solaris telnetd), the version number, hostname, device type (e\&.g\&. printer, router), the OS family (e\&.g\&. Windows, Linux)\&. When possible, Nmap also gets the Common Platform Enumeration (CPE).\" Common Platform Enumeration: service
+representation of this information\&. Sometimes miscellaneous details like whether an X server is open to connections, the SSH protocol version, or the KaZaA user name, are available\&. Of course, most services don\*(Aqt provide all of this information\&. If Nmap was compiled with OpenSSL support, it will connect to SSL servers to deduce the service listening behind that encryption layer\&..\" SSL: in version detection
+Some UDP ports are left in the
 open|filtered
 state after a UDP port scan is unable to determine whether the port is open or filtered\&. Version detection will try to elicit a response from these ports (just as it does with open ports), and change the state to open if it succeeds\&.
 open|filtered
@@ -1057,6 +1069,11 @@ TCP ports are treated the same way\&. Note that the Nmap
 \fB\-A\fR
 option enables version detection among other things\&.
 A paper documenting the workings, usage, and customization of version detection is available at \m[blue]\fB\%http://nmap.org/book/vscan.html\fR\m[]\&.
+.PP
+When RPC services are discovered, the Nmap RPC grinder.\" RPC grinder
+is automatically used to determine the RPC program and version numbers\&. It takes all the TCP/UDP ports detected as RPC and floods them with SunRPC program NULL commands in an attempt to determine whether they are RPC ports, and if so, what program and version number they serve up\&. Thus you can effectively obtain the same info as
+\fBrpcinfo \-p\fR
+even if the target\*(Aqs portmapper is behind a firewall (or protected by TCP wrappers)\&. Decoys do not currently work with RPC scan\&..\" decoys: which scans use
 .PP
 When Nmap receives responses from a service but cannot match them to its database, it prints out a special fingerprint and a URL for you to submit if to if you know for sure what is running on the port\&. Please take a couple minutes to make the submission so that your find can benefit everyone\&. Thanks to these submissions, Nmap has about 6,500 pattern matches for more than 650 protocols such as SMTP, FTP, HTTP, etc\&..\" submission of service fingerprints
 .PP
@@ -1066,6 +1083,10 @@ Version detection is enabled and controlled with the following options:
 .RS 4
 Enables version detection, as discussed above\&. Alternatively, you can use
 \fB\-A\fR, which enables version detection among other things\&.
+.sp
+\fB\-sR\fR.\" -sR
+is an alias for
+\fB\-sV\fR\&. Prior to March 2011, it was used to active the RPC grinder separately from version detection, but now these options are always combined\&.
 .RE
 .PP
 \fB\-\-allports\fR (Don\*(Aqt exclude any ports from version detection) .\" --allports
@@ -1108,23 +1129,16 @@ An alias for
 This causes Nmap to print out extensive debugging info about what version scanning is doing\&. It is a subset of what you get with
 \fB\-\-packet\-trace\fR\&.
 .RE
-.PP
-\fB\-sR\fR (RPC scan) .\" -sR .\" RPC scan .\" RPC grinder
-.RS 4
-This method works in conjunction with the various port scan methods of Nmap\&. It takes all the TCP/UDP ports found open and floods them with SunRPC program NULL commands in an attempt to determine whether they are RPC ports, and if so, what program and version number they serve up\&. Thus you can effectively obtain the same info as
-\fBrpcinfo \-p\fR
-even if the target\*(Aqs portmapper is behind a firewall (or protected by TCP wrappers)\&. Decoys do not currently work with RPC scan\&..\" decoys: which scans use
-This is automatically enabled as part of version scan (\fB\-sV\fR) if you request that\&. As version detection includes this and is much more comprehensive,
-\fB\-sR\fR
-is rarely needed\&.
-.RE
 .\" 
 .SH "OS DETECTION"
 .\" OS detection
+.\" CPE
 .PP
 One of Nmap\*(Aqs best\-known features is remote OS detection using TCP/IP stack fingerprinting\&. Nmap sends a series of TCP and UDP packets to the remote host and examines practically every bit in the responses\&. After performing dozens of tests such as TCP ISN sampling, TCP options support and ordering, IP ID sampling, and the initial window size check, Nmap compares the results to its
 nmap\-os\-db.\" nmap-os-db
-database of more than 2,600 known OS fingerprints and prints out the OS details if there is a match\&. Each fingerprint includes a freeform textual description of the OS, and a classification which provides the vendor name (e\&.g\&. Sun), underlying OS (e\&.g\&. Solaris), OS generation (e\&.g\&. 10), and device type (general purpose, router, switch, game console, etc)\&.
+database of more than 2,600 known OS fingerprints and prints out the OS details if there is a match\&. Each fingerprint includes a freeform textual description of the OS, and a classification which provides the vendor name (e\&.g\&. Sun), underlying OS (e\&.g\&. Solaris), OS generation (e\&.g\&. 10), and device type (general purpose, router, switch, game console, etc)\&. Most fingerprints also have a Common Platform Enumeration (CPE).\" Common Platform Enumeration: operating system
+representation, like
+cpe:/o:linux:kernel:2\&.6\&.
 .PP
 If Nmap is unable to guess the OS of a machine, and conditions are good (e\&.g\&. at least one open port and one closed port were found), Nmap will provide a URL you can use to submit the fingerprint if you know (for sure) the OS running on the machine\&. By doing this you contribute to the pool of operating systems known to Nmap and thus it will be more accurate for everyone\&.
 .PP
@@ -1184,6 +1198,7 @@ Tasks we had in mind when creating the system include network discovery, more so
 .PP
 To reflect those different uses and to simplify the choice of which scripts to run, each script contains a field associating it with one or more categories\&. Currently defined categories are
 auth,
+broadcast,
 default\&.
 discovery,
 dos,
@@ -1210,15 +1225,19 @@ Performs a script scan using the default set of scripts\&. It is equivalent to
 \fB\-\-script=default\fR\&. Some of the scripts in this category are considered intrusive and should not be run against a target network without permission\&.
 .RE
 .PP
-\fB\-\-script \fR\fB\fIfilename\fR\fR\fB|\fR\fB\fIcategory\fR\fR\fB|\fR\fB\fIdirectory\fR\fR\fB|\fR\fB\fIexpression\fR\fR\fB|all\fR\fB[,\&.\&.\&.]\fR .\" --script
+\fB\-\-script \fR\fB\fIfilename\fR\fR\fB|\fR\fB\fIcategory\fR\fR\fB|\fR\fB\fIdirectory\fR\fR\fB|\fR\fB\fIexpression\fR\fR\fB[,\&.\&.\&.]\fR .\" --script
 .RS 4
-Runs a script scan using the comma\-separated list of filenames, script categories, and directories\&. Each element in the list may also be a Boolean expression describing a more complex set of scripts\&. Each element is interpreted first as an expression, then as a category, and finally as a file or directory name\&. The special argument
-all
-makes every script in Nmap\*(Aqs script database eligible to run\&. The
-all
-argument should be used with caution as NSE may contain dangerous scripts including exploits, brute force authentication crackers, and denial of service attacks\&.
+Runs a script scan using the comma\-separated list of filenames, script categories, and directories\&. Each element in the list may also be a Boolean expression describing a more complex set of scripts\&. Each element is interpreted first as an expression, then as a category, and finally as a file or directory name\&.
 .sp
-File and directory names may be relative or absolute\&. Absolute names are used directly\&. Relative paths are looked for in the following places until found:
+There are two special features for advanced users only\&. One is to prefix script names and expressions with
++
+to force them to run even if they normally wouldn\*(Aqt (e\&.g\&. the relevant service wasn\*(Aqt detected on the target port)\&. The other is that the argument
+all
+may be used to specify every script in Nmap\*(Aqs database\&. Be cautious with this because NSE contains dangerous scripts such as exploits, brute force authentication crackers, and denial of service attacks\&.
+.sp
+File and directory names may be relative or absolute\&. Absolute names are used directly\&. Relative paths are looked for in the
+scripts
+of each of the following places until found:
 .\" data files: directory search order.\" scripts, location of
 .RS 4
 \fB\-\-datadir\fR
@@ -1230,14 +1249,22 @@ File and directory names may be relative or absolute\&. Absolute names are used 
 ~/\&.nmap (not searched on Windows).\" .nmap directory
 .RE
 .RS 4
+\fIHOME\fR\eAppData\eRoaming\enmap (only on Windows).\" .nmap directory
+.RE
+.RS 4
+the directory containing the nmap
+executable
+.RE
+.RS 4
+the directory containing the nmap
+executable, followed by \&.\&./share/nmap
+.RE
+.RS 4
 \fINMAPDATADIR\fR.\" NMAPDATADIR
 .RE
 .RS 4
-the current directory
+the current directory\&.
 .RE
-A
-scripts
-subdirectory is also tried in each of these\&.
 .sp
 When a directory name is given, Nmap loads every file in the directory whose name ends with
 \&.nse\&. All other files are ignored and directories are not searched recursively\&. When a filename is given, it does not have to have the
@@ -1262,9 +1289,9 @@ by name, you can use a shell\-style \(oq*\(cq wildcard\&.
 .RS 4
 Loads all scripts whose name starts with
 http\-, such as
-http\-auth\&.nse
+http\-auth
 and
-http\-open\-proxy\&.nse\&. The argument to
+http\-open\-proxy\&. The argument to
 \fB\-\-script\fR
 had to be in quotes to protect the wildcard from the shell\&.
 .RE
@@ -1327,11 +1354,28 @@ http\-\&.
 Lets you provide arguments to NSE scripts\&. Arguments are a comma\-separated list of
 name=value
 pairs\&. Names and values may be strings not containing whitespace or the characters \(oq{\(cq, \(oq}\(cq, \(oq=\(cq, or \(oq,\(cq\&. To include one of these characters in a string, enclose the string in single or double quotes\&. Within a quoted string, \(oq\e\(cq escapes a quote\&. A backslash is only used to escape quotation marks in this special case; in all other cases a backslash is interpreted literally\&. Values may also be tables enclosed in
-{}, just as in Lua\&. A table may contain simple string values or more name\-value pairs, including nested tables\&. A complex example of script arguments is
-.\" --script-args: example of .sp .if n \{\ .RS 4 .\} .nf \fB\-\-script\-args \*(Aquser=foo,pass=",{}=bar",whois={whodb=nofollow+ripe},userdb=custom\*(Aq\fR .fi .if n \{\ .RE .\}
-The online NSE Documentation Portal at
+{}, just as in Lua\&. A table may contain simple string values or more name\-value pairs, including nested tables\&. Many scripts qualify their arguments with the script name, as in
+xmpp\-info\&.server_name\&. You may use that full qualified version to affect just the specified script, or you may pass the unqualified version (server_name
+in this case) to affect all scripts using that argument name\&. A script will first check for its fully qualified argument name (the name specified in its documentation) before it accepts an unqualified argument name\&. A complex example of script arguments is
+\fB\-\-script\-args \*(Aquser=foo,pass=",{}=bar",whois={whodb=nofollow+ripe},xmpp\-info\&.server_name=localhost\*(Aq\fR\&. The online NSE Documentation Portal at
 \m[blue]\fB\%http://nmap.org/nsedoc/\fR\m[]
 lists the arguments that each script accepts\&.
+.RE
+.PP
+\fB\-\-script\-args\-file \fR\fB\fIfilename\fR\fR .\" --script-args-file .\" script arguments from file
+.RS 4
+Lets you load arguments to NSE scripts from a file\&. Any arguments on the command line supersede ones in the file\&. The file can be an absolute path, or a path relative to Nmap\*(Aqs usual search path (NMAPDIR, etc\&.) Arguments can be comma\-separated or newline\-separated, but otherwise follow the same rules as for
+\fB\-\-script\-args\fR, without requiring special quoting and escaping, since they are not parsed by the shell\&.
+.RE
+.PP
+\fB\-\-script\-help \fR\fB\fIfilename\fR\fR\fB|\fR\fB\fIcategory\fR\fR\fB|\fR\fB\fIdirectory\fR\fR\fB|\fR\fB\fIexpression\fR\fR\fB|all\fR\fB[,\&.\&.\&.]\fR .\" --script-help
+.RS 4
+Shows help about scripts\&. For each script matching the given specification, Nmap prints the script name, its categories, and its description\&. The specifications are the same as those accepted by
+\fB\-\-script\fR; so for example if you want help about the
+ftp\-anon
+script, you would run
+\fBnmap \-\-script\-help ftp\-anon\fR\&. In addition to getting help for individual scripts, you can use this as a preview of what scripts will be run for a specification, for example with
+\fBnmap \-\-script\-help default\fR\&.
 .RE
 .PP
 \fB\-\-script\-trace\fR .\" --script-trace
@@ -1532,6 +1576,15 @@ filtered
 ports isn\*(Aqt worth the extra time\&.
 .RE
 .PP
+\fB\-\-nsock\-engine epoll|select\fR .\" --nsock-engine .\" Nsock IO engine
+.RS 4
+Enforce use of a given nsock IO multiplexing engine\&. Only the
+select(2)\-based fallback engine is guaranteed to be available on your system\&. Engines are named after the name of the IO management facility they leverage\&. Engines currenty implemented are
+epoll
+and
+select\&.
+.RE
+.PP
 \fB\-T paranoid|sneaky|polite|normal|aggressive|insane\fR (Set a timing template) .\" -T .\" timing templates
 .RS 4
 .\" -T0
@@ -1689,7 +1742,7 @@ Tells Nmap what interface to send and receive packets on\&. Nmap should be able 
 .PP
 \fB\-\-source\-port \fR\fB\fIportnumber\fR\fR\fB;\fR \fB\-g \fR\fB\fIportnumber\fR\fR (Spoof source port number) .\" --source-port .\" -g .\" source port number
 .RS 4
-One surprisingly common misconfiguration is to trust traffic based only on the source port number\&. It is easy to understand how this comes about\&. An administrator will set up a shiny new firewall, only to be flooded with complains from ungrateful users whose applications stopped working\&. In particular, DNS may be broken because the UDP DNS replies from external servers can no longer enter the network\&. FTP is another common example\&. In active FTP transfers, the remote server tries to establish a connection back to the client to transfer the requested file\&.
+One surprisingly common misconfiguration is to trust traffic based only on the source port number\&. It is easy to understand how this comes about\&. An administrator will set up a shiny new firewall, only to be flooded with complaints from ungrateful users whose applications stopped working\&. In particular, DNS may be broken because the UDP DNS replies from external servers can no longer enter the network\&. FTP is another common example\&. In active FTP transfers, the remote server tries to establish a connection back to the client to transfer the requested file\&.
 .sp
 Secure solutions to these problems exist, often in the form of application\-level proxies or protocol\-parsing firewall modules\&. Unfortunately there are also easier, insecure solutions\&. Noting that DNS replies come from port 53 and active FTP from port 20, many administrators have fallen into the trap of simply allowing incoming traffic from those ports\&. They often assume that no attacker would notice and exploit such firewall holes\&. In other cases, administrators consider this a short\-term stop\-gap measure until they can implement a more secure solution\&. Then they forget the security upgrade\&.
 .sp
@@ -1893,7 +1946,7 @@ interactive output\&.
 \fB\-oX \fR\fB\fIfilespec\fR\fR (XML output) .\" -oX .\" XML output
 .RS 4
 Requests that XML output be directed to the given filename\&. Nmap includes a document type definition (DTD) which allows XML parsers to validate Nmap XML output\&. While it is primarily intended for programmatic use, it can also help humans interpret Nmap XML output\&. The DTD defines the legal elements of the format, and often enumerates the attributes and values they can take on\&. The latest version is always available from
-\m[blue]\fB\%http://nmap.org/data/nmap.dtd\fR\m[]\&.
+\m[blue]\fB\%https://svn.nmap.org/nmap/docs/nmap.dtd\fR\m[]\&.
 .sp
 XML offers a stable format that is easily parsed by software\&. Free XML parsers are available for all major computer languages, including C/C++, Perl, Python, and Java\&. People have even written bindings for most of these languages to handle Nmap output and execution specifically\&. Examples are
 \m[blue]\fBNmap::Scanner\fR\m[]\&\s-2\u[15]\d\s+2.\" Nmap::Scanner
@@ -2117,7 +2170,7 @@ This section describes some important (and not\-so\-important) options that don\
 .PP
 \fB\-6\fR (Enable IPv6 scanning) .\" -6 .\" IPv6
 .RS 4
-Since 2002, Nmap has offered IPv6 support for its most popular features\&. In particular, ping scanning (TCP\-only), connect scanning, and version detection all support IPv6\&. The command syntax is the same as usual except that you also add the
+Nmap has IPv6 support for its most popular features\&. Ping scanning, port scanning, version detection, and the Nmap Scripting Engine all support IPv6\&. The command syntax is the same as usual except that you also add the
 \fB\-6\fR
 option\&. Of course, you must use IPv6 syntax if you specify an address rather than a hostname\&. An address might look like
 3ffe:7501:4819:2000:210:f3ff:fe03:14d0, so hostnames are recommended\&. The output looks the same as usual, with the IPv6 address on the
@@ -2128,6 +2181,11 @@ While IPv6 hasn\*(Aqt exactly taken the world by storm, it gets significant use 
 service at
 \m[blue]\fB\%http://www.tunnelbroker.net\fR\m[]\&. Other tunnel brokers are
 \m[blue]\fBlisted at Wikipedia\fR\m[]\&\s-2\u[18]\d\s+2\&. 6to4 tunnels are another popular, free approach\&.
+.sp
+On Windows, raw\-socket IPv6 scans are supported only on ethernet devices (not tunnels), and only on Windows Vista.\" Windows Vista
+and later\&. Use the
+\fB\-\-unprivileged\fR.\" --unprivileged
+option in other situations\&.
 .RE
 .PP
 \fB\-A\fR (Aggressive scan options) .\" -A
@@ -2157,11 +2215,19 @@ option (if any)\&. Any files not found there, are searched for in the directory 
 \fBNMAPDIR\fR.\" NMAPDIR environment variable
 environment variable\&. Next comes
 ~/\&.nmap.\" .nmap directory
-for real and effective UIDs (POSIX systems only) or location of the Nmap executable (Win32 only), and then a compiled\-in location such as
+for real and effective UIDs; or on Windows,
+\fIHOME\fR\eAppData\eRoaming\enmap
+(where
+\fIHOME\fR
+is the user\*(Aqs home directory, like
+C:\eUsers\euser)\&. This is followed by the location of the
+nmap
+executable and the same location with
+\&.\&./share/nmap
+appended\&. Then a compiled\-in location such as
 /usr/local/share/nmap
 or
-/usr/share/nmap
-\&. As a last resort, Nmap will look in the current directory\&.
+/usr/share/nmap\&.
 .RE
 .PP
 \fB\-\-servicedb \fR\fB\fIservices file\fR\fR (Specify custom services file) .\" --servicedb
@@ -2340,7 +2406,7 @@ are far more likely to be answered than those sent to Fyodor directly\&. If you 
 \m[blue]\fB\%http://cgi.insecure.org/mailman/listinfo/nmap-dev\fR\m[]\&.
 .PP
 Code patches to fix bugs are even better than bug reports\&. Basic instructions for creating patch files with your changes are available at
-\m[blue]\fB\%http://nmap.org/data/HACKING\fR\m[]\&. Patches may be sent to
+\m[blue]\fB\%https://svn.nmap.org/nmap/HACKING\fR\m[]\&. Patches may be sent to
 nmap\-dev
 (recommended) or to Fyodor directly\&.
 .SH "AUTHOR"
@@ -2469,8 +2535,9 @@ unless you are prepared to suffer downtime\&. We acknowledge here that Nmap may 
 .PP
 Because of the slight risk of crashes and because a few black hats like to use Nmap for reconnaissance prior to attacking systems, there are administrators who become upset and may complain when their system is scanned\&. Thus, it is often advisable to request permission before doing even a light scan of a network\&.
 .PP
-Nmap should never be installed with special privileges (e\&.g\&. suid root) for security reasons\&..\" setuid, why Nmap shouldn't be
-.SS "Third\-Party Software"
+Nmap should never be installed with special privileges (e\&.g\&. suid root)\&..\" setuid, why Nmap shouldn't be.\" suid
+That would open up a major security vulnerability as other users on the system (or attackers) could use it for privilege escalation\&.
+.SS "Third\-Party Software and Funding Notices"
 .PP
 This product includes software developed by the
 \m[blue]\fBApache Software Foundation\fR\m[]\&\s-2\u[20]\d\s+2\&. A modified version of the
@@ -2492,16 +2559,22 @@ All of the third\-party software described in this paragraph is freely redistrib
 Binary packages for Windows and Mac OS X include support libraries necessary to run Zenmap and Ndiff with Python and PyGTK\&. (Unix platforms commonly make these libraries easy to install, so they are not part of the packages\&.) A listing of these support libraries and their licenses is included in the
 LICENSES
 files\&.
+.PP
+This software was supported in part through the
+\m[blue]\fBGoogle Summer of Code\fR\m[]\&\s-2\u[27]\d\s+2
+and the
+\m[blue]\fBDARPA CINDER program\fR\m[]\&\s-2\u[28]\d\s+2
+(DARPA\-BAA\-10\-84)\&.
 .SS "United States Export Control.\" export control"
 .PP
 Nmap only uses encryption when compiled with the optional OpenSSL support and linked with OpenSSL\&. When compiled without OpenSSL support, Insecure\&.Com LLC believes that Nmap is not subject to U\&.S\&.
-\m[blue]\fBExport Administration Regulations (EAR)\fR\m[]\&\s-2\u[27]\d\s+2
+\m[blue]\fBExport Administration Regulations (EAR)\fR\m[]\&\s-2\u[29]\d\s+2
 export control\&. As such, there is no applicable ECCN (export control classification number) and exportation does not require any special license, permit, or other governmental authorization\&.
 .PP
 When compiled with OpenSSL support or distributed as source code, Insecure\&.Com LLC believes that Nmap falls under U\&.S\&. ECCN
-\m[blue]\fB5D002\fR\m[]\&\s-2\u[28]\d\s+2
+\m[blue]\fB5D002\fR\m[]\&\s-2\u[30]\d\s+2
 (\(lqInformation Security Software\(rq)\&. We distribute Nmap under the TSU exception for publicly available encryption software defined in
-\m[blue]\fBEAR 740\&.13(e)\fR\m[]\&\s-2\u[29]\d\s+2\&.
+\m[blue]\fBEAR 740\&.13(e)\fR\m[]\&\s-2\u[31]\d\s+2\&.
 .SH "NOTES"
 .IP " 1." 4
 Nmap Network Scanning: The Official Nmap Project Guide to Network Discovery and Security Scanning
@@ -2634,16 +2707,26 @@ Lua programming language
 \%http://www.lua.org
 .RE
 .IP "27." 4
+Google Summer of Code
+.RS 4
+\%http://nmap.org/soc/
+.RE
+.IP "28." 4
+DARPA CINDER program
+.RS 4
+\%https://www.fbo.gov/index?s=opportunity&mode=form&id=585e02a51f77af5cb3c9e06b9cc82c48&tab=core&_cview=1
+.RE
+.IP "29." 4
 Export Administration Regulations (EAR)
 .RS 4
 \%http://www.access.gpo.gov/bis/ear/ear_data.html
 .RE
-.IP "28." 4
+.IP "30." 4
 5D002
 .RS 4
 \%http://www.access.gpo.gov/bis/ear/pdf/ccl5-pt2.pdf
 .RE
-.IP "29." 4
+.IP "31." 4
 EAR 740.13(e)
 .RS 4
 \%http://www.access.gpo.gov/bis/ear/pdf/740.pdf

@@ -36,7 +36,7 @@ the target to retrieve a web page from www.google.com.
 
 author = "Arturo 'Buanzo' Busleiman"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"default", "discovery", "external", "intrusive"}
+categories = {"default", "discovery", "external", "safe"}
 require "comm"
 require "shortport"
 require "stdnse"
@@ -99,11 +99,11 @@ end
 -- @return response String with supported methods
 function default_test(host, port)
   local fstatus = false
+  local cstatus = false
   local response = ""
   local get_status, head_status, conn_status
   local get_r1, get_r2, get_r3
   local get_cstatus, head_cstatus
-  local _
 
   -- Start test n1 -> google.com
   -- making requests	
@@ -188,14 +188,10 @@ end
 portrule = shortport.port_or_service({8123,3128,8000,8080},{'polipo','squid-http','http-proxy'})
 
 action = function(host, port)
-  local response
-  local i
-  local retval
   local supported_methods = "\nMethods succesfully tested: "
   local fstatus = false
   local def_test = true
   local test_url, pattern
-  local hostname
 
   test_url, pattern = proxy.return_args() 
  
@@ -209,8 +205,7 @@ action = function(host, port)
 
   -- If any of the tests were OK, then the proxy is potentially open
   if fstatus then
-    retval = "Potentially OPEN proxy.\n" .. supported_methods
-    return retval
+    return "Potentially OPEN proxy.\n" .. supported_methods
   elseif not fstatus and supported_methods then
     return supported_methods
   end

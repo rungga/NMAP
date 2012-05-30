@@ -1,5 +1,5 @@
 description = [[
-Performs password guessing against Apple Filing Protocol (AFP)
+Performs password guessing against Apple Filing Protocol (AFP).
 ]]
 
 ---
@@ -10,7 +10,7 @@ Performs password guessing against Apple Filing Protocol (AFP)
 -- PORT    STATE SERVICE
 -- 548/tcp open  afp
 -- | afp-brute:  
--- |_  admin:KenSentMe => Login Correct
+-- |_  admin:KenSentMe => Valid credentials
 
 -- Information on AFP implementations
 --
@@ -26,17 +26,18 @@ Performs password guessing against Apple Filing Protocol (AFP)
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"intrusive", "auth"}
+categories = {"intrusive", "brute"}
 
 require 'shortport'
 require 'stdnse'
 require 'afp'
 require 'unpwdb'
 
--- Version 0.2
+-- Version 0.3
 -- Created 01/15/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 03/09/2010 - v0.2 - changed so that passwords are iterated over users
 --                           - this change makes better sence as guessing is slow
+-- Revised 09/09/2011 - v0.3 - changed account status text to be more consistent with other *-brute scripts
 
 portrule = shortport.port_or_service(548, "afp")
 
@@ -85,7 +86,7 @@ action = function( host, port )
 					nmap.registry.afp[username]=password
 					found_users[username] = true
 
-					table.insert( valid_accounts, string.format("%s:%s => Login Correct", username, password:len()>0 and password or "<empty>" ) )
+					table.insert( valid_accounts, string.format("%s:%s => Valid credentials", username, password:len()>0 and password or "<empty>" ) )
 					break
 				end
 				helper:CloseSession()

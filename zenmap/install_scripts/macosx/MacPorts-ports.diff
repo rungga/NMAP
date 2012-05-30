@@ -1,180 +1,82 @@
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/graphics/cairo/Portfile ports/graphics/cairo/Portfile
---- ports.orig/graphics/cairo/Portfile	2010-10-12 00:30:49.000000000 -0700
-+++ ports/graphics/cairo/Portfile	2010-10-12 10:49:45.000000000 -0700
-@@ -52,7 +52,8 @@
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/devel/atk/Portfile ports/devel/atk/Portfile
+--- ports.orig/devel/atk/Portfile	2011-07-12 06:30:20.000000000 -0700
++++ ports/devel/atk/Portfile	2011-10-13 18:38:07.000000000 -0700
+@@ -31,12 +31,10 @@
+                         port:gtk-doc
  
- minimum_xcodeversions       {8 2.4.1}
+ depends_lib             path:lib/pkgconfig/glib-2.0.pc:glib2 \
+-                        port:gettext \
+-                        port:libiconv
++                        port:gettext
  
--patchfiles                  patch-src-cairo.h.diff
-+patchfiles                  patch-src-cairo.h.diff \
-+                            patch-configure.diff
+ archcheck.files-append  lib/libglib-2.0.dylib \
+-                        lib/libintl.dylib \
+-                        lib/libiconv.dylib
++                        lib/libintl.dylib
  
- pre-configure {
-     set pixman_minimum_version 0.12.0
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/graphics/cairo/files/patch-configure.diff ports/graphics/cairo/files/patch-configure.diff
---- ports.orig/graphics/cairo/files/patch-configure.diff	1969-12-31 16:00:00.000000000 -0800
-+++ ports/graphics/cairo/files/patch-configure.diff	2010-10-12 10:45:16.000000000 -0700
-@@ -0,0 +1,35 @@
-+--- configure.orig	2010-09-06 09:16:46.000000000 -0700
-++++ configure	2010-10-12 10:44:16.000000000 -0700
-+@@ -32692,10 +32692,6 @@
-+ rm -f core conftest.err conftest.$ac_objext \
-+     conftest$ac_exeext conftest.$ac_ext
-+ 
-+-	if test "x$cairo_cc_stderr" != "x"; then
-+-		cairo_cc_flag=no
-+-	fi
-+-
-+ 	if test "x$cairo_cc_flag" = "xyes"; then
-+ 		real_pthread_CFLAGS="$CFLAGS";
-+ 		 real_pthread_LIBS="$LIBS";
-+@@ -32811,10 +32807,6 @@
-+ rm -f core conftest.err conftest.$ac_objext \
-+     conftest$ac_exeext conftest.$ac_ext
-+ 
-+-	if test "x$cairo_cc_stderr" != "x"; then
-+-		cairo_cc_flag=no
-+-	fi
-+-
-+ 	if test "x$cairo_cc_flag" = "xyes"; then
-+ 		real_pthread_CFLAGS="$CFLAGS";
-+ 		 real_pthread_LIBS="$LIBS";
-+@@ -32892,10 +32884,6 @@
-+ rm -f core conftest.err conftest.$ac_objext \
-+     conftest$ac_exeext conftest.$ac_ext
-+ 
-+-	if test "x$cairo_cc_stderr" != "x"; then
-+-		cairo_cc_flag=no
-+-	fi
-+-
-+ 	if test "x$cairo_cc_flag" = "xyes"; then
-+ 		pthread_CFLAGS="$CFLAGS";
-+ 		 pthread_LIBS="$LIBS";
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/lang/perl5.8/Portfile ports/lang/perl5.8/Portfile
---- ports.orig/lang/perl5.8/Portfile	2010-04-28 17:00:48.000000000 -0700
-+++ ports/lang/perl5.8/Portfile	2010-10-12 10:07:03.000000000 -0700
-@@ -68,7 +68,7 @@
-     configure.args-append "-D inc_version_list=\"5.8.8 5.8.8/${os.platform}-2level\""
- }
+ configure.args          --enable-static \
+                         --disable-introspection
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/devel/gettext/Portfile ports/devel/gettext/Portfile
+--- ports.orig/devel/gettext/Portfile	2011-07-25 23:30:20.000000000 -0700
++++ ports/devel/gettext/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -46,12 +46,10 @@
+ configure.args-append   --without-git \
+                         --without-cvs
  
--set exclude_libs {bind gdbm db}
-+set exclude_libs {bind gdbm db util}
+-depends_lib             port:libiconv \
+-                        port:ncurses \
++depends_lib             port:ncurses \
+                         port:expat
  
- post-patch {
-     foreach lib ${exclude_libs} {
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/python/py26-gobject/Portfile ports/python/py26-gobject/Portfile
---- ports.orig/python/py26-gobject/Portfile	2010-10-08 08:00:53.000000000 -0700
-+++ ports/python/py26-gobject/Portfile	2010-10-12 10:07:03.000000000 -0700
-@@ -33,7 +33,6 @@
-                 port:libxslt \
-                 port:gettext \
-                 port:libiconv \
--                port:libffi \
-                 port:python26
+-archcheck.files         lib/libiconv.dylib \
+-                        lib/libncurses.dylib \
++archcheck.files         lib/libncurses.dylib \
+                         lib/libexpat.dylib
  
- set python_prefix ${frameworks_dir}/Python.framework/Versions/2.6
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/python/py26-gtk/Portfile ports/python/py26-gtk/Portfile
---- ports.orig/python/py26-gtk/Portfile	2010-08-30 17:30:46.000000000 -0700
-+++ ports/python/py26-gtk/Portfile	2010-10-12 16:32:49.000000000 -0700
-@@ -29,7 +29,6 @@
- depends_lib     port:python26 \
-                 port:atk \
-                 port:gtk2 \
--                port:libglade2 \
-                 port:py26-cairo \
-                 port:py26-gobject
+ test.run                yes
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/devel/glib2/Portfile ports/devel/glib2/Portfile
+--- ports.orig/devel/glib2/Portfile	2011-07-27 23:30:20.000000000 -0700
++++ ports/devel/glib2/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -41,12 +41,10 @@
+                             patch-gio_gdbusprivate.c.diff
  
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/python/py26-modulegraph-devel/Portfile ports/python/py26-modulegraph-devel/Portfile
---- ports.orig/python/py26-modulegraph-devel/Portfile	2010-07-20 21:00:54.000000000 -0700
-+++ ports/python/py26-modulegraph-devel/Portfile	2010-10-12 13:24:30.000000000 -0700
-@@ -5,7 +5,7 @@
- PortGroup python26  1.0
+ depends_lib                 port:gettext \
+-                            port:libiconv \
+                             port:zlib \
+                             path:bin/perl:perl5
  
- name                py26-modulegraph-devel
--version             0.7.3
-+version             0.8.1
- categories-append   devel
- license             MIT
- maintainers         nomaintainer
-@@ -23,7 +23,7 @@
+ archcheck.files             lib/libintl.dylib \
+-                            lib/libiconv.dylib \
+                             lib/libz.dylib
  
- fetch.type          svn
- svn.url             http://svn.pythonmac.org/modulegraph/modulegraph/trunk/
--svn.revision        25
-+svn.revision        35
- worksrcdir          trunk
+ use_autoconf                yes
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/gnome/gtk2/Portfile ports/gnome/gtk2/Portfile
+--- ports.orig/gnome/gtk2/Portfile	2011-09-08 10:30:22.000000000 -0700
++++ ports/gnome/gtk2/Portfile	2011-10-13 19:41:49.000000000 -0700
+@@ -43,9 +43,20 @@
+                     path:lib/pkgconfig/pango.pc:pango \
+                     port:gdk-pixbuf2
  
- conflicts           py26-modulegraph
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/python/py26-py2app-devel/Portfile ports/python/py26-py2app-devel/Portfile
---- ports.orig/python/py26-py2app-devel/Portfile	2010-09-02 09:00:50.000000000 -0700
-+++ ports/python/py26-py2app-devel/Portfile	2010-10-12 13:27:55.000000000 -0700
-@@ -5,7 +5,7 @@
- PortGroup python26  1.0
- 
- name                py26-py2app-devel
--version             0.4.4
-+version             0.5.3
- categories-append   devel
- license             MIT/PSF
- maintainers         nomaintainer
-@@ -21,7 +21,7 @@
- 
- fetch.type          svn
- svn.url             http://svn.pythonmac.org/py2app/py2app/trunk/
--svn.revision        87
-+svn.revision        105
- worksrcdir          trunk
- 
- conflicts           py26-py2app
-@@ -35,7 +35,7 @@
- post-destroot {
-     xinstall -m 755 -d ${destroot}${prefix}/share/doc/${name} \
-     ${destroot}${prefix}/share/examples/${name}
--    xinstall -m 644 -W ${worksrcpath} LICENSE.txt NEWS.txt README.txt \
-+    xinstall -m 644 -W ${worksrcpath} LICENSE.txt README.txt \
-     ${destroot}${prefix}/share/doc/${name}
-     eval copy [glob ${worksrcpath}/examples/*] \
-     ${destroot}${prefix}/share/examples/${name}
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/x11/gtk2/Portfile ports/x11/gtk2/Portfile
---- ports.orig/x11/gtk2/Portfile	2010-08-31 10:00:49.000000000 -0700
-+++ ports/x11/gtk2/Portfile	2010-10-12 10:08:37.000000000 -0700
-@@ -39,22 +39,32 @@
- depends_build   port:pkgconfig
- 
- depends_lib     port:tiff \
--                port:jasper \
-                 port:atk \
-                 path:lib/pkgconfig/pango.pc:pango \
-                 port:gettext
- 
--depends_run     port:shared-mime-info
+-depends_run         port:shared-mime-info
+-
 +# If shared-mime-info is installed it causes GTK+ to use Glib's GIO to
 +# do automatic file type guessing and to disable its own internal
 +# guessing. The guessing then fails at runtime if the MIME database
 +# (/usr/share/mime) isn't present. Avoid using GIO and always use GTK+'s
 +# internal guesser.
-+# depends_run     port:shared-mime-info
- 
- archcheck.files \
-     lib/libatk-1.0.dylib \
-     lib/libintl.dylib \
--    lib/libjasper.dylib \
-     lib/libpango-1.0.dylib \
-     lib/libtiff.dylib
- 
++# depends_run         port:shared-mime-info
++
 +# Don't have the GDK pixbuf loaders and immodules as loadable modules.
 +# This would require running install_name_tool on the .so files to make
 +# the libraries they depend on relative to @executable_path, not the
 +# MacPorts installation directory.
- configure.args  --enable-static \
-+                --with-included-loaders \
-+                --with-included-immodules \
-                 --disable-glibtest \
-+                --without-libjasper \
-                 --disable-introspection \
-                 gio_can_sniff=yes
- 
-@@ -86,19 +96,6 @@
+ configure.args      --enable-static \
++                    --with-included-loaders \
++                    --with-included-immodules \
+                     --disable-glibtest \
+                     --disable-introspection \
+                     gio_can_sniff=yes
+@@ -87,19 +98,6 @@
      xinstall -d ${destroot}${docdir}
      xinstall -m 644 -W ${worksrcpath} AUTHORS COPYING HACKING NEWS README \
          ${destroot}${docdir}
@@ -194,49 +96,124 @@ diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/x11/gtk2/Portfile 
  }
  
  platform darwin 8 {
-@@ -114,11 +111,11 @@
+@@ -115,7 +113,7 @@
  }
  
  if {[variant_isset universal]} {
 -    set cups /usr/bin/cups-config
-+    set cups /Developer/SDKs/MacOSX10.4u.sdk/usr/bin/cups-config
++    set cups /Developer/SDKs/MacOSX10.5.sdk/usr/bin/cups-config
      if {[info exists universal_sysroot]} {
          set cups ${universal_sysroot}${cups}
      }
--    configure.env-append CUPS_CONFIG=${cups}
-+    configure.env-append CUPS_CONFIG=${cups} NM='/usr/bin/nm -p'
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/graphics/fontconfig/Portfile ports/graphics/fontconfig/Portfile
+--- ports.orig/graphics/fontconfig/Portfile	2011-05-25 05:00:19.000000000 -0700
++++ ports/graphics/fontconfig/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -25,12 +25,10 @@
+                             sha1    570fb55eb14f2c92a7b470b941e9d35dbfafa716 \
+                             rmd160  fefee412cad4fa71b573e997e14f1df12f439be2
  
-     # cups is not 32/64-bit universal on Tiger.
-     if {${os.major} == "8"} {
+-depends_lib                 port:libiconv \
+-                            port:expat \
++depends_lib                 port:expat \
+                             port:freetype
+ 
+-archcheck.files             lib/libiconv.dylib \
+-                            lib/libexpat.dylib \
++archcheck.files             lib/libexpat.dylib \
+                             lib/libfreetype.dylib
+ 
+ set add_fonts               /usr/X11R6/lib/X11/fonts
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/perl/p5-locale-gettext/Portfile ports/perl/p5-locale-gettext/Portfile
+--- ports.orig/perl/p5-locale-gettext/Portfile	2011-08-15 10:00:54.000000000 -0700
++++ ports/perl/p5-locale-gettext/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -22,7 +22,7 @@
+                     rmd160 767adfce05b8fe77ddd7d3814951822746cf6e4b
+ 
+ if {${perl5.major} != ""} {
+-depends_lib-append  port:gettext port:libiconv
++depends_lib-append  port:gettext
+ 
+ if {[variant_isset universal]} {
+     set archflags ${configure.universal_cflags}
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/python/py26-gobject/Portfile ports/python/py26-gobject/Portfile
+--- ports.orig/python/py26-gobject/Portfile	2011-09-13 14:00:24.000000000 -0700
++++ ports/python/py26-gobject/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -35,7 +35,6 @@
+ depends_lib     path:${prefix}/lib/pkgconfig/glib-2.0.pc:glib2 \
+                 port:libxslt \
+                 port:gettext \
+-                port:libiconv \
+                 port:libffi \
+                 port:python26
+ 
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/python/py27-libxml2/files/patch-setup.py.diff ports/python/py27-libxml2/files/patch-setup.py.diff
+--- ports.orig/python/py27-libxml2/files/patch-setup.py.diff	2010-11-29 21:30:48.000000000 -0800
++++ ports/python/py27-libxml2/files/patch-setup.py.diff	2011-10-13 18:38:08.000000000 -0700
+@@ -1,6 +1,6 @@
+ --- setup.py.orig	2007-10-11 15:24:20.000000000 +0200
+ +++ setup.py	2007-10-11 15:24:54.000000000 +0200
+-@@ -56,11 +56,7 @@
++@@ -56,11 +56,8 @@
+  # - iconv.h 
+  # - libxslt/xsltconfig.h
+  includes_dir = [
+@@ -10,6 +10,7 @@
+ -os.path.join(ROOT,'include'),
+ -HOME
+ +"@PREFIX@/include",
+++"/Developer/SDKs/MacOSX10.5.sdk/usr/include",
+  ];
+  
+  xml_includes=""
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/textproc/help2man/Portfile ports/textproc/help2man/Portfile
+--- ports.orig/textproc/help2man/Portfile	2011-10-07 20:00:24.000000000 -0700
++++ ports/textproc/help2man/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -23,7 +23,7 @@
+                     rmd160  dc3f283bceb8216d571ca879a37e7f83255dc412
+ 
+ depends_lib		port:perl5.12 port:p5.12-locale-gettext \
+-				port:gettext port:libiconv
++				port:gettext
+ 
+ configure.perl	${prefix}/bin/perl5.12
+ 
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/textproc/libxml2/Portfile ports/textproc/libxml2/Portfile
+--- ports.orig/textproc/libxml2/Portfile	2011-07-13 12:00:20.000000000 -0700
++++ ports/textproc/libxml2/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -21,10 +21,9 @@
+                     sha1    859dd535edbb851cc15b64740ee06551a7a17d40 \
+                     rmd160  30709622cfe3e2175e73d6701b7e19a25ab5ac47
+ 
+-depends_lib           port:libiconv port:zlib
++depends_lib           port:zlib
+ 
+-archcheck.files       lib/libiconv.dylib \
+-                      lib/libz.dylib
++archcheck.files       lib/libz.dylib
+ 
+ post-extract {
+     reinplace "s|/etc|${prefix}/etc|g" \
+diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/textproc/libxslt/Portfile ports/textproc/libxslt/Portfile
+--- ports.orig/textproc/libxslt/Portfile	2011-07-07 08:30:19.000000000 -0700
++++ ports/textproc/libxslt/Portfile	2011-10-13 18:38:08.000000000 -0700
+@@ -30,8 +30,7 @@
+                 sha1    69f74df8228b504a87e2b257c2d5238281c65154 \
+                 rmd160  fc7630352ae5772d25fc8132a373d477fb8d8d5f
+ 
+-depends_lib     port:libiconv \
+-                port:libxml2 \
++depends_lib     port:libxml2 \
+                 port:zlib
+ 
+ configure.args  --mandir=${prefix}/share/man \
 diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/x11/pango/Portfile ports/x11/pango/Portfile
---- ports.orig/x11/pango/Portfile	2010-09-01 00:02:30.000000000 -0700
-+++ ports/x11/pango/Portfile	2010-10-12 10:07:03.000000000 -0700
-@@ -115,6 +115,7 @@
+--- ports.orig/x11/pango/Portfile	2011-07-29 19:00:21.000000000 -0700
++++ ports/x11/pango/Portfile	2011-10-13 19:35:24.000000000 -0700
+@@ -102,6 +102,7 @@
  
  configure.args \
      --enable-static \
 +    --with-included-modules \
-     --x-include=${prefix}/include --x-lib=${prefix}/lib
+     --disable-introspection \
+     --without-x
  
- if {![variant_isset universal] && $build_arch == "x86_64" || $build_arch == "ppc64"} {
-diff --unidirectional-new-file -ru -x 'PortIndex*' ports.orig/x11/pango/files/patch-configure.diff ports/x11/pango/files/patch-configure.diff
---- ports.orig/x11/pango/files/patch-configure.diff	2009-10-21 13:00:56.000000000 -0700
-+++ ports/x11/pango/files/patch-configure.diff	2010-10-12 10:07:03.000000000 -0700
-@@ -1,6 +1,14 @@
----- configure.orig	2009-07-21 06:59:52.000000000 +1000
--+++ configure	2009-10-22 06:14:52.000000000 +1100
--@@ -19806,12 +19806,14 @@
-+--- configure.orig	2009-07-20 14:59:52.000000000 -0600
-++++ configure	2010-06-23 11:46:06.000000000 -0600
-+@@ -18178,6 +18178,7 @@
-+   $as_echo "$as_me: failed program was:" >&5
-+ sed 's/^/| /' conftest.$ac_ext >&5
-+ 
-++       X_LIBS="$X_LIBS -R$x_libraries"
-+ 	{ $as_echo "$as_me:$LINENO: result: neither works" >&5
-+ $as_echo "neither works" >&6; }
-+ fi
-+@@ -19806,12 +19807,14 @@
-  $as_echo "$ac_cv_header_Carbon_Carbon_h" >&6; }
-  
-  fi

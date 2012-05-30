@@ -1,5 +1,5 @@
 # Nmap nmap payload database -*- mode: fundamental; -*-
-# $Id: nmap-payloads 20392 2010-09-28 19:34:46Z david $
+# $Id: nmap-payloads 22343 2011-02-22 04:32:59Z david $
 #
 # These payloads are sent with every host discovery or port scan probe
 # by default. This database should only include payloads that are
@@ -163,6 +163,13 @@ udp 2049
   "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x01\x86\xA3"
   "\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
   "\x00\x00\x00\x00\x00\x00\x00\x00"
+
+# Sun Service Tag Discovery protocol (stdiscover)
+# http://arc.opensolaris.org/caselog/PSARC/2006/638/stdiscover_protocolv2.pdf
+# Would work better with a varying cookie; the second and later sends of this
+# probe will be interpreted as resends by the server and will be ignored.
+udp 6481
+    "[PROBE] 0000"
 
 # NAT-PMP external IP address request. See section 3.2 of
 # http://files.dns-sd.org/draft-cheshire-nat-pmp.txt.

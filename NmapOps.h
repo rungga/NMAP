@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -15,11 +15,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -33,19 +34,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -69,15 +71,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -88,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOps.h 22066 2011-01-27 21:49:15Z david $ */
+/* $Id: NmapOps.h 28544 2012-05-08 05:49:51Z david $ */
 
 #include "nmap.h"
 #include "global_structures.h"
@@ -107,17 +110,17 @@ class NmapOps {
   /* Returns 0 for success, nonzero if no source has been set or any other
      failure */
   int SourceSockAddr(struct sockaddr_storage *ss, size_t *ss_len);
+  /* Returns a const pointer to the source address if set, or NULL if unset. */
+  const struct sockaddr_storage *SourceSockAddr() const;
   /* Note that it is OK to pass in a sockaddr_in or sockaddr_in6 casted
      to sockaddr_storage */
   void setSourceSockAddr(struct sockaddr_storage *ss, size_t ss_len);
 
 // The time this obj. was instantiated   or last ReInit()ed.
   const struct timeval *getStartTime() { return &start_time; }
-  // Number of milliseconds since getStartTime().  The current time is an
+  // Number of seconds since getStartTime().  The current time is an
   // optional argument to avoid an extra gettimeofday() call.
-  int TimeSinceStartMS(const struct timeval *now=NULL); 
-  struct in_addr v4source();
-  const struct in_addr *v4sourceip();
+  float TimeSinceStart(const struct timeval *now=NULL);
 
 
 
@@ -129,7 +132,7 @@ class NmapOps {
      It does not currently cover cases such as TCP SYN ping scan which
      can go either way based on whether the user is root or IPv6 is
      being used.  It will return false in those cases where a RawScan
-     is not neccessarily used. */
+     is not necessarily used. */
   bool RawScan();
   void ValidateOptions(); /* Checks that the options given are
                              reasonable and consistant.  If they aren't, the
@@ -179,6 +182,7 @@ class NmapOps {
   /* The requested auto stats printing interval, or 0.0 if unset. */
   float stats_interval;
   int randomize_hosts;
+  int randomize_ports;
   int spoofsource; /* -S used */
   int fastscan;
   char device[64];
@@ -186,6 +190,7 @@ class NmapOps {
   int nogcc; /* Turn off group congestion control with --nogcc */
   int generate_random_ips; /* -iR option */
   FingerPrintDB *reference_FPs; /* Used in the new OS scan system. */
+  std::vector<FingerMatch> os_labels_ipv6;
   u16 magic_port;
   unsigned short magic_port_set; /* Was this set by user? */
 
@@ -235,7 +240,7 @@ class NmapOps {
   /* Returns the full path or URL that should be printed in the XML
      output xml-stylesheet element.  Returns NULL if the whole element
      should be skipped */
-  char *XSLStyleSheet() { return xsl_stylesheet; }
+  char *XSLStyleSheet();
 
   /* Sets the spoofed MAC address */
   void setSpoofMACAddress(u8 *mac_data);
@@ -286,10 +291,10 @@ class NmapOps {
   int connectscan;
   int finscan;
   int idlescan;
+  char* idleProxy; /* The idle host used to "Proxy" an idle scan */
   int ipprotscan;
   int maimonscan;
   int nullscan;
-  int rpcscan;
   int synscan;
   int udpscan;
   int sctpinitscan;
@@ -315,14 +320,26 @@ class NmapOps {
   bool mass_dns;
   int resolve_all;
   char *dns_servers;
+
+  // Logging options
   bool log_errors;
+  // If true, write <os><osclass/><osmatch/></os> as in xmloutputversion 1.03
+  // rather than <os><osmatch><osclass/></osmatch></os> as in 1.04 and later.
+  bool deprecated_xml_osclass;
+
   bool traceroute;
   bool reason;
   bool adler32;
+  FILE *excludefd;
+  char *exclude_spec;
+  int quashargv;
+  FILE *inputfd;
+  char *portlist; /* Ports list specified by user */
 
 #ifndef NOLUA
   int script;
   char *scriptargs;
+  char *scriptargsfile;
   int scriptversion;
   int scripttrace;
   int scriptupdatedb;
@@ -363,6 +380,7 @@ class NmapOps {
   struct timeval start_time;
   bool pTrace; // Whether packet tracing has been enabled
   bool vTrace; // Whether version tracing has been enabled
+  bool xsl_stylesheet_set;
   char *xsl_stylesheet;
   u8 spoof_mac[6];
   bool spoof_mac_set;

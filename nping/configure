@@ -1802,6 +1802,52 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_func
+
+# ac_fn_c_check_decl LINENO SYMBOL VAR INCLUDES
+# ---------------------------------------------
+# Tests whether SYMBOL is declared in INCLUDES, setting cache variable VAR
+# accordingly.
+ac_fn_c_check_decl ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  as_decl_name=`echo $2|sed 's/ *(.*//'`
+  as_decl_use=`echo $2|sed -e 's/(/((/' -e 's/)/) 0&/' -e 's/,/) 0& (/g'`
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether $as_decl_name is declared" >&5
+$as_echo_n "checking whether $as_decl_name is declared... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+#ifndef $as_decl_name
+#ifdef __cplusplus
+  (void) $as_decl_use;
+#else
+  (void) $as_decl_name;
+#endif
+#endif
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  eval "$3=yes"
+else
+  eval "$3=no"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_decl
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -4743,7 +4789,7 @@ fi
 # OpenSSL and NSE C modules can require dlopen
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
 $as_echo_n "checking for library containing dlopen... " >&6; }
-if test "${ac_cv_search_dlopen+set}" = set; then :
+if ${ac_cv_search_dlopen+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_func_search_save_LIBS=$LIBS
@@ -4777,11 +4823,11 @@ for ac_lib in '' dl; do
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext
-  if test "${ac_cv_search_dlopen+set}" = set; then :
+  if ${ac_cv_search_dlopen+:} false; then :
   break
 fi
 done
-if test "${ac_cv_search_dlopen+set}" = set; then :
+if ${ac_cv_search_dlopen+:} false; then :
 
 else
   ac_cv_search_dlopen=no
@@ -4801,7 +4847,7 @@ fi
 # libpcap can require libnl
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing nl_handle_alloc" >&5
 $as_echo_n "checking for library containing nl_handle_alloc... " >&6; }
-if test "${ac_cv_search_nl_handle_alloc+set}" = set; then :
+if ${ac_cv_search_nl_handle_alloc+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_func_search_save_LIBS=$LIBS
@@ -4835,11 +4881,11 @@ for ac_lib in '' nl; do
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext
-  if test "${ac_cv_search_nl_handle_alloc+set}" = set; then :
+  if ${ac_cv_search_nl_handle_alloc+:} false; then :
   break
 fi
 done
-if test "${ac_cv_search_nl_handle_alloc+set}" = set; then :
+if ${ac_cv_search_nl_handle_alloc+:} false; then :
 
 else
   ac_cv_search_nl_handle_alloc=no
@@ -5208,6 +5254,7 @@ else
 /* end confdefs.h.  */
 
 #include <stdio.h>
+#include <sys/types.h>
 #ifdef HAVE_SYS_IOCCOM_H
 #include <sys/ioccom.h>
 #endif
@@ -5234,8 +5281,18 @@ int main() {
 
 _ACEOF
 if ac_fn_c_try_run "$LINENO"; then :
+
+      ac_fn_c_check_decl "$LINENO" "pcap_get_selectable_fd" "ac_cv_have_decl_pcap_get_selectable_fd" "#include <pcap.h>
+"
+if test "x$ac_cv_have_decl_pcap_get_selectable_fd" = xyes; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }; have_libpcap=yes
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no -- pcap_get_selectable_fd not declared" >&5
+$as_echo "no -- pcap_get_selectable_fd not declared" >&6; }; have_libpcap=no
+fi
+
+
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no -- BPF_TIMEOUT BIOCSRTIMEOUT bug (64-bit OS X)" >&5
 $as_echo "no -- BPF_TIMEOUT BIOCSRTIMEOUT bug (64-bit OS X)" >&6; }; have_libpcap=no
@@ -5259,8 +5316,10 @@ fi
 
 if test $have_libpcap != yes; then
   if test "${LIBPCAP_INC+set}" = "set"; then
+    LDFLAGS="-L$libpcapdir $_ldflags"
     CPPFLAGS="$CPPFLAGS -I$LIBPCAP_INC"
   else
+    LDFLAGS="-L$libpcapdir $LDFLAGS"
     CPPFLAGS="$CPPFLAGS -I$libpcapdir"
   fi
   LIBPCAP_LIBS='$(LIBPCAPDIR)/libpcap.a'
@@ -6004,6 +6063,51 @@ if test "x$ac_cv_lib_cfg__system_configuration" = xyes; then :
 _ACEOF
 
   LIBS="-lcfg $LIBS"
+
+fi
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for crypt_r in -lcrypt" >&5
+$as_echo_n "checking for crypt_r in -lcrypt... " >&6; }
+if ${ac_cv_lib_crypt_crypt_r+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcrypt  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char crypt_r ();
+int
+main ()
+{
+return crypt_r ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_crypt_crypt_r=yes
+else
+  ac_cv_lib_crypt_crypt_r=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypt_crypt_r" >&5
+$as_echo "$ac_cv_lib_crypt_crypt_r" >&6; }
+if test "x$ac_cv_lib_crypt_crypt_r" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBCRYPT 1
+_ACEOF
+
+  LIBS="-lcrypt $LIBS"
 
 fi
 

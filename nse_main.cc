@@ -1,4 +1,5 @@
 #include "nmap.h"
+#include "nbase.h"
 #include "nmap_error.h"
 #include "portlist.h"
 #include "nsock.h"
@@ -241,7 +242,7 @@ static int l_xml_write_escaped(lua_State *L)
   const char *text;
 
   text = luaL_checkstring(L, 1);
-  xml_write_escaped(text);
+  xml_write_escaped("%s", text);
 
   return 0;
 }
@@ -257,6 +258,7 @@ static void open_cnse (lua_State *L)
 {
   static const luaL_Reg nse[] = {
     {"fetchfile_absolute", fetchfile_absolute},
+    {"fetchscript", fetchscript},
     {"dir", nse_readdir},
     {"nsock_loop", nsock_loop},
     {"key_was_pressed", key_was_pressed},
@@ -288,6 +290,7 @@ static void open_cnse (lua_State *L)
   setbfield(L, -1, "scripthelp", o.scripthelp);
   setsfield(L, -1, "script_dbpath", SCRIPT_ENGINE_DATABASE);
   setsfield(L, -1, "scriptargs", o.scriptargs);
+  setsfield(L, -1, "scriptargsfile", o.scriptargsfile);
   setsfield(L, -1, "NMAP_URL", NMAP_URL);
 }
 
@@ -588,6 +591,13 @@ void open_nse (void)
 {
   if (L_NSE == NULL)
   {
+    /*
+     Set the random seed value on behalf of scripts.  Since Lua uses the
+     C rand and srand functions, which have a static seed for the entire
+     program, we don't want scripts doing this themselves.
+     */
+    srand(get_random_uint());
+
     if ((L_NSE = luaL_newstate()) == NULL)
       fatal("%s: failed to open a Lua state!", SCRIPT_ENGINE);
     lua_atpanic(L_NSE, panic);

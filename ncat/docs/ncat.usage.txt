@@ -1,4 +1,4 @@
-Ncat 5.51.6 ( http://nmap.org/ncat )
+Ncat 6.00 ( http://nmap.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
 Options taking a time assume seconds. Append 'ms' for milliseconds,
@@ -13,8 +13,8 @@ Options taking a time assume seconds. Append 'ms' for milliseconds,
   -m, --max-conns <n>        Maximum <n> simultaneous connections
   -h, --help                 Display this help screen
   -d, --delay <time>         Wait between read/writes
-  -o, --output               Dump session data to a file
-  -x, --hex-dump             Dump session data as hex to a file
+  -o, --output <filename>    Dump session data to a file
+  -x, --hex-dump <filename>  Dump session data as hex to a file
   -i, --idle-timeout <time>  Idle read/write timeout
   -p, --source-port port     Specify source port to use
   -s, --source addr          Specify source address to use (doesn't affect -l)
@@ -26,6 +26,7 @@ Options taking a time assume seconds. Append 'ms' for milliseconds,
       --sctp                 Use SCTP instead of default TCP
   -v, --verbose              Set verbosity level (can be used up to 3 times)
   -w, --wait <time>          Connect timeout
+      --append-output        Append rather than clobber specified output files
       --send-only            Only send data, ignoring received; quit on EOF
       --recv-only            Only receive data, never send anything
       --allow                Allow only given hosts to connect to Ncat

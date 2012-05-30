@@ -1,14 +1,15 @@
 @echo off
 
 echo Setting installation variables...
-set PythonEXE=C:\Python27\python.exe
+set PythonDir=C:\Python27
+set PythonEXE=%PythonDir%\python.exe
 set DistDir=dist
 set LibraryDir=%DistDir%\py2exe
-set GTKDir=C:\GTK
+set GTKDir=%PythonDir%\Lib\site-packages\gtk-2.0\runtime
 set Output=win_install.log
 
 IF EXIST %PythonEXE% GOTO GGTK
-ECHO No Python 2.6 found!
+ECHO No Python found!
 EXIT 1
 
 :GGTK
@@ -33,7 +34,7 @@ echo Copying GTK files to dist directory...
 xcopy %GTKDir%\bin\*.dll %LibraryDir% /S >> %Output%
 rem intl.dll is a special case; has to be in the executable directory instead of
 rem the py2exe subdirectory.
-move /Y %LibraryDir%/intl.dll %DistDir% >> %Output%
+move /Y %LibraryDir%\intl.dll %DistDir% >> %Output%
 xcopy %GTKDir%\etc %LibraryDir%\etc /S /I >> %Output%
 xcopy %GTKDir%\lib\gtk-2.0 %LibraryDir%\lib\gtk-2.0 /S /I >> %Output%
 xcopy %GTKDir%\share\themes\Default %LibraryDir%\share\themes\Default /S /I >> %Output%

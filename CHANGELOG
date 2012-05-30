@@ -1,10 +1,1689 @@
-# Nmap Changelog ($Id: CHANGELOG 27445 2011-12-13 00:04:42Z david $); -*-text-*-
+# Nmap Changelog ($Id: CHANGELOG 28583 2012-05-15 05:43:40Z fyodor $); -*-text-*-
 
-o The --exclude and --excludefile options can be used together now. [David]
+Nmap 6.00
 
-o Added checks that the argument to freeaddrinfo is not NULL, avoiding
-  a segmentation fault on Android and possibly other platforms.
-  Suggested by Vlatko Kosturjak and Alexismm2.
+o Most important release since Nmap 5.00 in July 2009! For a list of
+  the most significant improvements and new features, see the
+  announcement at: http://nmap.org/6
+
+o In XML output, <osclass> elements are now child elements of the
+  <osmatch> they belong to. Old output was thus:
+    <os><osclass/><osclass/>...<osmatch/><osmatch/>...</os>
+  New output is:
+    <os><osmatch><osclass/><osclass/>...</osmatch>...</os>
+  The option --deprecated-xml-osclass restores the old output, in case
+  you use an Nmap XML parser that doesn't understand the new
+  structure. The xmloutputversion has been increased to 1.04.
+
+o Added a new <target> element to XML output that indicates when a
+  target specification was ignored, perhaps because of a syntax error
+  or DNS failure. It looks like this:
+    <target specification="1.2.3.4.5" status="skipped" reason="invalid"/>
+  [David Fifield]
+
+o [NSE] Added the script samba-vuln-cve-2012-1182 which detects the
+  SAMBA pre-auth remote root vulnerability (CVE-2012-1182).
+  [Aleksandar Nikolic]
+
+o [NSE] Added http-vuln-cve2012-1823.nse, which checks for PHP CGI
+  installations with a remote code execution vulnerability. [Paulino
+  Calderon]
+
+o [NSE] Added script targets-ipv6-mld that sends a malformed ICMP6 MLD Query
+  to discover IPv6 enabled hosts on the LAN. [Niteesh Kumar]
+
+o [NSE] Added rdp-vuln-ms12-020.nse by Aleksandar Nikolic. This tests
+  for two Remote Desktop vulnerabilities, including one allowing
+  remote code execution, that were fixed in the MS12-020 advisory.
+
+o [NSE] Added a stun library and the scripts stun-version and stun-info, which
+  extract version information and the external NAT:ed address.
+  [Patrik Karlsson]
+
+o [NSE] Added the script duplicates which attempts to determine duplicate
+  hosts by analyzing information collected by other scripts. [Patrik Karlsson]
+
+o Fixed the routing table loop on OS X so that on-link routes appear.
+  Previously, they were ignored so that things like ARP scan didn't
+  work. [Patrik Karlsson, David Fifield]
+
+o Upgraded included libpcap to version 1.2.1.
+
+o [NSE] Added ciphers from RFC 5932 and Fortezza-based ciphers to
+  ssl-enum-ciphers.nse. The patch was submitted by Darren McDonald.
+
+o [NSE] Renamed hostmap.nse to hostmap-bfk.nse.
+
+o Fixed a compilation problem on Solaris 9 caused by a missing
+  definition of IPV6_V6ONLY. Reported by Dagobert Michelsen.
+
+o Setting --min-parallelism by itself no longer forces the maximum
+  parallelism to the same value. [Chris Woodbury, David Fifield]
+
+o Changed XML output to show the "service" element whenever a tunnel
+  is discovered for a port, even if the service behind it was unknown.
+  [Matt Foster]
+
+o [Zenmap] Fixed a crash that would happen in the profile editor when
+  the script.db file doesn't exist. The bug was reported by Daniel
+  Miller.
+
+o [Zenmap] It is now possible to compare scans having the same name or
+  command line parameters. [Jah, David Fifield]
+
+o Fixed an error that could occur with ICMPv6 probes and -d4 debugging:
+  "Unexpected probespec2ascii type encountered" [David Fifield]
+
+o [NSE] Added new script http-chrono, which measures min, max and average
+  response times of web servers. [Ange Gutek]
+
+o Applied a workaround to make pcap captures work better on Solaris
+  10. This involves peeking at the pcap buffer to ensure that captures
+  are not being lost. A symptom of the previous behavior was that,
+  when doing ARP host discovery against two targets, only one would be
+  reported as up. [David Fifield]
+
+o Fixed a bug that could cause Nsock timers to fire too early. This
+  could happen for the timed probes in IPv6 OS detection, causing an
+  incorrect measurement of the TCP_ISR feature. [David Fifield]
+
+o [Zenmap] We now build on Windows with a newer version of PyGTK, so
+  copy and paste should work again.
+
+o Changed the way timeout calculations are made in the IPv6 OS engine.
+  In rare cases a certain interleaving of probes and responses would
+  result in an assertion failure.
+
+Nmap 5.61TEST5 [2012-03-09]
+
+o Integrated all of your IPv4 OS fingerprint submissions since June
+  2011 (about 1,900 of them).  Added about 256 new fingerprints (and
+  deleted some bogus ones), bringing the new total to 3,572.
+  Additions include Apple iOS 5.01, OpenBSD 4.9 and 5.0, FreeBSD 7.0
+  through 9.0-PRERELEASE, and a ton of new WAPs, routers, and other
+  devices. Many existing fingerprints were improved. For more details,
+  see http://seclists.org/nmap-dev/2012/q1/431 [David Fifield]
+
+o Integrated all of your service/version detection fingerprints
+  submitted since November 2010--more than 2,500 of them!  Our
+  signature count increased more than 10% to 7,423 covering 862
+  protocols. Some amusing and bizarre new services are described at
+  http://seclists.org/nmap-dev/2012/q1/359 [David Fifield]
+
+o Integrated your latest IPv6 OS submissions and corrections. We're
+  still low on IPv6 fingerprints, so please scan any IPv6 systems you
+  own or administer and submit them to http://nmap.org/submit/.  Both
+  new fingerprints (if Nmap doesn't find a good match) and corrections
+  (if Nmap guesses wrong) are useful.
+
+o [NSE] Added a host-based registry which only persists (for the given
+  host) until all scripts have finished scanning that host. The normal
+  registry saves information until it is deleted or the Nmap scan
+  ends. That is a waste of memory for information which doesn't need
+  to persist that long. Use the host based registry instead if you
+  can. See http://nmap.org/book/nse-api.html#nse-api-registry. [Patrik
+  Karlsson]
+
+o IPv6 OS detection now includes a novelty detection system which
+  avoids printing a match when an observed fingerprint is too
+  different from fingerprints seen before. As the OS database is still
+  small, this helps to avoid making (essentially) wild guesses when
+  seeing a new operating system. [David Fifield]
+
+o Refactored the nsock library to add the nsock-engines system. This
+  allows system-specific scalable IO notification facilities to be
+  used while maintaining the portable Nsock API. This initial version
+  comes with an epoll-based engine for Linux and a select-based
+  fallback engine for all other operating systems. Also added the
+  --nsock-engine option to Nmap, Nping and Ncat to enforce use of a
+  specific Nsock IO engine. [Henri Doreau]
+
+o [NSE] Added 43(!) NSE scripts, bringing the total up to 340.  They
+  are all listed at http://nmap.org/nsedoc/, and the summaries are
+  below (authors are listed in brackets):
+
+  + acarsd-info retrieves information from a listening acarsd
+    daemon. Acarsd decodes ACARS (Aircraft Communication Addressing
+    and Reporting System) data in real time. [Brendan Coles]
+
+  + asn-to-prefix produces a list of IP prefixes for a given AS number
+    (ASN). It uses the external Shadowserver API (with their
+    permission). [John Bond]
+
+  + broadcast-dhcp6-discover sends a DHCPv6 request (Solicit) to the
+    DHCPv6 multicast address, parses the response, then extracts and
+    prints the address along with any options returned by the
+    server. [Patrik Karlsson]
+
+  + broadcast-networker-discover discovers the EMC Networker backup
+    software server on a LAN by using network broadcasts. [Patrik Karlsson]
+
+  + broadcast-pppoe-discover discovers PPPoE servers using the PPPoE
+    Discovery protocol (PPPoED). [Patrik Karlsson]
+
+  + broadcast-ripng-discover discovers hosts and routing information
+    from devices running RIPng on the LAN by sending a RIPng Request
+    command and collecting the responses from all responsive
+    devices. [Patrik Karlsson]
+
+  + broadcast-versant-locate discovers Versant object databases using
+    the srvloc protocol. [Patrik Karlsson]
+
+  + broadcast-xdmcp-discover discovers servers running the X Display
+    Manager Control Protocol (XDMCP) by sending a XDMCP broadcast
+    request to the LAN. [Patrik Karlsson]
+
+  + cccam-version detects the CCcam service (software for sharing
+    subscription TV among multiple receivers). [David Fifield]
+
+  + dns-client-subnet-scan performs a domain lookup using the
+    edns-client-subnet option that adds support for adding subnet
+    information to the query describing where the query is
+    originating. The script uses this option to supply a number of
+    geographically distributed locations in an attempt to enumerate as
+    many different address records as possible. [John Bond]
+
+  + dns-nsid retrieves information from a DNS nameserver by requesting
+    its nameserver ID (nsid) and asking for its id.server and
+    version.bind values. [John Bond]
+
+  + dns-srv-enum enumerates various common service (SRV) records for a
+    given domain name.  The service records contain the hostname, port
+    and priority of servers for a given service. [Patrik Karlsson]
+
+  + eap-info enumerates the authentication methods offered by an EAP
+    authenticator for a given identity or for the anonymous identity
+    if no argument is passed. [Riccardo Cecolin]
+
+  + http-auth-finder spiders a web site to find web pages requiring
+    form-based or HTTP-based authentication. [Patrik Karlsson]
+
+  + http-config-backup checks for backups and swap files of common
+    content management system and web server configuration
+    files. [Riccardo Cecolin]
+
+  + http-generator displays the contents of the "generator" meta tag
+    of a web page (default: /) if there is one. [Michael Kohl]
+
+  + http-proxy-brute performs brute force password guessing against a
+    HTTP proxy server. [Patrik Karlsson]
+
+  + http-qnap-nas-info attempts to retrieve the model, firmware
+    version, and enabled services from a QNAP Network Attached Storage
+    (NAS) device. [Brendan Coles]
+
+  + http-vuln-cve2009-3960 exploits cve-2009-3960 also known as Adobe
+    XML External Entity Injection. [Hani Benhabiles]
+
+  + http-vuln-cve2010-2861 executes a directory traversal attack
+    against a ColdFusion server and tries to grab the password hash
+    for the administrator user. It then uses the salt value (hidden in
+    the web page) to create the SHA1 HMAC hash that the web server
+    needs for authentication as admin. [Micah Hoffman]
+
+  + iax2-brute performs brute force password auditing against the
+    Asterisk IAX2 protocol. [Patrik Karlsson]
+
+  + membase-brute performs brute force password auditing against
+    Couchbase Membase servers. [Patrik Karlsson]
+
+  + membase-http-info retrieves information (hostname, OS, uptime,
+    etc.) from the CouchBase Web Administration port. [Patrik
+    Karlsson]
+
+  + memcached-info retrieves information (including system
+    architecture, process ID, and server time) from distributed memory
+    object caching system memcached. [Patrik Karlsson]
+
+  + mongodb-brute performs brute force password auditing against the
+    MongoDB database. [Patrik Karlsson]
+
+  + nat-pmp-mapport maps a WAN port on the router to a local port on
+    the client using the NAT Port Mapping Protocol (NAT-PMP). [Patrik
+    Karlsson]
+
+  + ndmp-fs-info lists remote file systems by querying the remote
+    device using the Network Data Management Protocol (ndmp). [Patrik
+    Karlsson]
+
+  + ndmp-version retrieves version information from the remote Network
+    Data Management Protocol (NDMP) service. [Patrik Karlsson]
+
+  + nessus-xmlrpc-brute performs brute force password auditing against
+    a Nessus vulnerability scanning daemon using the XMLRPC
+    protocol. [Patrik Karlsson]
+
+  + redis-brute performs brute force passwords auditing against a
+    Redis key-value store. [Patrik Karlsson]
+
+  + redis-info retrieves information (such as version number and
+    architecture) from a Redis key-value store. [Patrik Karlsson]
+
+  + riak-http-info retrieves information (such as node name and
+    architecture) from a Basho Riak distributed database using the
+    HTTP protocol. [Patrik Karlsson]
+
+  + rpcap-brute performs brute force password auditing against the
+    WinPcap Remote Capture Daemon (rpcap). [Patrik Karlsson]
+
+  + rpcap-info connects to the rpcap service (provides remote sniffing
+    capabilities through WinPcap) and retrieves interface
+    information. [Patrik Karlsson]
+
+  + rsync-brute performs brute force password auditing against the
+    rsync remote file syncing protocol. [Patrik Karlsson]
+
+  + rsync-list-modules lists modules available for rsync (remote file
+    sync) synchronization. [Patrik Karlsson]
+
+  + socks-auth-info determines the supported authentication mechanisms
+    of a remote SOCKS 5 proxy server. [Patrik Karlsson]
+
+  + socks-brute performs brute force password auditing against SOCKS 5
+    proxy servers. [Patrik Karlsson]
+
+  + url-snarf sniffs an interface for HTTP traffic and dumps any URLs, and their
+    originating IP address. [Patrik Karlsson]
+
+  + versant-info extracts information, including file paths, version
+    and database names from a Versant object database. [Patrik
+    Karlsson]
+
+  + vmauthd-brute performs brute force password auditing against the
+    VMWare Authentication Daemon (vmware-authd). [Patrik Karlsson]
+
+  + voldemort-info retrieves cluster and store information from the
+    Voldemort distributed key-value store using the Voldemort Native
+    Protocol. [Patrik Karlsson]
+
+  + xdmcp-discover requests an XDMCP (X display manager control
+    protocol) session and lists supported authentication and
+    authorization mechanisms. [Patrik Karlsson]
+
+o [NSE] Added 14 new protocol libraries! They were all written by
+  Patrik Karlsson, except for the EAP library by Riccardo Cecolin:
+  + dhcp6 (Dynamic Host Configuration Protocol for IPv6)
+  + eap (Extensible Authentication Protocol)
+  + iax2 (Inter-Asterisk eXchange v2 VoIP protocol)
+  + membase (Couchbase Membase TAP protocol)
+  + natpmp (NAT Port Mapping Protocol)
+  + ndmp (Network Data Management Protocol)
+  + pppoe (Point-to-point protocol over Ethernet)
+  + redis (in-memory key-value data store)
+  + rpcap (WinPcap Remote Capture Deamon)
+  + rsync (remote file sync)
+  + socks (SOCKS 5 proxy protocol)
+  + sslcert (for collecting SSL certificates and storing them in the
+    host-based registry)
+  + versant (an object database)
+  + xdmcp (X Display Manager Control Protocol)
+
+o CPE (Common Platform Enumeration) OS classification is now supported
+  for IPv6 OS detection. Previously it was only available for
+  IPv4. [David Fifield]
+
+o [NSE] The host.os table is now a structured array of table that
+  include OS class information and CPE. See
+  http://nmap.org/book/nse-api.html for documentation of the new
+  structure. [Henri Doreau, David]
+
+o [NSE] Service matches can now access CPE through the
+  port.version.cpe array. [Henri Doreau]
+
+o Added a new --script-args-file option which allows you to specify
+  the name of a file containing all of your desired NSE script
+  arguments. The arguments may be separated with commas or newlines
+  and may be overridden by arguments specified on the command-line
+  with --script-args. [Daniel Miller]
+
+o Audited the nmap-service-probes database to remove all unused
+  captures, fixing dozens of bugs with captures either being ignored
+  or two fields erroneously using the same capture. [Lauri Kokkonen,
+  David Fifield, and Rob Nicholls]
+
+o Added new version detection probes and match lines for:
+ + Erlang Port Mapper Daemon
+ + Couchbase Membase NoSQL database
+ + Basho Riak distributed database protocol buffers client (PBC)
+ + Tarantool in-memory data store
+ [Patrik Karlsson]
+
+o Split the nmap-update client into its own binary RPM to avoid the
+  Nmap RPM having a dependency on the Subversion and APR libraries.
+  We're not yet distributing this binary nmap-update RPM since the
+  system isn't complete, but the source code is available in the Nmap
+  tarball and source RPM. [David]
+
+o [NSE] Added authentication support to the MongoDB library and
+  modified existing scripts to support it. [Patrik Karlsson]
+
+o [NSE] Added support to broadcast-listener for extracting address, native VLAN
+  and management IP address from CDP packets. [Tom Sellers]
+	
+o [NSE] Added RPC Call CALLIT to the RPC library and modified UDP sockets to be
+  unconnected in order to support broadcast. [Patrik Karlsson]
+
+o [NSE] Modified the ssl-cert and ssl-google-cert-catalog scripts to
+  take advantage of the new sslcert library which retrieves and caches
+  SSL certificates in the registry.
+
+o [NSE] Patch our bitcoin library to support recent changes in the
+  BitCoin protocol. [Andrew Orr, Patrik Karlsson]
+
+o Fixed an error where very long messages could cause an
+  assertion failure: "log_vwrite: vsnprintf failed.  Even after
+  increasing bufferlen to ---, Vsnprintf returned -1 (logt == 1)."
+  This was reported by David Hingos.
+
+o Fixed an assertion failure that was printed when a fatal error
+  occurred while an XML tag was incomplete: "!xml.tag_open, file
+  ..\xml.cc, line 401". This was reported by David Hingos. [David
+  Fifield]
+
+o [NSE] Added support for decoding EIGRP broadcasts from Cisco routers
+  to broadcast-listener. [Tom Sellers]
+
+o [NSE] Added redirect support to the http library. All calls to
+  http.get and http.head now transparently handle any HTTP
+  redirects. The number and destination of redirects are limited by
+  default to avoid endless loops or unwanted follows of redirects to
+  different servers, but they can be configured. [Patrik Karlsson]
+
+o [NSE] Modified the sql-injection script to use the httpspider library.
+  [Lauri Kokkonen]
+
+o Added --with-apr and --with-subversion configuration options to
+  support systems where those libraries aren't in the usual places.
+  [David Fifield]
+
+o [NSE] Fixed a bunch of global access errors in various libraries reported by
+  the nse_check_globals script. [Patrik Karlsson]
+
+o Fixed an assertion failure which could occur when connecting to an
+  SSL server:
+  nsock_core.c:186: update_events: Assertion `(ev_inc & ev_dec) == 0' failed.
+  Thanks to Ron for reporting the bug and testing. [Henri Doreau]
+
+o [NSE] Added support to the DNS library for the CHAOS class and NSID
+  requests. [John Bond]
+
+o [NSE] Changed the dnsbl library to take a much faster threaded
+  approach to querying DNS blacklists. [Patrik Karlsson]
+
+o [NSE] Added new services and the ATTACK category to the dnsbl
+  script. [Duarte Silva]
+
+o [NSE] Fixed a memory leak in PortList::setServiceProbeResults()
+  which was noticed and reported by David Fifield. The leak was
+  triggered by set_port_version calls from NSE.  [Henri Doreau]
+
+o [NSE] Fixed a race condition in broadcast-dhcp-discover.nse that
+  could cause responses to be missed on fast networks. It was noticed
+  by Vasiliy Kulikov. [David Fifield]
+
+o Fixed a bug in reverse name resolution: a name of "." would leave
+  the hostname unintialized and cause "Illegal character(s) in
+  hostname" warnings. [Gisle Vanem]
+
+o Allow overriding the AR variable to use a different version of the
+  ar library creation tool when creating the liblinear library. [Nuno
+  Gonçalves]
+
+o Added vcredist2008_x86.exe to the Windows zip file. This installer
+  from MS must be run on new Windows 2008 systems (those which don't
+  already have it) before running Nmap.  The Nmap Windows installer
+  already takes care of this. [David Fifield]
+
+o Removed about 5MB of unnecessary DocBook XSL from the Nping docs
+  directory. [David Fifield]
+
+o The packet library now uses consistent naming of the address fields
+  for IPv4 and IPv6 packets (ip_bin_src, ip_bin_dst, ip_src, and
+  ip_dst). [Henri Doreau]
+
+o Update to the latest MAC address prefix assignments from IEEE as of
+  March 8, 2012. [Fyodor]
+
+o Fixed a problem in the ippackethdrinfo function which was leading to
+  warning messages like: "BOGUS!  Can't parse supposed IP packet" during
+  certain IPv6 scans. [David Fifield]
+
+o Fixed building on Arch Linux. The PCAP_IS_SUITABLE test had to be
+  modified to ensure that -lnl was passed on the build line. See the
+  r28202 svn log for further information. [David Fifield]
+
+o Include net/if.h before net/if_arp.h in netutil.cc and tcpip.cc to
+  hopefully fix some build problems on AIX 5.3.
+
+o [NSE] Added IPv6 support to firewalk.nse. [Henri Doreau]
+
+Nmap 5.61TEST4 [2012-01-02]
+
+o [NSE] Added a new httpspider library which is used for recursively
+  crawling web sites for information.  New scripts using this
+  functionality include http-backup-finder, http-email-harvest,
+  http-grep, http-open-redirect, and http-unsafe-output-escaping. See
+  http://nmap.org/nsedoc/ or the list later in this file for details
+  on these. [Patrik]
+
+o Our Mac OS X packages are now x86-only (rather than universal),
+  reducing the download size from 30 MB to about 17.  If you still
+  need a PowerPC version (Apple stopped selling those machines in
+  2006), you can use Nmap 5.51 or 5.61TEST2 from
+  http://nmap.org/dist/?C=M&O=D.
+
+o We set up a new SVN server for the Nmap codebase.  This one uses SSL
+  for better security, WebDAV rather than svnserve for greater
+  functionality, is hosted on a faster (virtual) machine, provides
+  Nmap code history back to 1998 rather than 2005, and removes the
+  need for the special "guest" username.  The new server is at
+  https://svn.nmap.org.  More information:
+  http://seclists.org/nmap-dev/2011/q4/504.
+
+o [NSE] Added a vulnerability management library (vulns.lua) to store and to
+  report discovered vulnerabilities.  Modified these scripts to use
+  the new library:
+  - ftp-libopie.nse
+  - http-vuln-cve2011-3192.nse
+  - ftp-vuln-cve2010-4221.nse
+  - ftp-vsftpd-backdoor.nse
+  - smtp-vuln-cve2011-1720.nse
+  - smtp-vuln-cve2011-1764.nse
+  - afp-path-vuln.nse
+  [Djalal, Henri]
+
+o [NSE] Added a new script force feature.  You can force scripts to
+  run against target ports (even if the "wrong" service is detected)
+  by placing a plus in front of the script name passed to --script.
+  See
+  http://nmap.org/book/nse-usage.html#nse-script-selection. [Martin
+  Swende]
+
+o [NSE] Added 51(!) NSE scripts, bringing the total up to 297.  They
+  are all listed at http://nmap.org/nsedoc/, and the summaries are
+  below (authors listed in brackets):
+
+  + amqp-info gathers information (a list of all server properties)
+    from an AMQP (advanced message queuing protocol)
+    server. [Sebastian Dragomir]
+
+  + bitcoin-getaddr queries a Bitcoin server for a list of known
+    Bitcoin nodes. [Patrik Karlsson]
+
+  + bitcoin-info extracts version and node information from a Bitcoin
+    server [Patrik Karlsson]
+
+  + bitcoinrpc-info obtains information from a Bitcoin server by
+    calling <code>getinfo</code> on its JSON-RPC interface. [Toni
+    Ruottu]
+
+  + broadcast-pc-anywhere sends a special broadcast probe to discover
+    PC-Anywhere hosts running on a LAN. [Patrik Karlsson]
+
+  + broadcast-pc-duo discovers PC-DUO remote control hosts and
+    gateways running on the LAN. [Patrik Karlsson]
+
+  + broadcast-rip-discover discovers hosts and routing information
+    from devices running RIPv2 on the LAN. It does so by sending a
+    RIPv2 Request command and collects the responses from all devices
+    responding to the request. [Patrik Karlsson]
+
+  + broadcast-sybase-asa-discover discovers Sybase Anywhere servers on
+    the LAN by sending broadcast discovery messages. [Patrik Karlsson]
+
+  + broadcast-wake-on-lan wakes a remote system up from sleep by
+    sending a Wake-On-Lan packet. [Patrik Karlsson]
+
+  + broadcast-wpad-discover Retrieves a list of proxy servers on the
+    LAN using the Web Proxy Autodiscovery Protocol (WPAD). [Patrik
+    Karlsson]
+
+  + dns-blacklist checks target IP addresses against multiple DNS
+    anti-spam and open proxy blacklists and returns a list of services
+    where the IP has been blacklisted. [Patrik Karlsson]
+
+  + dns-zeustracker checks if the target IP range is part of a Zeus
+    botnet by querying ZTDNS @ abuse.ch. [Mikael Keri]
+
+  + ganglia-info retrieves system information (OS version, available
+    memory, etc.) from a listening Ganglia Monitoring Daemon or
+    Ganglia Meta Daemon. [Brendan Coles]
+
+  + hadoop-datanode-info discovers information such as log directories
+    from an Apache Hadoop DataNode HTTP status page. [John R. Bond]
+
+  + hadoop-jobtracker-info retrieves information from an Apache Hadoop
+    JobTracker HTTP status page. [John R. Bond]
+
+  + hadoop-namenode-info retrieves information from an Apache Hadoop
+    NameNode HTTP status page. [John R. Bond]
+
+  + hadoop-secondary-namenode-info retrieves information from an
+    Apache Hadoop secondary NameNode HTTP status page. [John R. Bond]
+
+  + hadoop-tasktracker-info retrieves information from an Apache
+    Hadoop TaskTracker HTTP status page. [John R. Bond]
+
+  + hbase-master-info retrieves information from an Apache HBase
+    (Hadoop database) master HTTP status page. [John R. Bond]
+
+  + hbase-region-info retrieves information from an Apache HBase
+    (Hadoop database) region server HTTP status page. [John R. Bond]
+
+  + http-apache-negotiation checks if the target http server has
+    mod_negotiation enabled.  This feature can be leveraged to find
+    hidden resources and spider a web site using fewer requests. [Hani
+    Benhabiles]
+
+  + http-backup-finder Spiders a website and attempts to identify
+    backup copies of discovered files.  It does so by requesting a
+    number of different combinations of the filename (e.g. index.bak,
+    index.html~, copy of index.html). [Patrik Karlsson]
+
+  + http-cors tests an http server for Cross-Origin Resource Sharing
+    (CORS), a way for domains to explicitly opt in to having certain
+    methods invoked by another domain. [Toni Ruottu]
+
+  + http-email-harvest spiders a web site and collects e-mail
+    addresses. [Patrik Karlsson]
+
+  + http-grep spiders a website and attempts to match all pages and
+    urls against a given string. Matches are counted and grouped per
+    url under which they were discovered. [Patrik Karlsson]
+
+  + http-method-tamper tests whether a JBoss target is vulnerable to
+    jmx console authentication bypass (CVE-2010-0738). [Hani
+    Benhabiles]
+
+  + http-open-redirect spiders a website and attempts to identify open
+    redirects. Open redirects are handlers which commonly take a URL
+    as a parameter and responds with a http redirect (3XX) to the
+    target. [Martin Holst Swende]
+
+  + http-put uploads a local file to a remote web server using the
+    HTTP PUT method. You must specify the filename and URL path with
+    NSE arguments. [Patrik Karlsson]
+
+  + http-robtex-reverse-ip Obtains up to 100 forward DNS names for a
+    target IP address by querying the Robtex service
+    (http://www.robtex.com/ip/). [riemann]
+
+  + http-unsafe-output-escaping spiders a website and attempts to
+    identify output escaping problems where content is reflected back
+    to the user. [Martin Holst Swende]
+
+  + http-vuln-cve2011-3368 tests for the CVE-2011-3368 (Reverse Proxy
+    Bypass) vulnerability in Apache HTTP server's reverse proxy
+    mode. [Ange Gutek, Patrik Karlsson]
+
+  + ipv6-node-info obtains hostnames, IPv4 and IPv6 addresses through
+    IPv6 Node Information Queries. [David Fifield]
+
+  + irc-botnet-channels checks an IRC server for channels that are
+    commonly used by malicious botnets. [David Fifield, Ange Gutek]
+
+  + irc-brute performs brute force password auditing against IRC
+    (Internet Relay Chat) servers. [Patrik Karlsson]
+
+  + krb5-enum-users discovers valid usernames by brute force querying
+    likely usernames against a Kerberos service. [Patrik Karlsson]
+
+  + maxdb-info retrieves version and database information from a SAP
+    Max DB database. [Patrik Karlsson]
+
+  + metasploit-xmlrpc-brute performs brute force password auditing
+    against a Metasploit RPC server using the XMLRPC protocol. [Vlatko
+    Kosturjak]
+
+  + ms-sql-dump-hashes Dumps the password hashes from an MS-SQL server
+    in a format suitable for cracking by tools such as
+    John-the-ripper. In order to do so the user needs to have the
+    appropriate DB privileges. [Patrik Karlsson]
+
+  + nessus-brute performs brute force password auditing against a
+    Nessus vulnerability scanning daemon using the NTP 1.2
+    protocol. [Patrik Karlsson]
+
+  + nexpose-brute performs brute force password auditing against a
+    Nexpose vulnerability scanner using the API 1.1. [Vlatko
+    Kosturjak]
+
+  + openlookup-info parses and displays the banner information of an
+    OpenLookup (network key-value store) server. [Toni Ruottu]
+
+  + openvas-otp-brute performs brute force password auditing against a
+    OpenVAS vulnerability scanner daemon using the OTP 1.0
+    protocol. [Vlatko Kosturjak]
+
+  + reverse-index creates a reverse index at the end of scan output
+    showing which hosts run a particular service. [Patrik Karlsson]
+
+  + rexec-brute performs brute force password auditing against the
+    classic UNIX rexec (remote exec) service. [Patrik Karlsson]
+
+  + rlogin-brute performs brute force password auditing against the
+    classic UNIX rlogin (remote login) service. [Patrik Karlsson]
+
+  + rtsp-methods determines which methods are supported by the RTSP
+    (real time streaming protocol) server. [Patrik Karlsson]
+
+  + rtsp-url-brute attempts to enumerate RTSP media URLS by testing
+    for common paths on devices such as surveillance IP
+    cameras. [Patrik Karlsson]
+
+  + telnet-encryption determines whether the encryption option is
+    supported on a remote telnet server.  Some systems (including
+    FreeBSD and the krb5 telnetd available in many Linux
+    distributions) implement this option incorrectly, leading to a
+    remote root vulnerability. [Patrik Karlsson, David Fifield,
+    Fyodor]
+
+  + tftp-enum enumerates TFTP (trivial file transfer protocol) filenames by testing
+    for a list of common ones. [Alexander Rudakov]
+
+  + unusual-port compares the detected service on a port against the
+    expected service for that port number (e.g. ssh on 22, http on 80)
+    and reports deviations. An early version of this same idea was
+    written by Daniel Miller. [Patrik Karlsson]
+
+  + vuze-dht-info retrieves some basic information, including protocol
+    version from a Vuze filesharing node. [Patrik Karlsson]
+
+o [NSE] Added some new protocol libraries
+ + amqp (advanced message queuing protocol) [Sebastian Dragomir]
+ + bitcoin crypto currency [Patrik Karlsson
+ + dnsbl for DNS-based blacklists [Patrik Karlsson
+ + rtsp (real time streaming protocol) [Patrik Karlsson]
+ + httpspider and vulns have separate entries in this CHANGELOG
+
+o Nmap now includes a nmap-update program for obtaining the latest
+  updates (new scripts, OS fingerprints, etc.)  The system is
+  currently only available to a few developers for testing, but we
+  hope to enable a larger set of beta testers soon. [David]
+
+o On Windows, the directory <HOME>\AppData\Roaming\nmap is now
+  searched for data files. This is the equivalent of $HOME/.nmap on
+  POSIX. [David]
+
+o Improved OS detection performance by scaling congestion control
+  increments by the response rate during OS scan, just as was done
+  for port scan before. [David]
+
+o [NSE] The targets-ipv6-multicast-*.nse scripts now scan all
+  interfaces by default. They show the MAC address and interface name
+  now too. [David, Daniel Miller]
+
+o Added some new version detection probes:
+ + MongoDB service [Martin Holst Swende]
+ + Metasploit XMLRPC service [Vlatko Kosturjak]
+ + Vuze filesharing system [Patrik]
+ + Redis key-value store [Patrik]
+ + memcached [Patrik]
+ + Sybase SQL Anywhere [Patrik]
+ + VMware ESX Server [Aleksey Tyurin]
+ + TCP Kerberos [Patrik]
+ + PC-Duo [Patrik]
+ + PC Anywhere [Patrik]
+
+o Targets requiring different source addresses now go into different
+  hostgroups, not only for host discovery but also for port scanning.
+  Before, only responses to one of the source addresses would be
+  processed, and the others would be ignored. [David]
+
+o Tidied up the version detection DB (nmap-service-probes) with a new
+  cleanup/canonicalization program sv-tidy.  In particular, this:
+ - Removes excess whitespace
+ - Sorts templates in the order m p v i d o h cpe:
+ - Canonicalizes template delimiters in the order: / | % = @ #.
+ [David]
+
+o The --exclude and --excludefile options for excluding targets can
+  now be used together. [David]
+
+o [NSE] Added support for detecting whether a http connection was established
+  using SSL or not to the http.lua library [Patrik]
+
+o [NSE] Added local port to BPF filter in snmp-brute to fix bug that would
+  prevent multiple scripts from receiving the correct responses. The bug was
+  discovered by Brendan Bird. [Patrik]
+
+o [NSE] Changed the dhcp-discover script to use the DHCPINFORM request
+  to query dhcp servers instead of DHCPDISCOVER. Also removed DoS code
+  from dhcp-discover and placed the script into the discovery and safe
+  categories. Added support for adding options to DHCP requests and
+  cleaned up some code in the dhcp library. [Patrik]
+
+o [NSE] Applied patch to snmp-brute that solves problems with handling
+  errors that occur during community list file parsing. [Duarte
+  Silva]
+
+o [NSE] Added new fingerprints to http-enum for:
+  - Subversion, CVS and Apache Archiva [Duarte Silva]
+  - DVCS systems Git, Mercurial and Bazaar [Hani Benhabiles].
+
+o [NSE] Applied some code cleanup to the snmp library. [Brendan Byrd]
+
+o [NSE] Fixed an undeclared variable bug in snmp-ios-config [Patrik]
+
+o [NSE] Add additional version information to Mongodb scripts [Martin
+  Swende]
+
+o [NSE] Added path argument to the http-auth script and update the
+  script to use stdnse.format_output. [Duarte Silva, Patrik]
+
+o [NSE] Fixed bug in the http library that would fail to parse
+  authentication headers if no parameters were present. [Patrik]
+
+o Made a syntax change in the zenmap.desktop file for compliance with
+  the XDG standard. [Frederik Schwarzer]
+
+o [NSE] Replaced a number of GET requests to HEAD in http-
+  fingerprints.lua.  HEAD is quicker and sufficient when no matching
+  is performed on the returned contents.  [Hani Benhabiles]
+
+o [NSE] Added support for retrieving SSL certificates from FTP
+  servers. [Matt Selsky]
+
+o [Nping] The --safe-payloads option is now the default. Added
+  --include-payloads for the special situations where payloads are
+  needed. [Colin Rice]
+
+o [NSE] Added new functionality and fixed some bugs in the brute library:
+  - Added support for restricting the number of guesses performed by the
+    brute library against users, to prevent account lockouts.
+  - Added support to guess the username as password. The documentation
+    previously suggested (wrongly) that this was the default behavior.
+  - Added support to guess an empty string as password if not
+    present in the dictionary. [Patrik]
+
+o [NSE] Re-enabled support for guessing the username in addition to password
+  that was incorrectly removed from the metasploit-xmlrpc-brute in previous
+  commit. [Patrik]
+  
+o [NSE] Fixed bug that would prevent brute scripts from running if no service
+  field was present in the port table. [Patrik]
+
+o [NSE] Turned on promiscuous mode in targets-sniffer.nse so that it
+  finds packets not only from or to the scanning host. [David]
+
+o The Zenmap topology display feature is now disabled when there are
+  more than 1,000 target hosts.  Those topology maps slow down the
+  interface and are generally too crowded to be of much use.
+
+o [NSE] Modified the http library to support servers that don't return valid
+  chunked encoded data, such as the Citrix XML service. [Patrik]
+
+o [NSE] Fixed a bug where the brute library would not abort even after all
+  retries were exhausted [Patrik]
+
+o Fixed a bug in the IPv6 OS probe called NI. The Node Information
+  Query didn't include the target address as the payload, so at least
+  OS X didn't respond. This differed from the probe sent by the
+  ipv6fp.py program from which some of our fingerprints were derived.
+  [David]
+
+o [NSE] Fixed an error in the mssql library that was causing the
+  broadcast-ms-sql-discover script to fail when trying to update port version
+  information. [Patrik]
+
+o [NSE] Added the missing broadcast category to the broadcast-listener script.
+  [Jason DePriest]
+
+o [NSE] Made changes to the categories of the following scripts (new
+  categories shown) [Duarte Silva]:
+  - http-userdir-enum.nse (auth,intrusive)
+  - mysql-users.nse (auth,intrusive)
+  - http-wordpress-enum.nse (auth,intrusive,vuln)
+  - krb5-enum-users.nse (auth,intrusive)
+  - snmp-win32-users.nse (default,auth,safe)
+  - smtp-enum-users.nse (auth,external,intrusive)
+  - ncp-enum-users.nse (auth,safe)
+  - smb-enum-users.nse (auth,intrusive)
+
+o Made nbase compile with the clang compiler that is a part of Xcode
+  4.2. [Daniel J. Luke]
+
+o [NSE] Fix a nil table index bug discovered in the mongodb
+  library. [Thomas Buchanan]
+
+o [NSE] Added XMPP support to ssl-cert.nse.
+
+o [NSE] Made http-wordpress-enum.nse able to get names of users who
+  have no posts. [Duarte Silva]
+
+o Increased hop distance estimates from OS detection by one. The
+  distance now counts the number of hops including the final one to
+  the target, not just the number of intermediate nodes. The IPv6
+  distance calculation already worked this way. [David]
+
+Nmap 5.61TEST2 [2011-09-30]
+
+o Added IPv6 OS detection system! The new system utilizes many tests
+  similar to IPv4, and also some IPv6-specific ones that we found to
+  be particularly effective. And it uses a machine learning approach
+  rather than the static classifier we use for IPv4. We hope to move
+  some of the IPv6 innovations back to our IPv4 system if they work
+  out well. The database is still very small, so please submit any
+  fingerprints that Nmap gives you to the specified URL (as long as
+  you are certain that you know what the target system is
+  running). Usage and results output are basically the same as with
+  IPv4, but we will soon document the internal mechanisms at
+  http://nmap.org/book/osdetect.html, just as we have for IPv4. For an
+  example, try "nmap -6 -O scanme.nmap.org". [David, Luis]
+
+o [NSE] Added 3 scripts, bringing the total to 246!  You can learn
+  more about them at http://nmap.org/nsedoc/. Here they are (authors
+  listed in brackets):
+
+  + lltd-discovery uses the Microsoft LLTD protocol to discover hosts
+    on a local network. [Gorjan Petrovski]
+
+  + ssl-google-cert-catalog queries Google's Certificate Catalog for
+    the SSL certificates retrieved from target hosts. [Vasiliy Kulikov]
+
+  + quake3-info extracts information from a Quake3-like game
+    server. [Toni Ruottu]
+
+o Improved AIX support for raw scans. This includes some patches
+  originally written by Peter O'Gorman and Florian Schmid. It also
+  involved various build fixes found necessary on AIX 6.1 and 7.1. See
+  http://nmap.org/book/inst-other-platforms.html. [David]
+
+o Fixed Nmap so that it again compiles and runs on Solaris 10,
+  including IPv6 support. [David]
+
+o [NSE] Moved our brute force authentication cracking scripts
+  (*-brute) from the "auth" category into a new "brute"
+  category. Nmap's brute force capabilities have grown tremendously!
+  You can see all 32 of them at
+  http://nmap.org/nsedoc/categories/brute.html.  It isn't clear
+  whether dns-brute should be in the brute category, so for now it
+  isn't. [Fyodor]
+
+o Made the interface gathering loop work on Linux when an interface
+  index is more than two digits in /proc/sys/if_inet6. Joe McEachern
+  tracked down the problem and provided the fix.
+
+o [NSE] Fixed a bug in dns.lua: ensure that dns.query() always return two values
+  (status, response) and replaced the workaround in asn-query.nse by the proper
+  use. [Henri]
+
+o [NSE] Made irc-info.nse handle the case where the MOTD is missing.
+  Patch by Sebastian Dragomir.
+
+o Updated nmap-mac-prefixes to include the latest IEEE assignments
+  as of 2011-09-29.
+
+Nmap 5.61TEST1 [2011-09-19]
+
+o Added Common Platform Enumeration (CPE, http://cpe.mitre.org/)
+  output for OS and service versions. This is a standard way to
+  identify operating systems and applications so that Nmap can
+  better interoperate with other software. Nmap's own (generally more
+  comprehensive) taxonomy/classification system is still supported as
+  well. Some OS and version detection results don't have CPE entries
+  yet. CPE entries show up in normal output with the headings "OS
+  CPE:" and "Service Info:":
+    OS CPE: cpe:/o:linux:kernel:2.6.39
+    Service Info: OS: Linux; CPE: cpe:/o:linux:kernel
+  These also appear in XML output, which additionally has CPE entries
+  for service versions. [David, Henri]
+
+o Added IPv6 Neighbor Discovery ping. This is the IPv6 analog to IPv4
+  ARP scan. It is the default ping type for local IPv6 networks.
+  [Weilin]
+
+o Integrated your latest (IPv4) OS detection submissions and
+  corrections until June 22. New fingerprints include Linux 3, FreeBSD
+  9, Mac OS X 10.7 (Lion), and 300+ more. The DB size increased 11% to
+  3,308 fingerprints. See
+  http://seclists.org/nmap-dev/2011/q3/556. Please keep those
+  fingerprints coming! We now accept IPv4 and IPv6 OS fingerprints as
+  well as service fingerprints, plus corrections of all types if Nmap
+  guess wrong.
+
+o [NSE] Added 27 scripts, bringing the total to 243!  You can learn
+  more about any of them at http://nmap.org/nsedoc/. Here are the new
+  ones (authors listed in brackets):
+
+  + address-info shows extra information about IPv6 addresses, such as
+    embedded MAC or IPv4 addresses when available. [David Fifield]
+
+  + bittorrent-discovery discovers bittorrent peers sharing a file
+    based on a user-supplied torrent file or magnet link. [Gorjan
+    Petrovski]
+
+  + broadcast-db2-discover attempts to discover DB2 servers on the
+    network by sending a broadcast request to port 523/udp. [Patrik
+    Karlsson]
+
+  + broadcast-dhcp-discover sends a DHCP request to the broadcast
+    address (255.255.255.255) and reports the results. [Patrik
+    Karlsson]
+
+  + broadcast-listener sniffs the network for incoming broadcast
+    communication and attempts to decode the received packets. It
+    supports protocols like CDP, HSRP, Spotify, DropBox, DHCP, ARP and
+    a few more. [Patrik Karlsson]
+
+  + broadcast-ping sends broadcast pings on a selected interface using
+    raw ethernet packets and outputs the responding hosts' IP and MAC
+    addresses or (if requested) adds them as targets. [Gorjan
+    Petrovski]
+
+  + cvs-brute performs brute force password auditing against CVS
+    pserver authentication. [Patrik Karlsson]
+
+  + cvs-brute-repository attempts to guess the name of the CVS
+    repositories hosted on the remote server.  With knowledge of the
+    correct repository name, usernames and passwords can be
+    guessed. [Patrik Karlsson]
+
+  + ftp-vsftpd-backdoor tests for the presence of the vsFTPd 2.3.4
+    backdoor reported on 2011-07-04 (CVE-2011-2523). This script
+    attempts to exploit the backdoor using the innocuous 'id' command
+    by default, but that can be changed with the 'exploit.cmd' or
+    'ftp-vsftpd-backdoor.cmd' script arguments. [Daniel Miller]
+
+  + ftp-vuln-cve2010-4221 checks for a stack-based buffer overflow in
+    the ProFTPD server, version between 1.3.2rc3 and 1.3.3b. [Djalal
+    Harouni]
+
+  + http-awstatstotals-exec exploits a remote code execution
+    vulnerability in Awstats Totals 1.0 up to 1.14 and possibly other
+    products based on it (CVE: 2008-3922). [Paulino Calderon]
+
+  + http-axis2-dir-traversal Exploits a directory traversal
+    vulnerability in Apache Axis2 version 1.4.1 by sending a specially
+    crafted request to the parameter 'xsd' (OSVDB-59001). By default
+    it will try to retrieve the configuration file of the Axis2
+    service '/conf/axis2.xml' using the path '/axis2/services/' to
+    return the username and password of the admin account. [Paulino
+    Calderon]
+
+  + http-default-accounts tests for access with default credentials
+    used by a variety of web applications and devices. [Paulino
+    Calderon]
+
+  + http-google-malware checks if hosts are on Google's blacklist of
+    suspected malware and phishing servers. These lists are constantly
+    updated and are part of Google's Safe Browsing service. [Paulino
+    Calderon]
+
+  + http-joomla-brute performs brute force password auditing against
+    Joomla web CMS installations. [Paulino Calderon]
+
+  + http-litespeed-sourcecode-download exploits a null-byte poisoning
+    vulnerability in Litespeed Web Servers 4.0.x before 4.0.15 to
+    retrieve the target script's source code by sending a HTTP request
+    with a null byte followed by a .txt file extension
+    (CVE-2010-2333). [Paulino Calderon]
+
+  + http-vuln-cve2011-3192 detects a denial of service vulnerability
+    in the way the Apache web server handles requests for multiple
+    overlapping/simple ranges of a page. [Duarte Silva]
+
+  + http-waf-detect attempts to determine whether a web server is
+    protected by an IPS (Intrusion Prevention System), IDS (Intrusion
+    Detection System) or WAF (Web Application Firewall) by probing the
+    web server with malicious payloads and detecting changes in the
+    response code and body. [Paulino Calderon]
+
+  + http-wordpress-brute performs brute force password auditing
+    against Wordpress CMS/blog installations. [Paulino Calderon]
+
+  + http-wordpress-enum enumerates usernames in Wordpress blog/CMS
+    installations by exploiting an information disclosure
+    vulnerability existing in versions 2.6, 3.1, 3.1.1, 3.1.3 and
+    3.2-beta2 and possibly others. [Paulino Calderon]
+
+  + imap-brute performs brute force password auditing against IMAP
+    servers using either LOGIN, PLAIN, CRAM-MD5, DIGEST-MD5 or NTLM
+    authentication. [Patrik Karlsson]
+
+  + smtp-brute performs brute force password auditing against SMTP
+    servers using either LOGIN, PLAIN, CRAM-MD5, DIGEST-MD5 or NTLM
+    authentication. [Patrik Karlsson]
+
+  + smtp-vuln-cve2011-1764 checks for a format string vulnerability in
+    the Exim SMTP server (version 4.70 through 4.75) with DomainKeys
+    Identified Mail (DKIM) support (CVE-2011-1764). [Djalal Harouni]
+
+  + targets-ipv6-multicast-echo sends an ICMPv6 echo request packet to
+    the all-nodes link-local multicast address (ff02::1) to discover
+    responsive hosts on a LAN without needing to individually ping
+    each IPv6 address. [David Fifield, Xu Weilin]
+
+  + targets-ipv6-multicast-invalid-dst sends an ICMPv6 packet with an
+    invalid extension header to the all-nodes link-local multicast
+    address (ff02::1) to discover (some) available hosts on the
+    LAN. This works because some hosts will respond to this probe with
+    an ICMPv6 parameter problem packet. [David Fifield, Xu Weilin]
+
+  + targets-ipv6-multicast-slaac performs IPv6 host discovery by
+    triggering stateless address auto-configuration (SLAAC). [David
+    Fifield, Xu Weilin]
+
+  + xmpp-brute Performs brute force password auditing against XMPP
+    (Jabber) instant messaging servers. [Patrik Karlsson]
+
+o Fixed compilation on OS X 10.7 Lion. Thanks to Patrik Karlsson and
+  Babak Farroki for researching fixes.
+
+o [NSE] The script arguments which start with a script name
+  (e.g. http-brute.hostname or afp-ls.maxfiles) can now accept the
+  unqualified arguments as well (hostname, maxfiles). This lets you
+  use the generic version ("hostname") when you want to affect
+  multiple scripts, while using the qualified version to target
+  individual scripts. If both are specified, the qualified version
+  takes precedence for that particular script. This works for library
+  script arguments too (e.g. you can specify 'timelimit' rather than
+  unpwdb.timelimit). [Paulino]
+
+o [Ncat] Updated SSL certificate store (ca-bundle.crt), primarily to
+  remove the epic fail known as DigiNotar.
+
+o Nmap now defers options parsing until it has read through all the
+  command line arguments.  This removes the few remaining cases where
+  option order mattered (for example, IPv6 users previously had to
+  specify -6 before -S). [Shinnok]
+
+o [NSE] Added a new default credential list for Oracle databases and
+  modified the oracle-brute script to make use of it. [Patrik]
+
+o [NSE] Our Packet library (packet.lua) now handles IPv6. This is used
+  by the new multicast IPv6 host discovery scripts
+  (targets-ipv6-*). [Weilin]
+
+o [NSE] Replaced xmpp.nse with an an overhauled version named
+  xmpp-info.nse which brings many new features and fixes. [Vasiliy Kulikov]
+
+o [NSE] Fixed SSL compressor names in ssl-enum-ciphers.nse, and
+  removed redundant multiple listings of the NULL compressor.
+  [Matt Selsky]
+
+o [NSE] Added cipher strength ratings to ssl-enum-ciphers.nse.
+  [Gabriel Lawrence]
+
+o [NSE] Fixed a bug in the ssh2-enum-algos script that would prevent it from
+  displaying any output unless run in debug mode. [Patrik]
+
+o [NSE] Added 4 more protocol libraries. You can learn more about any
+  of them at http://nmap.org/nsedoc/. Here are the new ones (authors
+  listed in brackets):
+
+  + bittorrent supports the BitTorrent file sharing protocol [Gorjan
+    Petrovski]
+
+  + cvs includes support for the Concurrent Versions System (CVS)
+    [Patrik Karlsson]
+
+  + sasl provides common code for "Simple Authentication and Security
+    Layer" to services supporting it. The algorithms supported by the
+    library are: PLAIN, CRAM-MD5, DIGEST-MD5 and NTLM. [Djalal
+    Harouni, Patrik Karlsson]
+
+  + xmpp handles XMPP (Jabber) IM servers [Patrik Karlsson]
+
+o [NSE] Removed the mac-geolocation script, which relied on a Google
+  database to determine strikingly accurate GPS coordinates for
+  anyone's wireless access points (based on their MAC address).  It
+  was very powerful.  Perhaps Google decided it was too powerful, as
+  they discontinued the service before our script was even 2 months
+  old.
+
+o [Ncat] Added an --append-output option which, when used along with
+  -o and/or -x, prevents clobbering (truncating) an existing
+  file. [Shinnok]
+
+o Fixed RPC scan (part of -sV) to work on the 64-bit machines where
+  "unsigned long" is 8 bytes rather than 4.  We now use the more
+  portable u32 in the code. [David]
+
+o [NSE] Moved some scripts into the default category: giop-info,
+  vnc-info, ncp-serverinfo, smb-security-mode, and and
+  afp-serverinfo. [Djalal]
+
+o Relaxed the XML DTD to allow validation of files where the verbosity
+  level changed during the scan.  Also made a service confidence of 8
+  (used when tcpwrapped) or any other number between 0 and 10
+  legal. [Daniel Miller]
+
+o [NSE] Fixed authentication problems in the TNS library that would prevent
+  authentication from working against Oracle 11.2.0.2.0 XE [Chris Woodbury]
+
+o [NSE] Added basic query support to the Oracle TNS library so that scripts
+  can now make SQL queries against database servers.  Also improved
+  support for 64-bit database servers and improved the documentation. [Patrik]
+
+o Removed some restrictions on probe matching that, for example,
+  prevented a RST/ACK reply from being recognized in a NULL scan. This
+  was found and fixed by Matthew Stickney and Joe McEachern.
+
+o Rearranged some characters classes in service matches to avoid any
+  that look like POSIX collating symbols ("[.xyz.]"). John Hutchison
+  discovered this error caused by one of the match lines:
+    InitMatch: illegal regexp: POSIX collating elements are not supported
+  [Daniel Miller]
+
+o [NSE] Added more than 100 new signatures to http-enum (many for
+  known vulnerabilities). They are in the categories: general,
+  attacks, cms, security, management and database [Paulino]
+
+o [NSE] Updated account status text in brute force password discovery 
+  scripts in an effort to make the reporting more consistent across
+  all scripts.  This will have an impact on any code that parses these
+  values.  [Tom Sellers]
+
+o Nmap now includes the Liblinear library for large linear
+  classification (http://www.csie.ntu.edu.tw/~cjlin/liblinear/). We
+  are using it for the upcoming IPv6 OS detection system, and (if that
+  works out well) may eventually use it for IPv4 too.  It uses a
+  three-clause BSD license.
+
+o [NSE] Better error messages (including a traceback) are now provided
+  when script loading fails. [Patrick]
+
+o [Zenmap] Prevent Zenmap from deleting ports when merging scans
+  results based on newer scans which did not actually scan the ports
+  in question. Additionally Zenmap now only updates ports with new
+  information if the new information uses the same protocol--not just
+  the same port number. [Colin Rice]
+
+o [Ncat] Fixed a crash which would occur when --ssl-verify is combined
+  with -vvv on windows. [Colin Rice]
+
+o [Nping] Added new --safe-payloads option for echo mode which causes
+  returned packet payloads to be zeroed to reduce privacy risks if
+  Nping echo server was to accidentally (or through malicious intent)
+  return a packet which wasn't sent by the Nping echo client.  We hope
+  to soon make this behavior the default. [Luis]
+
+o Fixed a bug that would make Nmap segfault if it failed to open an
+  interface using pcap. The bug details and patch are posted at
+  http://seclists.org/nmap-dev/2011/q3/365 [Patrik]
+
+o Ncat SCTP mode now supports connection brokering 
+  (--sctp --broker). [Shinnok]
+
+o Consolidated a bunch of duplicate code between Ncat's listen
+  (ncat_listen.c) and broker (ncat_broker.c) modes to ease
+  maintenance. [Shinnok]
+
+o Added a 'nostore' nse argument to the brute force library which
+  prevents the brute force authentication cracking scripts from
+  storing found credentials in the creds library (they will still be
+  printed in script output).
+
+o [NSE] Fixed the nsedebug print_hex() function so it does not print an
+  empty line if there are no remaining characters, and improved its NSEDoc.
+  [Chris Woodbury].
+
+o [Ncat] Ncat no longer blocks while an ssl handshake is taking place
+  or waiting to complete.  This could make listening Ncat instances
+  unavailable to other clients because one client was taking too long
+  to complete the SSL handshake.  Our public Ncat chat server is now
+  much more reliable (connect with: ncat --ssl -v chat.nmap.org).
+  [Shinnok]
+
+o [NSE] Updated SMTP and IMAP libraries to support authentication
+  using both plain-text and the SASL library. [Patrik]
+
+o [Zenmap] The Zenmap crash handler now instructs users to mail in
+  crash information to nmap-dev rather than offering to create a
+  Sourceforge bug tracker entry. [Colin Rice]
+
+o [NSE] Applied patch from Chris Woodbury that adds the following
+  additional information to the output of smb-os-discovery: NetBIOS
+  computer name, NetBIOS domain name, FQDN, and forest name.
+
+o [NSE] Updated smb-brute to add detection for valid credentials where the 
+  target account was expired or limited by time or login host constraints.
+  [Tom Sellers]
+
+o [Ncat] Ncat now supports IPV6 addresses by default without the -6 flag.
+  Additionally ncat listens on both ::1 and localhost when passed
+  -l, or any other listening mode unless a specific listening address is
+  supplied. [Colin Rice]
+
+o Fixed broken XML output in the case of timed-out hosts; the
+  enclosing host element was missing. The fix was suggested by Rémi
+  Mollon.
+
+o [NSE] Multiple ldap-brute changes by Tom Sellers:
+  + Added support for 2008 R2 functional level Active Directory instances
+  + Added detection for valid credentials where the target account was 
+    expired or limited by time or login host constraints.
+  + Added support for specifying a UPN suffix to be appended to usernames
+    when brute forcing Microsoft Active Directory accounts.
+  + Added support for saving discovered credentials to a CSV file.
+  + Now reports valid credentials as they are discovered when the script
+    is run with -vv or higher.
+
+o [NSE] ldap-search.nse - Added support for saving search results to
+  CSV.  This is done by using the ldap.savesearch script argument to
+  specify an output filename prefix.  [Tom Sellers]  
+
+o Handle an unconventional IPv6 internal link-local address convention
+  used by Mac OS X. See
+  http://seclists.org/nmap-dev/2011/q3/906. [David]
+  
+o [NSE] Optimized stdnse.format_output (changing the data structures)
+  to improve performance for scripts which produce a lot of output. See
+  http://seclists.org/nmap-dev/2011/q3/623. [Djalal]
+
+o [NSE] Fix nping-brute so that it again works on IPv6. [Toni Ruottu]
+
+o [NSE] Added the make_array and make_object functions to our json
+  library, allowing LUA tables to be treated as JSON arrays or
+  objects. See http://seclists.org/nmap-dev/2011/q3/15 [Daniel Miller]
+
+o [NSE] The ip-geolocation-ipinfodb now allows you to specify an
+  IPInfoDB API key using the apikey NSE argument. [Gorjan]
+
+o [NSE] Renamed http-wp-plugins to http-wordpress-plugins script for
+  consistency with http-wordpress-brute and now
+  http-wordpress-enum. [Fyodor]
+
+Nmap 5.59BETA1 [2011-06-30]
+
+o [NSE] Added 40 scripts, bringing the total to 217!  You can learn
+  more about any of them at http://nmap.org/nsedoc/. Here are the new
+  ones (authors listed in brackets):
+
+  + afp-ls: Lists files and their attributes from Apple Filing
+    Protocol (AFP) volumes. [Patrik Karlsson]
+
+  + backorifice-brute: Performs brute force password auditing against
+    the BackOrifice remote administration (trojan) service. [Gorjan
+    Petrovski]
+
+  + backorifice-info: Connects to a BackOrifice service and gathers
+    information about the host and the BackOrifice service
+    itself. [Gorjan Petrovski]
+
+  + broadcast-avahi-dos: Attempts to discover hosts in the local
+    network using the DNS Service Discovery protocol, then tests
+    whether each host is vulnerable to the Avahi NULL UDP packet
+    denial of service bug (CVE-2011-1002). [Djalal Harouni]
+
+  + broadcast-netbios-master-browser: Attempts to discover master
+    browsers and the Windows domains they manage. [Patrik Karlsson]
+
+  + broadcast-novell-locate: Attempts to use the Service Location
+    Protocol to discover Novell NetWare Core Protocol (NCP)
+    servers. [Patrik Karlsson]
+
+  + creds-summary: Lists all discovered credentials (e.g. from brute
+    force and default password checking scripts) at end of scan.
+    [Patrik Karlsson]
+
+  + dns-brute: Attempts to enumerate DNS hostnames by brute force
+    guessing of common subdomains. [Cirrus]
+
+  + dns-nsec-enum: Attempts to discover target hosts' services using
+    the DNS Service Discovery protocol. [Patrik Karlsson]
+
+  + dpap-brute: Performs brute force password auditing against an
+    iPhoto Library. [Patrik Karlsson]
+
+  + epmd-info: Connects to Erlang Port Mapper Daemon (epmd) and
+    retrieves a list of nodes with their respective port
+    numbers. [Toni Ruottu]
+
+  + http-affiliate-id: Grabs affiliate network IDs (e.g. Google
+    AdSense or Analytics, Amazon Associates, etc.) from a web
+    page. These can be used to identify pages with the same
+    owner. [Hani Benhabiles, Daniel Miller]
+
+  + http-barracuda-dir-traversal: Attempts to retrieve the
+    configuration settings from a Barracuda Networks Spam & Virus
+    Firewall device using the directory traversal vulnerability
+    described at
+    http://seclists.org/fulldisclosure/2010/Oct/119. [Brendan Coles]
+
+  + http-cakephp-version: Obtains the CakePHP version of a web
+    application built with the CakePHP framework by fingerprinting
+    default files shipped with the CakePHP framework. [Paulino
+    Calderon]
+
+  + http-majordomo2-dir-traversal: Exploits a directory traversal
+    vulnerability existing in the Majordomo2 mailing list manager to
+    retrieve remote files. (CVE-2011-0049). [Paulino Calderon]
+
+  + http-wp-plugins: Tries to obtain a list of installed WordPress
+    plugins by brute force testing for known plugins. [Ange Gutek]
+
+  + ip-geolocation-geobytes: Tries to identify the physical location
+    of an IP address using the Geobytes geolocation web service
+    (http://www.geobytes.com/iplocator.htm). [Gorjan Petrovski]
+
+  + ip-geolocation-geoplugin: Tries to identify the physical location
+    of an IP address using the Geoplugin geolocation web service
+    (http://www.geoplugin.com/). [Gorjan Petrovski]
+
+  + ip-geolocation-ipinfodb: Tries to identify the physical location
+    of an IP address using the IPInfoDB geolocation web service
+    (http://ipinfodb.com/ip_location_api.php). [Gorjan Petrovski]
+
+  + ip-geolocation-maxmind: Tries to identify the physical location of
+    an IP address using a Geolocation Maxmind database file (available
+    from http://www.maxmind.com/app/ip-location). [Gorjan Petrovski]
+
+  + ldap-novell-getpass: Attempts to retrieve the Novell Universal
+    Password for a user. You must already have (and include in script
+    arguments) the username and password for an eDirectory server
+    administrative account. [Patrik Karlsson]
+
+  + mac-geolocation: Looks up geolocation information for BSSID (MAC)
+    addresses of WiFi access points in the Google geolocation
+    database. [Gorjan Petrovski]
+
+  + mysql-audit: Audit MySQL database server security configuration
+    against parts of the CIS MySQL v1.0.2 benchmark (the engine can
+    also be used for other MySQL audits by creating appropriate audit
+    files).  [Patrik Karlsson]
+
+  + ncp-enum-users: Retrieves a list of all eDirectory users from the
+    Novell NetWare Core Protocol (NCP) service. [Patrik Karlsson]
+
+  + ncp-serverinfo: Retrieves eDirectory server information (OS
+    version, server name, mounts, etc.) from the Novell NetWare Core
+    Protocol (NCP) service. [Patrik Karlsson]
+
+  + nping-brute: Performs brute force password auditing against an
+    Nping Echo service. [Toni Ruottu]
+
+  + omp2-brute: Performs brute force password auditing against the
+    OpenVAS manager using OMPv2. [Henri Doreau]
+
+  + omp2-enum-targets: Attempts to retrieve the list of target systems
+    and networks from an OpenVAS Manager server. [Henri Doreau]
+
+  + ovs-agent-version: Detects the version of an Oracle OVSAgentServer
+    by fingerprinting responses to an HTTP GET request and an XML-RPC
+    method call. [David Fifield]
+
+  + quake3-master-getservers: Queries Quake3-style master servers for
+    game servers (many games other than Quake 3 use this same
+    protocol). [Toni Ruottu]
+
+  + servicetags: Attempts to extract system information (OS, hardware,
+    etc.) from the Sun Service Tags service agent (UDP port
+    6481). [Matthew Flanagan]
+
+  + sip-brute: Performs brute force password auditing against Session
+    Initiation Protocol (SIP -
+    http://en.wikipedia.org/wiki/Session_Initiation_Protocol)
+    accounts.  This protocol is most commonly associated with VoIP
+    sessions. [Patrik Karlsson]
+
+  + sip-enum-users: Attempts to enumerate valid SIP user accounts.
+    Currently only the SIP server Asterisk is supported. [Patrik
+    Karlsson]
+
+  + smb-mbenum: Queries information managed by the Windows Master
+    Browser. [Patrik Karlsson]
+
+  + smtp-vuln-cve2010-4344: Checks for and/or exploits a heap overflow
+    within versions of Exim prior to version 4.69 (CVE-2010-4344) and
+    a privilege escalation vulnerability in Exim 4.72 and prior
+    (CVE-2010-4345). [Djalal Harouni]
+
+  + smtp-vuln-cve2011-1720: Checks for a memory corruption in the
+    Postfix SMTP server when it uses Cyrus SASL library authentication
+    mechanisms (CVE-2011-1720).  This vulnerability can allow denial
+    of service and possibly remote code execution. [Djalal Harouni]
+
+  + snmp-ios-config: Attempts to downloads Cisco router IOS
+    configuration files using SNMP RW (v1) and display or save
+    them. [Vikas Singhal, Patrik Karlsson]
+
+  + ssl-known-key: Checks whether the SSL certificate used by a host
+    has a fingerprint that matches an included database of problematic
+    keys. [Mak Kolybabi]
+
+  + targets-sniffer: Sniffs the local network for a configurable
+    amount of time (10 seconds by default) and prints discovered
+    addresses. If the newtargets script argument is set, discovered
+    addresses are added to the scan queue. [Nick Nikolaou]
+
+  + xmpp: Connects to an XMPP server (port 5222) and collects server
+    information such as supported auth mechanisms, compression methods
+    and whether TLS is supported and mandatory. [Vasiliy Kulikov]
+
+o Nmap has long supported IPv6 for basic (connect) port scans, basic
+  host discovery, version detection, Nmap Scripting Engine.  This
+  release dramatically expands and improves IPv6 support:
+  + IPv6 raw packet scans (including SYN scan, UDP scan, ACK scan,
+    etc.) are now supported. [David, Weilin]
+  + IPv6 raw packet host discovery (IPv6 echo requests, TCP/UDP
+    discovery packets, etc.) is now supported. [David, Weilin]
+  + IPv6 traceroute is now supported [David]
+  + IPv6 protocol scan (-sO) is now supported, including creating
+    realistic headers for many protocols. [David]
+  + IPv6 support to the wsdd, dnssd and upnp NSE libraries. [Daniel
+    Miller, Patrik]
+  + The --exclude and --excludefile now support IPV6 addresses with
+    netmasks.  [Colin]
+
+o Scanme.Nmap.Org (the system anyone is allowed to scan for testing
+  purposes) is now dual-stacked (has an IPv6 address as well as IPv4)
+  so you can scan it during IPv6 testing.  We also added a DNS record
+  for ScanmeV6.nmap.org which is IPv6-only. See
+  http://seclists.org/nmap-dev/2011/q2/428. [Fyodor]
+
+o The Nmap.Org website as well as sister sites Insecure.Org,
+  SecLists.Org, and SecTools.Org all have working IPv6 addresses now
+  (dual stacked). [Fyodor]
+
+o Nmap now determines the filesystem location it is being run from and
+  that path is now included early in the search path for data files
+  (such as nmap-services).  This reduces the likelihood of needing to
+  specify --datadir or getting data files from a different version of
+  Nmap installed on the system.  For full details, see
+  http://nmap.org/book/data-files-replacing-data-files.html.  Thanks
+  to Solar Designer for implementation advice. [David]
+
+o Created a page on our SecWiki for collecting Nmap script ideas! If
+  you have a good idea, post it to the incoming section of the page.
+  Or if you're in a script writing mood but don't know what to write,
+  come here for inspiration: https://secwiki.org/w/Nmap_Script_Ideas.
+
+o The development pace has greatly increased because Google (again)
+  sponsored a 7 full-time college and graduate student programmer
+  interns this summer as part of their Summer of Code program!
+  Thanks, Google Open Source Department!  We're delighted to introduce
+  the team: http://seclists.org/nmap-dev/2011/q2/312
+
+o [NSE] Added 7 new protocol libraries, bringing the total to 66.  You
+  can read about them all at http://nmap.org/nsedoc/. Here are the new
+  ones (authors listed in brackets):
+
+  + creds: Handles storage and retrieval of discovered credentials
+    (such as passwords discovered by brute force scripts). [Patrik
+    Karlsson]
+
+  + ncp: A tiny implementation of Novell Netware Core Protocol
+    (NCP). [Patrik Karlsson]
+
+  + omp2: OpenVAS Management Protocol (OMP) version 2 support. [Henri
+    Doreau]
+
+  + sip: Supports a limited subset of SIP commands and
+    methods. [Patrik Karlsson]
+
+  + smtp: Simple Mail Transfer Protocol (SMTP) operations. [Djalal
+    Harouni]
+
+  + srvloc: A relatively small implementation of the Service Location
+    Protocol. [Patrik Karlsson]
+
+  + tftp: Implements a minimal TFTP server. It is used in
+    snmp-ios-config to obtain router config files.[Patrik Karlsson]
+
+o Improved Nmap's service/version detection database by adding:
+  + Apple iPhoto (DPAP) protocol probe [Patrik]
+  + Zend Java Bridge probe [Michael Schierl]
+  + BackOrifice probe [Gorjan Petrovski]
+  + GKrellM probe [Toni Ruotto]
+  + Signature improvements for a wide variety of services (we now have
+    7,375 signatures)
+
+o [NSE] ssh-hostkey now additionally has a postrule that prints hosts
+  found during the scan which share the same hostkey. [Henri Doreau]
+
+o [NSE] Added 300+ new signatures to http-enum which look for admin
+  directories, JBoss, Tomcat, TikiWiki, Majordomo2, MS SQL, Wordpress,
+  and more. [Paulino]
+
+o Made the final IP address space assignment update as all available
+  IPv4 address blocks have now been allocated to the regional
+  registries.  Our random IP generation (-iR) logic now only excludes
+  the various reserved blocks.  Thanks to Kris for years of regular
+  updates to this function!
+
+o [NSE] Replaced http-trace with a new more effective version. [Paulino]
+
+o Performed some output cleanup work to remove unimportant status
+  lines so that it is easier to find the good stuff! [David]
+
+o [Zenmap] now properly kills Nmap scan subprocess when you cancel a
+  scan or quit Zenmap on Windows. [Shinnok]
+
+o [NSE] Banned scripts from being in both the "default" and
+  "intrusive" categories.  We did this by removing dhcp-discover and
+  dns-zone-transfer from the set of scripts run by default (leaving
+  them "intrusive"), and reclassifying dns-recursion, ftp-bounce,
+  http-open-proxy, and socks-open-proxy as "safe" rather than
+  "intrusive" (keeping them in the "default" set).
+
+o [NSE] Added a credential storage library (creds.lua) and modified
+  the brute library and scripts to make use of it. [Patrik]
+
+o [Ncat] Created a portable version of ncat.exe that you can just drop
+  onto Microsoft Windows systems without having to run any installer
+  or copy over extra library files. See the Ncat page
+  (http://nmap.org/ncat/) for binary downloads and a link to build
+  instructions. [Shinnok]
+
+o Fix a segmentation fault which could occur when running Nmap on
+  various Android-based phones.  The problem related to NULL being
+  passed to freeaddrinfo(). [David, Vlatko Kosturjak]
+
+o [NSE] The host.bin_ip and host.bin_ip_src entries now also work with
+  16-byte IPv6 addresses. [David]
+
+o [Ncat] Updated the ca-bundle.crt list of trusted certificate
+  authority certificates. [David]
+
+o [NSE] Fixed a bug in the SMB Authentication library which could
+  prevent concurrently running scripts with valid credentials from
+  logging in. [Chris Woodbury]
+
+o [NSE] Re-worked http-form-brute.nse to better autodetect form
+  fields, allow brute force attempts where only the password (no
+  username) is needed, follow HTTP redirects, and better detect
+  incorrect login attempts. [Patrik, Daniel Miller]
+
+o [Zenmap] Changed the "slow comprehensive scan" profile's NSE script
+  selection from "all" to "default or (discovery and safe)"
+  categories.  Except for testing and debugging, "--script all" is
+  rarely desirable.
+
+o [NSE] Added the stdnse.silent_require method which is used for
+  library requires that you know might fail (e.g. "openssl" fails if
+  Nmap was compiled without that library).  If these libraries are
+  called with silent_require and fail to load, the script will cease
+  running but the user won't be presented with ugly failure messages
+  as would happen with a normal require. [Patrick Donnelly]
+
+o [Zenmap] Fixed a bug in topology mapper which caused endpoints
+  behind firewalls to sometimes show up in the wrong place (see
+  http://seclists.org/nmap-dev/2011/q2/733).  [Colin Rice]
+
+o [Zenmap] If you scan a system twice, any open ports from the first
+  scan which are closed in the 2nd will be properly marked as
+  closed. [Colin Rice].
+
+o [Zenmap] Fixed an error that could cause a crash ("TypeError: an
+  integer is required") if a sort column in the ports table was unset.
+  [David]
+
+o [Ndiff] Added nmaprun element information (Nmap version, scan date,
+  etc.) to the diff.  Also, the Nmap banner with version number and
+  data is now only printed if there were other differences in the
+  scan. [Daniel Miller, David, Dr. Jesus]
+
+o [NSE] Added nmap.get_interface and nmap.get_interface_info functions
+  so scripts can access characteristics of the scanning interface.
+  Removed nmap.get_interface_link. [Djalal]
+
+o Fixed an overflow in scan elapsed time display that caused negative
+  times to be printed after about 25 days. [Daniel Miller]
+
+o Updated nmap-rpc from the master list, now maintained by IANA.
+  [Daniel Miller, David]
+
+o [Zenmap] Fixed a bug in the option parser: -sN (null scan) was
+  interpreted as -sn (no port scan). This was reported by
+  Shitaneddine. [David]
+
+o [Ndiff] Fixed the Mac OS X packages to use the correct path for
+  Python: /usr/bin/python instead of /opt/local/bin/python. The bug
+  was reported by Wellington Castello. [David]
+
+o Removed the -sR (RPC scan) option--it is now an alias for -sV
+  (version scan), which always does RPC scan when an rpcinfo service
+  is detected.
+
+o [NSE] Improved the ms-sql scripts and library in several ways:
+  - Improved version detection and server discovery
+  - Added support for named pipes, integrated authentication, and
+    connecting to instances by name or port
+  - Improved script and library stability and documentation.
+  [Patrik Karlsson, Chris Woodbury]
+
+o [NSE] Fixed http.validate_options when handling a cookie table.
+  [Sebastian Prengel]
+
+o Added a Service Tags UDP probe for port 6481/udp. [David]
+
+o [NSE] Enabled firewalk.nse to automatically find the gateways at
+  which probes are dropped and fixed various bugs. [Henri Doreau]
+
+o [Zenmap] Worked around a pycairo bug that prevented saving the
+  topology graphic as PNG on Windows: "Error Saving Snapshot:
+  Surface.write_to_png takes one argument which must be a filename
+  (str), file object, or a file-like object which has a 'write' method
+  (like StringIO)". The problem was reported by Alex Kah. [David]
+
+o The -V and --version options now show the platform Nmap was compiled
+  on, which features are compiled in, the version numbers of libraries
+  it is linked against, and whether the libraries are the ones that
+  come with Nmap or the operating system.  [Ambarisha B., David]
+
+o Fixed some inconsistencies in nmap-os-db reported by Xavier Sudre
+  from netVigilance.
+
+o The Nmap Win32 uninstaller now properly deletes nping.exe. [Fyodor]
+
+o [NSE] Added a shortport.ssl function which can be used as a script
+  portrule to match SSL services.  It is similar in concept to our
+  existing shortport.http. [David]
+
+o Set up the RPM build to use the compat-glibc and compat-gcc-34-c++
+  packages (on CentOS 5.3) to resolve a report of Nmap failing to run
+  on old versions of Glibc. [David]
+
+o We no longer support Nmap on versions of Windows earlier than XP
+  SP2.  Even Microsoft no longer supports Windows versions that old.
+  But if you must use Nmap on such systems anyway, please see
+  https://secwiki.org/w/Nmap_On_Old_Windows_Releases.
+
+o There were hundreds of other little bug fixes and improvements
+  (especially to NSE scripts).  See the SVN logs for revisions 22,274
+  through 24,460 for details.
 
 Nmap 5.51 [2011-02-11]
 
@@ -627,6 +2306,8 @@ o The command line in XML output (/nmaprun/@args attribute) now does
 o Added a service detection probe for master servers of Quake 3 and
   related games.  [Toni Ruottu]
 
+o [Zenmap] Updated French translation. [Henri Doreau]
+
 o [Zenmap] Fixed an crash when printing a scan that had no output
   (like a scan made by command-line Nmap). Henri Doreau noticed the
   error. [David]
@@ -660,7 +2341,7 @@ o Performed a large version detection integration run. The number of
   http://seclists.org/nmap-dev/2010/q2/385.
 
 o [NSE] Added nfs-ls.nse, which lists NFS exported files and their
-  attributes. The nfs-acls and nfs-dirlist scripts were deleted 
+  attributes. The nfs-acls and nfs-dirlist scripts were deleted
   because all their features are supported by this script. [Djalal]
 
 o [NSE] Add new DB2 library and two scripts
@@ -671,7 +2352,7 @@ o [NSE] Add new DB2 library and two scripts
 o [NSE] Added a library for Microsoft SQL Server and 7 new scripts. The new
   scripts are:
   - ms-sql-brute.nse uses the unpwdb library to guess credentials for MSSQL
-  - ms-sql-config retrieves various configuration details from the server		
+  - ms-sql-config retrieves various configuration details from the server
   - ms-sql-empty-password checks if the sa account has an empty password
   - ms-sql-hasdbaccess lists database access per user
   - ms-sql-query add support for running custom queries against the database
@@ -1141,7 +2822,7 @@ o [NSE] Added http-vmware-path-vuln.nse, which checks for a critical
 
 o [NSE] Added a new library for LDAP and three new scripts by Patrik:
   - ldap-brute uses the unpwdb library to guess credentials for LDAP
-    (http://nmap.org/nsedoc/scripts/ldap-brute.html). 
+    (http://nmap.org/nsedoc/scripts/ldap-brute.html).
   - ldap-rootdse retrieves the LDAP root DSA-specific Entry (DSE)
     (http://nmap.org/nsedoc/scripts/ldap-rootdse.html).
   - ldap-search queries a LDAP directory for either
@@ -1317,7 +2998,7 @@ o Nmap now honors routing table entries that override interface
   ************************INTERFACES************************
   DEV  (SHORT) IP/MASK         TYPE     UP MAC
   eth0 (eth0)  192.168.0.21/24 ethernet up 00:00:00:00:00:00
-  
+
   **************************ROUTES**************************
   DST/MASK       DEV  GATEWAY
   192.168.0.3/32 eth0 192.168.0.1
@@ -1515,7 +3196,7 @@ o Added an Apple Filing Protocol service probe that detects Netatalk
 o [NSE] Fixed packet.lua so that functions used to set packet header
   fields (e.g. ip_set_ttl) also set the appropriate variables used to
   access the data (e.g. ip_ttl). [Kris]
-  
+
 o Updated and corrected IANA assignment IP list for random IP (-iR)
   generation.  Now even 001/8 has been allocated. [Kris]
 
@@ -1795,7 +3476,7 @@ o Nmap script output now uses two spaces of indention rather than
   |_html-title: Nmap - Free Security Scanner For Network Exploration & Securit...
   ...
   Host script results:
-  | smb-os-discovery:  
+  | smb-os-discovery:
   |   OS: Unix (Samba 3.4.2-0.42.fc11)
   |   Name: Unknown\Unknown
   |_  System time: 2009-11-24 17:19:21 UTC-8
@@ -2145,12 +3826,12 @@ o Fixed an error in the handling of exclude groups that used IPv4
     Assertion `ipsleft > 1' failed.
   [David]
 
-o [NSE] Improved the authentication used by the smb-* scripts. Instead of 
+o [NSE] Improved the authentication used by the smb-* scripts. Instead of
   looking in a bunch of places (registry, command-line, etc) for the
   usernames/passwords, a table is kept. This lets us store any number
   of accounts for later use, and remove them if they stop working. This
   also fixes a bug where typing in a password incorrectly would lock
-  out an account (since it wouldn't stop trying the account in question). 
+  out an account (since it wouldn't stop trying the account in question).
   [Ron]
 
 o Removed IP ID matching in packet headers returned in ICMP errors.
@@ -2329,7 +4010,7 @@ o Ncat now supports wildcard SSL certificates.  The wildcard character
      w*.example.com).
   -There should be at least three components in FQDN.(*.exmaple.com but
      not *.com or *.com.).[venkat]
-  
+
 o Nmap now handles the case when a primary network interface (venet0)
   does not have an address assigned but its aliases do (venet0:1
   etc.). This could result in the error messages
@@ -2427,7 +4108,7 @@ o [Ncat] Fixed an error that would cause Ncat to use 100% CPU in
 
 o [NSE] --script-args may now have whitespace in unquoted strings (but
   surrounding whitespace is ignored). For example,
-  --script-args 'greeting = This is a greeting' Becomes: 
+  --script-args 'greeting = This is a greeting' Becomes:
   { ["greeting"] = "This is a greeting" } [Patrick]
 
 o [Ncat] Using --send-only in conjunction with the plain listen or
@@ -3185,7 +4866,7 @@ o [Zenmap] A crash was fixed:
   part of the code can be rewritten. [David]
 
 o [Zenmap] A bug was fixed that caused a crash when doing a keyword:
-  or target: search over hosts that had a MAC address. [David] 
+  or target: search over hosts that had a MAC address. [David]
   The crash output was
       File "zenmapCore\SearchResult.pyo", line 86, in match_keyword
       File "zenmapCore\SearchResult.pyo", line 183, in match_target
@@ -3372,9 +5053,9 @@ o Improved operating system support for the smb-enum-sessions NSE
   but never both.  Currently, it is tested and working on both
   versions.  [Ron Bowes]
 
-o Implemented file-management functions in SMB, including file upload, 
+o Implemented file-management functions in SMB, including file upload,
   file download, and file delete. Only leverages by smb-pwdump.nse at
-  the moment, these functions give scripts the ability to perform 
+  the moment, these functions give scripts the ability to perform
   checks against the filesystem of a server. [Ron Bowes]
 
 o [Zenmap] A crash was fixed that occurred when you ran a scan
@@ -3404,17 +5085,17 @@ o A bug was fixed in route finding on BSD Unix. The libdnet function
   than 0.0.0.0. [David]
 
 o Added bindings for the service control (SVCCTL) and at service (ATSVC)
-  services. These are both related to running processes on the remote 
+  services. These are both related to running processes on the remote
   system (identical to how PsExec-style scripts work). These bindings
   are used by smb-pwdump.nse. [Ron Bowes]
 
-o Refactored SMB authentication code into its own module, smbauth.lua. 
-  Improved scripts' ability to store and retrieve login information 
+o Refactored SMB authentication code into its own module, smbauth.lua.
+  Improved scripts' ability to store and retrieve login information
   discovered by modules such as smb-brute.nse. [Ron Bowes]
 
 o Added message signing to SMB. Connections will no longer fail if the
   server requires message signatures. This is a rare case, but comes up
-  on occasion. If a server allows but doesn't require message signing, 
+  on occasion. If a server allows but doesn't require message signing,
   smb.lua will negotiate signing. This improves security by preventing
   man in the middle attacks. [Ron Bowes]
 
@@ -3723,7 +5404,7 @@ o Improved port scan performance by changing the list of high priority
   they are more likely to be responsive.  We based the change on
   empirical data from large-scale scanning.  The new port list is:
     21, 22, 23, 25, 53, 80, 110, 111, 113, 135, 139, 143, 199, 256,
-    443, 445, 554, 587, 993, 995, 1025, 1720, 1723, 3306, 3389, 5900, 
+    443, 445, 554, 587, 993, 995, 1025, 1720, 1723, 3306, 3389, 5900,
     8080, 8888 [Fyodor, David]
 
 o [NSE] Almost all scripts were renamed to be more consistent.  They
@@ -3768,7 +5449,7 @@ o Enhanced the AS Numbers script (ASN.nse) to better consolidate
   results and bail out if the DNS server doesn't support the ASN
   queries. [Jah]
 
-o Complete re-write of the marshaling logic for Microsoft RPC calls. 
+o Complete re-write of the marshaling logic for Microsoft RPC calls.
   [Ron Bowes]
 
 o Added a script that checks for ms08-067-vulnerable hosts
@@ -4398,7 +6079,7 @@ o Fixed a number of NSE scripts which used print_debug()
 
 o [Zenmap] The Ports/Hosts view now provides full version detection
   values rather than just a simple summary. [Jurand Nogiec]
-  
+
 o [Zenmap] When you edit the command-entry field, then change the
   target selection, Nmap no longer blows away your edits in favor of
   using your current profile. [Jurand Nogiec]
@@ -6041,7 +7722,7 @@ o Fixed an output bug on systems like Windows which return -1 when
   vsnprintf is passed a too-small buffer rather than returning the
   size needed.  Thanks to jah (jah(a)zadkiel.plus.com) for the report.
 
-o Added sys/types.h include to portreasons.h to help OpenBSD compilation.  
+o Added sys/types.h include to portreasons.h to help OpenBSD compilation.
   Thanks to Olivier Meyer for the patch.
 
 o Many hard coded function names and instances of __FUNCTION__ were
@@ -6131,7 +7812,7 @@ o If we get a ICMP Protocol Unreachable from a host other than our
   udp scan. [Kris]
 
 o Relocated OSScan warning message (could not find 1 closed and 1 open
-  port). Now output.cc prints the warning along with a targets OSScan 
+  port). Now output.cc prints the warning along with a targets OSScan
   results. [Eddie]
 
 o Fixed a bug which caused port 0 to be improperly used for gen1 OS
@@ -6174,7 +7855,7 @@ o Improved how the Gen1 OS Detection system selects which UDP ports to
 o Updated nmap-mac-prefixes to latest IEEE data as of 5/18/07. Also
   removed some high (greater than 0x80) characters from some company
   names because they were causing this error on Windows when Nmap is
-  compiled in Debug mode: 
+  compiled in Debug mode:
   isctype.c Line 56: Expression: (unsigned)(c + 1) <= 256".
   Thanks to Sina Bahram for the initial report and Thomas Buchanan for
   tracking down the problem.
@@ -6611,7 +8292,7 @@ Nmap 4.11 [2006-6-23]
 
 o Added a dozens of more detailed SSH version detection signatures, thanks
   to a SSH huge survey and integration effort by Doug Hoyte.  The
-  results of his large-scale SSH scan are posted at 
+  results of his large-scale SSH scan are posted at
   http://seclists.org/nmap-dev/2006/Apr-Jun/0393.html .
 
 o Fixed the Nmap Makefile (actually Makefile.in) to correctly handle
@@ -6709,7 +8390,7 @@ o Moved my Nmap development environment to Visual C++ 2005 Express
   2003 users will no longer be able to compile Nmap using the new
   solution files.  The compilation, installation, and execution
   instructions at http://nmap.org/install/inst-windows.html have been
-  upgraded.  
+  upgraded.
 
 o Automated my Windows build system so that I just have to type a
   single make command in the mswin32 directory.  Thanks to Scott
@@ -7220,7 +8901,7 @@ o Removed foreign translations of the old man page from the
   distribution.  Included the following contributed translations
   (nroff format) of the new man page:
     Brazilian Portuguese by Lucien Raven (lucienraven(a)yahoo.com.br)
-    Portuguese (Portugal) by José Domingos (jd_pt(a)yahoo.com) and 
+    Portuguese (Portugal) by José Domingos (jd_pt(a)yahoo.com) and
                              Andreia Gaita (shana.ufie(a)gmail.com).
 
 o Added --thc option (undocumented)
@@ -7261,7 +8942,7 @@ o Made the version detection "ports" directive (in
   nmap-service-probes) more comprehensive.  This should speed up scans a
   bit.  The patch was done by Doug Hoyte (doug(a)hcsw.org).
 
-o Added the --webxml option, which does the same thing as 
+o Added the --webxml option, which does the same thing as
   --stylesheet http://nmap.org/data/nmap.xsl , without
   requiring you to remember the exact URL or type that whole thing.
 
@@ -7838,7 +9519,7 @@ o Implemented a huge OS fingerprint database update.  The number of
 o Updated nmap-mac-prefixes with the latest OUIs from the IEEE.
   [ http://standards.ieee.org/regauth/oui/oui.txt ]
 
-o Updated nmap-protocols with the latest IP protocols from IANA 
+o Updated nmap-protocols with the latest IP protocols from IANA
   [ http://www.iana.org/assignments/protocol-numbers ]
 
 o Added a few new Nmap version detection signatures thanks to a patch
@@ -8242,7 +9923,7 @@ o Applied a patch to Makefile.in from Scott Mansfield
   to install the whole Nmap directory structure under a different root
   directory.  The configure --prefix option would do the same thing in
   this case, but DESTDIR is apparently a standard that package
-  maintainers like Scott are used to.  An example usage is 
+  maintainers like Scott are used to.  An example usage is
   "make DESTDIR=/tmp/packageroot".
 
 o Removed unnecessary banner printing in the non-root connect() ping
@@ -8349,14 +10030,14 @@ o Version scan now chops commas and whitespace from the end of
   (TCP port 1) gives a list of supported services separated by CRLF.
   Nmap uses this new feature to print them comma separated without
   having an annoying trailing comma as so (linewrapped):
-  match tcpmux m|^(sgi_[-.\w]+\r\n([-.\w]+\r\n)*)$| 
+  match tcpmux m|^(sgi_[-.\w]+\r\n([-.\w]+\r\n)*)$|
         v/SGI IRIX tcpmux//Available services: $SUBST(1, "\r\n", ",")/
 
 Nmap 3.48 [2003-10-6]
 
 o Integrated an enormous number of version detection service
   submissions.  The database has almost doubled in size to 663
-  signatures representing the following 130 services: 
+  signatures representing the following 130 services:
     3dm-http afp apcnisd arkstats bittorent chargen citrix-ica
     cvspserver cvsup dantzretrospect daytime dict directconnect domain
     echo eggdrop exec finger flexlm font-service ftp ftp-proxy gnats
@@ -8585,7 +10266,7 @@ o Fixed a major bug in the Nsock time caching system.  This could
   the second or later machines scanned.  Thanks to Solar Designer and HD
   Moore for helping me track this down.
 
-o Fixed some *BSD compilation bugs found by 
+o Fixed some *BSD compilation bugs found by
   Zillion (zillion(a)safemode.org).
 
 o Integrated more services thanks to submissions from Fyodor Yarochkin
@@ -8679,7 +10360,7 @@ o Fixed a problem reported by Solar Designer and MadHat (
   version/info responses were particularly long.  It could happen in
   other cases as well.  Now Nmap just prints a warning.
 
-o Fixed some portability issues reported by Solar Designer 
+o Fixed some portability issues reported by Solar Designer
   ( solar(a)openwall.com )
 
 Nmap 3.40PVT12 [2003-8-24]
@@ -9045,7 +10726,7 @@ o Fixed a problem that would cause Nmap on Windows to send ICMP ping
 o Applied some changes from Solar Designer (solar(a)openwall.com)
   which fix some typos and also suggest safer /tmp/ behavior in the
   HACKING file and Lithuanian man page.  These changes are for the
-  Nmap package of his Openwall GNU/*/Linux (Owl) distribution. 
+  Nmap package of his Openwall GNU/*/Linux (Owl) distribution.
   [ http://www.openwall.com/Owl/ ]
 
 o For Solaris, I now define NET_SIZE_T to size_t rather than socklen_t
@@ -9119,7 +10800,7 @@ o Applied patch from Marius Strobl (marius(a)alchemy.franken.de) which improves
 Nmap 3.26 [2003-4-24]
 
 o Fixed Mac OS X Compilation (at least on most of the machines
-  tested).  You will probably need to type 
+  tested).  You will probably need to type
   "./configure CPP=/usr/bin/cpp" instead of simply "./configure".  If
   you still have trouble, drop me an email.  Thanks to everyone who
   provided or offered shell accounts!
@@ -9243,7 +10924,7 @@ o Changed Nmap such that ALL syn scan packets are sent from the port
 
 o Added timestamps to "Starting nmap" line and each host port scan in
   verbose (-v) mode.  These are in ISO 8601 standard format because
-  unlike President Bush, we actually care about International 
+  unlike President Bush, we actually care about International
   consensus :).
 
 o Nmap now comes by default in .tar.bz2 format, which compresses about
@@ -9283,7 +10964,7 @@ o Fixed Windows (VC++ 6) compilation, thanks to patches from Kevin
   Davis (computerguy(a)cfl.rr.com) and Andy Lutomirski
   (luto(a)stanford.edu)
 
-o Included new Latvian man page translation by 
+o Included new Latvian man page translation by
   "miscelerious options" (misc(a)inbox.lv)
 
 o Fixed Solaris compilation when Sun make is used rather than GNU
@@ -9525,7 +11206,7 @@ o I removed "credit" lines from the nmap-os-fingerprints file out of
   in.  I still appreciate everyone who submits fingerprints!  I just
   don't want you to be spammed when the fingerprint file goes online.
 
-o Minor usage screen (nmap -h) fix suggested by Martin Kluge 
+o Minor usage screen (nmap -h) fix suggested by Martin Kluge
   ( martin(a)elxsi.info )
 
 o Insured that the initial pound (#) in C preprocessor directives is
@@ -9572,7 +11253,7 @@ o Applied patch from benkj(a)gmx.it which fixes misbehavior when Nmap
   would receive EOF (including ^D) in interactive mode.
 
 o Fixed format string bugs (not the security-related kind) found by
-  Takehiro YONEKURA (yonekura(a)obliguard.com) and Kuk-hyeon Lee 
+  Takehiro YONEKURA (yonekura(a)obliguard.com) and Kuk-hyeon Lee
   (errai(a)inzen.com)
 
 o Applied patch from Greg Steuck (greg-nmap-dev(a)nest.cx) which fixes
@@ -9617,7 +11298,7 @@ o Restructured "TCP probe port" output message a bit as suggested by
 Nmap 2.54BETA34 [2002-05-02]
 
 o Windows compilation fixed thanks to new VC++ project file (nmap.dsp) sent
-  by Evan Sparks (gmplague(a)sdf.lonestar.org) (I had forgotten to include 
+  by Evan Sparks (gmplague(a)sdf.lonestar.org) (I had forgotten to include
   the new main.c).
 
 o Various nmap-services updates
@@ -9713,7 +11394,7 @@ o Added a Document Type Definition (DTD) for the Nmap XML output
   format (-oX) to the docs directory.  This allows validating parsers
   to check nmap XML output files for correctness.  It is also useful
   for application programmers to understand the XML output structure.
-  The DTD was written by William McVey (wam(a)cisco.com) of Cisco Secure 
+  The DTD was written by William McVey (wam(a)cisco.com) of Cisco Secure
   Consulting Services ( http://www.cisco.com/go/securityconsulting ).
 
 o Merged in a number of Windows fixes/updates from Andy Lutomirski
@@ -9825,14 +11506,14 @@ o Fixed a memory leak in Nbase str*casecmp() functions by applying
 
 Nmap 2.54BETA26 [2001-07-09]
 
-o Added Idlescan (IPID blind scan).  The usage syntax is 
+o Added Idlescan (IPID blind scan).  The usage syntax is
   "-sI [zombie]".
 
 o Fixed a bunch of fingerprints that were corrupt due to violations of
   the fingerprint syntax/grammar (problems were found by Raymond
   Mercier of VIGILANTe )
 
-o Fixed command-line option parsing bug found 
+o Fixed command-line option parsing bug found
   by "m r rao" (mrrao(a)del3.vsnl.net.in )
 
 o Fixed an OS fingerprinting bug that caused many extra packets to be
@@ -9891,7 +11572,7 @@ o Applied patch from Colin Phipps (cph(a)netcraft.com) which fixes a
 o Applied a patch from Chris Eagle (cseagle(a)redshift.com) which fixes
   Windows compilation (I broke it with a recent change).
 
-o Updated Lithuanian translation of man page based on a newer version sent 
+o Updated Lithuanian translation of man page based on a newer version sent
   by Aurimas Mikalauskas (inner(a)crazy.lt)
 
 o Killed carriage returns in nmap.c and nmapfe.c, which caused
@@ -9901,7 +11582,7 @@ o Killed carriage returns in nmap.c and nmapfe.c, which caused
 o Updated to latest version of rpc program number list, maintained by
   Eilon Gishri (eilon(a)aristo.tau.ac.il)
 
-o Fixed a quoting bug in the Nmap man page found by 
+o Fixed a quoting bug in the Nmap man page found by
   Rasmus Andersson (rasmus(a)pole-position.org)
 
 o Applied RPM spec file changes from "Benjamin Reed"
@@ -10203,7 +11884,7 @@ o Eliminated -I. from Nmap's and NmapFE's makefiles (suggested by "Jay
 
 o Added Russian documentation by Alex Volkov
 
-o Added Lithuanian documentation from Aurimas Mikalauskas (inner(a)dammit.lt) 
+o Added Lithuanian documentation from Aurimas Mikalauskas (inner(a)dammit.lt)
 
 Nmap 2.53 [2000-05-08]
 
@@ -10789,11 +12470,11 @@ o Several other little fixes to the installation script and minor
 
 Nmap 2.10
 
-o Private test release 
+o Private test release
 
 Nmap 2.09
 
-o Private test release 
+o Private test release
 
 Nmap 2.08 [1999-02-16]
 

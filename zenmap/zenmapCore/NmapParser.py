@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -13,11 +13,12 @@
 # * technology into proprietary software, we sell alternative licenses      *
 # * (contact sales@insecure.com).  Dozens of software vendors already       *
 # * license Nmap technology such as host discovery, port scanning, OS       *
-# * detection, and version detection.                                       *
+# * detection, version detection, and the Nmap Scripting Engine.            *
 # *                                                                         *
 # * Note that the GPL places important restrictions on "derived works", yet *
 # * it does not provide a detailed definition of that term.  To avoid       *
-# * misunderstandings, we consider an application to constitute a           *
+# * misunderstandings, we interpret that term as broadly as copyright law   *
+# * allows.  For example, we consider an application to constitute a        *
 # * "derivative work" for the purpose of this license if it does any of the *
 # * following:                                                              *
 # * o Integrates source code from Nmap                                      *
@@ -31,19 +32,20 @@
 # * o Links to a library or executes a program that does any of the above   *
 # *                                                                         *
 # * The term "Nmap" should be taken to also include any portions or derived *
-# * works of Nmap.  This list is not exclusive, but is meant to clarify our *
-# * interpretation of derived works with some common examples.  Our         *
-# * interpretation applies only to Nmap--we don't speak for other people's  *
-# * GPL works.                                                              *
+# * works of Nmap, as well as other software we distribute under this       *
+# * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+# * but is meant to clarify our interpretation of derived works with some   *
+# * common examples.  Our interpretation applies only to Nmap--we don't     *
+# * speak for other people's GPL works.                                     *
 # *                                                                         *
 # * If you have any questions about the GPL licensing restrictions on using *
 # * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
 # * we also offer alternative license to integrate Nmap into proprietary    *
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
-# * as providing for priority support and updates as well as helping to     *
-# * fund the continued development of Nmap technology.  Please email        *
-# * sales@insecure.com for further information.                             *
+# * as providing for priority support and updates.  They also fund the      *
+# * continued development of Nmap.  Please email sales@insecure.com for     *
+# * further information.                                                    *
 # *                                                                         *
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
@@ -67,15 +69,16 @@
 # * and add new features.  You are highly encouraged to send your changes   *
 # * to nmap-dev@insecure.org for possible incorporation into the main       *
 # * distribution.  By sending these changes to Fyodor or one of the         *
-# * Insecure.Org development mailing lists, it is assumed that you are      *
-# * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
-# * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
-# * will always be available Open Source, but this is important because the *
-# * inability to relicense code has caused devastating problems for other   *
-# * Free Software projects (such as KDE and NASM).  We also occasionally    *
-# * relicense the code to third parties as discussed above.  If you wish to *
-# * specify special license conditions of your contributions, just say so   *
-# * when you send them.                                                     *
+# * Insecure.Org development mailing lists, or checking them into the Nmap  *
+# * source code repository, it is understood (unless you specify otherwise) *
+# * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+# * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+# * code.  Nmap will always be available Open Source, but this is important *
+# * because the inability to relicense code has caused devastating problems *
+# * for other Free Software projects (such as KDE and NASM).  We also       *
+# * occasionally relicense the code to third parties as discussed above.    *
+# * If you wish to specify special license conditions of your               *
+# * contributions, just say so when you send them.                          *
 # *                                                                         *
 # * This program is distributed in the hope that it will be useful, but     *
 # * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -108,13 +111,12 @@ from zenmapCore.NmapOptions import NmapOptions, split_quoted, join_quoted
 from zenmapCore.StringPool import unique
 
 # The version of the Nmap DTD this file understands and emits.
-XML_OUTPUT_VERSION = "1.03"
+XML_OUTPUT_VERSION = "1.04"
 
 class HostInfo(object):
     def __init__(self):
         self.comment = None;
         self._tcpsequence = {}
-        self._osclasses = []
         self._osmatches = []
         self._ports = []
         self._ports_used = []
@@ -134,8 +136,7 @@ class HostInfo(object):
         clone = HostInfo()
         clone.comment = self.comment
         clone._tcpsequence = copy.deepcopy(self._tcpsequence)
-        clone._osclasses = map(lambda d: copy.deepcopy(d), self._osclasses)
-        clone._osmatches = self._osmatches
+        clone._osmatches = copy.deepcopy(self._osmatches)
         clone._ports = copy.deepcopy(self._ports)
         clone._ports_used = self._ports_used
         clone._extraports = self._extraports
@@ -185,17 +186,12 @@ class HostInfo(object):
             return self._ipidsequence
         return {}
 
-    # osclasses is a list containing dicts of the form
+    # osmatches is a list of dicts of the form
+    # {'name': u'Linux 2.6.24', 'accuracy': u'98', 'line': u'1000',
+    #  'osclasses': ...}
+    # where each 'osclasses' element is a dict of the form
     # {'vendor': u'Linux', 'osfamily': u'Linux', 'type': u'general purpose',
     #  'osgen': u'2.6.X', 'accuracy': u'98'}
-    def set_osclasses(self, classes):
-        self._osclasses = classes
-
-    def get_osclasses(self):
-        return self._osclasses
-
-    # osmatches is a list of dicts of the form
-    # {'name': u'Linux 2.6.24', 'accuracy': u'98', 'line': u'1000'}
     def set_osmatches(self, matches):
         self._osmatches = matches
 
@@ -203,37 +199,16 @@ class HostInfo(object):
         return self._osmatches
 
     def get_best_osmatch(self):
-        """Return the OS match with the highest accuracy. If there is a tie, one
-        of the best matches will be returned."""
+        """Return the OS match with the highest accuracy."""
         if not self._osmatches:
             return None
         def osmatch_key(osmatch):
-            # Sort first by accuracy, then by name so it's deterministic.
             try:
-                accuracy = float(osmatch.get("accuracy", ""))
+                return -float(osmatch["accuracy"])
             except ValueError:
-                accuracy = 0
-            return (accuracy, osmatch.get("name"))
-        osmatches = self.osmatches[:]
-        osmatches.sort(cmp = lambda a, b: cmp(osmatch_key(a), osmatch_key(b)))
-        return osmatches[-1]
+                return 0
+        return sorted(self._osmatches, key = osmatch_key)[0]
 
-
-    def get_best_osclass(self):
-        """Return the OS class with the highest accuracy. If there is a tie, one
-        of the best matches will be returned."""
-        if not self._osclasses:
-            return None
-        def osclass_key(osclass):
-            # Sort first by accuracy, then by name so it's deterministic.
-            try:
-                accuracy = float(osclass.get("accuracy", ""))
-            except ValueError:
-                accuracy = 0
-            return (accuracy, osclass.get("name"))
-        osclasses = self.osclasses[:]
-        osclasses.sort(cmp = lambda a, b: cmp(osclass_key(a), osclass_key(b)))
-        return osclasses[-1]
 
     # ports_used is a list like
     # [{'state': u'open', 'portid': u'22', 'proto': u'tcp'},
@@ -426,7 +401,6 @@ class HostInfo(object):
 
     # Properties
     tcpsequence = property(get_tcpsequence, set_tcpsequence)
-    osclasses = property(get_osclasses, set_osclasses)
     osmatches = property(get_osmatches, set_osmatches)
     ports = property(get_ports, set_ports)
     ports_used = property(get_ports_used, set_ports_used)
@@ -690,6 +664,25 @@ in epoch format!")
     def get_formatted_finish_date(self):
         return time.strftime("%B %d, %Y - %H:%M", self.get_finish_time())
 
+    def get_port_protocol_dict(self):
+        #Create a dict of port -> protocol for all ports scanned
+        ports = {}
+        for scaninfo in self.scaninfo:
+            services_string = scaninfo['services']
+            services_array = services_string.split(',')
+            for item in services_array:
+                if item.find('-') == -1:
+                    if int(item) not in ports:
+                        ports[int(item)] = []
+                    ports[int(item)].append(scaninfo['protocol'])
+                else:
+                    begin,end = item.split('-')
+                    for port in range(int(begin),int(end)+1):
+                        if int(port) not in ports:
+                            ports[int(port)] = []
+                        ports[int(port)].append(scaninfo['protocol'])
+        return ports
+
     profile_name = property(get_profile_name, set_profile_name)
     nmap_output = property(get_nmap_output, set_nmap_output)
     debugging_level = property(get_debugging_level, set_debugging_level)
@@ -854,7 +847,9 @@ class NmapParserSAX(ParserBasics, ContentHandler):
         self.dic_port["service_extrainfo"] = attrs.get("extrainfo", "")
 
     def _parse_host_osmatch(self, attrs):
-        self.list_osmatch.append(self._parsing(attrs, [], ['name', 'accuracy', 'line']))
+        osmatch = self._parsing(attrs, [], ['name', 'accuracy', 'line'])
+        osmatch['osclasses'] = []
+        self.list_osmatch.append(osmatch)
 
     def _parse_host_portused(self, attrs):
         self.list_portused.append(self._parsing(attrs, ['state', 'proto', 'portid'], []))
@@ -950,12 +945,12 @@ class NmapParserSAX(ParserBasics, ContentHandler):
             self.in_os = True
             self.list_portused = []
             self.list_osmatch = []
-            self.list_osclass = []
         elif self.in_host and self.in_os and name == "osmatch":
             self._parse_host_osmatch(attrs)
         elif self.in_host and self.in_os and name == "portused":
             self._parse_host_portused(attrs)
         elif self.in_host and self.in_os and name == "osclass":
+            self.list_osclass = []
             self._parse_host_osclass(attrs)
         elif self.in_host and name == "uptime":
             self._parse_host_uptime(attrs)
@@ -993,15 +988,16 @@ class NmapParserSAX(ParserBasics, ContentHandler):
             self.in_port = False
             self.list_ports.append(self.dic_port)
             del(self.dic_port)
+        elif self.in_host and self.in_os and name == "osmatch":
+            self.list_osmatch[-1]['osclasses'].extend(self.list_osclass)
+            self.list_osclass = []
         elif self.in_host and self.in_os and name == "os":
             self.in_os = False
             self.host_info.set_ports_used(self.list_portused)
             self.host_info.set_osmatches(self.list_osmatch)
-            self.host_info.set_osclasses(self.list_osclass)
 
             del(self.list_portused)
             del(self.list_osmatch)
-            del(self.list_osclass)
         elif self.in_host and self.in_trace and name == "trace":
             self.in_trace = False
 
@@ -1191,22 +1187,21 @@ class NmapParserSAX(ParserBasics, ContentHandler):
                                             portid = pu.get("portid", ""))))
                 writer.endElement("portused")
 
-            ## Osclass elements
-            for oc in host.osclasses:
-                writer.startElement("osclass",
-                    Attributes(dict(vendor = oc.get("vendor", ""),
-                                    osfamily = oc.get("osfamily", ""),
-                                    type = oc.get("type", ""),
-                                    osgen = oc.get("osgen", ""),
-                                    accuracy = oc.get("accuracy", ""))))
-                writer.endElement("osclass")
-
             ## Osmatch elements
             for om in host.osmatches:
                 writer.startElement("osmatch",
                     Attributes(dict(name = om.get("name", ""),
                                     accuracy = om.get("accuracy", ""),
                                     line = om.get("line", ""))))
+                ## Osclass elements
+                for oc in om['osclasses']:
+                    writer.startElement("osclass",
+                        Attributes(dict(vendor = oc.get("vendor", ""),
+                                        osfamily = oc.get("osfamily", ""),
+                                        type = oc.get("type", ""),
+                                        osgen = oc.get("osgen", ""),
+                                        accuracy = oc.get("accuracy", ""))))
+                    writer.endElement("osclass")
                 writer.endElement("osmatch")
 
             writer.endElement("os")
@@ -1336,7 +1331,7 @@ if __name__ == '__main__':
         for p in host.ports:
             print "\t%s" % repr(p)
         print "  Ports used:", repr(host.ports_used)
-        print "  OS Class:", repr(host.osclasses)
+        print "  OS Matches:", repr(host.osmatches)
         print "  Hostnames:", repr(host.hostnames)
         print "  IP:", repr(host.ip)
         print "  IPv6:", repr(host.ipv6)

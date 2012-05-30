@@ -2,7 +2,7 @@
  * ncat_proxy.c -- HTTP proxy server.                                      *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -12,11 +12,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -30,19 +31,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -66,15 +68,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -85,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_proxy.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: ncat_proxy.c 28192 2012-03-01 06:53:35Z fyodor $ */
 
 #include "base64.h"
 #include "http.h"
@@ -151,7 +154,8 @@ static int check_auth(const struct http_request *request,
  */
 int ncat_http_server(void)
 {
-    int c, s;
+    int c, i, j;
+    int listen_socket[NUM_LISTEN_ADDRS];
     socklen_t sslen;
     union sockaddr_u conn;
 
@@ -167,28 +171,72 @@ int ncat_http_server(void)
     if (o.ssl)
         setup_ssl_listen();
 #endif
+    /* Clear the socket list */
+    for (i = 0; i < NUM_LISTEN_ADDRS; i++)
+        listen_socket[i] = -1;
 
-    s = do_listen(SOCK_STREAM, IPPROTO_TCP);
+    /* set for selecting listening sockets */
+    fd_set listen_fds;
+    fd_list_t listen_fdlist;
+    FD_ZERO(&listen_fds);
+    init_fdlist(&listen_fdlist, num_listenaddrs);
 
-    for (;;) {
-        sslen = sizeof(conn.storage);
+    /* Listen on each address, set up lists for select */
+    for (i = 0; i < num_listenaddrs; i++) {
+        listen_socket[i] = do_listen(SOCK_STREAM, IPPROTO_TCP, &listenaddrs[i]);
 
-        c = accept(s, &conn.sockaddr, &sslen);
+        /* make us not block on accepts in wierd cases. See ncat_listen.c:209 */
+        unblock_socket(listen_socket[i]);
 
-        if (c == -1) {
-            if (errno == EINTR)
-                continue;
-            die("accept");
-        }
+        /* setup select sets and max fd */
+        FD_SET(listen_socket[i], &listen_fds);
+        add_fd(&listen_fdlist, listen_socket[i]);
 
-        if (!allow_access(&conn)) {
-            Close(c);
-            continue;
-        }
-
-        fork_handler(s, c);
     }
 
+    for (;;) {
+        fd_set read_fds;
+
+        sslen = sizeof(conn.storage);
+        /*
+         * We just select to get a list of sockets which we can talk to
+         */
+        if (o.debug > 1)
+            logdebug("selecting, fdmax %d\n", listen_fdlist.fdmax);
+        read_fds = listen_fds;
+        int fds_ready = fselect(listen_fdlist.fdmax + 1, &read_fds, NULL, NULL, NULL);
+
+        if (o.debug > 1)
+            logdebug("select returned %d fds ready\n", fds_ready);
+
+        for (i = 0; i <= listen_fdlist.fdmax && fds_ready >0; i++) {
+            /* Loop through descriptors until there is something ready */
+            if (!FD_ISSET(i, &read_fds))
+                continue;
+
+            /* Check each listening socket */
+            for (j = 0; j < num_listenaddrs; j++) {
+                if (i == listen_socket[j]) {
+                    fds_ready--;
+                    c = accept(i, &conn.sockaddr, &sslen);
+
+                    if (c == -1) {
+                        if (errno == EINTR)
+                            continue;
+                        die("accept");
+                    }
+
+                    if (!allow_access(&conn)) {
+                        Close(c);
+                        continue;
+                    }
+                    if (o.debug > 1)
+                            logdebug("forking handler for %d\n", i);
+                    fork_handler(i, c);
+                }
+            }
+        }
+    }
     return 0;
 }
 
@@ -208,7 +256,7 @@ static void fork_handler(int s, int c)
     int *data;
     HANDLE thread;
 
-    data = (int *) malloc(sizeof(int));
+    data = (int *) safe_malloc(sizeof(int));
     *data = c;
     thread = CreateThread(NULL, 0, handler_thread_func, data, 0, NULL);
     if (thread == NULL) {
@@ -425,11 +473,11 @@ static int handle_connect(struct socket_buffer *client_sock,
 
     while (!socket_errno() || socket_errno() == EINTR) {
         char buf[DEFAULT_TCP_BUF_LEN];
-        int len, rc, numready;
+        int len, rc;
 
         r = m;
 
-        numready = fselect(maxfd + 1, &r, NULL, NULL, NULL);
+        fselect(maxfd + 1, &r, NULL, NULL, NULL);
 
         zmem(buf, sizeof(buf));
 

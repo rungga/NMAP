@@ -2,7 +2,7 @@
  * xml.cc -- Simple library to emit XML.                                   *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -12,11 +12,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -30,19 +31,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -66,15 +68,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -90,12 +93,13 @@
 /*
 This is a simple library for writing XML. It handles two main things:
 keeping track of the element stack, and escaping text where necessary.
-Here is an example of writing
+If you wanted to write this XML:
   <?xml version="1.0"?>
   <elem name="&amp;10.5"></elem>
-Each function call is followed by the text it prints enclosed in ||.
+these are the functions you would call. Each one is followed by the text
+it prints enclosed in ||.
 
-xml_start_document()                   |<?xml version="1.0"?>
+xml_start_document()                   |<?xml version="1.0"?>|
 xml_newline();                         |\n|
 xml_open_start_tag("elem");            |<elem|
 xml_attribute("name", "&%.1f", 10.5);  | name="&amp;10.5"|
@@ -104,7 +108,7 @@ xml_end_tag();                         |</elem>|
 
 The typical use is to call xml_open_start_tag, then call xml_attribute a
 number of times. That is followed by xml_close_empty_tag, or else
-xml_close_start_tag followed by xml_end_tag later one. You can call
+xml_close_start_tag followed by xml_end_tag later on. You can call
 xml_start_tag if there are no attributes. Whenever a start tag is opened
 with xml_open_start_tag or xml_start_tag, the element name is pushed on
 the tag stack. xml_end_tag pops the element stack and closes the element
@@ -131,7 +135,7 @@ Additional functions are
 
 xml_write_raw                 Raw unescaped output.
 xml_write_escaped             XML-escaped output.
-xml_write_escaped_v           XML_escaped output, with a va_list.
+xml_write_escaped_v           XML-escaped output, with a va_list.
 xml_start_document            Writes <?xml version="1.0"?>.
 xml_depth                     Returns the size of the element stack.
 
@@ -165,42 +169,6 @@ struct xml_writer {
 };
 
 static struct xml_writer xml;
-
-static char *alloc_vsprintf(const char *fmt, va_list va) __attribute__ ((format (printf, 1, 0)));
-
-/* vsprintf into a dynamically allocated buffer, similar to asprintf in
-   Glibc. Return the buffer or NULL on error. */
-static char *alloc_vsprintf(const char *fmt, va_list va) {
-  va_list va_tmp;
-  char *s, *p;
-  int size = 32;
-  int n;
-
-  s = NULL;
-  size = 32;
-  for (;;) {
-    p = (char *) safe_realloc(s, size);
-    if (p == NULL)
-      return NULL;
-    s = p;
-
-#ifdef WIN32
-    va_tmp = va;
-#else
-    va_copy(va_tmp, va);
-#endif
-    n = vsnprintf(s, size, fmt, va_tmp);
-
-    if (n >= size)
-      size = n + 1;
-    else if (n < 0)
-      size = size * 2;
-    else
-      break;
-  }
-
-  return s;
-}
 
 /* Escape a string for inclusion in XML. This gets <>&, "' for attribute
    values, -- for inside comments, and characters with value > 0x7F. It
@@ -268,7 +236,7 @@ int xml_write_raw(const char *fmt, ...) {
   char *s;
 
   va_start(va, fmt);
-  s = alloc_vsprintf(fmt, va);
+  alloc_vsprintf(&s, fmt, va);
   va_end(va);
   if (s == NULL)
     return -1;
@@ -296,7 +264,7 @@ int xml_write_escaped(const char *fmt, ...) {
 int xml_write_escaped_v(const char *fmt, va_list va) {
   char *s, *esc_s;
 
-  s = alloc_vsprintf(fmt, va);
+  alloc_vsprintf(&s, fmt, va);
   if (s == NULL)
     return -1;
   esc_s = escape(s);
@@ -418,7 +386,7 @@ int xml_attribute(const char *name, const char *fmt, ...) {
   assert(xml.tag_open);
 
   va_start(va, fmt);
-  val = alloc_vsprintf(fmt, va);
+  alloc_vsprintf(&val, fmt, va);
   va_end(va);
   if (val == NULL)
     return -1;
@@ -442,6 +410,11 @@ int xml_newline() {
 /* Return the size of the element stack. */
 int xml_depth() {
   return xml.element_stack.size();
+}
+
+/* Return true iff a root element has been started. */
+bool xml_tag_open() {
+  return xml.tag_open;
 }
 
 /* Return true iff a root element has been started. */

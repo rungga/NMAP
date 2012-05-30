@@ -10,9 +10,6 @@ macosx:
 Files and scripts used to build Mac OS X packages. See macosx/README for a
 description of the files in this directory.
 
-unix/linux_check.sh:
-Checks for dependencies on Linux.
-
 utils/version_update.py:
 Updates the Zenmap version number everywhere it needs to be.
 
