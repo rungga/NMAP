@@ -21,11 +21,11 @@
 # Released under GNU GPL, read the file 'COPYING' for more information
 
 # This script relies on having an installation of MacPorts in $(LIBPREFIX),
-# configured as you wish. See README for instructions on how to build a
-# universal build environment. You need to have installed the packages py26-gtk
-# and py26-py2app-devel.
+# configured as you wish. See README for instructions on how to make a build
+# environment. You need to have installed the packages py26-gtk and
+# py26-py2app.
 
-LIBPREFIX=$HOME/macports-10.4u
+LIBPREFIX=$HOME/macports-10.5
 PYTHON=$LIBPREFIX/bin/python2.6
 PKG_CONFIG=$LIBPREFIX/bin/pkg-config
 APP_NAME=Zenmap

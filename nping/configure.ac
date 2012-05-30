@@ -247,8 +247,10 @@ fi
 
 if test $have_libpcap != yes; then
   if test "${LIBPCAP_INC+set}" = "set"; then
+    LDFLAGS="-L$libpcapdir $_ldflags"
     CPPFLAGS="$CPPFLAGS -I$LIBPCAP_INC"
   else
+    LDFLAGS="-L$libpcapdir $LDFLAGS"
     CPPFLAGS="$CPPFLAGS -I$libpcapdir"
   fi
   LIBPCAP_LIBS='$(LIBPCAPDIR)/libpcap.a'
@@ -497,6 +499,7 @@ case "$host" in
     # use some AIX specific libraries
     AC_CHECK_LIB(odm, odm_initialize)	
     AC_CHECK_LIB(cfg, _system_configuration)
+    AC_CHECK_LIB(crypt, crypt_r)
     ;;
   *-solaris2.0*)  
     AC_DEFINE(STUPID_SOLARIS_CHECKSUM_BUG)

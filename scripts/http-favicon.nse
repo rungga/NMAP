@@ -37,6 +37,8 @@ require "http"
 require "stdnse"
 require "datafiles"
 require "nsedebug"
+require "stdnse"
+stdnse.silent_require "openssl"
 
 portrule = shortport.http
 
@@ -44,7 +46,7 @@ action = function(host, port)
   local md5sum,answer
   local match
   local status, favicondb
-  local result= ""
+  local result
   local favicondbfile="nselib/data/favicon-db"
   local index, icon
   local root = ""
@@ -55,20 +57,14 @@ action = function(host, port)
 	return
   end
 
-  if not pcall(require,'openssl') then
-	stdnse.print_debug( 3, "Skipping %s script because OpenSSL is missing.",
-	    SCRIPT_NAME)
-	return
+  if(stdnse.get_script_args('favicon.root')) then
+	root = stdnse.get_script_args('favicon.root')
   end
-
-  if(nmap.registry.args['favicon.root']) then
-	root = nmap.registry.args['favicon.root']
-  end
-
-  if(nmap.registry.args['favicon.uri']) then
+  local favicon_uri = stdnse.get_script_args("favicon.uri")
+  if(favicon_uri) then
 	-- If we got a script arg URI, always use that.
-  	answer = http.get( host, port, root .. "/" .. nmap.registry.args['favicon.uri'])
-	stdnse.print_debug( 4, "Using URI %s", nmap.registry.args['favicon.uri'])
+  	answer = http.get( host, port, root .. "/" .. favicon_uri)
+	stdnse.print_debug( 4, "Using URI %s", favicon_uri)
   else
 	-- Otherwise, first try parsing the home page.
  	index = http.get( host, port, root .. "/" )

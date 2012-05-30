@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -12,11 +12,12 @@
 # * technology into proprietary software, we sell alternative licenses      *
 # * (contact sales@insecure.com).  Dozens of software vendors already       *
 # * license Nmap technology such as host discovery, port scanning, OS       *
-# * detection, and version detection.                                       *
+# * detection, version detection, and the Nmap Scripting Engine.            *
 # *                                                                         *
 # * Note that the GPL places important restrictions on "derived works", yet *
 # * it does not provide a detailed definition of that term.  To avoid       *
-# * misunderstandings, we consider an application to constitute a           *
+# * misunderstandings, we interpret that term as broadly as copyright law   *
+# * allows.  For example, we consider an application to constitute a        *
 # * "derivative work" for the purpose of this license if it does any of the *
 # * following:                                                              *
 # * o Integrates source code from Nmap                                      *
@@ -30,19 +31,20 @@
 # * o Links to a library or executes a program that does any of the above   *
 # *                                                                         *
 # * The term "Nmap" should be taken to also include any portions or derived *
-# * works of Nmap.  This list is not exclusive, but is meant to clarify our *
-# * interpretation of derived works with some common examples.  Our         *
-# * interpretation applies only to Nmap--we don't speak for other people's  *
-# * GPL works.                                                              *
+# * works of Nmap, as well as other software we distribute under this       *
+# * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+# * but is meant to clarify our interpretation of derived works with some   *
+# * common examples.  Our interpretation applies only to Nmap--we don't     *
+# * speak for other people's GPL works.                                     *
 # *                                                                         *
 # * If you have any questions about the GPL licensing restrictions on using *
 # * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
 # * we also offer alternative license to integrate Nmap into proprietary    *
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
-# * as providing for priority support and updates as well as helping to     *
-# * fund the continued development of Nmap technology.  Please email        *
-# * sales@insecure.com for further information.                             *
+# * as providing for priority support and updates.  They also fund the      *
+# * continued development of Nmap.  Please email sales@insecure.com for     *
+# * further information.                                                    *
 # *                                                                         *
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
@@ -66,15 +68,16 @@
 # * and add new features.  You are highly encouraged to send your changes   *
 # * to nmap-dev@insecure.org for possible incorporation into the main       *
 # * distribution.  By sending these changes to Fyodor or one of the         *
-# * Insecure.Org development mailing lists, it is assumed that you are      *
-# * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
-# * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
-# * will always be available Open Source, but this is important because the *
-# * inability to relicense code has caused devastating problems for other   *
-# * Free Software projects (such as KDE and NASM).  We also occasionally    *
-# * relicense the code to third parties as discussed above.  If you wish to *
-# * specify special license conditions of your contributions, just say so   *
-# * when you send them.                                                     *
+# * Insecure.Org development mailing lists, or checking them into the Nmap  *
+# * source code repository, it is understood (unless you specify otherwise) *
+# * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+# * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+# * code.  Nmap will always be available Open Source, but this is important *
+# * because the inability to relicense code has caused devastating problems *
+# * for other Free Software projects (such as KDE and NASM).  We also       *
+# * occasionally relicense the code to third parties as discussed above.    *
+# * If you wish to specify special license conditions of your               *
+# * contributions, just say so when you send them.                          *
 # *                                                                         *
 # * This program is distributed in the hope that it will be useful, but     *
 # * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -122,11 +125,20 @@ class TracerouteHostInfo(object):
         self.hostname = None
         self.ports = []
         self.extraports = []
-        self.osclasses = []
         self.osmatches = []
 
     def get_hostname(self):
         return self.hostname
+
+    def get_best_osmatch(self):
+        if not self.osmatches:
+            return None
+        def osmatch_key(osmatch):
+            try:
+                return -float(osmatch["accuracy"])
+            except ValueError:
+                return 0
+        return sorted(self.osmatches, key = osmatch_key)[0]
 
     hostnames = property(lambda self: self.hostname and [self.hostname] or [])
 
@@ -146,11 +158,14 @@ def make_graph_from_hosts(hosts):
     main_node.set_host(localhost)
     main_node.set_draw_info({"valid": True, "color":(0,0,0), "radius":NONE_RADIUS})
 
+    #Save endpoints for attaching scanned hosts to
+    endpoints = {}
     # For each host in hosts just mount the graph
     for host in hosts:
         trace = host.trace
-
+        endpoints[host] = nodes[0]
         hops = trace.get("hops")
+
         # If host has traceroute information mount graph
         if hops is not None and len(hops) > 0:
             prev_node = nodes[0]
@@ -200,6 +215,7 @@ def make_graph_from_hosts(hosts):
                     graph.set_connection(node, prev_node)
 
                 prev_node = node
+                endpoints[host] = node
 
     # For each fully scanned host
     for host in hosts:
@@ -214,7 +230,7 @@ def make_graph_from_hosts(hosts):
 
             node.set_draw_info({"no_route":True})
 
-            graph.set_connection(node, nodes[0])
+            graph.set_connection(node, endpoints[host])
 
         node.set_draw_info({"valid":True})
         node.set_draw_info({"scanned":True})

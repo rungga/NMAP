@@ -38,6 +38,8 @@ categories = {"safe", "discovery"}
 
 require 'bin'
 require 'packet'
+require 'nmap'
+require 'stdnse'
 
 local IPPROTO_ICMP = packet.IPPROTO_ICMP
 local IPPROTO_TCP  = packet.IPPROTO_TCP
@@ -266,16 +268,16 @@ end
 
 hostrule = function(host)
 	if not nmap.is_privileged() then
-		if not nmap.registry['pathmtu'] then
-			nmap.registry['pathmtu'] = {}
+		nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
+		if not nmap.registry[SCRIPT_NAME].rootfail then
+			stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
 		end
-		if nmap.registry['pathmtu']['rootfail'] then
-			return false
-		end
-		nmap.registry['pathmtu']['rootfail'] = true
-		if nmap.verbosity() > 0 then
-			nmap.log_write("stdout", "PATH-MTU: not running for lack of privileges")
-		end
+		nmap.registry[SCRIPT_NAME].rootfail = true
+		return nil
+	end
+
+	if nmap.address_family() ~= 'inet' then
+		stdnse.print_debug("%s is IPv4 compatible only.", SCRIPT_NAME)
 		return false
 	end
 	if not (host.interface and host.interface_mtu) then

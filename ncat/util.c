@@ -2,7 +2,7 @@
  * util.c -- Various utility functions.                                    *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -12,11 +12,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -30,19 +31,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -66,15 +68,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -85,11 +88,13 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: util.c 26831 2011-10-07 04:03:04Z david $ */
+/* $Id: util.c 28442 2012-04-10 03:37:22Z david $ */
 
 #include "sys_wrap.h"
 #include "util.h"
 #include "ncat.h"
+#include "nbase.h"
+#include "sockaddr_u.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -116,7 +121,7 @@ size_t sadd(size_t l, size_t r)
     size_t  t;
 
     t = l + r;
-    if(t < l)
+    if (t < l)
         bye("integer overflow %lu + %lu.", (u_long)l, (u_long)r);
     return t;
 }
@@ -127,7 +132,7 @@ size_t smul(size_t l, size_t r)
     size_t  t;
 
     t = l * r;
-    if(l && t / l != r)
+    if (l && t / l != r)
         bye("integer overflow %lu * %lu.", (u_long)l, (u_long)r);
     return t;
 }
@@ -139,7 +144,7 @@ void windows_init()
     WSADATA data;
 
     werd = MAKEWORD( 2, 2 );
-    if( (WSAStartup(werd, &data)) !=0 )
+    if ( (WSAStartup(werd, &data)) !=0 )
         bye("Failed to start WinSock.");
 }
 #endif
@@ -364,39 +369,64 @@ unsigned short inet_port(const union sockaddr_u *su)
     return 0;
 }
 
-int do_listen(int type, int proto)
+int do_listen(int type, int proto, const union sockaddr_u *srcaddr_u)
 {
     int sock = 0, option_on = 1;
+    size_t sa_len;
 
-    if(type != SOCK_STREAM && type != SOCK_DGRAM)
+    if (type != SOCK_STREAM && type != SOCK_DGRAM)
         return -1;
 
     /* We need a socket that can be inherited by child processes in
        ncat_exec_win.c, for --exec and --sh-exec. inheritable_socket is from
        nbase. */
-    sock = inheritable_socket(srcaddr.storage.ss_family, type, proto);
+    sock = inheritable_socket(srcaddr_u->storage.ss_family, type, proto);
 
     Setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option_on, sizeof(int));
 
-    if (bind(sock, &srcaddr.sockaddr, (int) srcaddrlen) < 0) {
-        bye("bind to %s:%hu: %s.", inet_socktop(&srcaddr),
-            inet_port(&srcaddr), socket_strerror(socket_errno()));
+/* IPPROTO_IPV6 is defined in Visual C++ only when _WIN32_WINNT >= 0x501.
+   Nbase's nbase_winunix.h defines _WIN32_WINNT to a lower value for
+   compatibility with older versions of Windows. This code disables IPv6 sockets
+   that also receive IPv4 connections. This is the default on Windows anyway so
+   it doesn't make a difference.
+   http://support.microsoft.com/kb/950688
+   http://msdn.microsoft.com/en-us/library/bb513665
+*/
+#ifdef IPPROTO_IPV6
+#ifdef IPV6_V6ONLY
+    if (srcaddr_u->storage.ss_family == AF_INET6) {
+        int set = 1;
+        /* Tell it to not try and bind to IPV4 */
+        if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &set, sizeof(set)) == -1)
+            die("Unable to set IPV6 socket to bind only to IPV6");
+    }
+#endif
+#endif
+
+#ifdef HAVE_SOCKADDR_SA_LEN
+    sa_len = srcaddr_u->sockaddr.sa_len;
+#else
+    sa_len = sizeof(*srcaddr_u);
+#endif
+    if (bind(sock, &srcaddr_u->sockaddr, sa_len) < 0) {
+        bye("bind to %s:%hu: %s.", inet_socktop(srcaddr_u),
+            inet_port(srcaddr_u), socket_strerror(socket_errno()));
     }
 
-    if(type == SOCK_STREAM)
+    if (type == SOCK_STREAM)
         Listen(sock, BACKLOG);
 
-    if(o.verbose)
-        loguser("Listening on %s:%hu\n", inet_socktop(&srcaddr), inet_port(&srcaddr));
+    if (o.verbose)
+        loguser("Listening on %s:%hu\n", inet_socktop(srcaddr_u), inet_port(srcaddr_u));
 
     return sock;
 }
 
 int do_connect(int type)
 {
-    int sock=0;
+    int sock = 0;
 
-    if(type != SOCK_STREAM && type != SOCK_DGRAM)
+    if (type != SOCK_STREAM && type != SOCK_DGRAM)
         return -1;
 
     /* We need a socket that can be inherited by child processes in
@@ -405,16 +435,23 @@ int do_connect(int type)
     sock = inheritable_socket(targetss.storage.ss_family, type, 0);
 
     if (srcaddr.storage.ss_family != AF_UNSPEC) {
-        if (bind(sock, &srcaddr.sockaddr, (int) srcaddrlen) < 0) {
+        size_t sa_len;
+
+#ifdef HAVE_SOCKADDR_SA_LEN
+        sa_len = srcaddr.sockaddr.sa_len;
+#else
+        sa_len = sizeof(srcaddr);
+#endif
+        if (bind(sock, &srcaddr.sockaddr, sa_len) < 0) {
             bye("bind to %s:%hu: %s.", inet_socktop(&srcaddr),
                 inet_port(&srcaddr), socket_strerror(socket_errno()));
         }
     }
 
-    if(sock != -1){
-       if(connect(sock, &targetss.sockaddr, (int) targetsslen)!= -1)
+    if (sock != -1) {
+       if (connect(sock, &targetss.sockaddr, (int) targetsslen)!= -1)
           return sock;
-       else if(socket_errno()==EINPROGRESS||socket_errno()==EAGAIN)
+       else if (socket_errno()==EINPROGRESS||socket_errno()==EAGAIN)
           return sock;
     }
     return -1 ;
@@ -472,17 +509,17 @@ int allow_access(const union sockaddr_u *su)
 /* add an fdinfo to our list */
 int add_fdinfo(fd_list_t *fdl, struct fdinfo *s)
 {
-    if(fdl->nfds >= fdl->maxfds)
+    if (fdl->nfds >= fdl->maxfds)
         return -1;
 
     fdl->fds[fdl->nfds] = *s;
 
     fdl->nfds++;
 
-    if(s->fd > fdl->fdmax)
+    if (s->fd > fdl->fdmax)
         fdl->fdmax = s->fd;
 
-    if(o.debug > 1)
+    if (o.debug > 1)
         logdebug("Added fd %d to list, nfds %d, maxfd %d\n", s->fd, fdl->nfds, fdl->fdmax);
     return 0;
 }
@@ -505,20 +542,20 @@ int rm_fd(fd_list_t *fdl, int fd)
     int x = 0, last = fdl->nfds;
 
     /* make sure we have a list */
-    if(last == 0)
+    if (last == 0)
         bye("Program bug: Trying to remove fd from list with no fds.");
 
     /* find the fd in the list */
-    for(x = 0; x < last; x++)
-        if(fdl->fds[x].fd == fd)
+    for (x = 0; x < last; x++)
+        if (fdl->fds[x].fd == fd)
             break;
 
     /* make sure we found it */
-    if(x == last)
+    if (x == last)
         bye("Program bug: fd (%d) not on list.", fd);
 
-    /* remove it, does nothing if(last == 1) */
-    if(o.debug > 1)
+    /* remove it, does nothing if (last == 1) */
+    if (o.debug > 1)
         logdebug("Swapping fd[%d] (%d) with fd[%d] (%d)\n",
                  x, fdl->fds[x].fd, last - 1, fdl->fds[last - 1].fd);
     fdl->fds[x] = fdl->fds[last - 1];
@@ -526,10 +563,10 @@ int rm_fd(fd_list_t *fdl, int fd)
     fdl->nfds--;
 
     /* was it the max */
-    if(fd == fdl->fdmax)
+    if (fd == fdl->fdmax)
         fdl->fdmax = get_maxfd(fdl);
 
-    if(o.debug > 1)
+    if (o.debug > 1)
         logdebug("Removed fd %d from list, nfds %d, maxfd %d\n", fd, fdl->nfds, fdl->fdmax);
     return 0;
 }
@@ -539,8 +576,8 @@ int get_maxfd(fd_list_t *fdl)
 {
     int x = 0,  max = -1,   nfds = fdl->nfds;
 
-    for(x = 0; x < nfds; x++)
-        if(fdl->fds[x].fd > max)
+    for (x = 0; x < nfds; x++)
+        if (fdl->fds[x].fd > max)
             max = fdl->fds[x].fd;
 
     return max;
@@ -564,7 +601,7 @@ void init_fdlist(fd_list_t *fdl, int maxfds)
     fdl->fdmax = -1;
     fdl->maxfds = maxfds;
 
-    if(o.debug > 1)
+    if (o.debug > 1)
         logdebug("Initialized fdlist with %d maxfds\n", maxfds);
 }
 
@@ -608,14 +645,14 @@ int fix_line_endings(char *src, int *len, char **dst, int *state)
 
     /* now insert matching \r */
     *dst = (char *) safe_malloc(num_bytes + fix_count);
-    j=0;
+    j = 0;
 
     for (i = 0; i < num_bytes; i++) {
         if (src[i] == '\n' && ((i == 0) ? !prev_state : src[i-1] != '\r')) {
-            memcpy(*dst+j, "\r\n", 2);
+            memcpy(*dst + j, "\r\n", 2);
             j += 2;
         } else {
-            memcpy(*dst+j, src+i, 1);
+            memcpy(*dst + j, src + i, 1);
             j++;
         }
     }

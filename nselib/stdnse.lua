@@ -53,7 +53,7 @@ c = nil
 -- sleep is a C function defined in nse_nmaplib.cc.
 
 ---
--- Prints a formatted debug message if the current verbosity level is greater
+-- Prints a formatted debug message if the current debugging level is greater
 -- than or equal to a given level.
 -- 
 -- This is a convenience wrapper around
@@ -72,6 +72,28 @@ print_debug = function(level, fmt, ...)
     nmap.log_write("stdout", format(level, fmt, ...));
   end
 end
+
+---
+-- Prints a formatted verbosity message if the current verbosity level is greater
+-- than or equal to a given level.
+-- 
+-- This is a convenience wrapper around
+-- <code>nmap.log_write</code>. The first optional numeric
+-- argument, <code>level</code>, is used as the verbosity level necessary
+-- to print the message (it defaults to 1 if omitted). All remaining arguments
+-- are processed with Lua's <code>string.format</code> function.
+-- @param level Optional verbosity level.
+-- @param fmt Format string.
+-- @param ... Arguments to format.
+print_verbose = function(level, fmt, ...)
+  local l, d = tonumber(level), nmap.verbosity();
+  if l and l <= d then
+    nmap.log_write("stdout", format(fmt, ...));
+  elseif not l and 1 <= d then
+    nmap.log_write("stdout", format(level, fmt, ...));
+  end
+end
+
 
 --- Join a list of strings with a separator string.
 -- 
@@ -457,9 +479,9 @@ local function format_output_sub(status, data, indent)
   -- Used to put 'ERROR: ' in front of all lines on error messages
   local prefix = ""
   -- Initialize the output string to blank (or, if we're at the top, add a newline)
-  local output = ""
+  local output = {}
   if(not(indent)) then
-    output = '\n'
+    insert(output, '\n')
   end
 
   if(not(status)) then
@@ -479,12 +501,18 @@ local function format_output_sub(status, data, indent)
 
   if(data['name']) then
     if(data['warning'] and nmap.debugging() > 0) then
-      output = output .. format("%s%s%s (WARNING: %s)\n", format_get_indent(indent), prefix, data['name'], data['warning'])
+      insert(output, format("%s%s%s (WARNING: %s)\n",
+                        format_get_indent(indent), prefix,
+                        data['name'], data['warning']))
     else
-      output = output .. format("%s%s%s\n", format_get_indent(indent), prefix, data['name'])
+      insert(output, format("%s%s%s\n",
+                        format_get_indent(indent), prefix,
+                        data['name']))
     end
   elseif(data['warning'] and nmap.debugging() > 0) then
-      output = output .. format("%s%s(WARNING: %s)\n", format_get_indent(indent), prefix, data['warning'])
+    insert(output, format("%s%s(WARNING: %s)\n",
+                      format_get_indent(indent), prefix,
+                      data['warning']))
   end
 
   for i, value in ipairs(data) do
@@ -501,18 +529,20 @@ local function format_output_sub(status, data, indent)
         insert(new_indent, true)
       end
 
-      output = output .. format_output_sub(status, value, new_indent)
+      insert(output, format_output_sub(status, value, new_indent))
         
     elseif(type(value) == 'string') then
       local lines = splitlines(value)
 
       for j, line in ipairs(lines) do
-        output = output .. format_get_indent(indent, i == #data and j == #lines) .. "  " .. prefix .. line .. "\n"
+      	insert(output, format("%s  %s%s\n",
+      	                  format_get_indent(indent, i == #data and j == #lines),
+      	                  prefix, line))
       end
     end
   end
 
-  return output
+  return concat(output)
 end
 
 ---Takes a table of output on the commandline and formats it for display to the 
@@ -556,7 +586,7 @@ end
 --
 --@param status A boolean value dictating whether or not the script succeeded. 
 --              If status is false, and debugging is enabled, 'ERROR' is prepended
---              to every line. If status is false and ebugging is disabled, no output
+--              to every line. If status is false and debugging is disabled, no output
 --              occurs. 
 --@param data   The table of output. 
 --@param indent Used for indentation on recursive calls; should generally be set to
@@ -588,7 +618,16 @@ end
 local function arg_value(argname)
   if nmap.registry.args[argname] then
     return nmap.registry.args[argname]
+  else
+    -- if scriptname.arg is not there, check "arg"
+    local argument_frags = strsplit("%.", argname)
+    if #argument_frags > 0 then
+      if nmap.registry.args[argument_frags[2]] then
+        return nmap.registry.args[argument_frags[2]]
+      end
+    end
   end
+
   for _, v in ipairs(nmap.registry.args) do
     if v == argname then
       return 1
@@ -721,7 +760,7 @@ end
 
 ---Similar to <code>registry_add_array</code>, except instead of adding a value to the
 -- end of an array, it adds a key:value pair to the table. 
-function registry_add_table(subkeys, key, value)
+function registry_add_table(subkeys, key, value, allow_duplicates)
   local registry = nmap.registry
   local i = 1
 
@@ -846,3 +885,87 @@ do end -- no function here, see nse_main.lua
 --@class function
 --@return coroutine Returns the base coroutine of the running script.
 do end -- no function here, see nse_main.lua
+
+--- The Lua Require Function with errors silenced.
+--
+-- See the Lua manual for description of the require function. This modified
+-- version allows the script to quietly fail at loading if a required
+-- library does not exist.
+--
+--@name silent_require
+--@class function
+--@usage stdnse.silent_require "openssl"
+do end -- no function here, see nse_main.lua
+
+
+
+---Checks if the port is in the port range
+-- For example, calling:
+-- <code>in_port_range({number=31337,protocol="udp"},"T:15,50-75,U:31334-31339")</code>
+-- would result in a true value
+--@param port a port structure containing keys port number(number) and protocol(string)
+--@param port_range a port range string in Nmap standard format (ex. "T:80,1-30,U:31337,21-25")
+--@returns boolean indicating whether the port is in the port range
+function in_port_range(port,port_range)
+	assert(port and type(port.number)=="number" and type(port.protocol)=="string" and 
+			(port.protocol=="udp" or port.protocol=="tcp"),"Port structure missing or invalid: port={ number=<port_number>, protocol=<port_protocol> }")
+	assert((type(port_range)=="string" or type(port_range)=="number") and port_range~="","Incorrect port range specification.")
+	
+	-- Proto - true for TCP, false for UDP
+	local proto
+	if(port.protocol=="tcp") then proto = true else proto = false end
+	
+	--TCP flag for iteration - true for TCP, false for UDP, if not specified we presume TCP
+	local tcp_flag = true
+	
+	-- in case the port_range is a single number 
+	if type(port_range)=="number" then
+		if proto and port_range==port.number then return true
+		else return false
+		end
+	end
+	
+	--clean the string a bit
+	port_range=port_range:gsub("%s+","")
+	
+	-- single_pr - single port range
+	for i, single_pr in ipairs(strsplit(",",port_range)) do
+		if single_pr:match("T:") then
+			tcp_flag = true
+			single_pr = single_pr:gsub("T:","")
+		else 
+			if single_pr:match("U:") then 
+				tcp_flag = false 
+				single_pr = single_pr:gsub("U:","")
+			end
+		end
+		
+		-- compare ports only when the port's protocol is the same as
+		-- the current single port range
+		if tcp_flag == proto then
+			local pone = single_pr:match("^(%d+)$")
+			if pone then
+				pone = tonumber(pone)
+				assert(pone>-1 and pone<65536, "Port range number out of range (0-65535).")
+				
+				if pone == port.number then 
+					return true 
+				end
+			else
+				local pstart, pend = single_pr:match("^(%d+)%-(%d+)$")
+				pstart, pend = tonumber(pstart), tonumber(pend)
+				assert(pstart,"Incorrect port range specification.")
+				assert(pstart<=pend,"Incorrect port range specification, the starting port should have a smaller value than the ending port.")
+				assert(pstart>-1 and pstart<65536 and pend>-1 and pend<65536, "Port range number out of range (0-65535).")
+				
+				if port.number >=pstart and port.number <= pend then
+					return true
+				end
+			end
+		end
+	end
+	-- if no match is found then the port doesn't belong to the port_range
+	return false
+end
+
+

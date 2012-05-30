@@ -2889,6 +2889,37 @@ SENT (4.0330s) TCP 192.168.0.21 &gt; 3.3.3.3:139
 
         </listitem>
       </varlistentry>
+
+      <varlistentry>
+        <term>
+          <option>--safe-payloads</option> (Zero application data before echoing a packet)
+          <indexterm significance="preferred"><primary><option>--safe-payloads</option> (Nping option)</primary></indexterm>
+        </term>
+        <listitem>
+        <para>
+           This option asks the Echo server to erase any application layer data
+           found in client packets before echoing them. When the option is enabled,
+           the Echo server parses the packets received from Echo clients and tries
+           to determine if they contain data beyond the transport layer. If such
+           data is found, it is overwritten with zeroes before transmitting the
+           packets to the appropriate Echo client.
+        </para>
+
+        <para>
+            Echo servers can handle multiple simultaneous clients running
+            multiple echo sessions in parallel. In order to determine which packet
+            needs to be echoed to which client and through which session, the Echo
+            server uses an heuristic algorithm. Although we have taken every
+            security measure that we could think of to prevent that a client
+            receives an echoed packet that it did not generate, there is always
+            a risk that our algorithm makes a mistake and delivers a packet to
+            the wrong client. The --safe-payloads option is useful for public
+            echo servers or critical deployments where that kind of mistake
+            cannot be afforded.
+        </para>
+
+        </listitem>
+      </varlistentry>
     </variablelist>
 
     <para>
@@ -3349,10 +3380,10 @@ SENT (4.0330s) TCP 192.168.0.21 &gt; 3.3.3.3:139
               </listitem>
             </varlistentry>
             <varlistentry>
-              <term>Level 4</term>
+              <term>Level 4 and higher</term>
               <listitem>
            <para>
-                Currently unused.
+                Same as level 3.
            </para>
               </listitem>
             </varlistentry>
@@ -3513,7 +3544,7 @@ NSOCK (1.0000s) Callback: TIMER SUCCESS for EID 12; tcpconnect_event_handler<con
 
     <para>Code patches to fix bugs are even better than bug reports.
     Basic instructions for creating patch files with your changes are
-    available at <ulink url="http://nmap.org/data/HACKING"/>.  Patches may
+    available at <ulink url="https://svn.nmap.org/nmap/HACKING"/>.  Patches may
     be sent to <citetitle>nmap-dev</citetitle> (recommended) or to any of the
     authors listed in the next section directly.</para>
   </refsect1>

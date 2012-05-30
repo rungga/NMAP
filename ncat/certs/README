@@ -13,11 +13,20 @@ See below for how to use an alternative trust store.
 
 These instructions require the openssl command-line utility.
 
+On Windows XP, run the rootsupd.exe tool to downoad the full list of
+trusted certificates. Otherwise there is only a partial list
+(certificates are downloaded on demand).
+
+http://support.microsoft.com/kb/931125
+http://www.download.windowsupdate.com/msdownload/update/v3/static/trustedr/en/rootsupd.exe
+
 Press "Start", then "Run...". Type "certmgr.msc" and press Enter. Open
 the folder "Trusted Root Certification Authorities" and its subfolder
-"Certificates". Type Ctrl-A to select all certificates, Right-click on
-the list of certificates, and in the context menu, select "All Tasks",
-then "Export...".  Export to the file ca-bundle.p7b.
+"Certificates". Click on "Expiration Date" to sort. Select the first
+certificate that is not expired, then press Shift+down arrow until all
+the non-expired certificates are selected. Right-click on the list of
+certificates, and in the context menu, select "All Tasks", then
+"Export...".  Export to the file ca-bundle.p7b.
 
 In a Cygwin shell, enter the directory containing ca-bundle.p7b and run
 the command
@@ -31,3 +40,8 @@ Another commonly used trust store is the one provided by Mozilla. The
 cURL package includes a script that automatically creates a suitable PEM
 file from a file in Mozilla's source repository. They also provide
 ready-made PEM files to download. See http://curl.haxx.se/docs/caextract.html.
+
+Here is how to download Mozilla's trust store:
+
+$ wget https://raw.github.com/bagder/curl/master/lib/mk-ca-bundle.pl
+$ perl mk-ca-bundle.pl

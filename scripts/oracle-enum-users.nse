@@ -34,15 +34,9 @@ categories = {"intrusive", "auth"}
 
 require 'shortport'
 require 'unpwdb'
-if pcall(require,"openssl") then
-  require("tns")
-else
-  portrule = function() return false end
-  action = function() end
-  stdnse.print_debug( 3, "Skipping %s script because OpenSSL is missing.",
-      SCRIPT_NAME)
-  return;
-end
+require 'stdnse'
+stdnse.silent_require 'openssl'
+require 'tns'
 
 portrule = shortport.port_or_service(1521, 'oracle-tns' )
 
@@ -85,13 +79,6 @@ local function get_random_string(length, set)
 	end
 
 	local str = ""
-
-	-- Seed the random number, if we haven't already
-	if (not(nmap.registry.oracle_enum_users) or not(nmap.registry.oracle_enum_users.seeded)) then
-		math.randomseed(os.time())
-		nmap.registry.oracle_enum_users = {}
-		nmap.registry.oracle_enum_users.seeded = true
-	end
 
 	for i = 1, length, 1 do
 		local random = math.random(#set)

@@ -3,7 +3,7 @@
  * to mode-specific functions.                                             *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -13,11 +13,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -31,19 +32,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -67,15 +69,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -86,7 +89,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_main.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: ncat_main.c 28195 2012-03-01 09:05:02Z henri $ */
 
 #include "nsock.h"
 #include "ncat.h"
@@ -188,7 +191,7 @@ static void host_list_to_set(struct addrset *set, struct host_list_node *list)
             fd = fopen(node->spec, "r");
             if (fd == NULL)
                 bye("can't open %s: %s.", node->spec, strerror(errno));
-            if (!addrset_add_file(set, fd))
+            if (!addrset_add_file(set, fd, o.af, !o.nodns))
                 bye("error in hosts file %s.", node->spec);
             fclose(fd);
         } else {
@@ -197,7 +200,7 @@ static void host_list_to_set(struct addrset *set, struct host_list_node *list)
             commalist = node->spec;
             while ((spec = strtok(commalist, ",")) != NULL) {
                 commalist = NULL;
-                if (!addrset_add_spec(set, spec))
+                if (!addrset_add_spec(set, spec, o.af, !o.nodns))
                     bye("error in host specification \"%s\".", node->spec);
             }
         }
@@ -235,6 +238,7 @@ int main(int argc, char *argv[])
         {"listen",          no_argument,        NULL,         'l'},
         {"output",          required_argument,  NULL,         'o'},
         {"hex-dump",        required_argument,  NULL,         'x'},
+        {"append-output",   no_argument,        NULL,         0},
         {"idle-timeout",    required_argument,  NULL,         'i'},
         {"keep-open",       no_argument,        NULL,         'k'},
         {"recv-only",       no_argument,        &o.recvonly,  1},
@@ -258,6 +262,7 @@ int main(int argc, char *argv[])
         {"proxy",           required_argument,  NULL,         0},
         {"proxy-type",      required_argument,  NULL,         0},
         {"proxy-auth",      required_argument,  NULL,         0},
+        {"nsock-engine",    required_argument,  NULL,         0},
 #ifdef HAVE_OPENSSL
         {"ssl",             no_argument,        &o.ssl,       1},
         {"ssl-cert",        required_argument,  NULL,         0},
@@ -301,8 +306,9 @@ int main(int argc, char *argv[])
             o.crlf = 1;
             break;
         case 'c':
+            o.cmdexec = optarg;
             o.shellexec = 1;
-            /* fall through */
+	    break;
         case 'e':
             o.cmdexec = optarg;
             break;
@@ -338,10 +344,10 @@ int main(int argc, char *argv[])
                 bye("Since April 2010, the default unit for -d is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.linedelay / 1000.0 / 60, optarg, o.linedelay / 1000.0);
             break;
         case 'o':
-            o.normlogfd = ncat_openlog(optarg);
+            o.normlog = optarg;
             break;
         case 'x':
-            o.hexlogfd = ncat_openlog(optarg);
+            o.hexlog = optarg;
             break;
         case 'p':
             srcport = atoi(optarg);
@@ -407,6 +413,10 @@ int main(int argc, char *argv[])
                         bye("You can't specify more than one --proxy-auth.");
                 o.proxy_auth = Strdup(optarg);
             }
+            else if (strcmp(long_options[option_index].name, "nsock-engine") == 0)
+            {
+                nsock_set_default_engine(optarg);
+            }
             else if (strcmp(long_options[option_index].name, "broker") == 0)
             {
                 o.broker = 1;
@@ -438,6 +448,10 @@ int main(int argc, char *argv[])
             else if (strcmp(long_options[option_index].name, "denyfile") == 0)
             {
                 host_list_add_filename(&deny_host_list, optarg);
+            }
+            else if (strcmp(long_options[option_index].name, "append-output") == 0)
+            {
+                o.append = 1;
             }
 #ifdef HAVE_OPENSSL
             else if (strcmp(long_options[option_index].name, "ssl-cert") == 0)
@@ -484,8 +498,8 @@ int main(int argc, char *argv[])
 "  -m, --max-conns <n>        Maximum <n> simultaneous connections\n"
 "  -h, --help                 Display this help screen\n"
 "  -d, --delay <time>         Wait between read/writes\n"
-"  -o, --output               Dump session data to a file\n"
-"  -x, --hex-dump             Dump session data as hex to a file\n"
+"  -o, --output <filename>    Dump session data to a file\n"
+"  -x, --hex-dump <filename>  Dump session data as hex to a file\n"
 "  -i, --idle-timeout <time>  Idle read/write timeout\n"
 "  -p, --source-port port     Specify source port to use\n"
 "  -s, --source addr          Specify source address to use (doesn't affect -l)\n"
@@ -497,6 +511,7 @@ int main(int argc, char *argv[])
 "      --sctp                 Use SCTP instead of default TCP\n"
 "  -v, --verbose              Set verbosity level (can be used up to 3 times)\n"
 "  -w, --wait <time>          Connect timeout\n"
+"      --append-output        Append rather than clobber specified output files\n"
 "      --send-only            Only send data, ignoring received; quit on EOF\n"
 "      --recv-only            Only receive data, never send anything\n"
 "      --allow                Allow only given hosts to connect to Ncat\n"
@@ -529,13 +544,29 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (o.normlog)
+        o.normlogfd = ncat_openlog(o.normlog, o.append);
+    if (o.hexlog)
+        o.hexlogfd = ncat_openlog(o.hexlog, o.append);
+
     if (o.verbose)
         print_banner();
+
+    if (o.debug)
+        nbase_set_log(loguser, logdebug);
+    else
+        nbase_set_log(loguser, NULL);
 
     /* Will be AF_INET or AF_INET6 when valid */
     memset(&targetss.storage, 0, sizeof(targetss.storage));
     targetss.storage.ss_family = AF_UNSPEC;
     httpconnect.storage = socksconnect.storage = srcaddr.storage = targetss.storage;
+
+    /* Clear the listenaddrs array */
+    int i;
+    for (i = 0; i < NUM_LISTEN_ADDRS; i++) {
+        listenaddrs[i].storage = targetss.storage;
+    }
 
     if (proxyaddr) {
       if (!o.proxytype)
@@ -578,29 +609,6 @@ int main(int argc, char *argv[])
 
         if (!resolve(source, 0, &srcaddr.storage, &srcaddrlen, o.af))
             bye("Could not resolve source address %s.", source);
-    }
-
-    if (srcport != -1) {
-        if (o.listen) {
-            /* Treat "ncat -l -p <port>" the same as "ncat -l <port>" for nc
-               compatibility. */
-            o.portno = srcport;
-        } else {
-            if (srcaddr.storage.ss_family == AF_UNSPEC)
-                srcaddr.storage.ss_family = o.af;
-            if (o.af == AF_INET) {
-                srcaddr.in.sin_port = htons((unsigned short) srcport);
-                if (!srcaddrlen)
-                    srcaddrlen = sizeof(srcaddr.in);
-            }
-#ifdef HAVE_IPV6
-            else {
-                srcaddr.in6.sin6_port = htons((unsigned short) srcport);
-                if (!srcaddrlen)
-                    srcaddrlen = sizeof(srcaddr.in6);
-            }
-#endif
-        }
     }
 
     host_list_to_set(&o.allowset, allow_host_list);
@@ -653,6 +661,31 @@ int main(int argc, char *argv[])
         targetss.in6.sin6_port = htons(o.portno);
 #endif
 
+    if (srcport != -1) {
+        if (o.listen) {
+            /* Treat "ncat -l -p <port>" the same as "ncat -l <port>" for nc
+               compatibility. */
+            o.portno = srcport;
+        } else {
+            if (srcaddr.storage.ss_family == AF_UNSPEC) {
+                /* We have a source port but not an explicit source address;
+                   fill in an unspecified address of the same family as the
+                   target. */
+                srcaddr.storage.ss_family = targetss.storage.ss_family;
+                if (srcaddr.storage.ss_family == AF_INET)
+                    srcaddr.in.sin_addr.s_addr = INADDR_ANY;
+                else if (srcaddr.storage.ss_family == AF_INET6)
+                    srcaddr.in6.sin6_addr = in6addr_any;
+            }
+            if (srcaddr.storage.ss_family == AF_INET)
+                srcaddr.in.sin_port = htons(srcport);
+#ifdef HAVE_IPV6
+            else
+                srcaddr.in6.sin6_port = htons(srcport);
+#endif
+        }
+    }
+
     /* Since the host we're actually *connecting* to is the proxy server, we
      * need to reverse these address structures to avoid any further confusion
      */
@@ -677,11 +710,6 @@ int main(int argc, char *argv[])
 If this feature is important to you, write nmap-dev@insecure.org with a\n\
 description of how you intend to use it, as an aid to deciding how UDP\n\
 connection brokering should work.");
-    }
-
-    if (o.sctp) {
-      if (o.broker)
-        bye("SCTP mode does not support connection brokering.");
     }
 
     /* Do whatever is necessary to receive \n for line endings on input from
@@ -730,6 +758,10 @@ static int ncat_listen_mode(void) {
     if (o.proxytype != NULL && o.telnet)
         bye("Invalid option combination: --telnet has no effect with --proxy-type.");
 
+    if (o.conn_limit != -1 && !(o.keepopen || o.broker))
+        loguser("Warning: Maximum connections ignored, since it does not take "
+                "effect without -k or --broker.\n");
+
     /* Set the default maximum simultaneous TCP connection limit. */
     if (o.conn_limit == -1)
         o.conn_limit = DEFAULT_MAX_CONNS;
@@ -740,33 +772,32 @@ static int ncat_listen_mode(void) {
         bye("/bin/sh is not executable, so `-c' won't work.");
 #endif
 
-    /* If we weren't given a specific address to listen on, we accept
-     * any incoming connections
-     */
-    if (targetss.storage.ss_family == AF_UNSPEC) {
-        targetss.storage.ss_family = o.af;
+    if (targetss.storage.ss_family != AF_UNSPEC) {
+        listenaddrs[num_listenaddrs++] = targetss;
+    } else {
+        size_t ss_len;
+        int rc;
 
-        if (o.af == AF_INET)
-            targetss.in.sin_addr.s_addr = INADDR_ANY;
+        /* No command-line address. Listen on IPv4 or IPv6 or both. */
+	/* Try to bind to IPv6 first; on AIX a bound IPv4 socket blocks an IPv6
+           socket on the same port, despite IPV6_V6ONLY. */
 #ifdef HAVE_IPV6
-        else
-            targetss.in6.sin6_addr = in6addr_any;
+        if (o.af == AF_INET6 || o.af == AF_UNSPEC) {
+            ss_len = sizeof(listenaddrs[num_listenaddrs]);
+            rc = resolve("::", o.portno, &listenaddrs[num_listenaddrs].storage, &ss_len, AF_INET6);
+            if (!rc)
+                bye("Failed to resolve default IPv6 address.");
+            num_listenaddrs++;
+        }
 #endif
+        if (o.af == AF_INET || o.af == AF_UNSPEC) {
+            ss_len = sizeof(listenaddrs[num_listenaddrs]);
+            rc = resolve("0.0.0.0", o.portno, &listenaddrs[num_listenaddrs].storage, &ss_len, AF_INET);
+            if (!rc)
+                bye("Failed to resolve default IPv4 address.");
+            num_listenaddrs++;
+        }
     }
-
-    /* Actually set our source address */
-    srcaddr = targetss;
-
-    if (srcaddr.storage.ss_family == AF_INET)
-        srcaddrlen = sizeof(srcaddr.in);
-#ifdef HAVE_IPV6
-    else
-        srcaddrlen = sizeof(srcaddr.in6);
-#endif
-
-    /* If --broker was supplied, go into connection brokering mode. */
-    if (o.broker)
-        return ncat_broker();
 
     if (o.proxytype) {
         if (strcmp(o.proxytype, "http") == 0)

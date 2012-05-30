@@ -468,7 +468,7 @@ Socket =
 	
 		if ( #self.Buffer < count ) then
 			status, data = self.Socket:receive_bytes( count - #self.Buffer )
-			if ( not(status) ) then
+			if ( not(status) or #data < count - #self.Buffer ) then
 				return false, data
 			end
 			self.Buffer = self.Buffer .. data
@@ -506,15 +506,10 @@ MessageDecoder = {
 		pos = pos + len + 16
 
 		pos, len = bin.unpack(bo .. "I", packet.stub_data, pos)
-		print("len", len)
-		
 		pos, ip = bin.unpack( bo .. "A" .. len, packet.stub_data, pos)
-		print("tmp", ip)
-		
+
 		pos = pos + 3
 		pos, len = bin.unpack(bo .. "I", packet.stub_data, pos)
-		print("len", len)
-		
 		pos, ctx = bin.unpack( bo .. "A" .. len, packet.stub_data, pos)
 		
 		return true, { ip = ip, ctx = ctx}

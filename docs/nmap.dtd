@@ -1,7 +1,7 @@
 <!--
     nmap.dtd
     This is the DTD for Nmap's XML output (-oX) format.
-    $Id: nmap.dtd 19515 2010-08-06 16:40:03Z djalal $
+    $Id: nmap.dtd 28544 2012-05-08 05:49:51Z david $
 
     Originally written by:
     William McVey <wam@cisco.com> <wam+nmap@wamber.net>
@@ -64,17 +64,16 @@
 
 <!ENTITY % port_protocols "(ip|tcp|udp|sctp)" >
 
-<!-- I don't know exactly what these are, but the values were enumerated via:
-     grep "conf=" *
+<!-- Service detection confidence level (portlist.h:struct serviceDeductions)
 --> 
-<!ENTITY % service_confs  "( 0 | 3 | 5 | 10)" >
+<!ENTITY % service_confs  "( 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10)" >
 
 <!-- This element was started in nmap.c:nmap_main().
      It represents to the topmost element of the output document.
 -->
 <!ELEMENT nmaprun      (scaninfo*, verbose, debugging,
-                        ((taskbegin, taskprogress*, taskend) |
-                            prescripts | postscripts | host | output)*,
+                        ( target | taskbegin | taskprogress | taskend |
+                            prescript | postscript | host | output)*,
                             runstats) >
 <!ATTLIST nmaprun
 			scanner		(nmap)		#REQUIRED
@@ -103,6 +102,12 @@
 
 <!ELEMENT debugging 	EMPTY >
 <!ATTLIST debugging	level		%attr_numeric;	#IMPLIED >
+
+<!ELEMENT target	EMPTY >
+<!ATTLIST target	specification	CDATA		#REQUIRED
+			status		(skipped)	#IMPLIED
+			reason		(invalid)	#IMPLIED
+>
 
 <!-- this element is written in timing.c:beginOrEndTask() -->
 <!ELEMENT taskbegin	EMPTY >
@@ -203,7 +208,7 @@
 <!ELEMENT owner		EMPTY >
 <!ATTLIST owner		name		CDATA		#REQUIRED >
 
-<!ELEMENT service	EMPTY >
+<!ELEMENT service	(cpe*) >
 <!ATTLIST service
 			name		CDATA		#REQUIRED
 			conf		%service_confs;	#REQUIRED
@@ -222,13 +227,15 @@
                         servicefp       CDATA           #IMPLIED
 >
 
+<!ELEMENT cpe (#PCDATA)>
+
 <!ELEMENT script	EMPTY >
 <!ATTLIST script	
 	id	CDATA	#REQUIRED
 	output	CDATA	#REQUIRED
 >
 
-<!ELEMENT os		( portused* , osclass*, osmatch*, osfingerprint* ) >
+<!ELEMENT os		( portused* , osmatch*, osfingerprint* ) >
 
 <!ELEMENT portused	EMPTY >
 <!ATTLIST portused
@@ -236,7 +243,7 @@
 			proto 		%port_protocols; #REQUIRED
 			portid 		%attr_numeric;	#REQUIRED
 >
-<!ELEMENT osclass      EMPTY >
+<!ELEMENT osclass      (cpe*) >
 <!ATTLIST osclass
                        vendor          CDATA           #REQUIRED
                        osgen           CDATA           #IMPLIED
@@ -246,7 +253,7 @@
 >
 
 
-<!ELEMENT osmatch	EMPTY >
+<!ELEMENT osmatch	(osclass*) >
 <!ATTLIST osmatch
 			name		CDATA		#REQUIRED
 			accuracy	%attr_numeric;	#REQUIRED

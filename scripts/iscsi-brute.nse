@@ -8,7 +8,7 @@ Performs brute force password auditing against iSCSI targets.
 -- 3260/tcp open  iscsi   syn-ack
 -- | iscsi-brute: 
 -- |   Accounts
--- |     user:password123456 => Login correct
+-- |     user:password123456 => Valid credentials
 -- |   Statistics
 -- |_    Perfomed 5000 guesses in 7 seconds, average tps: 714
 
@@ -19,10 +19,11 @@ Performs brute force password auditing against iSCSI targets.
 require 'shortport'
 require 'brute'
 require 'iscsi'
+require 'creds'
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"intrusive", "auth"}
+categories = {"intrusive", "brute"}
 
 portrule = shortport.portnumber(3260, "tcp", {"open", "open|filtered"})
 
@@ -47,7 +48,7 @@ Driver = {
 		local status = self.helper:login( self.target, username, password, "CHAP")
 		
 		if ( status ) then
-			return true, brute.Account:new(username, password, "OPEN")
+			return true, brute.Account:new(username, password, creds.State.VALID)
 		end
 		
 		return false, brute.Error:new( "Incorrect password" )
@@ -78,7 +79,10 @@ action = function( host, port )
 	if ( status ) then return "No authentication required" end
 
 	local accounts
-	status, accounts = brute.Engine:new(Driver, host, port):start()
+
+	local engine = brute.Engine:new(Driver, host, port)
+	engine.options.script_name = SCRIPT_NAME
+	status, accounts = engine:start()
 
 	if ( status ) then return accounts end
 end

@@ -160,7 +160,7 @@ end
 -- @param body the html content of the recieved page
 -- @return link to next page
 local function getPager( body )
-	return body:match("<form.+action=\"(.+%?ReadForm)\&" )
+	return body:match("<form.+action=\"(.+%?ReadForm)&" )
 end
 
 --- Retrieves the username and passwords for a user
@@ -208,14 +208,14 @@ end
 action = function(host, port)
 
 	local path = "/names.nsf"
-	local download_path = nmap.registry.args['domino-enum-passwords.idpath']
-	local vhost= nmap.registry.args['domino-enum-passwords.hostname']
-	local user = nmap.registry.args['domino-enum-passwords.username']
-	local pass = nmap.registry.args['domino-enum-passwords.password']
+	local download_path = stdnse.get_script_args('domino-enum-passwords.idpath')
+	local vhost= stdnse.get_script_args('domino-enum-passwords.hostname')
+	local user = stdnse.get_script_args('domino-enum-passwords.username')
+	local pass = stdnse.get_script_args('domino-enum-passwords.password')
 	local creds, pos, pager
 	local links, result, hashes,legacyHashes, id_files = {}, {}, {}, {},{}
 	local chunk_size = 30
-	local max_fetch = nmap.registry.args['domino-enum-passwords.count'] and tonumber(nmap.registry.args['domino-enum-passwords.count']) or 10
+	local max_fetch = stdnse.get_script_args('domino-enum-passwords.count') and tonumber(stdnse.get_script_args('domino-enum-passwords.count')) or 10
 	local http_response
 	
 	if ( nmap.registry['credentials'] and nmap.registry['credentials']['http'] ) then
@@ -253,7 +253,7 @@ action = function(host, port)
 	pager = getPager( http_response.body )
 	if ( not(pager) ) then
 		if ( http_response.body and 
-			 http_response.body:match(".*\<input type=\"submit\".* value=\"Sign In\"\>.*" ) ) then
+			 http_response.body:match(".*<input type=\"submit\".* value=\"Sign In\">.*" ) ) then
 			return "  \n  ERROR: Failed to authenticate"
 		else
 			return "  \n  ERROR: Failed to process results"

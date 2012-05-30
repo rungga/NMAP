@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -16,11 +16,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -34,19 +35,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -70,15 +72,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -89,9 +92,10 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.cc 27445 2011-12-13 00:04:42Z david $ */
+/* $Id: targets.cc 28528 2012-05-04 15:12:25Z david $ */
 
 
+#include "nbase/nbase_addrset.h"
 #include "targets.h"
 #include "timing.h"
 #include "NmapOps.h"
@@ -101,7 +105,7 @@
 #include "nmap_dns.h"
 #include "nmap_tty.h"
 #include "utils.h"
-
+#include "xml.h"
 using namespace std;
 extern NmapOps o;
 
@@ -119,7 +123,7 @@ static void arpping(Target *hostbatch[], int num_hosts) {
     /* Default timout should be much lower for arp */
     hostbatch[targetno]->to.timeout = MAX(o.minRttTimeout(), MIN(o.initialRttTimeout(), INITIAL_ARP_RTT_TIMEOUT)) * 1000;
     if (!hostbatch[targetno]->SrcMACAddress()) {
-      bool islocal = islocalhost(hostbatch[targetno]->v4hostip());
+      bool islocal = islocalhost(hostbatch[targetno]->TargetSockAddr());
       if (islocal) {
         log_write(LOG_STDOUT|LOG_NORMAL, 
                   "ARP ping: Considering %s UP because it is a local IP, despite no MAC address for device %s\n",
@@ -136,8 +140,12 @@ static void arpping(Target *hostbatch[], int num_hosts) {
     }
     targets.push_back(hostbatch[targetno]);
   }
-  if (!targets.empty())
-    ultra_scan(targets, NULL, PING_SCAN_ARP);
+  if (!targets.empty()) {
+    if (targets[0]->af() == AF_INET)
+      ultra_scan(targets, NULL, PING_SCAN_ARP);
+    else
+      ultra_scan(targets, NULL, PING_SCAN_ND);
+  }
   return;
 }
 
@@ -156,177 +164,65 @@ void returnhost(HostGroupState *hs) {
 /* Is the host passed as Target to be excluded? Much of this logic had
    to be rewritten from wam's original code to allow for the objects */
 static int hostInExclude(struct sockaddr *checksock, size_t checksocklen, 
-                  TargetGroup *exclude_group) {
-  unsigned long tmpTarget; /* ip we examine */
-  int i=0;                 /* a simple index */
-  char targets_type;       /* what is the address type of the Target Group */
-  struct sockaddr_storage ss; 
-  struct sockaddr_in *sin = (struct sockaddr_in *) &ss;
-  size_t slen;             /* needed for funct but not used */
-  unsigned long mask = 0;  /* our trusty netmask, which we convert to nbo */
-  struct sockaddr_in *checkhost_in;
-
-  if ((TargetGroup *)0 == exclude_group)
+                  const addrset *exclude_group) {
+  if (exclude_group == NULL)
     return 0;
 
-  checkhost_in = NULL;
-  if (checksock->sa_family == AF_INET) {
-    assert(checksocklen >= sizeof(struct sockaddr_in));
-    checkhost_in = (struct sockaddr_in *) checksock;
-  }
+  if (checksock == NULL)
+    return 0;
 
-  /* First find out what type of addresses are in the target group */
-  targets_type = exclude_group[i].get_targets_type();
-
-  /* Lets go through the targets until we reach our uninitialized placeholder */
-  while (exclude_group[i].get_targets_type() != TargetGroup::TYPE_NONE) { 
-    /* while there are still hosts in the target group */
-    while (exclude_group[i].get_next_host(&ss, &slen) == 0) {
-      tmpTarget = sin->sin_addr.s_addr; 
-
-      /* For Netmasks simply compare the network bits and move to the next
-       * group if it does not compare, we don't care about the individual addrs */
-      if (targets_type == TargetGroup::IPV4_NETMASK) {
-        if (checkhost_in == NULL)
-          break;
-        mask = htonl((unsigned long) (0-1) << (32-exclude_group[i].get_mask()));
-        if ((tmpTarget & mask) == (checkhost_in->sin_addr.s_addr & mask)) {
-          exclude_group[i].rewind();
-          return 1;
-        } else {
-          break;
-        }
-      } 
-      /* For ranges we need to be a little more slick, if we don't find a match
-       * we should skip the rest of the addrs in the octet, thank wam for this
-       * optimization */
-      else if (targets_type == TargetGroup::IPV4_RANGES) {
-        if (checkhost_in == NULL)
-          break;
-        if (tmpTarget == checkhost_in->sin_addr.s_addr) {
-          exclude_group[i].rewind();
-          return 1;
-        } else {
-          /* note these are in network byte order */
-          if ((tmpTarget & 0x000000ff) != (checkhost_in->sin_addr.s_addr & 0x000000ff))
-            exclude_group[i].skip_range(TargetGroup::FIRST_OCTET); 
-          else if ((tmpTarget & 0x0000ff00) != (checkhost_in->sin_addr.s_addr & 0x0000ff00))
-            exclude_group[i].skip_range(TargetGroup::SECOND_OCTET); 
-          else if ((tmpTarget & 0x00ff0000) != (checkhost_in->sin_addr.s_addr & 0x00ff0000))
-            exclude_group[i].skip_range(TargetGroup::THIRD_OCTET); 
-
-          continue;
-        }
-      }
-#if HAVE_IPV6
-      else if (targets_type == TargetGroup::IPV6_ADDRESS) {
-        fatal("exclude file not supported for IPV6 -- If it is important to you, send a mail to fyodor@insecure.org so I can guage support\n");
-      }
-#endif
-    }
-    exclude_group[i++].rewind();
-  }
-
-  /* we did not find the host */
+  if (addrset_contains(exclude_group,checksock))
+    return 1;
   return 0;
 }
 
-/* Convert a vector of host specifications to an array (allocated with new[]) of
-   TargetGroups. The size of the returned array is one greater than the number
-   of host specs, to leave on uninitialized member at the end. */
-static TargetGroup *specs_to_targetgroups(const std::vector<std::string> &specs) {
-  TargetGroup *excludelist;
-  unsigned int i;
+/* Load an exclude list from a file for --excludefile. */
+int load_exclude_file(addrset *excludelist, FILE *fp) {
+  char host_spec[1024];
+  size_t n;
 
-  excludelist = new TargetGroup[specs.size() + 1];
-
-  for (i = 0; i < specs.size(); i++) {
-    if (excludelist[i].parse_expr(specs[i].c_str(), o.af()) == 0) {
-      if (o.debugging > 1)
-        error("Loaded exclude target of: %s", specs[i].c_str());
+  while ((n = read_host_from_file(fp, host_spec, sizeof(host_spec))) > 0) {
+    if (n >= sizeof(host_spec))
+      fatal("One of your exclude file specifications was too long to read (>= %u chars)", (unsigned int) sizeof(host_spec));
+    if(!addrset_add_spec(excludelist, host_spec, o.af(), 1)){
+      fatal("Invalid address specification:");
     }
   }
 
-  return excludelist;
+  return 1;
 }
 
-/* Load an exclude list from --excludefile and --exclude. */
-TargetGroup *load_exclude_group(FILE *fp, const char *spec) {
-  std::vector<std::string> specs;
+/* Load a comma-separated exclude list from a string, the argument to
+   --exclude. */
+int load_exclude_string(addrset *excludelist, const char *s) {
+  const char *begin, *p;
 
-  if (fp != NULL) {
-    char host_spec[1024];
-    size_t n;
-
-    while ((n = read_host_from_file(fp, host_spec, sizeof(host_spec))) > 0) {
-      if (n >= sizeof(host_spec))
-        fatal("One of your exclude file specifications was too long to read (>= %u chars)", (unsigned int) sizeof(host_spec));
-      specs.push_back(host_spec);
-    }
-  }
-
-  if (spec != NULL) {
-    const char *begin, *p;
-
-    p = spec;
-    while (*p != '\0') {
-      begin = p;
-      while (*p != '\0' && *p != ',')
-        p++;
-      specs.push_back(std::string(begin, p - begin));
-      if (*p == '\0')
-        break;
+  p = s;
+  while (*p != '\0') {
+    begin = p;
+    while (*p != '\0' && *p != ',')
       p++;
+    std::string addr_str = std::string(begin, p - begin);
+    if (!addrset_add_spec(excludelist, addr_str.c_str(), o.af(), 1)) {
+        fatal("Invalid address specification: %s", addr_str.c_str());
     }
-  }
+    if (*p == '\0')
+      break;
+    p++;
+  };
 
-  return specs_to_targetgroups(specs);
+  return 1;
 }
 
 
 /* A debug routine to dump some information to stdout. Invoked if debugging is
-   set to 3 or higher. I had to make significant changes from wam's code.
-   Although wam displayed much more detail, alot of this is now hidden inside of
-   the Target Group Object. Rather than writing a bunch of methods to return
-   private attributes, which would only be used for debugging, I went for the
-   method below. */
-int dumpExclude(TargetGroup *exclude_group) {
-  int i=0, debug_save=0, type=TargetGroup::TYPE_NONE;
-  unsigned int mask = 0;
-  struct sockaddr_storage ss;
-  struct sockaddr_in *sin = (struct sockaddr_in *) &ss;
-  size_t slen;
+   set to 4 or higher. */
+int dumpExclude(addrset *exclude_group) {
+  const struct addrset_elem *elem;
 
-  /* shut off debugging for now, this is a debug routine in itself, we don't
-     want to see all the debug messages inside of the object */
-  debug_save = o.debugging;
-  o.debugging = 0;
+  for (elem = exclude_group->head; elem != NULL; elem = elem->next)
+    addrset_elem_print(stdout, elem);
 
-  while ((type = exclude_group[i].get_targets_type()) != TargetGroup::TYPE_NONE) {
-    switch (type) {
-      case TargetGroup::IPV4_NETMASK:
-        exclude_group[i].get_next_host(&ss, &slen);
-        mask = exclude_group[i].get_mask();
-        error("exclude host group %d is %s/%d", i, inet_ntoa(sin->sin_addr), mask);
-        break;
-
-      case TargetGroup::IPV4_RANGES:
-        while (exclude_group[i].get_next_host(&ss, &slen) == 0) 
-          error("exclude host group %d is %s", i, inet_ntoa(sin->sin_addr));
-        break;
-
-      case TargetGroup::IPV6_ADDRESS:
-        fatal("IPV6 addresses are not supported in the exclude file\n");
-        break;
-
-      default:
-        fatal("Unknown target type in exclude file.\n");
-    }
-    exclude_group[i++].rewind();
-  }
-
-  /* return debugging to what it was */
-  o.debugging = debug_save; 
   return 1;
 }
  
@@ -380,17 +276,22 @@ static bool target_needs_new_hostgroup(const HostGroupState *hs, const Target *t
     return false;
 
   /* There are no restrictions on non-root scans. */
-  if (!(o.af() == AF_INET && o.isr00t && target->deviceName() != NULL))
+  if (!(o.isr00t && target->deviceName() != NULL))
     return false;
+
+  /* Different address family? */
+  if (hs->hostbatch[0]->af() != target->af())
+    return true;
 
   /* Different interface name? */
   if (hs->hostbatch[0]->deviceName() != NULL &&
+      target->deviceName() != NULL &&
       strcmp(hs->hostbatch[0]->deviceName(), target->deviceName()) != 0) {
     return true;
   }
 
   /* Different source address? */
-  if (hs->hostbatch[0]->v4source().s_addr != target->v4source().s_addr)
+  if (sockaddr_storage_cmp(hs->hostbatch[0]->SourceSockAddr(), target->SourceSockAddr()) != 0)
     return true;
 
   /* Different direct connectedness? */
@@ -402,14 +303,26 @@ static bool target_needs_new_hostgroup(const HostGroupState *hs, const Target *t
      replies. What happens is one target gets the replies for all probes
      referring to the same IP address. */
   for (i = 0; i < hs->current_batch_sz; i++) {
-    if (hs->hostbatch[0]->v4host().s_addr == target->v4host().s_addr)
+    if (sockaddr_storage_cmp(hs->hostbatch[0]->TargetSockAddr(), target->TargetSockAddr()) == 0)
       return true;
   }
 
   return false;
 }
 
-Target *nexthost(HostGroupState *hs, TargetGroup *exclude_group,
+/* Add a <target> element to the XML stating that a target specification was
+   ignored. This can be because of, for example, a DNS resolution failure, or a
+   syntax error. */
+static void log_bogus_target(const char *expr) {
+  xml_open_start_tag("target");
+  xml_attribute("specification", "%s", expr);
+  xml_attribute("status", "skipped");
+  xml_attribute("reason", "invalid");
+  xml_close_empty_tag();
+  xml_newline();
+}
+
+Target *nexthost(HostGroupState *hs, const addrset *exclude_group,
                  struct scan_lists *ports, int pingtype) {
   int i;
   struct sockaddr_storage ss;
@@ -451,7 +364,7 @@ Target *nexthost(HostGroupState *hs, TargetGroup *exclude_group,
          2) We are doing tcp or udp pingscan OR
          3) We are doing a raw-mode portscan or osscan or traceroute OR
          4) We are on windows and doing ICMP ping */
-      if (o.isr00t && o.af() == AF_INET && 
+      if (o.isr00t && 
           ((pingtype & (PINGTYPE_TCP|PINGTYPE_UDP|PINGTYPE_SCTP_INIT|PINGTYPE_PROTO|PINGTYPE_ARP)) || o.RawScan()
 #ifdef WIN32
            || (pingtype & (PINGTYPE_ICMP_PING|PINGTYPE_ICMP_MASK|PINGTYPE_ICMP_TS))
@@ -497,9 +410,14 @@ Target *nexthost(HostGroupState *hs, TargetGroup *exclude_group,
     if (hs->current_batch_sz < hs->max_batch_sz &&
         hs->next_expression < hs->num_expressions) {
       /* We are going to have to pop in another expression. */
-      while(hs->current_expression.parse_expr(hs->target_expressions[hs->next_expression++], o.af()) != 0) 
-        if (hs->next_expression >= hs->num_expressions)
+      while (hs->next_expression < hs->num_expressions) {
+        const char *expr;
+        expr = hs->target_expressions[hs->next_expression++];
+        if (hs->current_expression.parse_expr(expr, o.af()) != 0)
+          log_bogus_target(expr);
+        else
           break;
+      }
     } else break;
   } while(1);
 
@@ -518,7 +436,18 @@ batchfull:
      directly connected over ethernet.  I may need the MAC addresses
      later anyway. */
   if (hs->hostbatch[0]->ifType() == devt_ethernet && 
+      hs->hostbatch[0]->af() == AF_INET &&
       hs->hostbatch[0]->directlyConnected() && 
+      o.sendpref != PACKET_SEND_IP_STRONG) {
+    arpping(hs->hostbatch, hs->current_batch_sz);
+    arpping_done = true;
+  }
+
+  /* No other interface types are supported by ND ping except devt_ethernet
+     at the moment. */
+  if (hs->hostbatch[0]->ifType() == devt_ethernet &&
+      hs->hostbatch[0]->af() == AF_INET6 &&
+      hs->hostbatch[0]->directlyConnected() &&
       o.sendpref != PACKET_SEND_IP_STRONG) {
     arpping(hs->hostbatch, hs->current_batch_sz);
     arpping_done = true;

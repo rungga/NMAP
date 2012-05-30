@@ -151,6 +151,18 @@ version_port_or_service = function(ports, services, protos, states)
         end
 end
 
+--[[
+  Apache Tomcat HTTP server default ports: 8180 and 8000
+  Litespeed webserver default ports: 8088 and 7080
+--]]
+LIKELY_HTTP_PORTS = {
+	80, 443, 631, 7080, 8080, 8088, 5800, 3872, 8180, 8000
+}
+
+LIKELY_HTTP_SERVICES = {
+	"http", "https", "ipp", "http-alt", "vnc-http", "oem-agent", "soap",
+}
+
 ---
 -- A portrule that matches likely HTTP services.
 --
@@ -162,5 +174,28 @@ end
 -- <code>false</code> otherwise.
 -- @usage
 -- portrule = shortport.http
-http = shortport.port_or_service({80, 443, 631, 8080, 5800, 3872},
-	{"http", "https", "ipp", "http-alt", "vnc-http", "oem-agent"})
+
+http = shortport.port_or_service(LIKELY_HTTP_PORTS, LIKELY_HTTP_SERVICES)
+
+local LIKELY_SSL_PORTS = {
+    443, 465, 587, 636, 989, 990, 992, 993, 994, 995, 5061, 6679, 6697, 8443,
+    9001,
+}
+local LIKELY_SSL_SERVICES = {
+    "ftps", "ftps-data", "https", "https-alt", "imaps", "ircs",
+    "ldapssl", "pop3s", "sip-tls", "smtps", "telnets", "tor-orport",
+}
+
+---
+-- A portrule that matches likely SSL services.
+--
+-- @param host The host table to match against.
+-- @param port The port table to match against.
+-- @return <code>true</code> if the port is likely to be SSL,
+-- <code>false</code> otherwise.
+-- @usage
+-- portrule = shortport.ssl
+function ssl(host, port)
+    return port.version.service_tunnel == "ssl" or
+        port_or_service(LIKELY_SSL_PORTS, LIKELY_SSL_SERVICES, {"tcp", "sctp"})(host, port)
+end

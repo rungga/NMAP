@@ -9,7 +9,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -19,11 +19,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -37,19 +38,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -73,15 +75,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -92,7 +95,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase.h 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: nbase.h 28247 2012-03-08 23:56:26Z david $ */
 
 #ifndef NBASE_H
 #define NBASE_H
@@ -166,6 +169,8 @@
 #include <inttypes.h>
 #endif
 
+#include <stdio.h>
+
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64
 #endif
@@ -210,6 +215,8 @@ typedef int64_t s64;
 #define TIMEVAL_MSEC_SUBTRACT(a,b) ((((a).tv_sec - (b).tv_sec) * 1000) + ((a).tv_usec - (b).tv_usec) / 1000)
 /* Timeval subtract in seconds; truncate towards zero */
 #define TIMEVAL_SEC_SUBTRACT(a,b) ((a).tv_sec - (b).tv_sec + (((a).tv_usec < (b).tv_usec) ? - 1 : 0))
+/* Timeval subtract in fractional seconds; convert to float */
+#define TIMEVAL_FSEC_SUBTRACT(a,b) ((a).tv_sec - (b).tv_sec + (((a).tv_usec - (b).tv_usec)/1000000.0))
 
 /* assign one timeval to another timeval plus some msecs: a = b + msecs */
 #define TIMEVAL_MSEC_ADD(a, b, msecs) { (a).tv_sec = (b).tv_sec + ((msecs) / 1000); (a).tv_usec = (b).tv_usec + ((msecs) % 1000) * 1000; (a).tv_sec += (a).tv_usec / 1000000; (a).tv_usec %= 1000000; }
@@ -388,6 +395,9 @@ int Vsnprintf(char *, size_t, const char *, va_list)
 int Snprintf(char *, size_t, const char *, ...)
      __attribute__ ((format (printf, 3, 4)));
 
+int alloc_vsprintf(char **strp, const char *fmt, va_list va)
+     __attribute__ ((format (printf, 2, 0)));
+
 /* Trivial function that returns nonzero if all characters in str of
    length strlength are printable (as defined by isprint()) */
 int stringisprintable(const char *str, int strlength);
@@ -459,6 +469,26 @@ const char *tval_unit(const char *tspec);
 int fselect(int s, fd_set *rmaster, fd_set *wmaster, fd_set *emaster, struct timeval *tv);
 
 char *hexdump(const u8 *cp, u32 length);
+
+char *executable_path(const char *argv0);
+
+/* addrset management functions and definitions */
+/* A set of addresses. Used to match against allow/deny lists. */
+struct addrset_elem;
+
+/* A set of addresses. Used to match against allow/deny lists. */
+struct addrset {
+    /* Linked list of struct addset_elem. */
+    struct addrset_elem *head;
+};
+
+void nbase_set_log(void (*log_user_func)(const char *, ...),void (*log_debug_func)(const char *, ...));
+extern void addrset_init(struct addrset *set);
+extern void addrset_free(struct addrset *set);
+extern void addrset_elem_print(FILE *fp, const struct addrset_elem *elem);
+extern int addrset_add_spec(struct addrset *set, const char *spec, int af, int dns);
+extern int addrset_add_file(struct addrset *set, FILE *fd, int af, int dns);
+extern int addrset_contains(const struct addrset *set, const struct sockaddr *sa);
 
 #ifndef STDIN_FILENO
 #define STDIN_FILENO 0

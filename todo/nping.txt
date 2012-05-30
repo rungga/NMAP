@@ -53,10 +53,103 @@
   transport level (letting the OS craft the IPv6 header), and at raw ethernet
   level. None of them seems to work well, though.
 
+* Investigate an IPv6-related core dump reported by Vasiliy Kulikov.
+  More info: http://seclists.org/nmap-dev/2011/q3/567
+
 * Consider using Nmap's proto-dependant payloads for UDP packets. According
-  to his tests, better results are obtained when sending UDP probes with a
+  to David's tests, better results are obtained when sending UDP probes with a
   payload specific to the protocol.
-  
+
+* Currently, Nping determines the maximum number of open descriptors 
+  (in TCP connect and UDP unprivileged modes), from the value returned
+  by libnetutil::get_max_open_descriptors(). However, it is often the 
+  case that such function returns a value higher than FD_SETSIZE, which 
+  is the maximum number of descriptors that select(2) can handle. 
+  Currently Nsock uses select(2) so we have to limit the number of 
+  descriptor to FD_SETSIZE, and not to the value returned bu
+  get_max_open_descriptors(). However, Henri Doreau is working on a new
+  nsock-engines branch which will provide Nsock engines based on 
+  better I/O syscalls like poll() and epoll(). I've asked Henri if he 
+  could implement a function in Nsock that provides the maximum number
+  of descriptors that can be handled at the same time, based on the 
+  nsock engine being used. So, if that function gets implemented and 
+  his nsock-engines branch merged into trunk, we should consider
+  updating Nping's code to use it. 
+  More info here: 
+    http://seclists.org/nmap-dev/2011/q4/550
+
+* A few ideas for the Echo protocol:
+    - Add an authenticated NEP_BYE message, so session termination is explicit
+      and both ends can determine if the session was ended because the other end
+      requested it or if it was due to some error at the network or transport
+      layer. Suggested by David.
+      
+    - Add examples for encryption and hmac to the RFC. This would help in
+      debugging implementations. Suggested by Toni Ruottu.
+
+    - RFC. Improve description of how the IVs work. Suggested by Toni Ruottu.
+
+    - RFC. Improve description of encryptionless sessions.  Suggested by Toni
+      Ruottu.
+
+    - Currently, the echo server zeroes any application layer data before
+      transmission in a NEP_ECHO message. This minimizes the impact of
+      errors in the server's packet matching engine or malicious attacks that
+      attempt to trick the server into echoing packets that do not belong to
+      a particular user. This works well but in the future, if one day we
+      create a NEPv2 specification, we may want to consider extending NEP_ECHO
+      packets to allow stripped-packet transport. This is, to allow echo servers
+      to remove application layer data before transmission, and include
+      additional information in the NEP_ECHO message so clients can determine 
+      that the payload part was stripped and how long was it.
+
+    - Consider making the echo server bind to all IPv4 AND IPv6 interfaces.
+
+    - Add a description of the security implications of running a public echo
+      server (failures in the packet matching algorithm, etc), to either the
+      RFC or the man page. Suggested by Toni Ruottu.
+
+    - Test the new --safe-payloads option with a packet fuzzer to make sure
+      the packet parser behaves correctly.
+
+* When running Nping echo client with the --no-capture parameter, the last
+  packet's CAPT line is not displayed.
+
+  nping --ec public echo.nmap.org -p90 --tcp --count 1 --no-capture
+
+  luis@Aberdeen:~$ sudo nping --ec public echo.nmap.org -p90-92 --tcp --count 1 --no-capture
+
+    Starting Nping 0.5.52.IPv6.Beta2 ( http://nmap.org/nping ) at 2011-07-05 12:53 CEST
+    SENT (7.3302s) TCP 163.117.203.253:18554 > 74.207.244.221:90 S ttl=64 
+    CAPT (7.4625s) TCP 163.117.203.253:18554 > 74.207.244.221:90 S ttl=54 
+    SENT (8.3309s) TCP 163.117.203.253:18554 > 74.207.244.221:91 S ttl=64 
+    CAPT (8.4429s) TCP 163.117.203.253:18554 > 74.207.244.221:91 S ttl=54 
+    SENT (9.3310s) TCP 163.117.203.253:18554 > 74.207.244.221:92 S ttl=64 
+     
+    Max rtt: N/A | Min rtt: N/A | Avg rtt: N/A
+    Raw packets sent: 3 (120B) | Rcvd: 0 (0B) | Lost: 3 (100.00%)| Echoed: 2 (80B) 
+    Tx time: 2.00181s | Tx bytes/s: 59.95 | Tx pkts/s: 1.50
+    Rx time: 2.00193s | Rx bytes/s: 0.00 | Rx pkts/s: 0.00
+    Nping done: 1 IP address pinged in 9.33 seconds
+
+* Sometimes Nping displays a couple of error messages (related to cleanup of
+  Nsock events), even though everything went fine.
+
+    luis@Aberdeen:~$ sudo nping --ec public echo.nmap.org -p90 --tcp --count 1
+
+    Starting Nping 0.5.52.IPv6.Beta2 ( http://nmap.org/nping ) at 2011-07-05 12:51 CEST
+    SENT (1.8965s) TCP 163.117.203.253:64288 > 74.207.244.221:90 S ttl=64
+    CAPT (2.0293s) TCP 163.117.203.253:64288 > 74.207.244.221:90 S ttl=54
+    RCVD (2.1233s) TCP 74.207.244.221:90 > 163.117.203.253:64288 RA ttl=51
+    nping_event_handler(): READ-PCAP killed: Resource temporarily unavailable
+    nping_event_handler(): TIMER killed: Resource temporarily unavailable
+     
+    Max rtt: 226.762ms | Min rtt: 226.762ms | Avg rtt: 226.762ms
+    Raw packets sent: 1 (40B) | Rcvd: 1 (40B) | Lost: 0 (0.00%)| Echoed: 1 (40B) 
+    Tx time: 0.00136s | Tx bytes/s: 29411.76 | Tx pkts/s: 735.29
+    Rx time: 1.00082s | Rx bytes/s: 39.97 | Rx pkts/s: 1.00
+    Nping done: 1 IP address pinged in 2.93 seconds
+       
 * Investigate about warning on old version of gcc like g++ 4.1.2 20080704
   (Red Hat 4.1.2-48). No warnings are shown on newer version but it would be
   nice to get rid of them if possible. There are some of them:
@@ -74,6 +167,22 @@
    does the IP doesn't reverse resolve) is specified on the command
    line, should we use that version, or the official rDNS, if any?
  - Some more discussion on this topic on nmap-dev may be warranted.
+ 
+* From: David Lam <david@thedavid.net>, "Some general questions about 
+  Nping/Ncat"
+  
+  In TCP traceroute mode, would it be possible to ask Nping to
+  stop once it gets an SYN-ACK response back from the destination host rather
+  than continuously hitting the host until the max TTL?
+  
+* Make broadcast ping work. Currently the following command does not 
+  show any captured packets:
+    nping 192.168.0.255 --dest-mac ff:ff:ff:ff:ff:ff -c 1
+  The cause is probably the BPF filter, which only allows replies from
+  192.168.0.255.
+  Also, look into official multicast addresses like 224.0.0.1. Can we
+  received replies to that probe?
+
 
 * Do some performance testing.  
    Fyodor:
@@ -640,5 +749,22 @@
   maximum size of a NEP message (normal use does not require so much space).
   When this is done, check if we still need to increase the stack size
   in the project properties in Visual Studio.
+
+[DONE] [Fixed by Vasiliy Kulikov] When running Nping in ARP mode, hexdump of 
+  ARP replies is not shown with -vvv, only for requests. Here's the output: 
+
+sudo nping --arp 192.168.240.139 -vvv -d1
+
+Starting Nping 0.5.59BETA1 ( http://nmap.org/nping ) at 2011-07-11 12:32 CEST
+BPF-filter: arp and arp[6]==0x00 and arp[7]==0x02
+SENT (0.0562s) ARP who has 192.168.240.139? Tell 192.168.240.1
+0000   ff ff ff ff ff ff 00 50  56 c0 00 01 08 06 00 01  .......PV.......
+0010   08 00 06 04 00 01 00 50  56 c0 00 01 c0 a8 f0 01  .......PV.......
+0020   00 00 00 00 00 00 c0 a8  f0 8b                    ..........      
+RCVD (0.0568s) ARP reply 192.168.240.139 is at 00:0C:29:E4:90:CD
+SENT (1.0580s) ARP who has 192.168.240.139? Tell 192.168.240.1
+0000   ff ff ff ff ff ff 00 50  56 c0 00 01 08 06 00 01  .......PV.......
+0010   08 00 06 04 00 01 00 50  56 c0 00 01 c0 a8 f0 01  .......PV.......
+0020   00 00 00 00 00 00 c0 a8  f0 8b                    ..........      
 
 

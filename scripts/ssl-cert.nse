@@ -62,77 +62,13 @@ author = "David Fifield"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
-categories = { "safe", "discovery" }
+categories = { "default", "safe", "discovery" }
 
-require("nmap")
-require("nsedebug")
-require("stdnse")
-
-local stringify_name
-local date_to_string
-local table_find
-local s
-
-local LIKELY_SSL_PORTS = { 443, 465, 989, 990, 992, 993, 994, 995, 587, 8443 }
-local STARTTLS_PORTS = { 25, 587 }
+require("sslcert")
+require("shortport")
 
 portrule = function(host, port)
-    return port.version.service_tunnel == "ssl"
-        or table_find(LIKELY_SSL_PORTS, port.number) or table_find(STARTTLS_PORTS, port.number)
-end
-
-action = function(host, port)
-    s = nmap.new_socket()
-
-    if table_find(STARTTLS_PORTS, port.number) then
-        local status = starttls_negotiate(host,port)
-
-        if not status then
-            return nil
-        end
-    else
-        local status, error = s:connect(host, port, "ssl")
-        
-        if not status then
-            if nmap.verbosity() > 0 then
-                return error
-            else
-                return nil
-            end
-        end    
-
-    end 
-
-    local cert = s:get_ssl_certificate()
-    s:close()
-
-    local lines = {}
-    lines[#lines + 1] = "Subject: " .. stringify_name(cert.subject)
-
-    if nmap.verbosity() > 0 then
-        lines[#lines + 1] = "Issuer: " .. stringify_name(cert.issuer)
-    end
-
-    if nmap.verbosity() > 0 then
-        lines[#lines + 1] = "Public Key type: " .. cert.pubkey.type
-        lines[#lines + 1] = "Public Key bits: " .. cert.pubkey.bits
-    end
-
-    lines[#lines + 1] = "Not valid before: " ..
-        date_to_string(cert.validity.notBefore)
-    lines[#lines + 1] = "Not valid after:  " ..
-        date_to_string(cert.validity.notAfter)
-
-    if nmap.verbosity() > 0 then
-        lines[#lines + 1] = "MD5:   " .. stdnse.tohex(cert:digest("md5"), { separator = " ", group = 4 })
-        lines[#lines + 1] = "SHA-1: " .. stdnse.tohex(cert:digest("sha1"), { separator = " ", group = 4 })
-	end
-
-    if nmap.verbosity() > 1 then
-        lines[#lines + 1] = cert.pem
-    end
-
-    return stdnse.strjoin("\n", lines)
+    return shortport.ssl(host, port) or sslcert.isPortSupported(port)
 end
 
 -- Find the index of a value in an array.
@@ -144,6 +80,17 @@ function table_find(t, value)
         end
     end
     return nil
+end
+
+function date_to_string(date)
+    if not date then
+        return "MISSING"
+    end
+    if type(date) == "string" then
+        return string.format("Can't parse; string is \"%s\"", date)
+    else
+        return os.date("%Y-%m-%d %H:%M:%S", os.time(date))
+    end
 end
 
 -- These are the subject/issuer name fields that will be shown, in this order,
@@ -177,77 +124,46 @@ function stringify_name(name)
     return stdnse.strjoin("/", fields)
 end
 
-function date_to_string(date)
-    if not date then
-        return "MISSING"
+local function parseCertificate(cert)
+	local lines = {}
+
+	lines[#lines + 1] = "Subject: " .. stringify_name(cert.subject)
+
+    if nmap.verbosity() > 0 then
+        lines[#lines + 1] = "Issuer: " .. stringify_name(cert.issuer)
     end
-    if type(date) == "string" then
-        return string.format("Can't parse; string is \"%s\"", date)
-    else
-        return os.date("%Y-%m-%d %H:%M:%S", os.time(date))
+
+    if nmap.verbosity() > 0 then
+        lines[#lines + 1] = "Public Key type: " .. cert.pubkey.type
+        lines[#lines + 1] = "Public Key bits: " .. cert.pubkey.bits
     end
+
+    lines[#lines + 1] = "Not valid before: " ..
+        date_to_string(cert.validity.notBefore)
+    lines[#lines + 1] = "Not valid after:  " ..
+        date_to_string(cert.validity.notAfter)
+
+    if nmap.verbosity() > 0 then
+        lines[#lines + 1] = "MD5:   " .. stdnse.tohex(cert:digest("md5"), { separator = " ", group = 4 })
+        lines[#lines + 1] = "SHA-1: " .. stdnse.tohex(cert:digest("sha1"), { separator = " ", group = 4 })
+	end
+
+    if nmap.verbosity() > 1 then
+        lines[#lines + 1] = cert.pem
+    end
+	return lines
 end
 
-function starttls_negotiate(host, port)
-    -- Attempt to negotiate TLS over SMTP for services that support it
-    -- Works for SMTP (25) and SMTP Submission (587)
+action = function(host, port)
+	local status, cert = sslcert.getCertificate(host, port)
+	if ( not(status) ) then
+		return
+	end
+	
+	local lines = parseCertificate(cert)
 
-    -- Open a standard TCP socket
-    local status, error = s:connect(host, port, "tcp")  
-        
-    if not status then   
-        return nil
-    else 
-    
-        -- Loop until the service presents a banner to deal with server
-        -- load and timing issues.  There may be a better way to handle this.
-        local i = 0
-        repeat
-            status, resultEHLO = s:receive_lines(1)
-            i = i + 1
-        until string.match(resultEHLO, "^220") or i == 5
+    return stdnse.strjoin("\n", lines)
+end
 
-        -- Send EHLO because the the server expects it
-        -- We are not going to check for STARTTLS in the capabilities
-        -- list, sometimes it is not advertised.
-        local query = "EHLO example.org\r\n"
-        status = s:send(query)
-        status, resultEHLO = s:receive_lines(1)
 
-        if not (string.match(resultEHLO, "^250")) then
-            stdnse.print_debug("1","%s",resultEHLO)
-            stdnse.print_debug("1","EHLO with errors or timeout.  Enable --script-trace to see what is happening.")
-            return nil
-        end
 
-        resultEHLO = ""
-        
-        -- Send STARTTLS command ask the service to start encryption    
-        local query = "STARTTLS\r\n"
-        status = s:send(query)
-        status, resultEHLO = s:receive_lines(1)
-        
-        if not (string.match(resultEHLO, "^220")) then
-            stdnse.print_debug("1","%s",resultEHLO)
-            stdnse.print_debug("1","STARTTLS failed or unavailable.  Enable --script-trace to see what is happening.")
-            
-            -- Send QUIT to clean up server side connection
-            local query = "QUIT\r\n"
-            status = s:send(query)        
-            resultEHLO = ""
-                
-            return nil
-        end
-        
-        -- Service supports STARTTLS, tell NSE start SSL negotiation
-        status, error = s:reconnect_ssl()
-        if not status then
-            stdnse.print_debug("1","Could not establish SSL session after STARTTLS command.")
-            s:close()
-            return nil
-        end 
-                
-    end    
-    -- Should have a solid TLS over SMTP session now...
-    return "Connected"
-end 

@@ -4,79 +4,79 @@ authentication.
 ]]
 
 ---
+-- @usage
+-- nmap --script http-auth [--script-args http-auth.path=/login] -p80 <host>
+--
 -- @output
 -- PORT   STATE SERVICE REASON
 -- 80/tcp open  http    syn-ack
--- | http-auth: HTTP/1.1 401 Unauthorized
--- | Basic realm=WebAdmin
--- |_HTTP server may accept admin:admin combination for Basic authentication.
+-- | http-auth: 
+-- | HTTP/1.1 401 Unauthorized
+-- |   Negotiate
+-- |   NTLM
+-- |   Digest charset=utf-8 nonce=+Upgraded+v1e4e256b4afb7f89be014e...968ccd60affb7c qop=auth algorithm=MD5-sess realm=example.com
+-- |_  Basic realm=example.com
+--
+-- @args http-auth.path  Define the request path
 
 -- HTTP authentication information gathering script
 -- rev 1.1 (2007-05-25)
 -- 2008-11-06 Vlatko Kosturjak <kost@linux.hr>
--- * bug fixes against base64 encoded strings, more flexible auth/pass check,
---   corrected sample output
+--   * bug fixes against base64 encoded strings, more flexible auth/pass check,
+--     corrected sample output
+-- 2011-12-18 Duarte Silva <duarte.silva@serializing.me>
+--   * Added hostname and path arguments
+--   * Updated documentation
+-----------------------------------------------------------------------
 
 author = "Thomas Buchanan"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
-categories = {"default", "auth", "intrusive"}
+categories = {"default", "auth", "safe"}
 
 require "shortport"
 require "http"
 
 portrule = shortport.http
 
+local PATH = stdnse.get_script_args(SCRIPT_NAME .. ".path")
+
 action = function(host, port)
   local www_authenticate
-  local challenges, basic_challenge
-  local authcombinations= {
-    { username = "admin", password = ""},
-    { username = "admin", password = "admin"},
-  }
+  local challenges
 
   local result = {}
-  local answer = http.get(host, port, "/")
+  local answer = http.get(host, port, PATH or "/", { bypass_cache = true })
 
   --- check for 401 response code
   if answer.status ~= 401 then
     return
   end
 
-  result[#result + 1] = answer["status-line"]
+  result.name = answer["status-line"]:match("^(.*)\r?\n$")
 
   www_authenticate = answer.header["www-authenticate"]
   if not www_authenticate then
-    result[#result + 1] = string.format("Server returned status %d but no WWW-Authenticate header.", answer.status)
-    return table.concat(result, "\n")
+    table.insert( result, ("Server returned status %d but no WWW-Authenticate header."):format(answer.status) )
+    return stdnse.format_output(true, result)
   end
   challenges = http.parse_www_authenticate(www_authenticate)
   if not challenges then
-    result[#result + 1] = string.format("Server returned status %d but the WWW-Authenticate header could not be parsed.", answer.status)
-    result[#result + 1] = string.format("WWW-Authenticate: %s", www_authenticate)
-    return table.concat(result, "\n")
+    table.insert( result, ("Server returned status %d but the WWW-Authenticate header could not be parsed."):format(answer.status) )
+    table.insert( result, ("WWW-Authenticate: %s"):format(www_authenticate) )
+    return stdnse.format_output(true, result)
   end
 
-  basic_challenge = nil
   for _, challenge in ipairs(challenges) do
-    if challenge.scheme == "Basic" then
-      basic_challenge = challenge
-    end
     local line = challenge.scheme
-    for name, value in pairs(challenge.params) do
-      line = line .. string.format(" %s=%s", name, value)
-    end
-    result[#result + 1] = line
-  end
-  if basic_challenge then
-    for _, auth in ipairs(authcombinations) do 
-      answer = http.get(host, port, '/', {auth = auth})
-      if answer.status ~= 401 and answer.status ~= 403 then
-        result[#result + 1] = string.format("HTTP server may accept %s:%s combination for Basic authentication.", auth.username, auth.password)
+    if ( challenge.params ) then
+      for name, value in pairs(challenge.params) do
+        line = line .. string.format(" %s=%s", name, value)
       end
     end
+    table.insert(result, line)
   end
 
-  return table.concat(result, "\n")
+  return stdnse.format_output(true, result)
 end

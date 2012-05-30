@@ -1,11 +1,10 @@
-
 /***************************************************************************
  * nsock_read.c -- This contains the functions for requesting timers       *
  * from the nsock parallel socket event library                            *
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -54,23 +53,24 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_timers.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: nsock_timers.c 28387 2012-04-03 00:21:44Z david $ */
 
 #include "nsock_internal.h"
 
-/* Send back an NSE_TYPE_TIMER after the number of milliseconds specified.  Of course it can also return due to error, cancellation, etc. */
-nsock_event_id nsock_timer_create(nsock_pool ms_pool, nsock_ev_handler handler, 
-			    int timeout_msecs, void *userdata) {
-  mspool *nsp = (mspool *) ms_pool;
+extern struct timeval nsock_tod;
+
+/* Send back an NSE_TYPE_TIMER after the number of milliseconds specified.  Of
+ * course it can also return due to error, cancellation, etc. */
+nsock_event_id nsock_timer_create(nsock_pool ms_pool, nsock_ev_handler handler,
+                                  int timeout_msecs, void *userdata) {
+  mspool *nsp = (mspool *)ms_pool;
   msevent *nse;
 
-  nse = msevent_new(nsp, NSE_TYPE_TIMER, NULL, timeout_msecs, handler,
-		    userdata);
+  nse = msevent_new(nsp, NSE_TYPE_TIMER, NULL, timeout_msecs, handler, userdata);
   assert(nse);
 
-  if (nsp->tracelevel > 0) {
+  if (nsp->tracelevel > 0)
     nsock_trace(nsp, "Timer created - %dms from now.  EID %li", timeout_msecs, nse->id);
-  }
 
   nsp_add_event(nsp, nse);
   

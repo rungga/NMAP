@@ -1,4 +1,4 @@
-$Id: NMAP_MODIFICATIONS 20572 2010-10-11 18:17:23Z david $
+$Id: NMAP_MODIFICATIONS 26707 2011-09-26 22:26:50Z david $
 
 This is Dug Song's excellent Libdnet networking library version 1.12.
 It has been stripped down for inclusion within Nmap and modified as follows:
@@ -59,7 +59,7 @@ Index: configure.in
 --- configure.in	(revision 6317)
 +++ configure.in	(working copy)
 @@ -6,8 +6,6 @@
- dnl $Id: NMAP_MODIFICATIONS 20572 2010-10-11 18:17:23Z david $
+ dnl $Id: NMAP_MODIFICATIONS 26707 2011-09-26 22:26:50Z david $
  
  AC_INIT(include/dnet.h)
 -AC_CONFIG_AUX_DIR(config)
@@ -560,6 +560,41 @@ Index: include/dnet/sctp.h
  
  	/* empty */
  } __attribute__((__packed__));
+
+o Allowed reading interface indexes that exceed 255 on Linux.
+
+--- libdnet-stripped/src/intf.c
++++ libdnet-stripped/src/intf.c
+@@ -560,7 +560,7 @@ _intf_get_aliases(intf_t *intf, struct intf_entry *entry)
+ 		if ((f = fopen(PROC_INET6_FILE, "r")) != NULL) {
+ 			while (ap < lap &&
+ 			       fgets(buf, sizeof(buf), f) != NULL) {
+-				sscanf(buf, "%04s%04s%04s%04s%04s%04s%04s%04s %02x %02x %02x %02x %32s\n",
++				sscanf(buf, "%04s%04s%04s%04s%04s%04s%04s%04s %x %02x %02x %02x %32s\n",
+ 				    s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
+ 				    &idx, &bits, &scope, &flags, name);
+ 				if (strcmp(name, entry->intf_name) == 0) {
+
+o Gave priority to the IFF_LOOPBACK flag when setting interface type.
+
+--- libdnet-stripped/src/intf.c
++++ libdnet-stripped/src/intf.c
+@@ -374,12 +374,12 @@ intf_set(intf_t *intf, const struct intf_entry *entry)
+ static void
+ _intf_set_type(struct intf_entry *entry)
+ {
+-	if ((entry->intf_flags & INTF_FLAG_BROADCAST) != 0)
++	if ((entry->intf_flags & INTF_FLAG_LOOPBACK) != 0)
++		entry->intf_type = INTF_TYPE_LOOPBACK;
++	else if ((entry->intf_flags & INTF_FLAG_BROADCAST) != 0)
+ 		entry->intf_type = INTF_TYPE_ETH;
+ 	else if ((entry->intf_flags & INTF_FLAG_POINTOPOINT) != 0)
+ 		entry->intf_type = INTF_TYPE_TUN;
+-	else if ((entry->intf_flags & INTF_FLAG_LOOPBACK) != 0)
+-		entry->intf_type = INTF_TYPE_LOOPBACK;
+ 	else
+ 		entry->intf_type = INTF_TYPE_OTHER;
+ }
 
 ===CHANGES ALREADY MERGED TO UPSTREAM LIBDNET GO BELOW THIS LINE===
 

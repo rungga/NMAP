@@ -34,6 +34,11 @@ case "$host" in
   *-hpux*)
     AC_DEFINE(HPUX)
     ;;
+  *-solaris2.1[[1-9]]*)
+    AC_DEFINE(SOLARIS)
+    # Solaris 11 and later use BPF packet capture rather than DLPI.
+    AC_DEFINE(SOLARIS_BPF_PCAP_CAPTURE)
+    ;;
   *-solaris2.0*)  
     AC_DEFINE(SOLARIS)
     ;;
@@ -106,6 +111,8 @@ AC_ARG_WITH(pcap,
 if test "$pcap_enabled" != "no"; then
   AC_DEFINE(HAVE_PCAP)
 fi
+
+AC_CHECK_FUNCS(epoll_create epoll_ctl epoll_wait, [AC_DEFINE(HAVE_EPOLL)], )
 
 dnl Checks for programs.
 AC_PROG_CC

@@ -9,7 +9,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -19,11 +19,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -37,19 +38,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -73,15 +75,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -92,7 +95,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: idle_scan.cc 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: idle_scan.cc 28415 2012-04-07 08:16:08Z david $ */
 
 #include "idle_scan.h"
 #include "timing.h"
@@ -103,6 +106,8 @@
 #include "Target.h"
 #include "utils.h"
 #include "output.h"
+
+#include "struct_ip.h"
 
 #include <stdio.h>
 
@@ -150,7 +155,6 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
   int ipid = -1;
   int to_usec;
   unsigned int bytes;
-  int timedout = 0;
   int base_port;
   struct ip *ip;
   struct tcp_hdr *tcp;
@@ -167,7 +171,6 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
 
 
   do {
-    timedout = 0;
     gettimeofday(&tv_sent[tries], NULL);
 
     /* Time to send the pr0be!*/
@@ -189,7 +192,7 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
 
       to_usec = proxy->host.to.timeout - TIMEVAL_SUBTRACT(tv_end, tv_sent[tries-1]);
       if (to_usec < 0) to_usec = 0; // Final no-block poll
-      ip = (struct ip *) readip_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);      
+      ip = (struct ip *) readipv4_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);      
       gettimeofday(&tv_end, NULL);
       if (ip) {
 	if (bytes < ( 4 * ip->ip_hl) + 14U)
@@ -301,8 +304,8 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
   initialize_proxy_struct(proxy);
   initialize_timeout_info(&proxy->host.to);
 
-  proxy->max_groupsz = (o.max_parallelism)? o.max_parallelism : 100;
-  proxy->min_groupsz = (o.min_parallelism)? o.min_parallelism : 4;
+  proxy->min_groupsz = o.min_parallelism ? o.min_parallelism : 4;
+  proxy->max_groupsz = MAX(proxy->min_groupsz, o.max_parallelism ? o.max_parallelism : 100);
   proxy->max_senddelay = 100000;
 
   Strncpy(name, proxyName, sizeof(name));
@@ -375,7 +378,7 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
     proxy->ethptr = &proxy->eth;
   } else {
 #ifdef WIN32
-    win32_warn_raw_sockets(proxy->host.deviceName());
+    win32_fatal_raw_sockets(proxy->host.deviceName());
 #endif
     if ((proxy->rawsd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0 )
       pfatal("socket troubles in %s", __func__);
@@ -435,7 +438,7 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
     while(probes_returned < probes_sent && !timedout) {
 
       to_usec = (probes_sent == NUM_IPID_PROBES)? hardtimeout : 1000;
-      ip = (struct ip *) readip_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);
+      ip = (struct ip *) readipv4_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);
 
       gettimeofday(&tmptv, NULL);
       
@@ -977,7 +980,6 @@ void idle_scan(Target *target, u16 *portarray, int numports,
   int groupsz;
   int portidx = 0; /* Used for splitting the port array into chunks */
   int portsleft;
-  time_t starttime;
   char scanname[128];
   Snprintf(scanname, sizeof(scanname), "idle scan against %s", target->NameIP());
   ScanProgressMeter SPM(scanname);
@@ -1004,8 +1006,6 @@ void idle_scan(Target *target, u16 *portarray, int numports,
     initialize_idleproxy(&proxy, proxyName, target->v4hostip(), ports);
     strncpy(lastproxy, proxyName, sizeof(lastproxy));
   }
-
-  starttime = time(NULL);
 
   /* If we don't have timing infoz for the new target, we'll use values 
      derived from the proxy */
@@ -1042,9 +1042,9 @@ void idle_scan(Target *target, u16 *portarray, int numports,
   for(portidx = 0; portidx < numports; portidx++) {
     if (target->ports.portIsDefault(portarray[portidx], IPPROTO_TCP)) {
       target->ports.setPortState(portarray[portidx], IPPROTO_TCP, PORT_CLOSEDFILTERED);
-      target->ports.setStateReason(portarray[portidx], IPPROTO_TCP, ER_NOIPIDCHANGE, 0, 0);
+      target->ports.setStateReason(portarray[portidx], IPPROTO_TCP, ER_NOIPIDCHANGE, 0, NULL);
     } else 
-      target->ports.setStateReason(portarray[portidx], IPPROTO_TCP, ER_IPIDCHANGE, 0, 0);
+      target->ports.setStateReason(portarray[portidx], IPPROTO_TCP, ER_IPIDCHANGE, 0, NULL);
   }
 
   target->stopTimeOutClock(NULL);

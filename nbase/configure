@@ -3705,7 +3705,7 @@ fi
 done
 
 
-for ac_header in string.h getopt.h strings.h sys/param.h sys/time.h unistd.h errno.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h sys/stat.h netdb.h sys/wait.h fcntl.h sys/resource.h inttypes.h
+for ac_header in string.h getopt.h strings.h sys/param.h sys/time.h unistd.h errno.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h sys/stat.h netdb.h sys/wait.h fcntl.h sys/resource.h inttypes.h mach-o/dyld.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -3839,6 +3839,39 @@ fi
 $as_echo "$ac_cv___attribute__" >&6; }
 
 
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if sockaddr{} has sa_len member" >&5
+$as_echo_n "checking if sockaddr{} has sa_len member... " >&6; }
+if ${ac_cv_sockaddr_has_sa_len+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+               #include <sys/types.h>
+               #include <sys/socket.h>
+int
+main ()
+{
+unsigned int i = sizeof(((struct sockaddr *)0)->sa_len)
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_sockaddr_has_sa_len=yes
+else
+  ac_cv_sockaddr_has_sa_len=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sockaddr_has_sa_len" >&5
+$as_echo "$ac_cv_sockaddr_has_sa_len" >&6; }
+if test $ac_cv_sockaddr_has_sa_len = yes ; then
+        $as_echo "#define HAVE_SOCKADDR_SA_LEN 1" >>confdefs.h
+
+fi
 
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether byte ordering is bigendian" >&5
 $as_echo_n "checking whether byte ordering is bigendian... " >&6; }
@@ -4291,6 +4324,12 @@ case " $LIBOBJS " in
  ;;
 esac
 
+case " $LIBOBJS " in
+  *" nbase_addrset.$ac_objext "* ) ;;
+  *) LIBOBJS="$LIBOBJS nbase_addrset.$ac_objext"
+ ;;
+esac
+
 
 # Check for IPv6 support -- modified from Apache 2.0.40:
 
@@ -4538,7 +4577,7 @@ else
 #include <sys/socket.h>
 #endif
 
-void main(void) {
+int main(void) {
     struct addrinfo hints, *ai;
     int error;
 
@@ -4670,7 +4709,7 @@ else
 #include <netinet/in.h>
 #endif
 
-void main(void) {
+int main(void) {
     struct sockaddr_in sa;
     char hbuf[256];
     int error;
@@ -5100,6 +5139,44 @@ if test "$use_openssl" = "yes"; then
   $as_echo "#define HAVE_OPENSSL 1" >>confdefs.h
 
 fi
+
+
+  if test x"$cross_compiling" = x"no"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /proc/self/exe" >&5
+$as_echo_n "checking for /proc/self/exe... " >&6; }
+if ${ac_cv_file__proc_self_exe+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  test "$cross_compiling" = yes &&
+  as_fn_error $? "cannot check for file existence when cross compiling" "$LINENO" 5
+if test -r "/proc/self/exe"; then
+  ac_cv_file__proc_self_exe=yes
+else
+  ac_cv_file__proc_self_exe=no
+fi
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_file__proc_self_exe" >&5
+$as_echo "$ac_cv_file__proc_self_exe" >&6; }
+if test "x$ac_cv_file__proc_self_exe" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE__PROC_SELF_EXE 1
+_ACEOF
+
+
+$as_echo "#define HAVE_PROC_SELF_EXE 1" >>confdefs.h
+
+fi
+
+  else
+    case $host in
+      *-linux*)
+
+$as_echo "#define HAVE_PROC_SELF_EXE 1" >>confdefs.h
+
+      ;;
+    esac
+  fi
 
 
 ac_config_files="$ac_config_files Makefile"

@@ -12,6 +12,7 @@
 ;;   /NCAT=NO          don't install Ncat
 ;;   /NDIFF=NO         don't install Ndiff
 ;;   /NPING=NO         don't install Nping
+;;   /NMAPUPDATE=NO    don't install nmap-update
 ;;   /D=C:\dir\...     install to C:\dir\... (overrides InstallDir)
 ;;
 ;;/D is a built-in NSIS option and has these restrictions:
@@ -48,8 +49,8 @@ SetCompressor /SOLID /FINAL lzma
   ;Get installation folder from registry if available 
   InstallDirRegKey HKCU "Software\Nmap" "" 
  
-  !define VERSION "5.36TEST4"  
-  VIProductVersion "5.36.0.4"
+  !define VERSION "5.61TEST3"  
+  VIProductVersion "5.61.0.3"
   VIAddVersionKey /LANG=1033 "FileVersion" "${VERSION}"
   VIAddVersionKey /LANG=1033 "ProductName" "Nmap" 
   VIAddVersionKey /LANG=1033 "CompanyName" "Insecure.org" 
@@ -289,13 +290,23 @@ Section "Nping (Packet generator)" SecNping
   Call create_uninstaller
 SectionEnd
 
+Section "nmap-update (updater for architecture-independent files)" SecNmapUpdate
+  SetOutPath "$INSTDIR" 
+  SetOverwrite on 
+  File ..\nmap-${VERSION}\nmap-update.exe
+  Call vcredist2010installer
+  Call create_uninstaller
+SectionEnd
+
 Function vcredist2010installer
   StrCmp $vcredist2010set "" 0 vcredist_done
   StrCpy $vcredist2010set "true"
-  ;Check if VC++ 2010 runtimes are already installed - NOTE Both the UID in the registry key and the DisplayName string must be updated here (and below)
+  ;Check if VC++ 2010 runtimes are already installed.
+  ;NOTE VC++ 2010 appears to use a single UID even after installing security updates such as MS11-025.
+  ;However, please check whenever the Redistributable package is upgraded as both the UID in the registry key and the DisplayName string must be updated here (and below)
   ;whenever the Redistributable package is upgraded:
-    ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{196BB40D-1578-3D01-B289-BEFC77A11A1E}" "DisplayName"
-    StrCmp $0 "Microsoft Visual C++ 2010  x86 Redistributable - 10.0.30319" vcredist_done vcredist_silent_install
+  ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{196BB40D-1578-3D01-B289-BEFC77A11A1E}" "DisplayName"
+  StrCmp $0 "Microsoft Visual C++ 2010  x86 Redistributable - 10.0.30319" vcredist_done vcredist_silent_install
   ;If VC++ 2010 runtimes are not installed...
   vcredist_silent_install:
     DetailPrint "Installing Microsoft Visual C++ 2010 Redistributable"
@@ -319,18 +330,19 @@ FunctionEnd
 Function vcredist2008installer
   StrCmp $vcredist2008set "" 0 vcredist2008_done
   StrCpy $vcredist2008set "true"
-  ;Check if VC++ 2008 runtimes are already installed - NOTE Both the UID in the registry key and the DisplayName string must be updated here (and below)
+  ;Check if VC++ 2008 runtimes are already installed.
+  ;NOTE Both the UID in the registry key and the DisplayName string must be updated here (and below)
   ;whenever the Redistributable package is upgraded:
-    ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{1F1C2DFC-2D24-3E06-BCB8-725134ADF989}" "DisplayName"
-    StrCmp $0 "Microsoft Visual C++ 2008 Redistributable - x86 9.0.30729.4148" vcredist2008_done vcredist2008_silent_install
+  ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{86CE85E6-DBAC-3FFD-B977-E4B79F83C909}" "DisplayName"
+  StrCmp $0 "Microsoft Visual C++ 2008 Redistributable - KB2467174 - x86 9.0.30729.5570" vcredist2008_done vcredist2008_silent_install
   ;If VC++ 2008 runtimes are not installed...
   vcredist2008_silent_install:
     DetailPrint "Installing Microsoft Visual C++ 2008 Redistributable"
     File ..\vcredist2008_x86.exe
     ExecWait '"$INSTDIR\vcredist2008_x86.exe" /q' $0
     ;Check for successful installation of our 2008 version of vcredist_x86.exe...
-    ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{1F1C2DFC-2D24-3E06-BCB8-725134ADF989}" "DisplayName"
-    StrCmp $0 "Microsoft Visual C++ 2008 Redistributable - x86 9.0.30729.4148" vcredist2008_success vcredist2008_not_present
+    ReadRegStr $0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{86CE85E6-DBAC-3FFD-B977-E4B79F83C909}" "DisplayName"
+    StrCmp $0 "Microsoft Visual C++ 2008 Redistributable - KB2467174 - x86 9.0.30729.5570" vcredist2008_success vcredist2008_not_present
     vcredist2008_not_present:
       DetailPrint "Microsoft Visual C++ 2008 Redistributable failed to install"
       IfSilent vcredist2008_done vcredist2008_messagebox
@@ -385,6 +397,7 @@ Function .onInit
   !insertmacro OptionDisableSection $0 "/NCAT=" ${SecNcat}
   !insertmacro OptionDisableSection $0 "/NDIFF=" ${SecNdiff}
   !insertmacro OptionDisableSection $0 "/NPING=" ${SecNping}
+  !insertmacro OptionDisableSection $0 "/NMAPUPDATE=" ${SecNmapUpdate}
 FunctionEnd
 
 ;-------------------------------- 
@@ -399,6 +412,7 @@ FunctionEnd
   LangString DESC_SecNcat ${LANG_ENGLISH} "Installs Ncat, Nmap's Netcat replacement." 
   LangString DESC_SecNdiff ${LANG_ENGLISH} "Installs Ndiff, a tool for comparing Nmap XML files."
   LangString DESC_SecNping ${LANG_ENGLISH} "Installs Nping, a packet generation tool."
+  LangString DESC_SecNmapUpdate ${LANG_ENGLISH} "Installs nmap-update, an updater for architecture-independent files."
 
   ;Assign language strings to sections 
   !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN 
@@ -410,6 +424,7 @@ FunctionEnd
     !insertmacro MUI_DESCRIPTION_TEXT ${SecNcat} $(DESC_SecNcat) 
     !insertmacro MUI_DESCRIPTION_TEXT ${SecNdiff} $(DESC_SecNdiff) 
     !insertmacro MUI_DESCRIPTION_TEXT ${SecNping} $(DESC_SecNping) 
+    !insertmacro MUI_DESCRIPTION_TEXT ${SecNmapUpdate} $(DESC_SecNmapUpdate) 
   !insertmacro MUI_FUNCTION_DESCRIPTION_END 
 ;-------------------------------- 
 ;Uninstaller Section 
@@ -442,6 +457,7 @@ Section "Uninstall"
   IfFileExists $INSTDIR\ncat.exe nmap_installed 
   IfFileExists $INSTDIR\nping.exe nmap_installed 
   IfFileExists $INSTDIR\ndiff.exe nmap_installed 
+  IfFileExists $INSTDIR\nmap-update.exe nmap_installed 
     MessageBox MB_YESNO "It does not appear that Nmap is installed in the directory '$INSTDIR'.$\r$\nContinue anyway (not recommended)?" IDYES nmap_installed 
     Abort "Uninstall aborted by user" 
 
@@ -476,6 +492,8 @@ Section "Uninstall"
   Delete "$INSTDIR\ZENMAP_README"
   Delete "$INSTDIR\COPYING_HIGWIDGETS"
   Delete "$INSTDIR\ncat.exe"
+  Delete "$INSTDIR\nping.exe"
+  Delete "$INSTDIR\nmap-update.exe"
   Delete "$INSTDIR\ca-bundle.crt"
   ;Delete specific subfolders (NB: custom scripts in scripts folder will be lost)
   RMDir /r "$INSTDIR\nselib"

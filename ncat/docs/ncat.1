@@ -2,12 +2,12 @@
 .\"     Title: Ncat
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 12/12/2011
+.\"      Date: 05/19/2012
 .\"    Manual: Ncat Reference Guide
 .\"    Source: Ncat
 .\"  Language: English
 .\"
-.TH "NCAT" "1" "12/12/2011" "Ncat" "Ncat Reference Guide"
+.TH "NCAT" "1" "05/19/2012" "Ncat" "Ncat Reference Guide"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Among Ncat\*(Aqs vast number of features there is the ability to chain Ncats tog
 .RS 4
 .\}
 .nf
-Ncat 5\&.51\&.6 ( http://nmap\&.org/ncat )
+Ncat 6\&.00 ( http://nmap\&.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
 Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
@@ -60,8 +60,8 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
   \-m, \-\-max\-conns <n>        Maximum <n> simultaneous connections
   \-h, \-\-help                 Display this help screen
   \-d, \-\-delay <time>         Wait between read/writes
-  \-o, \-\-output               Dump session data to a file
-  \-x, \-\-hex\-dump             Dump session data as hex to a file
+  \-o, \-\-output <filename>    Dump session data to a file
+  \-x, \-\-hex\-dump <filename>  Dump session data as hex to a file
   \-i, \-\-idle\-timeout <time>  Idle read/write timeout
   \-p, \-\-source\-port port     Specify source port to use
   \-s, \-\-source addr          Specify source address to use (doesn\*(Aqt affect \-l)
@@ -73,6 +73,7 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
       \-\-sctp                 Use SCTP instead of default TCP
   \-v, \-\-verbose              Set verbosity level (can be used up to 3 times)
   \-w, \-\-wait <time>          Connect timeout
+      \-\-append\-output        Append rather than clobber specified output files
       \-\-send\-only            Only send data, ignoring received; quit on EOF
       \-\-recv\-only            Only receive data, never send anything
       \-\-allow                Allow only given hosts to connect to Ncat
@@ -121,14 +122,14 @@ and
 \fB\fIport\fR\fR
 control the address the server will bind to\&. Both arguments are optional in listen mode\&. If
 \fB\fIhostname\fR\fR
-is omitted, it defaults to listening on all available addresses\&. If
+is omitted, it defaults to listening on all available addresses over IPv4 and IPv6\&. If
 \fB\fIport\fR\fR
 is omitted, it defaults to 31337\&.
 .SH "PROTOCOL OPTIONS"
 .PP
 \fB\-4\fR (IPv4 only) .\" -4 (Ncat option)
 .RS 4
-Force the use of IPv4 only (default)\&.
+Force the use of IPv4 only\&.
 .RE
 .PP
 \fB\-6\fR (IPv6 only) .\" -6 (Ncat option)
@@ -230,6 +231,8 @@ ca\-bundle\&.crt.\" ca-bundle.crt\&. Some operating systems provide a default li
 to give a custom list\&. Use
 \fB\-v\fR
 one or more times to get details about verification failures\&.
+.\" revoked certificates
+Ncat does not check for revoked certificates.\" certification revocation\&.
 .sp
 This option has no effect in server mode\&.
 .RE
@@ -376,6 +379,17 @@ Dump session data in hex to a file\&. This can be used to
 sessions\&.
 .RE
 .PP
+\fB\-\-append\-output\fR (Append output) .\" --append-output (Ncat option)
+.RS 4
+Issue Ncat with
+\fB\-\-append\-ouput\fR
+along with
+\fB\-o\fR
+and/or
+\fB\-x\fR
+and it will append the resulted output rather than truncating the specified output files\&.
+.RE
+.PP
 \fB\-v\fR, \fB\-\-verbose\fR (Be verbose) .\" --verbose (Ncat option) .\" -v (Ncat option)
 .RS 4
 Issue Ncat with
@@ -421,35 +435,42 @@ Displays the Ncat version number and exits\&.
 .RE
 .SH "EXAMPLES"
 .PP
-.PP Connect to example\&.org on TCP port 8080\&.
+Connect to example\&.org on TCP port 8080\&.
 .RS 4
-\fBncat example\&.org 8080\fR.RE
+\fBncat example\&.org 8080\fR
+.RE
 .PP
-.PP Listen for connections on TCP port 8080\&.
+Listen for connections on TCP port 8080\&.
 .RS 4
-\fBncat \-l 8080\fR.RE
+\fBncat \-l 8080\fR
+.RE
 .PP
-.PP Redirect TCP port 8080 on the local machine to host on port 80\&.
+Redirect TCP port 8080 on the local machine to host on port 80\&.
 .RS 4
-\fBncat \-\-sh\-exec "ncat example\&.org 80" \-l 8080 \-\-keep\-open\fR.RE
+\fBncat \-\-sh\-exec "ncat example\&.org 80" \-l 8080 \-\-keep\-open\fR
+.RE
 .PP
-.PP Bind to TCP port 8081 and attach /bin/bash for the world to access freely\&.
+Bind to TCP port 8081 and attach /bin/bash for the world to access freely\&.
 .RS 4
-\fBncat \-\-exec "/bin/bash" \-l 8081 \-\-keep\-open\fR.RE
+\fBncat \-\-exec "/bin/bash" \-l 8081 \-\-keep\-open\fR
+.RE
 .PP
-.PP Bind a shell to TCP port 8081, limit access to hosts on a local network, and limit the maximum number of simultaneous connections to 3\&.
+Bind a shell to TCP port 8081, limit access to hosts on a local network, and limit the maximum number of simultaneous connections to 3\&.
 .RS 4
-\fBncat \-\-exec "/bin/bash" \-\-max\-conns 3 \-\-allow 192\&.168\&.0\&.0/24 \-l 8081 \-\-keep\-open\fR.RE
+\fBncat \-\-exec "/bin/bash" \-\-max\-conns 3 \-\-allow 192\&.168\&.0\&.0/24 \-l 8081 \-\-keep\-open\fR
+.RE
 .PP
-.PP Connect to smtphost:25 through a SOCKS4 server on port 1080\&.
+Connect to smtphost:25 through a SOCKS4 server on port 1080\&.
 .RS 4
-\fBncat \-\-proxy socks4host \-\-proxy\-type socks4 \-\-proxy\-auth user smtphost 25\fR.RE
+\fBncat \-\-proxy socks4host \-\-proxy\-type socks4 \-\-proxy\-auth user smtphost 25\fR
+.RE
 .PP
-.PP Create an HTTP proxy server on localhost port 8888\&.
+Create an HTTP proxy server on localhost port 8888\&.
 .RS 4
-\fBncat \-l \-\-proxy\-type http localhost 8888\fR.RE
+\fBncat \-l \-\-proxy\-type http localhost 8888\fR
+.RE
 .PP
-.PP Send a file over TCP port 9899 from host2 (client) to host1 (server)\&.
+Send a file over TCP port 9899 from host2 (client) to host1 (server)\&.
 .RS 4
 HOST1$
 \fBncat \-l 9899 > outputfile\fR
@@ -458,7 +479,7 @@ HOST2$
 \fBncat HOST1 9899 < inputfile\fR
 .RE
 .PP
-.PP Transfer in the other direction, turning Ncat into a \(lqone file\(rq server\&.
+Transfer in the other direction, turning Ncat into a \(lqone file\(rq server\&.
 .RS 4
 HOST1$
 \fBncat \-l 9899 < inputfile\fR
@@ -484,7 +505,7 @@ Read this full manual page as well\&. If nothing comes of this, mail a bug repor
 nmap\-dev@insecure\&.org\&. Please include everything you have learned about the problem, as well as what version of Ncat you are running and what operating system version it is running on\&. Problem reports and Ncat usage questions sent to nmap\-dev@insecure\&.org are far more likely to be answered than those sent to Fyodor directly\&.
 .PP
 Code patches to fix bugs are even better than bug reports\&. Basic instructions for creating patch files with your changes are available at
-\m[blue]\fB\%http://nmap.org/data/HACKING\fR\m[]\&. Patches may be sent to
+\m[blue]\fB\%https://svn.nmap.org/nmap/HACKING\fR\m[]\&. Patches may be sent to
 nmap\-dev
 (recommended) or to Fyodor directly\&.
 .SH "AUTHORS"

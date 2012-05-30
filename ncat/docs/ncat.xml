@@ -84,9 +84,9 @@
     and <option><replaceable>port</replaceable></option> control the
     address the server will bind to. Both arguments are optional in
     listen mode. If <option><replaceable>hostname</replaceable></option>
-    is omitted, it defaults to listening on all available addresses. If
-    <option><replaceable>port</replaceable></option> is omitted, it
-    defaults to 31337.
+    is omitted, it defaults to listening on all available addresses over
+    IPv4 and IPv6. If <option><replaceable>port</replaceable></option> is
+    omitted, it defaults to 31337.
     </para>
 
   </refsect1>
@@ -101,7 +101,7 @@
           <indexterm><primary><option>-4</option> (Ncat option)</primary></indexterm>
         </term>
         <listitem>
-          <para>Force the use of IPv4 only (default).</para>
+          <para>Force the use of IPv4 only.</para>
         </listitem>
       </varlistentry>
 
@@ -317,6 +317,9 @@
           <option>--ssl-trustfile</option> to give a custom list. Use
           <option>-v</option> one or more times to get details about
           verification failures.</para>
+	  <indexterm><primary>revoked certificates</primary><see>certificate revocation</see></indexterm>
+	  <para>Ncat does not check for revoked
+	  certificates<indexterm><primary>certification revocation</primary></indexterm>.</para>
           <para>This option has no effect in server mode.</para>
         </listitem>
       </varlistentry>
@@ -610,6 +613,19 @@
 
       <varlistentry>
         <term>
+          <option>--append-output</option> (Append output)
+          <indexterm><primary><option>--append-output</option> (Ncat option)</primary></indexterm>
+        </term>
+        <listitem>
+          <para>Issue Ncat with <option>--append-ouput</option> along with
+          <option>-o</option> and/or <option>-x</option> and it will append
+          the resulted output rather than truncating the specified output files.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>
           <option>-v</option>,
           <option>--verbose</option> (Be verbose)
           <indexterm><primary><option>--verbose</option> (Ncat option)</primary></indexterm>
@@ -718,69 +734,66 @@
     <variablelist>
       <varlistentry>
         <term>
-        <para>Connect to example.org on TCP port 8080.</para>
+        Connect to example.org on TCP port 8080.
         </term>
         <listitem>
-        <command>ncat example.org 8080</command>
+        <para><command>ncat example.org 8080</command></para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Listen for connections on TCP port 8080.</para>
+        Listen for connections on TCP port 8080.
         </term>
         <listitem>
-        <command>ncat -l 8080</command>
+        <para><command>ncat -l 8080</command></para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Redirect TCP port 8080 on the local machine to host on port
-        80.</para>
+        Redirect TCP port 8080 on the local machine to host on port 80.
         </term>
         <listitem>
-        <command>ncat --sh-exec "ncat example.org 80" -l 8080 --keep-open</command>
+        <para><command>ncat --sh-exec "ncat example.org 80" -l 8080 --keep-open</command></para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Bind to TCP port 8081 and attach <filename>/bin/bash</filename>
-        for the world to access freely.</para>
+        Bind to TCP port 8081 and attach <filename>/bin/bash</filename>
+        for the world to access freely.
         </term>
         <listitem>
-        <command>ncat --exec "/bin/bash" -l 8081 --keep-open</command>
+        <para><command>ncat --exec "/bin/bash" -l 8081 --keep-open</command></para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Bind a shell to TCP port 8081, limit access to hosts on a local
-        network, and limit the maximum number of simultaneous connections to
-        3.</para>
+        Bind a shell to TCP port 8081, limit access to hosts on a local
+        network, and limit the maximum number of simultaneous connections to 3.
         </term>
         <listitem>
-        <command>ncat --exec "/bin/bash" --max-conns 3 --allow 192.168.0.0/24 -l 8081 --keep-open</command>
+        <para><command>ncat --exec "/bin/bash" --max-conns 3 --allow 192.168.0.0/24 -l 8081 --keep-open</command></para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Connect to smtphost:25 through a SOCKS4 server on port
-        1080.</para>
+        Connect to smtphost:25 through a SOCKS4 server on port 1080.
         </term>
         <listitem>
-        <command>ncat --proxy socks4host --proxy-type socks4 --proxy-auth user smtphost 25</command>
+        <para><command>ncat --proxy socks4host --proxy-type socks4 --proxy-auth user smtphost 25</command></para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Create an HTTP proxy server on localhost port 8888.</para>
+        Create an HTTP proxy server on localhost port 8888.
         </term>
         <listitem>
-        <command>ncat -l --proxy-type http localhost 8888</command>
+        <para><command>ncat -l --proxy-type http localhost 8888</command></para>
         </listitem>
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Send a file over TCP port 9899 from host2 (client) to host1
-        (server).</para>
+        Send a file over TCP port 9899 from host2 (client) to host1
+        (server).
         </term>
         <listitem>
 <para>HOST1$ <command>ncat -l 9899 &gt; outputfile</command></para>
@@ -789,8 +802,8 @@
       </varlistentry>
       <varlistentry>
         <term>
-        <para>Transfer in the other direction, turning Ncat into a <quote>one
-        file</quote> server.</para>
+        Transfer in the other direction, turning Ncat into a <quote>one
+        file</quote> server.
         </term>
         <listitem>
 <para>HOST1$ <command>ncat -l 9899 &lt; inputfile</command></para>
@@ -836,7 +849,7 @@
     <para>Code patches to fix bugs are even better than bug reports.
     Basic instructions for creating patch files with your changes are
     available at <ulink
-    url="http://nmap.org/data/HACKING" />.  Patches may
+    url="https://svn.nmap.org/nmap/HACKING" />.  Patches may
     be sent to <citetitle>nmap-dev</citetitle> (recommended) or to Fyodor directly.</para>
   </refsect1>
 

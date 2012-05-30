@@ -1,6 +1,6 @@
 dnl -----------------------------------------------------------------
 dnl Nbase local macros
-dnl $Id: configlocal.m4 1525 2002-09-08 22:56:01Z fyodor $
+dnl $Id: configlocal.m4 26910 2011-10-19 17:53:52Z david $
 dnl -----------------------------------------------------------------
 
 dnl
@@ -27,7 +27,7 @@ AC_DEFUN(APR_CHECK_WORKING_GETADDRINFO,[
 #include <sys/socket.h>
 #endif
 
-void main(void) {
+int main(void) {
     struct addrinfo hints, *ai;
     int error;
 
@@ -81,7 +81,7 @@ AC_DEFUN(APR_CHECK_WORKING_GETNAMEINFO,[
 #include <netinet/in.h>
 #endif
 
-void main(void) {
+int main(void) {
     struct sockaddr_in sa;
     char hbuf[256];
     int error;
@@ -196,4 +196,18 @@ if test "$ac_cv_define_sockaddr_storage" = "yes"; then
 else
   have_sockaddr_storage=0
 fi
+])
+
+dnl This test taken from GCC libjava.
+AC_DEFUN(CHECK_PROC_SELF_EXE,[
+  if test x"$cross_compiling" = x"no"; then
+    AC_CHECK_FILES(/proc/self/exe, [
+      AC_DEFINE(HAVE_PROC_SELF_EXE, 1, [Define if you have /proc/self/exe])])
+  else
+    case $host in
+      *-linux*)
+      AC_DEFINE(HAVE_PROC_SELF_EXE, 1, [Define if you have /proc/self/exe])
+      ;;
+    esac
+  fi
 ])

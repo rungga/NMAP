@@ -182,14 +182,12 @@ static struct lstr *check(SSL *ssl, const struct lstr names[])
         if (ssl_post_connect_check(ssl, name->s)) {
             if (size >= capacity) {
                 capacity = (size + 1) * 2;
-                results = realloc(results, (capacity + 1) * sizeof(results[0]));
-                assert(results != NULL);
+                results = safe_realloc(results, (capacity + 1) * sizeof(results[0]));
             }
             results[size++] = *name;
         }
     }
-    results = realloc(results, (size + 1) * sizeof(results[0]));
-    assert(results != NULL);
+    results = safe_realloc(results, (size + 1) * sizeof(results[0]));
     results[size] = lstr_sentinel;
 
     return results;

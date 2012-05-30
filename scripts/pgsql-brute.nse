@@ -9,8 +9,8 @@ Performs password guessing against PostgreSQL.
 -- @output
 -- 5432/tcp open  pgsql
 -- | pgsql-brute:  
--- |   root:<empty> => Login Correct
--- |_  test:test => Login Correct
+-- |   root:<empty> => Valid credentials
+-- |_  test:test => Valid credentials
 --
 -- @args pgsql.nossl If set to <code>1</code> or <code>true</code>, disables SSL.
 -- @args pgsql.version Force protocol version 2 or 3.
@@ -24,29 +24,19 @@ Performs password guessing against PostgreSQL.
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"intrusive", "auth"}
+categories = {"intrusive", "brute"}
 
 require 'shortport'
 require 'stdnse'
 require 'unpwdb'
+stdnse.silent_require 'openssl'
 
--- Version 0.3
+-- Version 0.4
 -- Created 01/15/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 02/20/2010 - v0.2 - moved version detection to pgsql library 
 -- Revised 03/04/2010 - v0.3 - added code from ssh-hostkey.nse to check for SSL support
 --                           - added support for trusted authentication method
-
--- ripped from ssh-hostkey.nse
--- openssl is required for this script
-if pcall(require,"openssl") then
-	require("pgsql")
-else
-	portrule = function() return false end
-  	action = function() end
-  	stdnse.print_debug( 3, "Skipping %s script because OpenSSL is missing.",
-  	    SCRIPT_NAME)
-  	return;
-end
+-- Revised 09/10/2011 - v0.4 - changed account status text to be more consistent with other *-brute scripts
 
 portrule = shortport.port_or_service(5432, "postgresql")
 
@@ -150,7 +140,7 @@ action = function( host, port )
 				end	
 				nmap.registry.pgsqlusers[username]=password
 				if ( response.authtype ~= pgsql.AuthenticationType.Success ) then
-					table.insert( valid_accounts, string.format("%s:%s => Login Correct", username, password:len()>0 and password or "<empty>" ) )
+					table.insert( valid_accounts, string.format("%s:%s => Valid credentials", username, password:len()>0 and password or "<empty>" ) )
 				else
 					table.insert( valid_accounts, string.format("%s => Trusted authentication", username ) )
 				end

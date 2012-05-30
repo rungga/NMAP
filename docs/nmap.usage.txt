@@ -1,4 +1,4 @@
-Nmap 5.51.6 ( http://nmap.org )
+Nmap 6.00 ( http://nmap.org )
 Usage: nmap [Scan Type(s)] [Options] {target specification}
 TARGET SPECIFICATION:
   Can pass hostnames, IP addresses, networks, etc.
@@ -45,8 +45,12 @@ SCRIPT SCAN:
   --script=<Lua scripts>: <Lua scripts> is a comma separated list of 
            directories, script-files or script-categories
   --script-args=<n1=v1,[n2=v2,...]>: provide arguments to scripts
+  --script-args-file=filename: provide NSE script args in a file
   --script-trace: Show all data sent and received
   --script-updatedb: Update the script database.
+  --script-help=<Lua scripts>: Show help about scripts.
+           <Lua scripts> is a comma separted list of script-files or
+           script-categories.
 OS DETECTION:
   -O: Enable OS detection
   --osscan-limit: Limit OS detection to promising targets

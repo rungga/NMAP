@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -13,11 +13,12 @@
 # * technology into proprietary software, we sell alternative licenses      *
 # * (contact sales@insecure.com).  Dozens of software vendors already       *
 # * license Nmap technology such as host discovery, port scanning, OS       *
-# * detection, and version detection.                                       *
+# * detection, version detection, and the Nmap Scripting Engine.            *
 # *                                                                         *
 # * Note that the GPL places important restrictions on "derived works", yet *
 # * it does not provide a detailed definition of that term.  To avoid       *
-# * misunderstandings, we consider an application to constitute a           *
+# * misunderstandings, we interpret that term as broadly as copyright law   *
+# * allows.  For example, we consider an application to constitute a        *
 # * "derivative work" for the purpose of this license if it does any of the *
 # * following:                                                              *
 # * o Integrates source code from Nmap                                      *
@@ -31,19 +32,20 @@
 # * o Links to a library or executes a program that does any of the above   *
 # *                                                                         *
 # * The term "Nmap" should be taken to also include any portions or derived *
-# * works of Nmap.  This list is not exclusive, but is meant to clarify our *
-# * interpretation of derived works with some common examples.  Our         *
-# * interpretation applies only to Nmap--we don't speak for other people's  *
-# * GPL works.                                                              *
+# * works of Nmap, as well as other software we distribute under this       *
+# * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+# * but is meant to clarify our interpretation of derived works with some   *
+# * common examples.  Our interpretation applies only to Nmap--we don't     *
+# * speak for other people's GPL works.                                     *
 # *                                                                         *
 # * If you have any questions about the GPL licensing restrictions on using *
 # * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
 # * we also offer alternative license to integrate Nmap into proprietary    *
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
-# * as providing for priority support and updates as well as helping to     *
-# * fund the continued development of Nmap technology.  Please email        *
-# * sales@insecure.com for further information.                             *
+# * as providing for priority support and updates.  They also fund the      *
+# * continued development of Nmap.  Please email sales@insecure.com for     *
+# * further information.                                                    *
 # *                                                                         *
 # * As a special exception to the GPL terms, Insecure.Com LLC grants        *
 # * permission to link the code of this program with any version of the     *
@@ -67,15 +69,16 @@
 # * and add new features.  You are highly encouraged to send your changes   *
 # * to nmap-dev@insecure.org for possible incorporation into the main       *
 # * distribution.  By sending these changes to Fyodor or one of the         *
-# * Insecure.Org development mailing lists, it is assumed that you are      *
-# * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
-# * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
-# * will always be available Open Source, but this is important because the *
-# * inability to relicense code has caused devastating problems for other   *
-# * Free Software projects (such as KDE and NASM).  We also occasionally    *
-# * relicense the code to third parties as discussed above.  If you wish to *
-# * specify special license conditions of your contributions, just say so   *
-# * when you send them.                                                     *
+# * Insecure.Org development mailing lists, or checking them into the Nmap  *
+# * source code repository, it is understood (unless you specify otherwise) *
+# * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+# * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+# * code.  Nmap will always be available Open Source, but this is important *
+# * because the inability to relicense code has caused devastating problems *
+# * for other Free Software projects (such as KDE and NASM).  We also       *
+# * occasionally relicense the code to third parties as discussed above.    *
+# * If you wish to specify special license conditions of your               *
+# * contributions, just say so when you send them.                          *
 # *                                                                         *
 # * This program is distributed in the hope that it will be useful, but     *
 # * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -137,7 +140,7 @@ class NetworkInventory(object):
                     if old_host in old_scan.get_hosts():
                         old_date = old_scan.get_date()
                 new_date = scan.get_date()
-                self._update_host_info(old_host, host, old_date, new_date)
+                self._update_host_info(old_host, host, old_date, new_date, scan)
 
         self.scans.append(scan)
 
@@ -185,7 +188,7 @@ class NetworkInventory(object):
         for scan in scans:
             self.add_scan(scan)
 
-    def _update_host_info(self, old_host, new_host, old_date, new_date):
+    def _update_host_info(self, old_host, new_host, old_date, new_date, new_scan):
         """This function is called when a host needs to be added to the hosts
         dictionary, but another HostInfo object for that host already exists
         in the dictionary (from a previous scan). In that case, we need to
@@ -193,10 +196,13 @@ class NetworkInventory(object):
         both scans."""
 
         # Ports
+        old_list = []
+        old_list.extend(old_host.ports)
         for new_port in new_host.ports:
             # Check if new_port is already present in old_host's ports
             for old_port in old_host.ports:
-                if old_port["portid"] == new_port["portid"]:
+                if old_port["portid"] == new_port["portid"] and old_port["protocol"] == new_port["protocol"]:
+                    old_list.remove(old_port)
                     # We update old_host's port information to reflect the latest known port state
                     if old_date < new_date:
                         index = old_host.ports.index(old_port)
@@ -207,6 +213,17 @@ class NetworkInventory(object):
                 # This new_port isn't present in old_host, so we simply append it to
                 # old_host's port info
                 old_host.ports.append(new_port)
+        
+        ports = new_scan.get_port_protocol_dict()
+
+        #remove ports which are no longer up
+        if old_date < new_date:
+            for defunct_port in old_list:
+                #Check if defunt_port is in ports and that the protocol matches
+                port_number = int(defunct_port['portid'])
+                if port_number in ports:
+                    if defunct_port['protocol'] in ports[port_number]:
+                        old_host.ports.remove(defunct_port)
 
         # extraports, ipidsequence, state, tcpsequence, tcptssequence, uptime
         if old_date < new_date:
@@ -240,8 +257,7 @@ class NetworkInventory(object):
         # OS detection fields
         # Replace old_host's OS detection fields with new_host's if old_host has no
         # OS detection info or new_host's info is newer.
-        if len(new_host.osclasses) > 0 and (len(old_host.osclasses) == 0 or old_date < new_date):
-            old_host.osclasses = new_host.osclasses
+        if len(new_host.osmatches) > 0 and (len(old_host.osmatches) == 0 or old_date < new_date):
             old_host.osmatches = new_host.osmatches
             old_host.ports_used = new_host.ports_used
 
@@ -563,6 +579,37 @@ class FilteredNetworkInventoryTest(unittest.TestCase):
         inv.apply_filter(filter_text)
         assert(len(inv.get_hosts()) == 2)
 
+class PortChangeTest(unittest.TestCase):
+    def test_port(self):
+        """Verify that the port status (open/filtered/closed) is diplayed """ \
+        """correctly when the port status changes in newer scans"""
+        from zenmapCore.NmapParser import NmapParser
+        inv = NetworkInventory()
+        scan1 = NmapParser()
+        scan1.parse_file("test/xml_test13.xml")
+        inv.add_scan(scan1)
+        scan2 = NmapParser()
+        scan2.parse_file("test/xml_test14.xml")
+        inv.add_scan(scan2)
+        assert(len(inv.get_hosts()[0].ports) == 2)
+        scan3 = NmapParser()
+        scan3.parse_file("test/xml_test15.xml")
+        inv.add_scan(scan3)
+        assert(len(inv.get_hosts()[0].ports) == 0)
+
+        # Additional test case for when the two scans have port scan ranges
+        # which do not overlap. Example nmap -F -sU versus 
+        # nmap -F scanme.nmap.org 
+        inv = NetworkInventory()
+        scan4 = NmapParser()
+        scan4.parse_file("test/xml_test16.xml")
+        inv.add_scan(scan4)
+        assert(len(inv.get_hosts()[0].ports)==3)
+        scan5 = NmapParser()
+        scan5.parse_file("test/xml_test17.xml")
+        inv.add_scan(scan5)
+        assert(len(inv.get_hosts()[0].ports)==7)
+
 if __name__ == "__main__":
     unittest.main()
     if False:
@@ -585,7 +632,6 @@ if __name__ == "__main__":
             #for port in host.ports:
             #    print "  %s: %s" % (port["portid"], port["port_state"])
             #print "  OS matches: %s" % host.osmatches
-            #print "  OS classes: %s" % host.osclasses
             #print "  Ports used: %s" % host.ports_used
             #print "  Trace: %s" % host.trace
             #if "hops" in host.trace:

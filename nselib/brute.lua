@@ -130,23 +130,21 @@
 -- For a complete example of a brute implementation consult the 
 -- <code>svn-brute.nse</code> or <code>vnc-brute.nse</code> scripts
 --
--- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
--- @author "Patrik Karlsson <patrik@cqure.net>"
---
---
 -- @args brute.useraspass guess the username as password for each user
---	     (default: true)
+--       (default: true)
+-- @args brute.emptypass guess an empty password for each user
+--       (default: false)
 -- @args brute.unique make sure that each password is only guessed once
---	     (default: true)
+--       (default: true)
 -- @args brute.firstonly stop guessing after first password is found
---	     (default: false)
+--       (default: false)
 -- @args brute.passonly iterate over passwords only for services that provide
 --       only a password for authentication. (default: false)
 -- @args brute.retries the number of times to retry if recoverable failures
---		 occure. (default: 3)
+--       occure. (default: 3)
 -- @args brute.delay the number of seconds to wait between guesses (default: 0)
 -- @args brute.threads the number of initial worker threads, the number of
---		 active threads will be automatically adjusted.
+--       active threads will be automatically adjusted.
 -- @args brute.mode can be user, pass or creds and determines what mode to run
 --       the engine in.
 --       * user - the unpwdb library is used to guess passwords, every password
@@ -158,13 +156,19 @@
 --       * creds- a set of credentials (username and password pairs) are
 --                guessed against the service. This allows for lists of known
 --                or common username and password combinations to be tested.
---		 If no mode is specified and the script has not added any custom
+--       If no mode is specified and the script has not added any custom
 --       iterator the pass mode will be enabled.
 -- @args brute.credfile a file containing username and password pairs delimited
 --       by '/'
+-- @args brute.guesses the number of guesses to perform against each account.
+--       (default: 0 (unlimited)). The argument can be used to prevent account
+--       lockouts.
+--
+-- @author "Patrik Karlsson <patrik@cqure.net>"
+-- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
 --
--- Version 0.6
+-- Version 0.73
 -- Created 06/12/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 07/13/2010 - v0.2 - added connect, disconnect methods to Driver
 --							   <patrik@cqure.net>
@@ -176,12 +180,44 @@
 --                             David's request.
 -- Revised 08/30/2010 - v0.6 - added support for custom iterators and did some
 --                             needed cleanup.
+-- Revised 06/19/2011 - v0.7 - added support for creds library [Patrik]
+-- Revised 07/07/2011 - v0.71- fixed some minor bugs, and changed credential
+--                             iterator to use a file handle instead of table
+-- Revised 07/21/2011 - v0.72- added code to allow script reporting invalid
+--								(non existing) accounts using setInvalidAccount
+-- Revised 11/12/2011 - v0.73- added support for max guesses per account to 
+--                             prevent account lockouts.
+--                             bugfix: added support for guessing the username
+--                             as password per default, as suggested by the
+--                             documentation.
 
 module(... or "brute", package.seeall)
 require 'unpwdb'
 require 'datafiles'
+require 'creds'
 
--- Options that can be set through --script-args
+-- Engine options that can be set by scripts
+-- Supported options are:
+--   * firstonly   - stop after finding the first correct password
+--                   (can be set using script-arg brute.firstonly)
+--   * passonly    - guess passwords only, don't supply a username
+--                   (can be set using script-arg brute.passonly)
+--   * max_retries - the amount of retries to do before aborting
+--                   (can be set using script-arg brute.retries)
+--   * delay       - sets the delay between attempts
+--                   (can be set using script-arg brute.delay)
+--   * mode        - can be set to either cred, user or pass and controls
+--                   whether the engine should iterate over users, passwords
+--                   or fetch a list of credentials from a single file.
+--                   (can be set using script-arg brut.mode)
+--   * title       - changes the title of the result table where the
+--                   passwords are returned.
+--   * nostore     - don't store the results in the credential library
+--   * max_guesses - the maximum amount of guesses to perform for each
+--                   account.
+--   * useraspass  - guesses the username as password (default: true)
+--   * emptypass   - guesses an empty string as password (default: false)
+--
 Options = {
 	
 	new = function(self)
@@ -189,10 +225,13 @@ Options = {
        	setmetatable(o, self)
         self.__index = self
 
+		o.emptypass = self.checkBoolArg("brute.emptypass", false)
+		o.useraspass = self.checkBoolArg("brute.useraspass", true)
 		o.firstonly = self.checkBoolArg("brute.firstonly", false)
 		o.passonly = self.checkBoolArg("brute.passonly", false)
 		o.max_retries = tonumber( nmap.registry.args["brute.retries"] ) or 3
 		o.delay = tonumber( nmap.registry.args["brute.delay"] ) or 0
+		o.max_guesses = tonumber( nmap.registry.args["brute.guesses"] ) or 0
 
 		return o
 	end,
@@ -203,10 +242,8 @@ Options = {
 	-- @param default boolean containing the default value
 	-- @return boolean, true if argument evaluates to 1 or true, else false
 	checkBoolArg = function( arg, default )
-		local val = nmap.registry.args[arg]
-
-		if ( not(val) ) then return default end
-		return ( val == "true" or val=="1" ) and true or false
+		local val = stdnse.get_script_args(arg) or default
+		return (val == "true" or val==true or tonumber(val)==1)
 	end,
 	
 	--- Sets the brute mode to either iterate over users or passwords
@@ -216,11 +253,18 @@ Options = {
 	-- @return status true on success else false
 	-- @return err string containing the error message on failure
 	setMode = function( self, mode )
-		if ( mode == "password" or mode == "user" ) then
-			self.mode = mode
-		else
+		local modes = { "password", "user", "creds" }
+		local supported = false
+		
+		for _, m in ipairs(modes) do
+			if ( mode == m ) then supported = true end
+		end
+		
+		if ( not(supported) ) then
 			stdnse.print_debug("ERROR: brute.options.setMode: mode %s not supported", mode)
 			return false, "Unsupported mode"
+		else
+			self.mode = mode
 		end
 		return true
 	end,
@@ -230,6 +274,11 @@ Options = {
 	-- @param param string containing the parameter name
 	-- @param value string containing the parameter value
 	setOption = function( self, param, value ) self[param] = value end,
+	
+	--- Set an alternate title for the result output (default: Accounts)
+	--
+	-- @param title string containing the title value
+	setTitle = function(self, title) self.title = title end,
 
 }
 
@@ -244,12 +293,9 @@ Account =
 	--        following <code>OPEN</code>, <code>LOCKED</code>,
 	--        <code>DISABLED</code>.
 	new = function(self, username, password, state)
-		local o = {}
+		local o = { username = username, password = password, state = state }
        	setmetatable(o, self)
         self.__index = self
-		o.username = username
-		o.password = password
-		o.state = state
 		return o
 	end,
 	
@@ -257,27 +303,16 @@ Account =
 	--
 	-- @return string representation of object
 	toString = function( self )
-		local creds
-		
+		local c
 		if ( #self.username > 0 ) then
-			creds = ("%s:%s"):format( self.username, #self.password > 0 and self.password or "<empty>" )
+			c = ("%s:%s"):format( self.username, #self.password > 0 and self.password or "<empty>" )
 		else
-			creds = ("%s"):format( self.password )
+			c = ("%s"):format( ( self.password and #self.password > 0 ) and self.password or "<empty>" )
 		end
-		
-		-- An account have the following states
-		--
-		-- OPEN - Login was successful
-		-- LOCKED - The account was locked
-		-- DISABLED - The account was disabled
-		if ( self.state == "OPEN" ) then
-			return ("%s => Login correct"):format( creds )
-		elseif ( self.state == "LOCKED" ) then
-			return ("%s => Account locked"):format( creds )
-		elseif ( self.state == "DISABLED" ) then
-			return ("%s => Account disabled"):format( creds )
+		if ( creds.StateMsg[self.state] ) then
+			return ( "%s - %s"):format(c, creds.StateMsg[self.state] )
 		else
-			return ("%s => Account has unknown state (%s)"):format( creds, self.state )
+			return ("%s"):format(c)
 		end
 	end,
 			
@@ -290,11 +325,9 @@ Error =
 	retry = false,
 	
 	new = function(self, msg)
-		local o = {}
+		local o = { msg = msg, done = false }
        	setmetatable(o, self)
         self.__index = self
-		o.msg = msg
-		o.done = false
 		return o
 	end,
 	
@@ -334,14 +367,25 @@ Error =
 	-- @param b boolean true if done, unset or false if not
 	setDone = function( self, b ) self.done = b end,
 	
+	-- Marks the username as invalid, aborting further guessing.
+	-- @param username
+	setInvalidAccount = function(self, username)
+		self.invalid_account = username
+	end,
+
+	-- Checks if the error reported the account as invalid.
+	-- @return username string containing the invalid account
+	isInvalidAccount = function(self)
+		return self.invalid_account 
+	end,
+	
 }
 
 -- The brute engine, doing all the nasty work
 Engine =
 {
 	STAT_INTERVAL = 20,
-	terminate_all = false,
-	
+		
 	--- Creates a new Engine instance
 	--
 	-- @param driver, the driver class that should be instantiated
@@ -350,21 +394,24 @@ Engine =
 	-- @param options table containing any script specific options
 	-- @return o new Engine instance	
 	new = function(self, driver, host, port, options)
-		local o = {}
+		local o = { 
+			driver = driver,
+			host = host,
+			port = port,
+			driver_options = options,
+			terminate_all = false,
+			error = nil,
+			counter = 0,
+			threads = {},
+			tps = {},
+			iterators = {},
+			found_accounts = {},
+			account_guesses = {},
+			options = Options:new(),
+		}
        	setmetatable(o, self)
         self.__index = self
-		o.driver = driver
-		o.driver_options = options
-		o.host = host
-		o.port = port
-		o.options = Options:new()
-		o.found_accounts = {}
-		o.threads = {}
-		o.counter = 0
-		o.max_threads = tonumber(nmap.registry.args["brute.threads"]) or 10
-		o.iterators = {}
-		o.error = nil
-		o.tps = {}
+		o.max_threads = stdnse.get_script_args("brute.threads") or 10
 		return o
 	end,
 
@@ -373,14 +420,6 @@ Engine =
 	-- @param iterator function to add to the list
 	addIterator = function( self, iterator )
 		table.insert( self.iterators, iterator )
-	end,
-
-	--- Sets the engine running mode
-	--
-	-- @param mode string, one of either "user", "creds" or "pass"
-	setMode = function( self, mode )
-		mode = ( mode == "user" or mode == "creds" or mode == "pass" ) and mode or nil
-		assert(mode, ("Unsupported mode: (%s)"):format(mode))
 	end,
 	
 	--- Limit the number of worker threads
@@ -420,13 +459,13 @@ Engine =
 	-- @return iterator function
 	get_next_credential = function( self )
 		local function next_credential ()
-			local used_creds = {}
 			-- iterate over all credential iterators
 			for _, iter in ipairs( self.iterators ) do
 				for user, pass in iter do
 					-- makes sure the credentials have not been tested before
-					if ( not(used_creds[user..pass]) ) then
-						used_creds[user..pass] = true
+					self.used_creds = self.used_creds or {}
+					if ( not(self.used_creds[user..pass]) ) then
+						self.used_creds[user..pass] = true
 						coroutine.yield( user, pass )
 					end
 				end
@@ -445,6 +484,7 @@ Engine =
 		local status, response
 		local next_credential = self:get_next_credential()
 		local retries = self.options.max_retries
+		local username, password
 		
 		repeat
 			local driver = self.driver:new( self.host, self.port, self.driver_options )
@@ -452,10 +492,20 @@ Engine =
 
 			-- Did we succesfully connect?
 			if ( status ) then
-
-				local username, password
 				if ( not(username) and not(password) ) then
-					username, password = next_credential()
+					repeat
+						username, password = next_credential()
+						if ( not(username) and not(password) ) then
+							driver:disconnect()
+							self.threads[coroutine.running()].terminate = true
+							return false 
+						end
+					until ( ( not(self.found_accounts) or not(self.found_accounts[username]) ) and
+						  ( self.options.max_guesses == 0 or not(self.account_guesses[username]) or 
+						    self.options.max_guesses > self.account_guesses[username] ) )
+					
+					-- increases the number of guesses for an account
+					self.account_guesses[username] = self.account_guesses[username] and self.account_guesses[username] + 1 or 1
 				end
 
 				-- make sure that all threads locked in connect stat terminate quickly
@@ -463,30 +513,17 @@ Engine =
 					driver:disconnect()
 					return false
 				end
-		
-				-- We've reached the end of the iterator, signal the thread to terminate
-				if ( not(password) ) then
-					driver:disconnect()
-					self.threads[coroutine.running()].terminate = true
-					return false
-				end
-
-				-- The username was already tested
-				if ( self.found_accounts and self.found_accounts[username] ) then
-					driver:disconnect()
-					return false
-				end
-				
-				local creds
+			
+				local c
 				-- Do we have a username or not?
 				if ( username and #username > 0 ) then
-					creds = ("%s/%s"):format(username, #password > 0 and password or "<empty>")
+					c = ("%s/%s"):format(username, #password > 0 and password or "<empty>")
 				else
-					creds = ("%s"):format(#password > 0 and password or "<empty>")
+					c = ("%s"):format(#password > 0 and password or "<empty>")
 				end
 			
 				local msg = ( retries ~= self.options.max_retries ) and "Re-trying" or "Trying"
-				stdnse.print_debug(2, "%s %s against %s:%d", msg, creds, self.host.ip, self.port.number )
+				stdnse.print_debug(2, "%s %s against %s:%d", msg, c, self.host.ip, self.port.number )
 				status, response = driver:login( username, password )
 
 				driver:disconnect()
@@ -500,53 +537,65 @@ Engine =
 		-- * The response was not set to retry
 		-- * We've reached the maximum retry attempts
 		until( status or ( response and not( response:isRetry() ) ) or retries == 0)
-			
+	
+		-- Increase the amount of total guesses
+		self.counter = self.counter + 1
+					
 		-- did we exhaust all retries, terminate and report?
 		if ( retries == 0 ) then
 			Engine.terminate_all = true
 			self.error = "Too many retries, aborted ..."
+			response = Error:new("Too many retries, aborted ...")
+			response.abort = true
 		end
 		return status, response
 	end,
 	
-	login = function(self, valid_accounts )
-
-		local condvar = nmap.condvar( valid_accounts )		
+	login = function(self, cvar )
+		local condvar = nmap.condvar( cvar )		
 		local thread_data = self.threads[coroutine.running()]
 		local interval_start = os.time()
 		
 		while( true ) do
 			-- Should we terminate all threads?
-			if ( Engine.terminate_all or thread_data.terminate ) then break	end
+			if ( self.terminate_all or thread_data.terminate ) then break	end
 			
 			local status, response = self:doAuthenticate()
 				
 			if ( status ) then
 				-- Prevent locked accounts from appearing several times
 				if ( not(self.found_accounts) or self.found_accounts[response.username] == nil ) then
-					if ( response.username and #response.username > 0 ) then
-						stdnse.print_debug("Found valid password %s:%s on target %s", response.username, response.password, self.host.ip )
+					if ( not(self.options.nostore) ) then
+						creds.Credentials:new( self.options.script_name, self.host, self.port ):add(response.username, response.password, response.state )
 					else
-						stdnse.print_debug("Found valid password %s on target %s", response.password, self.host.ip )
+						self.credstore = self.credstore or {}
+						table.insert(self.credstore, response:toString() )
 					end
-					table.insert( valid_accounts, response:toString() )
-					self.found_accounts[response.username] = true
+					
+					stdnse.print_debug("Discovered account: %s", response:toString())
+
+					-- if we're running in passonly mode, and want to continue guessing
+					-- we will have a problem as the username is always the same.
+					-- in this case we don't log the account as found.
+					if ( not(self.options.passonly) ) then
+						self.found_accounts[response.username] = true
+					end
 					
 					-- Check if firstonly option was set, if so abort all threads
-					if ( self.options.firstonly ) then Engine.terminate_all = true end
+					if ( self.options.firstonly ) then self.terminate_all = true end
 				end
 			else
 				if ( response and response:isAbort() ) then
-					Engine.terminate_all = true
+					self.terminate_all = true
 					self.error = response:getMessage()
 					break
 				elseif( response and response:isDone() ) then
 					break
+				elseif ( response and response:isInvalidAccount() ) then
+					self.found_accounts[response:isInvalidAccount()] = true
 				end
 			end
 				
-			-- Increase the amount of total guesses
-			self.counter = self.counter + 1
 			local timediff = (os.time() - interval_start)
 	
 			-- This thread made another guess
@@ -563,7 +612,7 @@ Engine =
 			-- if delay was speciefied, do sleep
 			if ( self.options.delay > 0 ) then stdnse.sleep( self.options.delay ) end
 		end
-		condvar("broadcast")
+		condvar "signal"
 	end,
 			
 	--- Starts the brute-force
@@ -572,8 +621,12 @@ Engine =
 	-- @return err string containing error message on failure
 	start = function(self)
 	
-		local result, valid_accounts, stats = {}, {}, {}
-		local condvar = nmap.condvar( valid_accounts )
+		local cvar = {}
+		local condvar = nmap.condvar( cvar )
+		
+		assert(self.options.script_name, "SCRIPT_NAME was not set in options.script_name")
+		assert(self.port.number and self.port.protocol, "Invalid port table detected")
+		self.port.service = self.port.service or "unknown"
 		
 		-- Only run the check method if it exist. We should phase this out
 		-- in favor of a check in the action function of the script
@@ -590,7 +643,16 @@ Engine =
 		local status, passwords = unpwdb.passwords()
 		if ( not(status) ) then	return false, "Failed to load passwords" end
 	
-		local mode = stdnse.get_script_args("brute.mode")
+		local mode = self.options.mode or stdnse.get_script_args("brute.mode")
+	
+		-- if no mode was given, but a credfile is present, assume creds mode
+		if ( not(mode) and stdnse.get_script_args("brute.credfile") ) then
+			if ( stdnse.get_script_args("userdb") or
+				 stdnse.get_script_args("passdb") ) then
+				return false, "\n  ERROR: brute.credfile can't be used in combination with userdb/passdb"
+			end
+			mode = 'creds'
+		end
 	
 		-- Are we guessing against a service that has no username (eg. VNC)
 		if ( self.options.passonly ) then
@@ -598,52 +660,75 @@ Engine =
 				local function next_user() coroutine.yield( "" ) end
 				return coroutine.wrap(next_user)
 			end
-			table.insert( self.iterators, Iterators.user_pw_iterator( single_user_iter(), passwords ) )
+			-- only add this iterator if no other iterator was specified
+			if ( #self.iterators == 0 ) then
+				table.insert( self.iterators, Iterators.user_pw_iterator( single_user_iter(), passwords ) )
+			end
 		elseif ( mode == 'creds' ) then
 			local credfile = stdnse.get_script_args("brute.credfile")
 			if ( not(credfile) ) then
-				return false, "No credential file specified"
+				return false, "No credential file specified (see brute.credfile)"
 			end
 		
 			local f = io.open( credfile, "r" )
 			if ( not(f) ) then
 				return false, ("Failed to open credfile (%s)"):format(credfile)
 			end
-			local creds = {}
-			for line in f:lines() do
-				local trim = function(s) return s:match('^()%s*$') and '' or s:match('^%s*(.*%S)') end 
-				line = trim(line)
-				local user, pass = line:match("^([^%/]*)%/(.*)$")
-				table.insert(creds, { [user]=pass } )
-			end
 		
-			table.insert( self.iterators, Iterators.credential_iterator( creds ) )
+			table.insert( self.iterators, Iterators.credential_iterator( f ) )
 		elseif ( mode and mode == 'user' ) then
 			table.insert( self.iterators, Iterators.user_pw_iterator( usernames, passwords ) )
 		elseif( mode and mode == 'pass' ) then
 			table.insert( self.iterators, Iterators.pw_user_iterator( usernames, passwords ) )
 		elseif ( mode ) then
-			return false, ("Unsupported mode: %s"):format(nmap.registry.args['brute.mode'])
+			return false, ("Unsupported mode: %s"):format(mode)
 		-- Default to the pw_user_iterator in case no iterator was specified
 		elseif ( 0 == #self.iterators ) then
 			table.insert( self.iterators, Iterators.pw_user_iterator( usernames, passwords ) )
 		end
 
+		if ( ( not(mode) or mode == 'user' or mode == 'pass' ) and self.options.useraspass ) then
+			-- if we're only guessing passwords, this doesn't make sense
+			if ( not(self.options.passonly) ) then
+				table.insert( self.iterators, 1, Iterators.pw_same_as_user_iterator(usernames, "lower"))
+			end
+		end
+		
+		if ( ( not(mode) or mode == 'user' or mode == 'pass' ) and self.options.emptypass ) then
+			local function empty_pass_iter()
+				local function next_pass()
+					coroutine.yield( "" )
+				end
+				return coroutine.wrap(next_pass)
+			end
+			table.insert( self.iterators, 1, Iterators.account_iterator(usernames, empty_pass_iter(), mode or "pass"))
+		end
+			 
+
 		self.starttime = os.time()
 
 		-- Startup all worker threads
 		for i=1, self.max_threads do
-			local co = stdnse.new_thread( self.login, self, valid_accounts )
+			local co = stdnse.new_thread( self.login, self, cvar )
 			self.threads[co] = {}
 			self.threads[co].running = true
 		end
 
 		-- wait for all threads to finnish running
-		while self:threadCount()>0 do condvar("wait") end
+		while self:threadCount()>0 do condvar "wait" end
 		
+		local valid_accounts
+		
+		if ( not(self.options.nostore) ) then
+			valid_accounts = creds.Credentials:new(self.options.script_name, self.host, self.port):getTable()
+		else
+			valid_accounts = self.credstore
+		end
+		
+		local result = {}
 		-- Did we find any accounts, if so, do formatting
-		if ( #valid_accounts > 0 ) then
-			valid_accounts.name = "Accounts"
+		if ( valid_accounts and #valid_accounts > 0 ) then
+			valid_accounts.name = self.options.title or "Accounts"
 			table.insert( result, valid_accounts )
 		else
 			table.insert( result, {"No valid accounts found", name="Accounts"} )
@@ -657,15 +742,27 @@ Engine =
 		local tps = ( sum == 0 ) and ( self.counter / time_diff ) or ( sum / #self.tps )
 
 		-- Add the statistics to the result
-		table.insert(stats, ("Perfomed %d guesses in %d seconds, average tps: %d"):format( self.counter, time_diff, tps ) )
+		local stats = {}
+		table.insert(stats, ("Performed %d guesses in %d seconds, average tps: %d"):format( self.counter, time_diff, tps ) )
 		stats.name = "Statistics"
 		table.insert( result, stats )
+		
+		if ( self.options.max_guesses > 0 ) then
+			-- we only display a warning if the guesses are equal to max_guesses
+			for user, guesses in pairs(self.account_guesses) do
+				if ( guesses == self.options.max_guesses ) then
+					table.insert( result, { name = "Information", 
+						  ("Guesses restricted to %d tries per account to avoid lockout"):format(self.options.max_guesses) } )
+					break
+				end
+			end
+		end
 
 		result = ( #result ) and stdnse.format_output( true, result ) or ""
 		
 		-- Did any error occure? If so add this to the result.
 		if ( self.error ) then
-			result = result .. ("  \n\n  ERROR: %s"):format( self.error )
+			result = result .. ("  \n ERROR: %s"):format( self.error )
 			return false, result
 		end
 		return true, result
@@ -677,8 +774,8 @@ Iterators = {
 
 	--- Iterates over each user and password
 	--
-	-- @param users table containing list of users
-	-- @param pass table containing list of passwords
+	-- @param users table/function containing list of users
+	-- @param pass table/function containing list of passwords
 	-- @param mode string, should be either 'user' or 'pass' and controls
 	--        whether the users or passwords are in the 'outer' loop
 	-- @return function iterator
@@ -724,8 +821,8 @@ Iterators = {
 
 	--- Try each password for each user (user in outer loop)
 	--
-	-- @param users table containing list of users
-	-- @param pass table containing list of passwords
+	-- @param users table/function containing list of users
+	-- @param pass table/function containing list of passwords
 	-- @return function iterator
 	user_pw_iterator = function( users, pass )
 		return Iterators.account_iterator( users, pass, "user" )
@@ -733,8 +830,8 @@ Iterators = {
 
 	--- Try each user for each password (password in outer loop)
 	--
-	-- @param users table containing list of users
-	-- @param pass table containing list of passwords
+	-- @param users table/function containing list of users
+	-- @param pass table/function containing list of passwords
 	-- @return function iterator
 	pw_user_iterator = function( users, pass )
 		return Iterators.account_iterator( users, pass, "pass" )
@@ -742,21 +839,22 @@ Iterators = {
 
 	--- An iterator that returns the username as password
 	--
-	-- @param users table containing list of users
+	-- @param users function returning the next user
 	-- @param case string [optional] 'upper' or 'lower', specifies if user
 	--        and password pairs should be case converted.
 	-- @return function iterator
 	pw_same_as_user_iterator = function( users, case )	
 		local function next_credential ()
-			for _, user in ipairs(users) do
+			for user in users do
 				if ( case == 'upper' ) then
-					coroutine.yield( user:upper(), user:upper() )
+					coroutine.yield(user, user:upper())
 				elseif( case == 'lower' ) then
-					coroutine.yield( user:lower(), user:lower() )
+					coroutine.yield(user, user:lower())
 				else
-					coroutine.yield( user, user )
-				end	
+					coroutine.yield(user, user)
+				end
 			end
+			users("reset")
 			while true do coroutine.yield(nil, nil) end
 		end
 		return coroutine.wrap( next_credential )
@@ -781,17 +879,20 @@ Iterators = {
 	
 	--- Credential iterator (for default or known user/pass combinations)
 	--
-	-- @param creds table containing username/pass combinations
-	--        the table should be of the following format
-	--        { ["user"] = "pass", ["user2"] = "pass2" }
+	-- @param f file handle to file containing credentials separated by '/'
 	-- @return function iterator
-	credential_iterator = function( creds )
+	credential_iterator = function( f )
 		local function next_credential ()
-			for _, item in ipairs(creds) do
-				for user, pass in pairs(item) do
+			local c = {}
+			for line in f:lines() do
+				if ( not(line:match("^#!comment:")) ) then
+					local trim = function(s) return s:match('^()%s*$') and '' or s:match('^%s*(.*%S)') end 
+					line = trim(line)
+					local user, pass = line:match("^([^%/]*)%/(.*)$")
 					coroutine.yield( user, pass )
 				end
 			end
+			f:close()
 			while true do coroutine.yield( nil, nil ) end
 		end
 		return coroutine.wrap( next_credential )

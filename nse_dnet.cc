@@ -9,6 +9,8 @@
 #include "nse_main.h"
 #include "nse_utility.h"
 
+#include "struct_ip.h"
+
 extern "C" {
 #include "lua.h"
 #include "lauxlib.h"
@@ -47,29 +49,71 @@ LUALIB_API int l_dnet_new (lua_State *L)
   return 1;
 }
 
-LUALIB_API int l_dnet_get_interface_link (lua_State *L)
+LUALIB_API int l_dnet_get_interface_info (lua_State *L)
 {
-  struct interface_info *ii = getInterfaceByName(luaL_checkstring(L, 1));
+  char ipstr[INET6_ADDRSTRLEN];
+  struct addr src, bcast;
+  struct interface_info *ii = getInterfaceByName(luaL_checkstring(L, 1),
+                                                 o.af());
 
-  if (ii == NULL)
-    return luaL_argerror(L, 1, "bad interface");
+  if (ii == NULL) {
+    lua_pushnil(L);
+    lua_pushstring(L, "failed to find interface");
+    return 2;
+  }
 
-  switch (ii->device_type)
-  {
+  memset(ipstr, 0, INET6_ADDRSTRLEN);
+  memset(&src, 0, sizeof(src));
+  memset(&bcast, 0, sizeof(bcast));
+  lua_newtable(L);
+
+  setsfield(L, -1, "device", ii->devfullname);
+  setsfield(L, -1, "shortname", ii->devname);
+  setnfield(L, -1, "netmask", ii->netmask_bits);
+
+  if (ii->addr.ss_family == AF_INET)
+    inet_ntop(AF_INET, &((struct sockaddr_in *)&ii->addr)->sin_addr,
+              ipstr, INET6_ADDRSTRLEN);
+  else if (ii->addr.ss_family == AF_INET6)
+    inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&ii->addr)->sin6_addr,
+              ipstr, INET6_ADDRSTRLEN);
+  else
+    luaL_error(L, "unknown protocol");
+
+  setsfield(L, -1, "address", ipstr);
+
+  switch (ii->device_type) {
     case devt_ethernet:
-      lua_pushliteral(L, "ethernet");
-      return 1;
+      setsfield(L, -1, "link", "ethernet");
+      lua_pushlstring(L, (const char *) ii->mac, 6);
+      lua_setfield(L, -2, "mac");
+
+      /* calculate the broadcast address */
+      if (ii->addr.ss_family == AF_INET) {
+        src.addr_type = ADDR_TYPE_IP;
+        src.addr_bits = ii->netmask_bits;
+        src.addr_ip = ((struct sockaddr_in *)&ii->addr)->sin_addr.s_addr;
+        addr_bcast(&src, &bcast);
+        memset(ipstr, 0, INET6_ADDRSTRLEN);
+        if (addr_ntop(&bcast, ipstr, INET6_ADDRSTRLEN) != NULL)
+          setsfield(L, -1, "broadcast", ipstr);
+      }
+      break;
     case devt_loopback:
-      lua_pushliteral(L, "loopback");
-      return 1;
+      setsfield(L, -1, "link", "loopback");
+      break;
     case devt_p2p:
-      lua_pushliteral(L, "p2p");
-      return 1;
+      setsfield(L, -1, "link", "p2p");
+      break;
     case devt_other:
     default:
-      lua_pushnil(L);
-      return 1;
+      setsfield(L, -1, "link", "other");
   }
+
+  setsfield(L, -1, "up", (ii->device_up ? "up" : "down"));
+  setnfield(L, -1, "mtu", ii->mtu);
+
+  return 1;
 }
 
 static int close_eth (lua_State *L)
@@ -114,7 +158,7 @@ static int ethernet_open (lua_State *L)
 {
   nse_dnet_udata *udata = (nse_dnet_udata *) luaL_checkudata(L, 1, DNET_METATABLE);
   const char *interface_name = luaL_checkstring(L, 2);
-  struct interface_info *ii = getInterfaceByName(interface_name);
+  struct interface_info *ii = getInterfaceByName(interface_name, o.af());
 
   if (ii == NULL || ii->device_type != devt_ethernet)
     return luaL_argerror(L, 2, "device is not valid ethernet interface");
@@ -173,35 +217,36 @@ static int ip_close (lua_State *L)
 
 static int ip_send (lua_State *L)
 {
+  struct abstract_ip_hdr hdr;
   nse_dnet_udata *udata = (nse_dnet_udata *) luaL_checkudata(L, 1, DNET_METATABLE);
-  const char *packet = luaL_checkstring(L, 2);
+  const char *packet;
+  size_t packetlen;
+  unsigned int payloadlen;
   char dev[16];
   int ret;
 
   if (udata->sock == -1)
     return luaL_error(L, "raw socket not open to send");
 
-  if (lua_objlen(L, 2) < sizeof(struct ip))
-    return luaL_error(L, "ip packet too short");
+  packet = luaL_checklstring(L, 2, &packetlen);
+
+  /* Extract src and dst from packet contents. */
+  /* TODO: This doesn't work for link-local IPv6 addresses; there's no way to
+     recover the scope_id from the packet contents. */
+  payloadlen = packetlen;
+  if (ip_get_data_any(packet, &payloadlen, &hdr) == NULL)
+    return luaL_error(L, "can't parse ip packet");
 
   *dev = '\0';
 
   if (o.sendpref & PACKET_SEND_ETH)
   {
+    struct sockaddr_storage *nexthop;
     struct route_nfo route;
-    struct sockaddr_storage srcss, dstss, *nexthop;
-    struct sockaddr_in *srcsin = (struct sockaddr_in *) &srcss;
-    struct sockaddr_in *dstsin = (struct sockaddr_in *) &dstss;
-    struct ip *ip = (struct ip *) packet;
     u8 dstmac[6];
     eth_nfo eth;
 
-    /* build sockaddr for target from user packet and determine route */
-    memset(&dstss, 0, sizeof(dstss));
-    dstsin->sin_family = AF_INET;
-    dstsin->sin_addr.s_addr = ip->ip_dst.s_addr;
-
-    if (!nmap_route_dst(&dstss, &route))
+    if (!nmap_route_dst(&hdr.dst, &route))
       goto usesock;
 
     Strncpy(dev, route.ii.devname, sizeof(dev));
@@ -213,17 +258,12 @@ static int ip_send (lua_State *L)
      * route to the host.  From here on out it's ethernet all the way.
      */
 
-    /* build sockaddr for source from user packet to determine next hop mac */
-    memset(&srcss, 0, sizeof(srcss));
-    srcsin->sin_family = AF_INET;
-    srcsin->sin_addr.s_addr = ip->ip_src.s_addr;
-
     if (route.direct_connect)
-      nexthop = &dstss;
+      nexthop = &hdr.dst;
     else
       nexthop = &route.nexthop;
 
-    if (!getNextHopMAC(route.ii.devfullname, route.ii.mac, &srcss, nexthop, dstmac))
+    if (!getNextHopMAC(route.ii.devfullname, route.ii.mac, &hdr.src, nexthop, dstmac))
       return luaL_error(L, "failed to determine next hop MAC address");
 
     /* Use cached ethernet device, and use udata's eth and interface to keep
@@ -241,14 +281,14 @@ static int ip_send (lua_State *L)
 
     udata->eth = eth.ethsd = open_eth_cached(L, 1, route.ii.devname);
 
-    ret = send_ip_packet(udata->sock, &eth, (u8 *) packet, lua_objlen(L, 2));
+    ret = send_ip_packet(udata->sock, &eth, &hdr.dst, (u8 *) packet, lua_objlen(L, 2));
   } else {
 usesock:
 #ifdef WIN32
     if (strlen(dev) > 0)
-      win32_warn_raw_sockets(dev);
+      win32_fatal_raw_sockets(dev);
 #endif
-    ret = send_ip_packet(udata->sock, NULL, (u8 *) packet, lua_objlen(L, 2));
+    ret = send_ip_packet(udata->sock, NULL, &hdr.dst, (u8 *) packet, lua_objlen(L, 2));
   }
   if (ret == -1)
     return safe_error(L, "error while sending: %s (errno %d)",

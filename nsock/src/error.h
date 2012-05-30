@@ -1,11 +1,10 @@
-
 /***************************************************************************
  * error.h -- a few simple routines for dealing with errors (quitting,     *
  * printing error messages, etc.                                           *
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2011 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -54,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: error.h 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: error.h 28190 2012-03-01 06:32:23Z fyodor $ */
 
 #ifndef ERROR_H
 #define ERROR_H
@@ -76,10 +75,12 @@
 #endif
 
 void fatal(char *fmt, ...) __attribute__((noreturn));
+
 void myerror(char *fmt, ...);
+
 void pfatal(char *fmt, ...) __attribute__((noreturn));
+
 void gh_perror(char *err, ...);
 
 #endif /* ERROR_H */
-
 

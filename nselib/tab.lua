@@ -31,11 +31,11 @@ require('strbuf')
 --- Create and return a new table.
 -- @return A new table.
 function new()
-	local table = {}
+	local t = {}
 
-	table.current_row = 1
-	setmetatable(table, {__tostring=dump})
-	return table
+	t.current_row = 1
+	setmetatable(t, {__tostring=dump})
+	return t
 end
 
 --- Add a new string item to a table at a given column position.
@@ -96,7 +96,7 @@ function dump(t)
 	for i, row in ipairs(t) do
 		num_columns[i] = 0
 		for x, elem in pairs(row) do
-			local elem_width = string.len(elem)
+			local elem_width = #elem
 			if not column_width[x] or elem_width > column_width[x] then
 				column_width[x] = elem_width
 			end

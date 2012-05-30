@@ -1,4 +1,4 @@
-Nping 0.5.36TEST2 ( http://nmap.org/nping )
+Nping 0.5.59BETA1 ( http://nmap.org/nping )
 Usage: nping [Probe mode] [Options] {target specification}
 
 TARGET SPECIFICATION:
@@ -77,10 +77,11 @@ PAYLOAD OPTIONS:
   --data-length <len>              : Include len random bytes as payload.
 ECHO CLIENT/SERVER:
   --echo-client <passphrase>       : Run Nping in client mode.
-  --echo-client <passphrase>       : Run Nping in server mode.
+  --echo-server <passphrase>       : Run Nping in server mode.
   --echo-port <port>               : Use custom <port> to listen or connect.
   --no-crypto                      : Disable encryption and authentication.
   --once                           : Stop the server after one connection.
+  --safe-payloads                  : Erase application data in echoed packets.
 TIMING AND PERFORMANCE:
   Options which take <time> are in seconds, or append 'ms' (milliseconds),
   's' (seconds), 'm' (minutes), or 'h' (hours) to the value (e.g. 30m, 0.25h).

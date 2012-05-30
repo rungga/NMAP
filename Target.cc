@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -16,11 +16,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -34,19 +35,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -70,15 +72,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -89,7 +92,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: Target.cc 21904 2011-01-21 00:04:16Z fyodor $ */
+/* $Id: Target.cc 28192 2012-03-01 06:53:35Z fyodor $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
@@ -113,6 +116,7 @@ void Target::Initialize() {
   targetname = NULL;
   memset(&seq, 0, sizeof(seq));
   distance = -1;
+  distance_calculation_method = DIST_METHOD_NONE;
   FPR = NULL;
   osscan_flag = OS_NOTPERF;
   weird_responses = flags = 0;
@@ -124,6 +128,7 @@ void Target::Initialize() {
   targetsocklen = sourcesocklen = nexthopsocklen = 0;
   directly_connected = -1;
   targetipstring[0] = '\0';
+  sourceipstring[0] = '\0';
   nameIPBuf = NULL;
   memset(&MACaddress, 0, sizeof(MACaddress));
   memset(&SrcMACaddress, 0, sizeof(SrcMACaddress));
@@ -177,7 +182,7 @@ void Target::FreeInternal() {
 
 /*  Creates a "presentation" formatted string out of the IPv4/IPv6 address.
     Called when the IP changes */
-void Target::GenerateIPString() {
+void Target::GenerateTargetIPString() {
   struct sockaddr_in *sin = (struct sockaddr_in *) &targetsock;
 #if HAVE_IPV6
   struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &targetsock;
@@ -195,12 +200,37 @@ void Target::GenerateIPString() {
   }
 }
 
+/*  Creates a "presentation" formatted string out of the IPv4/IPv6 address.
+    Called when the IP changes */
+void Target::GenerateSourceIPString() {
+  struct sockaddr_in *sin = (struct sockaddr_in *) &sourcesock;
+#if HAVE_IPV6
+  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &sourcesock;
+#endif
+
+  if (inet_ntop(sin->sin_family, (sin->sin_family == AF_INET)?
+                (char *) &sin->sin_addr :
+#if HAVE_IPV6
+                (char *) &sin6->sin6_addr,
+#else
+                (char *) NULL,
+#endif
+		sourceipstring, sizeof(sourceipstring)) == NULL) {
+    fatal("Failed to convert source address to presentation format!?!  Error: %s", strerror(socket_errno()));
+  }
+}
+
+/* Returns the address family of the destination address. */
+int Target::af() const {
+  return targetsock.ss_family;
+}
+
 /* Fills a sockaddr_storage with the AF_INET or AF_INET6 address
      information of the target.  This is a preferred way to get the
      address since it is portable for IPv6 hosts.  Returns 0 for
      success. ss_len must be provided.  It is not examined, but is set
      to the size of the sockaddr copied in. */
-int Target::TargetSockAddr(struct sockaddr_storage *ss, size_t *ss_len) {
+int Target::TargetSockAddr(struct sockaddr_storage *ss, size_t *ss_len) const {
   assert(ss);
   assert(ss_len);  
   if (targetsocklen <= 0)
@@ -211,9 +241,13 @@ int Target::TargetSockAddr(struct sockaddr_storage *ss, size_t *ss_len) {
   return 0;
 }
 
+const struct sockaddr_storage *Target::TargetSockAddr() const {
+  return &targetsock;
+}
+
 /* Note that it is OK to pass in a sockaddr_in or sockaddr_in6 casted
      to sockaddr_storage */
-void Target::setTargetSockAddr(struct sockaddr_storage *ss, size_t ss_len) {
+void Target::setTargetSockAddr(const struct sockaddr_storage *ss, size_t ss_len) {
 
   assert(ss_len > 0 && ss_len <= sizeof(*ss));
   if (targetsocklen > 0) {
@@ -224,7 +258,7 @@ void Target::setTargetSockAddr(struct sockaddr_storage *ss, size_t ss_len) {
   }
   memcpy(&targetsock, ss, ss_len);
   targetsocklen = ss_len;
-  GenerateIPString();
+  GenerateTargetIPString();
   /* The ports array needs to know a name too */
   ports.setIdStr(targetipstr());
 }
@@ -247,8 +281,16 @@ const struct in_addr *Target::v4hostip() const {
   return NULL;
 }
 
+const struct in6_addr *Target::v6hostip() const {
+  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &targetsock;
+  if (sin6->sin6_family == AF_INET6) {
+    return &(sin6->sin6_addr);
+  }
+  return NULL;
+}
+
  /* The source address used to reach the target */
-int Target::SourceSockAddr(struct sockaddr_storage *ss, size_t *ss_len) {
+int Target::SourceSockAddr(struct sockaddr_storage *ss, size_t *ss_len) const {
   if (sourcesocklen <= 0)
     return 1;
   assert(sourcesocklen <= sizeof(*ss));
@@ -259,12 +301,17 @@ int Target::SourceSockAddr(struct sockaddr_storage *ss, size_t *ss_len) {
   return 0;
 }
 
+const struct sockaddr_storage *Target::SourceSockAddr() const {
+  return &sourcesock;
+}
+
 /* Note that it is OK to pass in a sockaddr_in or sockaddr_in6 casted
      to sockaddr_storage */
-void Target::setSourceSockAddr(struct sockaddr_storage *ss, size_t ss_len) {
+void Target::setSourceSockAddr(const struct sockaddr_storage *ss, size_t ss_len) {
   assert(ss_len > 0 && ss_len <= sizeof(*ss));
   memcpy(&sourcesock, ss, ss_len);
   sourcesocklen = ss_len;
+  GenerateSourceIPString();
 }
 
 // Returns IPv4 host address or {0} if unavailable.
@@ -285,6 +332,14 @@ const struct in_addr *Target::v4sourceip() const {
   return NULL;
 }
 
+// Returns IPv6 host address or NULL if unavailable.
+const struct in6_addr *Target::v6sourceip() const {
+  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &sourcesock;
+  if (sin6->sin6_family == AF_INET6) {
+    return &(sin6->sin6_addr);
+  }
+  return NULL;
+}
 
   /* You can set to NULL to erase a name or if it failed to resolve -- or 
      just don't call this if it fails to resolve */

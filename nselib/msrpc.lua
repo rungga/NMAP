@@ -309,7 +309,7 @@ function call_function(smbstate, opnum, arguments)
 				0x00,        -- Packet type (0x00 = request)
 				0x03,        -- Packet flags (0x03 = first frag + last frag)
 				0x10000000,  -- Data representation (big endian)
-				0x18 + string.len(arguments), -- Frag length (0x18 = the size of this data)
+				0x18 + #arguments, -- Frag length (0x18 = the size of this data)
 				0x0000,      -- Auth length
 				0x41414141,  -- Call ID (I use 'AAAA' because it's easy to recognize)
 				0x00000038,  -- Alloc hint
@@ -318,7 +318,7 @@ function call_function(smbstate, opnum, arguments)
 				arguments
 			)
 
-	stdnse.print_debug(3, "MSRPC: Calling function 0x%02x with %d bytes of arguments", string.len(arguments), opnum)
+	stdnse.print_debug(3, "MSRPC: Calling function 0x%02x with %d bytes of arguments", #arguments, opnum)
 
 	-- Pass the information up to the smb layer
 	status, result = smb.write_file(smbstate, data, 0)
@@ -391,65 +391,92 @@ function call_function(smbstate, opnum, arguments)
 
 	result['arguments'] = arguments
 
-	stdnse.print_debug(3, "MSRPC: Function call successful, %d bytes of returned argumenst", string.len(result['arguments']))
+	stdnse.print_debug(3, "MSRPC: Function call successful, %d bytes of returned argumenst", #result['arguments'])
 
 	return true, result
 end
 
 ---LANMAN API calls use different conventions than everything else, so make a separate function for them. 
-function call_lanmanapi(smbstate, opnum, server_type)
+function call_lanmanapi(smbstate, opnum, paramdesc, datadesc, data)
 	local status, result
 	local parameters = ""
-	local data
-	local convert, entry_count, available_entries
-	local entries = {}
 	local pos
 
-	parameters = bin.pack("<SzzSSI", 
+	parameters = bin.pack("<SzzA", 
 							opnum, 
-							"WrLehDO",  -- Parameter Descriptor
-							"B16",      -- Return Descriptor
-							0,          -- Detail level
-							14724,      -- Return buffer size
-							server_type -- Server type
+							paramdesc,  -- Parameter Descriptor
+							datadesc,      -- Return Descriptor
+							data
 						)
 
 	stdnse.print_debug(1, "MSRPC: Sending Browser Service request")
 	status, result = smb.send_transaction_named_pipe(smbstate, parameters, nil, "\\PIPE\\LANMAN", true)
+	
 	if(not(status)) then
 		return false, "Couldn't call LANMAN API: " .. result
 	end
 
-	parameters = result.parameters
-	data       = result.data
+	return true, result
+end
+
+--- Queries the (master) browser service for a list of server that it manages
+--
+-- @param smbstate  The SMB state table (after <code>bind</code> has been called). 
+-- @param domain (optional) string containing the domain name to query
+-- @param server_type number containing a server bit mask to use to filter responses
+-- @param detail_level number containing either 0 or 1 
+function rap_netserverenum2(smbstate, domain, server_type, detail_level)
+
+	local NETSERVERENUM2 = 0x0068
+	local paramdesc = (domain and "WrLehDz" or "WrLehDO")
+	assert( detail_level > 0 and detail_level < 2, "detail_level must be either 0 or 1")
+	local datadesc = ( detail_level == 0 and "B16" or "B16BBDz")
+	local data = bin.pack("<SSIA", detail_level,
+							14724, 
+							server_type,
+							(domain or "")
+						)
+
+	local status, result = call_lanmanapi(smbstate, NETSERVERENUM2, paramdesc, datadesc, data )
+
+	if ( not(status) ) then
+		return false, "MSRPC: NetServerEnum2 call failed"
+	end
+	
+	local parameters = result.parameters
+	local data = result.data
 
 	stdnse.print_debug(1, "MSRPC: Parsing Browser Service response")
-	pos, status, convert, entry_count, available_entries = bin.unpack("<SSSS", parameters)
+	local pos, status, convert, entry_count, available_entries = bin.unpack("<SSSS", parameters)
+
 	if(status ~= 0) then
 		return false, string.format("Call to Browser Service failed with status = %d", status)
 	end
 
 	stdnse.print_debug(1, "MSRPC: Browser service returned %d entries", entry_count)
-
+	
+	
 	local pos = 1
-	local entry
+	local entries = {}
+	
 	for i = 1, entry_count, 1 do
-		-- Read the string
-		pos, entry = bin.unpack("<z", data, pos)
-		stdnse.print_debug(1, "MSRPC: Found name: %s", entry)
+		local server = {}
+
+		pos, server.name = bin.unpack("<z", data, pos)
+		stdnse.print_debug(1, "MSRPC: Found name: %s", server.name)
 
 		-- pos needs to be rounded to the next even multiple of 16
-		while(((pos - 1) % 16) ~= 0) do
-			pos = pos + 1
-		end
+		pos = pos + ( 16 - (#server.name % 16) ) - 1
 
-		-- Make sure we didn't hit the end of the packet
-		if(not(entry)) then
-			return false, "Call to browser service didn't receive enough data"
-		end
+		if ( detail_level > 0 ) then
+			local comment_offset, _
+			server.version = {}
+			pos, server.version.major, server.version.minor, 
+				server.type, comment_offset, _ = bin.unpack("<CCISS", data, pos)
 
-		-- Insert the result
-		table.insert(entries, entry)
+			_, server.comment = bin.unpack("<z", data, (comment_offset - convert + 1))
+		end
+		table.insert(entries, server)
 	end
 
 	return true, entries
@@ -1554,6 +1581,29 @@ function samr_openalias(smbstate, domain_handle, rid)
 		return false, smb.get_status_name(result['return']) .. " (samr.openalias)"
 	end
 	
+	return true, result
+end
+
+---Call the <code>GetAliasMembership</code> function. 
+--Sends the "raw" data, without marshaling. 
+-- 
+--@param smbstate       The SMB state table
+--@param alias_handle   The alias_handle, already marshaled
+--@param args			Actuall data to send, already marshaled
+--@return (status, result) If status is false, result is an error message. Otherwise, result is a table of values. 
+function samr_getaliasmembership(smbstate, alias_handle,args)
+	local status, result
+	local arguments
+
+	arguments = ''
+
+	arguments = arguments .. alias_handle .. args
+	-- Do the call
+	status, result = call_function(smbstate, 0x10, arguments)
+	if(status ~= true) then
+		return false, result
+	end
+
 	return true, result
 end
 
@@ -4462,7 +4512,7 @@ RRAS_Opnums["RasRpcGetVersion"] = 15
 function RRAS_SubmitRequest(smbstate, pReqBuffer, dwcbBufSize)
 	--sanity check
 	if(dwcbBufSize == nil) then
-		dwcbBufSize = string.len(pReqBuffer)
+		dwcbBufSize = #pReqBuffer
 	end
 	--pack the request
 	local req_blob
@@ -4581,9 +4631,9 @@ function DNSSERVER_Query(smbstate, server_name, zone, operation)
 	srv_name_utf16 = msrpctypes.string_to_unicode(server_name, true)
 	req_blob = bin.pack("<IIIIAA",
 		unique_ptr,
-		string.len(srv_name_utf16)/2,
+		#srv_name_utf16/2,
 		0,
-		string.len(srv_name_utf16)/2,
+		#srv_name_utf16/2,
 		srv_name_utf16,
 		get_pad(srv_name_utf16, 4))
 	--[in, unique, string] LPCSTR pszZone,
@@ -4593,9 +4643,9 @@ function DNSSERVER_Query(smbstate, server_name, zone, operation)
 		zone_ascii = zone .. string.char(0x00)
 		req_blob = req_blob .. bin.pack("<IIIIAA",
 			unique_ptr + 1,
-			string.len(zone_ascii),
+			#zone_ascii,
 			0,
-			string.len(zone_ascii),
+			#zone_ascii,
 			zone_ascii,
 			get_pad(zone_ascii, 4))
 	end
@@ -4603,9 +4653,9 @@ function DNSSERVER_Query(smbstate, server_name, zone, operation)
   	operation_ascii = operation .. string.char(0x00)
 	req_blob = req_blob .. bin.pack("<IIIIAA",
 		unique_ptr+2,
-		string.len(operation_ascii),
+		#operation_ascii,
 		0,
-		string.len(operation_ascii),
+		#operation_ascii,
 		operation_ascii,
 		get_pad(operation_ascii, 4))
 
@@ -4652,7 +4702,7 @@ end
 --####################################################################--
 function get_pad(data, align, pad_byte)
 	pad_byte = pad_byte or "\00"
-	return string.rep(pad_byte, (align-string.len(data)%align)%align)
+	return string.rep(pad_byte, (align-#data%align)%align)
 end
 
 --####################################################################--

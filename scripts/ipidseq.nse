@@ -30,8 +30,12 @@ categories = {"safe", "discovery"}
 
 require 'bin'
 require 'packet'
+require 'nmap'
+require 'stdnse'
 
 local NUMPROBES = 6
+
+local ipidseqport
 
 --- Pcap check function
 -- @return Destination and source IP addresses and TCP ports
@@ -173,39 +177,25 @@ local getport = function(host)
 	return port.number
 end
 
---- Sets probe port number in registry
--- @param host Host object
--- @param port Port number
-local setreg = function(host, port)
-	if not nmap.registry[host.ip] then
-		nmap.registry[host.ip] = {}
-	end
-	nmap.registry[host.ip]['ipidseqprobe'] = port
-end
-
 hostrule = function(host)
 	if not nmap.is_privileged() then
-		if not nmap.registry['ipidseq'] then
-			nmap.registry['ipidseq'] = {}
+		nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
+		if not nmap.registry[SCRIPT_NAME].rootfail then
+			stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
 		end
-		if nmap.registry['ipidseq']['rootfail'] then
-			return false
-		end
-		nmap.registry['ipidseq']['rootfail'] = true
-		if nmap.verbosity() > 0 then
-			nmap.log_write("stdout", "IPIDSEQ: not running for lack of privileges")
-		end
+		nmap.registry[SCRIPT_NAME].rootfail = true
+		return nil
+	end
+
+	if nmap.address_family() ~= 'inet' then
+		stdnse.print_debug("%s is IPv4 compatible only.", SCRIPT_NAME)
 		return false
 	end
 	if not host.interface then
 		return false
 	end
-	local port = getport(host)
-	if not port then
-		return false
-	end
-	setreg(host, port)
-	return true
+	ipidseqport = getport(host)
+	return (ipidseqport ~= nil)
 end
 
 action = function(host)
@@ -213,7 +203,6 @@ action = function(host)
 	local ipids = {}
 	local sock = nmap.new_dnet()
 	local pcap = nmap.new_socket()
-	local port = nmap.registry[host.ip]['ipidseqprobe']
 	local saddr = packet.toip(host.bin_ip_src)
 	local daddr = packet.toip(host.bin_ip)
 	local try = nmap.new_try()
@@ -222,11 +211,11 @@ action = function(host)
 
 	try = nmap.new_try(function() sock:ip_close() end)
 
-	pcap:pcap_open(host.interface, 104, false, "tcp and dst host " .. saddr .. " and src host " .. daddr .. " and src port " .. port)
+	pcap:pcap_open(host.interface, 104, false, "tcp and dst host " .. saddr .. " and src host " .. daddr .. " and src port " .. ipidseqport)
 
 	pcap:set_timeout(host.times.timeout * 1000)
 
-	local tcp = genericpkt(host, port)
+	local tcp = genericpkt(host, ipidseqport)
 
 	while i <= NUMPROBES do
 		try(sock:ip_send(tcp.buf))
@@ -252,7 +241,7 @@ action = function(host)
 	local output = ipidseqclass(ipids)
 
 	if nmap.debugging() > 0 then
-		output = output .. " [used port " .. port .. "]"
+		output = output .. " [used port " .. ipidseqport .. "]"
 	end
 
 	return output

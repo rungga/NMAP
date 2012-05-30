@@ -49,7 +49,7 @@ sub ncat {
 sub ncat_server {
 	my @ret = ncat($HOST, $PORT, "-l", @_);
 	# Give it a moment to start up.
-	select(undef, undef, undef, 0.1);
+	select(undef, undef, undef, 0.3);
 	return @ret;
 }
 
@@ -384,12 +384,41 @@ $SIG{CHLD} = "IGNORE";
 # Individual tests begin here.
 
 # Test server with no hostname or port.
-($s_pid, $s_out, $s_in) = ncat("-l");
+($s_pid, $s_out, $s_in) = ncat("-lk");
 test "Server default listen address and port",
 sub {
 	my $resp;
 
 	my ($c_pid, $c_out, $c_in) = ncat($HOST);
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+
+	my ($c_pid2, $c_out2, $c_in2) = ncat("-6",$IPV6_ADDR);
+	syswrite($c_in2, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat("-4", "-lk");
+test "Server -4 default listen address and port",
+sub {
+	my $resp;
+
+	my ($c_pid, $c_out, $c_in) = ncat($HOST);
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat("-6", "-lk");
+test "Server -6 default listen address and port",
+sub {
+	my $resp;
+
+	my ($c_pid, $c_out, $c_in) = ncat("-6", $IPV6_ADDR);
 	syswrite($c_in, "abc\n");
 	$resp = timeout_read($s_out);
 	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
@@ -419,6 +448,86 @@ sub {
 	syswrite($c_in, "abc\n");
 	$resp = timeout_read($s_out);
 	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
+# Test server with UDP.
+($s_pid, $s_out, $s_in) = ncat("-l", "--udp");
+test "Server default listen address --udp IPV4",
+sub {
+	my $resp;
+
+	my ($c_pid, $c_out, $c_in) = ncat("localhost", "--udp");
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from localhost";
+
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat("-l", "--udp");
+test "Server default listen address --udp IPV6",
+sub {
+	my $resp;
+
+    my ($c_pid1, $c_out1, $c_in1) = ncat("::1", "--udp");
+	syswrite($c_in1, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from ::1";
+};
+kill_children;
+
+{
+local $xfail = 1;
+($s_pid, $s_out, $s_in) = ncat("-l", "--udp");
+test "Server default listen address --udp IPV4 + IPV6",
+sub {
+	my $resp;
+
+    my ($c_pid, $c_out, $c_in) = ncat("localhost", "--udp");
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from localhost";
+
+    my ($c_pid1, $c_out1, $c_in1) = ncat("::1", "--udp");
+	syswrite($c_in1, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from ::1";
+};
+kill_children;
+};
+
+($s_pid, $s_out, $s_in) = ncat("-l", "-6", "--udp");
+test "Server default listen address -6 --udp",
+sub {
+	my $resp;
+
+	my ($c_pid, $c_out, $c_in) = ncat("localhost", "--udp");
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	!$resp or die "Server got \"$resp\", not \"\" from localhost";
+
+    my ($c_pid1, $c_out1, $c_in1) = ncat("::1", "--udp");
+	syswrite($c_in1, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from ::1";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat("-l", "-4", "--udp");
+test "Server default listen address -4 --udp",
+sub {
+	my $resp;
+
+	my ($c_pid, $c_out, $c_in) = ncat("localhost", "--udp");
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from localhost";
+
+    my ($c_pid1, $c_out1, $c_in1) = ncat("::1", "--udp");
+	syswrite($c_in1, "abc\n");
+	$resp = timeout_read($s_out);
+	!$resp or die "Server got \"$resp\", not \"\" from ::1";
 };
 kill_children;
 
@@ -581,10 +690,11 @@ server_client_test_tcp_sctp_ssl "Server sends EOF after client disconnect",
 };
 kill_children;
 
-# Test that connections default to non-persistent without --keep-open.
+# Tests to check that server defaults to non-persistent without --keep-open.
 
+# Server immediately quits after the first connection closed without --keep-open
 ($s_pid, $s_out, $s_in) = ncat_server();
-test "Server accepts only one connection without --keep-open",
+test "Server quits without --keep-open",
 sub {
 	my $resp;
 
@@ -601,8 +711,9 @@ sub {
 };
 kill_children;
 
+# Server with --exec immediately quits after the first connection closed without --keep-open
 ($s_pid, $s_out, $s_in) = ncat_server("--exec", "/bin/cat");
-test "Server with --exec accepts only one connection without --keep-open",
+test "Server with --exec quits without --keep-open",
 sub {
 	my $resp;
 
@@ -618,7 +729,45 @@ sub {
 };
 kill_children;
 
-# Test connection persistence with --keep-open.
+# Server immediately quits after the first connection ssl negotiation fails without --keep-open
+{
+($s_pid, $s_out, $s_in) = ncat_server("--ssl");
+test "Server quits after a failed ssl negotiation without --keep-open",
+sub {
+	my $resp;
+
+	# Let's sleep for one second here, since in some cases the server might not
+	# get the chance to start listening before the client tries to connect.
+	sleep 1;
+
+	my ($c_pid, $c_out, $c_in) = ncat_client();
+	syswrite($c_in, "abc\n");
+
+	kill "TERM", $c_pid;
+	while (waitpid($c_pid, 0) > 0) {
+	}
+	sleep 1;
+	# -1 because children are automatically reaped; 0 means it's still running.
+	waitpid($s_pid, WNOHANG) == -1 or die "Server still running";
+};
+kill_children;
+}
+
+# Server does not accept multiple connections without --keep-open
+($s_pid, $s_out, $s_in) = ncat_server();
+test "Server does not accept multiple conns. without --keep-open",
+sub {
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client();
+
+    sleep 1;
+
+	waitpid($c2_pid, WNOHANG) == -1 or die "A second client could connect to the server";
+
+};
+kill_children;
+
+# Test server persistence with --keep-open.
 
 ($s_pid, $s_out, $s_in) = ncat_server("--keep-open");
 test "--keep-open",
@@ -892,6 +1041,98 @@ sub {
 };
 kill_children;
 
+#Broker Tests
+($s_pid, $s_out, $s_in) = ncat_server("--broker");
+test "--broker mode (tcp)",
+sub {
+    my $resp;
+
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client();
+
+    syswrite($c2_in, "abc\n");
+    $resp = timeout_read($c1_out);
+    $resp eq "abc\n" or die "Client 1 received \"$resp\", not abc";
+
+    syswrite($c1_in, "abc\n");
+    $resp = timeout_read($c2_out);
+    $resp eq "abc\n" or die "Client 2 received \"$resp\", not abc";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--broker", "--sctp");
+test "--broker mode (sctp)",
+sub {
+    my $resp;
+
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client("--sctp");
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client("--sctp");
+
+    syswrite($c2_in, "abc\n");
+    $resp = timeout_read($c1_out);
+    $resp eq "abc\n" or die "Client 1 received \"$resp\", not abc";
+
+    syswrite($c1_in, "abc\n");
+    $resp = timeout_read($c2_out);
+    $resp eq "abc\n" or die "Client 2 received \"$resp\", not abc";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--broker", "--ssl");
+test "--broker mode (tcp ssl)",
+sub {
+    my $resp;
+
+    my ($c1_pid, $c1_out, $c1_in) = ncat_client("--ssl");
+    my ($c2_pid, $c2_out, $c2_in) = ncat_client("--ssl");
+
+    syswrite($c2_in, "abc\n");
+    $resp = timeout_read($c1_out);
+    $resp eq "abc\n" or die "Client 1 received \"$resp\", not abc";
+
+    syswrite($c1_in, "abc\n");
+    $resp = timeout_read($c2_out);
+    $resp eq "abc\n" or die "Client 2 received \"$resp\", not abc";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--broker", "--sctp", "--ssl");
+test "--broker mode (sctp ssl)",
+sub {
+    my $resp;
+
+    my ($c1_pid, $c1_out, $c1_in) = ncat_client("--sctp", "--ssl");
+    my ($c2_pid, $c2_out, $c2_in) = ncat_client("--sctp", "--ssl");
+
+    syswrite($c2_in, "abc\n");
+    $resp = timeout_read($c1_out);
+    $resp eq "abc\n" or die "Client 1 received \"$resp\", not abc";
+
+    syswrite($c1_in, "abc\n");
+    $resp = timeout_read($c2_out);
+    $resp eq "abc\n" or die "Client 2 received \"$resp\", not abc";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat("--broker");
+test "IPV4 and IPV6 clients can talk to each other in broker mode",
+sub {
+	my $resp;
+    sleep 1;
+	my ($c1_pid, $c1_out, $c1_in) = ncat("-6","::1");
+	my ($c2_pid, $c2_out, $c2_in) = ncat("localhost");
+
+    syswrite($c2_in, "abc\n");
+	$resp = timeout_read($c1_out, 2);
+	$resp eq "abc\n" or die "IPV6 Client received \"$resp\", not abc";
+    
+	syswrite($c1_in, "abc\n");
+	$resp = timeout_read($c2_out, 2);
+	$resp eq "abc\n" or die "IPV4 Client received \"$resp\", not abc";
+};
+kill_children;
+
+
 # Source address tests.
 
 test "Connect with -p",
@@ -930,7 +1171,7 @@ sub {
 
 	accept(S, SOCK) or die;
 	my ($port, $addr) = sockaddr_in(getpeername(S));
-	$port == 1234 or die "Client connected to prosy with source port $port, not 1234";
+	$port == 1234 or die "Client connected to proxy with source port $port, not 1234";
 };
 kill_children;
 
@@ -1204,6 +1445,40 @@ Proxy-Authenticate: Digest realm=\"$realm\", nonce=\"$nonce\", opaque=\"abcd\"\r
 		return 1;
 	}
 	die "No Proxy-Authorization: Digest in client request";
+};
+
+# This violates RFC 2617 section 1.2, which requires at least one auth-param.
+# But NTLM and Negotiate don't use any.
+server_client_test "HTTP proxy client handles scheme without auth-params",
+["-k"], ["--proxy", "$HOST:$PORT", "--proxy-auth", "user:pass", "--proxy-type", "http"],
+sub {
+	my $nonce = "0123456789abcdef";
+	my $realm = "realm";
+	my $req = timeout_read($s_out);
+	$req or die "No initial request from client";
+	syswrite($s_in, "HTTP/1.0 407 Authentication Required\r\
+Proxy-Authenticate: Basic realm=\"$realm\"\r\
+Proxy-Authenticate: NTLM\r\
+Proxy-Authenticate: Digest realm=\"$realm\", nonce=\"$nonce\", qop=\"auth\"\r\n\r\n");
+	$req = timeout_read($s_out);
+	$req or die "No followup request from client";
+	$req = HTTP::Request->parse($req);
+	$req->header("Proxy-Authorization") or die "Client didn't sent Proxy-Authorization";
+};
+
+server_client_test "HTTP proxy client handles scheme without auth-params, comma-separated",
+["-k"], ["--proxy", "$HOST:$PORT", "--proxy-auth", "user:pass", "--proxy-type", "http"],
+sub {
+	my $nonce = "0123456789abcdef";
+	my $realm = "realm";
+	my $req = timeout_read($s_out);
+	$req or die "No initial request from client";
+	syswrite($s_in, "HTTP/1.0 407 Authentication Required\r\
+Proxy-Authenticate: Basic realm=\"$realm\", NTLM, Digest realm=\"$realm\", nonce=\"$nonce\", qop=\"auth\"\r\n\r\n");
+	$req = timeout_read($s_out);
+	$req or die "No followup request from client";
+	$req = HTTP::Request->parse($req);
+	$req->header("Proxy-Authorization") or die "Client didn't sent Proxy-Authorization";
 };
 
 # Check that the proxy relays in both directions.
@@ -1919,7 +2194,7 @@ server_client_test "SSL server relays",
 };
 
 # Test that an SSL server gracefully handles non-SSL connections.
-($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem");
+($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem", "--keep-open");
 test "SSL server handles non-SSL connections",
 sub {
 	my $resp;
@@ -1939,7 +2214,6 @@ sub {
 kill_children;
 
 {
-local $xfail = 1;
 ($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem");
 test "SSL server doesn't block during handshake",
 sub {
@@ -1947,12 +2221,45 @@ sub {
 
 	# Connect without SSL so the handshake isn't completed.
 	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
-	syswrite($c1_in, "abc\n");
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client("--ssl");
+	syswrite($c2_in, "abc\n");
+	$resp = timeout_read($s_out);
+	!$resp or die "Server is still accepting connections.";
+};
+kill_children;
+}
+
+{
+($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem",  "--keep-open");
+test "SSL server doesn't block during handshake(--keep-open)",
+sub {
+	my $resp;
+
+	# Connect without SSL so the handshake isn't completed.
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
 
 	my ($c2_pid, $c2_out, $c2_in) = ncat_client("--ssl");
 	syswrite($c2_in, "abc\n");
 	$resp = timeout_read($s_out);
 	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+}
+{
+($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--exec","/usr/bin/perl -e \$|=1;while(<>){tr/a-z/A-Z/;print}", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem", "--keep-open");
+test "SSL --exec server doesn't block during handshake",
+sub {
+	my $resp;
+
+	# Connect without SSL so the handshake isn't completed.
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client("--ssl");
+	syswrite($c2_in, "abc\n");
+
+	$resp = timeout_read($c2_out);
+	$resp eq "ABC\n" or die "Client2 got \"$resp\", not \"ABC\\n\"";
 };
 kill_children;
 }
@@ -1997,6 +2304,71 @@ sub {
 kill_children;
 
 # Test --max-conns.
+($s_pid, $s_out, $s_in) = ncat_server("--keep-open", "--max-conns", "1");
+test "--keep-open server keeps connection count properly.",
+sub {
+	my $resp;
+
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+	kill "TERM", $c1_pid;
+	waitpid $c1_pid, 0;
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client();
+	syswrite($c2_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--broker", "--max-conns", "1");
+test "--broker server keeps connection count properly.",
+sub {
+	my $resp;
+
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+	kill "TERM", $c1_pid;
+	waitpid $c1_pid, 0;
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client();
+	syswrite($s_in, "abc\n");
+	$resp = timeout_read($c2_out);
+	$resp eq "abc\n" or die "Second client got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem", "--keep-open", "--max-conns", "1");
+test "SSL --keep-open server keeps connection count properly.",
+sub {
+	my $resp;
+
+	my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+	kill "TERM", $c1_pid;
+	waitpid $c1_pid, 0;
+
+	my ($c2_pid, $c2_out, $c2_in) = ncat_client("--ssl");
+	syswrite($c2_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
+($s_pid, $s_out, $s_in) = ncat_server("--ssl", "--ssl-key", "test-cert.pem", "--ssl-cert", "test-cert.pem", "--broker", "--max-conns", "1");
+test "SSL --broker server keeps connection count properly.",
+sub {
+    my $resp;
+
+    my ($c1_pid, $c1_out, $c1_in) = ncat_client();
+    syswrite($c1_in, "abc\n");
+    kill "TERM", $c1_pid;
+    waitpid $c1_pid, 0;
+
+    my ($c2_pid, $c2_out, $c2_in) = ncat_client("--ssl");
+    syswrite($s_in, "abc\n");
+    $resp = timeout_read($c2_out);
+    $resp eq "abc\n" or die "Second client got \"$resp\", not \"abc\\n\"";
+};
+kill_children;
+
 for my $count (0, 1, 10) {
 	max_conns_test_tcp_sctp_ssl("--max-conns $count --keep-open", ["--keep-open"], [], $count);
 }

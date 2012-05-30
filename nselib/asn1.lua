@@ -36,6 +36,16 @@ ASN1Decoder = {
             self.__index = self
             return o
     end,
+
+	--- Tells the decoder to stop if it detects an error while decoding
+	-- this should probably be the default, but some scripts depend on being
+	-- able to decode stuff while lacking proper ASN1 decoding functions.
+	--
+	-- @param val boolean, true if decoding should stop on error,
+	--        otherwise false (default)
+	setStopOnError = function(self, val)
+		self.stoponerror = val
+	end,
 		
 	--- Registers the base simple type decoders
 	-- 
@@ -150,6 +160,7 @@ ASN1Decoder = {
 	   while (sPos < len) do
 	      local newSeq
 	      sPos, newSeq = self:decode(sStr, sPos)
+          if ( not(newSeq) and self.stoponerror ) then break end
 	      table.insert(seq, newSeq)
 	   end
 	   return pos, seq
@@ -270,9 +281,11 @@ ASN1Encoder = {
     end,
 
 	---
-	-- Encodes an ASN1 sequence
+	-- Encodes an ASN1 sequence, the value of 30 below breaks down as
+	-- 0x30  = 00110000 =  00          1                   10000
+	-- hex       binary    Universal   Constructed value   Data Type = SEQUENCE (16)  
 	encodeSeq = function(self, seqData)
-		return bin.pack('HAA' , '30', self.encodeLength(string.len(seqData)), seqData)
+		return bin.pack('HAA' , '30', self.encodeLength(#seqData), seqData)
 	end,
 
 	---
@@ -318,13 +331,13 @@ ASN1Encoder = {
 		-- Integer encoder
 		self.encoder['number'] = function( self, val )
 			local ival = self.encodeInt(val)
-	  		local len = self.encodeLength(string.len(ival))
+	  		local len = self.encodeLength(#ival)
 	  		return bin.pack('HAA', '02', len, ival)
 		end
 
 		-- Octet String encoder
 		self.encoder['string'] = function( self, val )
-			local len = self.encodeLength(string.len(val))
+			local len = self.encodeLength(#val)
 			return bin.pack('HAA', '04', len, val)
 		end
 

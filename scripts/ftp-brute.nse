@@ -1,5 +1,5 @@
 description = [[
-Tries to get FTP login credentials by guessing usernames and passwords.
+Performs brute force password auditing against FTP servers.
 
 This uses the standard unpwdb username/password list. However, in tests FTP servers are 
 significantly slower than other servers when responding, so the number of usernames/passwords
@@ -28,7 +28,7 @@ author = "Diman Todorov, Vlatko Kosturjak, Ron Bowes"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
-categories = {"auth", "intrusive"}
+categories = {"brute", "intrusive"}
 
 require "shortport"
 require "stdnse"

@@ -3,7 +3,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -13,11 +13,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -31,19 +32,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -67,15 +69,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -88,6 +91,7 @@
 
 /*
  * Written by Eddie Bell <ejlbell@gmail.com> 2007
+ * Modified by Colin Rice <dah4k0r@gmail.com> 2011
  */
 
 #ifndef REASON_H
@@ -102,17 +106,29 @@
 #endif
 
 #include <sys/types.h>
-
+#include <map>
 class Target;
 class PortList;
 
 typedef unsigned short reason_t;
 
+/* Holds various string outputs of a reason  *
+ * Stored inside a map which maps enum_codes *
+ * to reason_strings				     */
+class reason_string {
+public:
+    //Required for map
+    reason_string();
+    reason_string(const char * singular, const char * plural);
+    const char * singular;
+    const char * plural;
+};
+
 /* stored inside a Port Object and describes
  * why a port is in a specific state */
 typedef struct port_reason {
 	reason_t reason_id;
-	struct in_addr ip_addr;
+	struct sockaddr_storage ip_addr;
 	unsigned short ttl;
 } state_reason_t;
 
@@ -124,31 +140,42 @@ typedef struct port_reason_summary {
 	struct port_reason_summary *next;
 } state_reason_summary_t;
 
-/* portreasons.h:reason_codes and portreasons.cc:reason_str must stay in sync */
+
 enum reason_codes {
-	ER_RESETPEER=0, ER_CONREFUSED, ER_CONACCEPT, 
-	ER_SYNACK, ER_SYN, ER_UDPRESPONSE, ER_PROTORESPONSE, ER_ACCES, /* 8 */
+	ER_RESETPEER, ER_CONREFUSED, ER_CONACCEPT, 
+	ER_SYNACK, ER_SYN, ER_UDPRESPONSE, ER_PROTORESPONSE, ER_ACCES, 
 
 	ER_NETUNREACH, ER_HOSTUNREACH, ER_PROTOUNREACH,
-	ER_PORTUNREACH, ER_ECHOREPLY,  /* 12 */
+	ER_PORTUNREACH, ER_ECHOREPLY, 
 
-	ER_DESTUNREACH=14, ER_SOURCEQUENCH, ER_NETPROHIBITED,
-	ER_HOSTPROHIBITED, ER_ADMINPROHIBITED=20,
-	ER_TIMEEXCEEDED=22, ER_TIMESTAMPREPLY=25,
+	ER_DESTUNREACH, ER_SOURCEQUENCH, ER_NETPROHIBITED,
+	ER_HOSTPROHIBITED, ER_ADMINPROHIBITED,
+	ER_TIMEEXCEEDED, ER_TIMESTAMPREPLY,
 
-	ER_ADDRESSMASKREPLY=30, ER_NOIPIDCHANGE, ER_IPIDCHANGE,
-	ER_ARPRESPONSE, ER_TCPRESPONSE, ER_NORESPONSE,
+	ER_ADDRESSMASKREPLY, ER_NOIPIDCHANGE, ER_IPIDCHANGE,
+	ER_ARPRESPONSE, ER_NDRESPONSE, ER_TCPRESPONSE, ER_NORESPONSE,
 	ER_INITACK, ER_ABORT,
-	ER_LOCALHOST, ER_SCRIPT, ER_UNKNOWN, ER_USER, ER_MAX=ER_USER   /* 42 */
+	ER_LOCALHOST, ER_SCRIPT, ER_UNKNOWN, ER_USER,
+	ER_NOROUTE, ER_BEYONDSCOPE, ER_REJECTROUTE, ER_PARAMPROBLEM,
 };
 
-/* Be careful to update these values if any ICMP
- * ER_* definitions are modified.
- *
- * ICMP ER_* codes are calculated by adding the 
- * offsets below to an ICMP packets code/type value */
-#define ER_ICMPCODE_MOD 8  
-#define ER_ICMPTYPE_MOD 12  
+/* A map of reason_codes to plural and singular *
+ * versions of the error string                 */
+class reason_map_type{
+private:
+    std::map<reason_codes,reason_string > reason_map;
+public:
+    reason_map_type();
+    std::map<reason_codes,reason_string>::iterator find(const reason_codes& x){
+        std::map<reason_codes,reason_string>::iterator itr = reason_map.find(x);
+        if(itr == reason_map.end())
+            return reason_map.find(ER_UNKNOWN);
+        return itr;
+    };
+};
+
+/* Function to translate ICMP code and typ to reason code */
+reason_codes icmp_to_reason(u8 proto, int icmp_type, int icmp_code);
 
 /* passed to the print_state_summary.
  * STATE_REASON_EMPTY will append to the current line, prefixed with " because of"
@@ -163,8 +190,8 @@ enum reason_codes {
 
 void state_reason_init(state_reason_t *reason);
 
-/* converts a reason_id to a string. number represents the 
- * amount ports in a given state. If there is more then one 
+/* converts a reason_id to a string. number represents the
+ * amount ports in a given state. If there is more then one
  * port the plural is used, otherwise the singular is used. */
 const char *reason_str(reason_t reason_id, unsigned int number);
 

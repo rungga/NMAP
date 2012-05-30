@@ -57,15 +57,8 @@ categories = {"safe", "discovery"}
 
 require "shortport"
 require "stdnse"
-if pcall(require,"openssl") then
-  require("ssh2")
-else
-  portrule = function() return false end
-  action = function() end
-  stdnse.print_debug( 3, "Skipping %s script because OpenSSL is missing.",
-      SCRIPT_NAME)
-  return;
-end
+stdnse.silent_require "openssl"
+stdnse.silent_require "ssh2"
 
 portrule = shortport.port_or_service(22, "ssh")
 
@@ -102,9 +95,12 @@ local output = function(parsed, lists)
 	for _, l in ipairs(lists) do
 		local v = parsed[l]
 		local a = v:len() > 0 and stdnse.strsplit(",", v) or {}
-		local e = { ["name"] = l .. " (" .. #a .. ")" }
+		local e
 		if nmap.verbosity() > 0 then
+			e = { ["name"] = l .. " (" .. #a .. ")" }
 			table.insert(e, a)
+		else
+			e = l .. " (" .. #a .. ")"
 		end
 		table.insert(out, e)
 	end

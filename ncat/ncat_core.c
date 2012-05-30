@@ -2,7 +2,7 @@
  * ncat_core.c -- Contains option defintions and miscellaneous functions.  *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -12,11 +12,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -30,19 +31,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -66,15 +68,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -85,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: ncat_core.c 28192 2012-03-01 06:53:35Z fyodor $ */
 
 #include "ncat.h"
 #include "util.h"
@@ -107,8 +110,13 @@
 #include <time.h>
 #include <assert.h>
 
+/* Only two for now because we might have to listen on IPV4 and IPV6 */
+union sockaddr_u listenaddrs[NUM_LISTEN_ADDRS];
+int num_listenaddrs = 0;
+
 union sockaddr_u srcaddr;
 size_t srcaddrlen;
+
 union sockaddr_u targetss;
 size_t targetsslen;
 
@@ -126,7 +134,7 @@ void options_init(void) {
     o.verbose = 0;
     o.debug = 0;
     o.target = NULL;
-    o.af = AF_INET;
+    o.af = AF_UNSPEC;
     o.broker = 0;
     o.listen = 0;
     o.keepopen = 0;
@@ -138,8 +146,11 @@ void options_init(void) {
     o.linedelay = 0;
     o.chat = 0;
     o.nodns = 0;
+    o.normlog = NULL;
+    o.hexlog = NULL;
     o.normlogfd = -1;
     o.hexlogfd = -1;
+    o.append = 0;
     o.idletimeout = 0;
     o.crlf = 0;
     o.allow = 0;
@@ -174,32 +185,32 @@ void options_init(void) {
 int resolve(char *hostname, unsigned short port,
             struct sockaddr_storage *ss, size_t *sslen, int af)
 {
-  struct addrinfo hints;
-  struct addrinfo *result;
-  char portbuf[16];
-  int rc;
+    struct addrinfo hints;
+    struct addrinfo *result;
+    char portbuf[16];
+    int rc;
 
-  assert(ss);
-  assert(sslen);
+    assert(ss);
+    assert(sslen);
 
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = af;
-  hints.ai_socktype = SOCK_DGRAM;
-  if (o.nodns)
-     hints.ai_flags |= AI_NUMERICHOST;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = af;
+    hints.ai_socktype = SOCK_DGRAM;
+    if (o.nodns)
+        hints.ai_flags |= AI_NUMERICHOST;
 
-  /* Make the port number a string to give to getaddrinfo. */
-  rc = Snprintf(portbuf, sizeof(portbuf), "%hu", port);
-  assert(rc >= 0 && rc < sizeof(portbuf));
+    /* Make the port number a string to give to getaddrinfo. */
+    rc = Snprintf(portbuf, sizeof(portbuf), "%hu", port);
+    assert(rc >= 0 && rc < sizeof(portbuf));
 
-  rc = getaddrinfo(hostname, portbuf, &hints, &result);
-  if (rc != 0 || result == NULL)
-      return 0;
-  assert(result->ai_addrlen > 0 && result->ai_addrlen <= (int) sizeof(struct sockaddr_storage));
-  *sslen = result->ai_addrlen;
-  memcpy(ss, result->ai_addr, *sslen);
-  freeaddrinfo(result);
-  return 1;
+    rc = getaddrinfo(hostname, portbuf, &hints, &result);
+    if (rc != 0 || result == NULL)
+        return 0;
+    assert(result->ai_addrlen > 0 && result->ai_addrlen <= (int) sizeof(struct sockaddr_storage));
+    *sslen = result->ai_addrlen;
+    memcpy(ss, result->ai_addr, *sslen);
+    freeaddrinfo(result);
+    return 1;
 }
 
 int fdinfo_close(struct fdinfo *fdn)
@@ -253,7 +264,7 @@ int ncat_recv(struct fdinfo *fdn, char *buf, size_t size, int *pending)
     n = fdinfo_recv(fdn, buf, size);
 
     if (n <= 0)
-	return n;
+        return n;
 
     if (o.linedelay)
         ncat_delay_timer(o.linedelay);
@@ -274,7 +285,7 @@ int fdinfo_send(struct fdinfo *fdn, const char *buf, size_t size)
 {
 #ifdef HAVE_OPENSSL
     if (o.ssl && fdn->ssl != NULL)
-	return SSL_write(fdn->ssl, buf, size);
+        return SSL_write(fdn->ssl, buf, size);
 #endif
     return send(fdn->fd, buf, size, 0);
 }
@@ -288,7 +299,7 @@ int ncat_send(struct fdinfo *fdn, const char *buf, size_t size)
 
     n = fdinfo_send(fdn, buf, size);
     if (n <= 0)
-	return n;
+        return n;
 
     ncat_log_send(buf, size);
 
@@ -312,9 +323,9 @@ int ncat_broadcast(fd_set *fds, const fd_list_t *fdlist, const char *msg, size_t
 
         fdn = get_fdinfo(fdlist, i);
         if (fdinfo_send(fdn, msg, size) <= 0) {
-	    if (o.debug > 1)
-		logdebug("Error sending to fd %d: %s.\n", i, socket_strerror(socket_errno()));
-	    ret = -1;
+            if (o.debug > 1)
+                logdebug("Error sending to fd %d: %s.\n", i, socket_strerror(socket_errno()));
+            ret = -1;
         }
     }
 
@@ -371,9 +382,12 @@ int ncat_delay_timer(int delayval)
 
 /* Open a logfile for writing.
  * Return the open file descriptor. */
-int ncat_openlog(char *logfile)
+int ncat_openlog(const char *logfile, int append)
 {
-    return Open(logfile, O_WRONLY | O_CREAT | O_TRUNC, 0664);
+    if(append)
+        return Open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0664);
+    else
+        return Open(logfile, O_WRONLY | O_CREAT | O_TRUNC, 0664);
 }
 
 static int ncat_hexdump(int logfd, const char *data, int len);

@@ -67,18 +67,18 @@ determined with a fairly efficient bruteforce. For example, if the actual passwo
 --@output
 -- Host script results:
 -- |  smb-brute:
--- |  |  bad name:test => Login was successful
--- |  |  consoletest:test => Password was correct, but user can't log in without changing it
--- |  |  guest:<anything> => Password was correct, but user's account is disabled
--- |  |  mixcase:BuTTeRfLY1 => Login was successful
--- |  |  test:password1 => Login was successful
--- |  |  this:password => Login was successful
--- |  |  thisisaverylong:password => Login was successful
--- |  |  thisisaverylongname:password => Login was successful
--- |  |  thisisaverylongnamev:password => Login was successful
--- |_ |_ web:TeSt => Password was correct, but user's account is disabled
+-- |  |  bad name:test => Valid credentials
+-- |  |  consoletest:test => Valid credentials, password must be changed at next logon
+-- |  |  guest:<anything> => Valid credentials, account disabled
+-- |  |  mixcase:BuTTeRfLY1 => Valid credentials
+-- |  |  test:password1 => Valid credentials, account expired
+-- |  |  this:password => Valid credentials, account cannot log in at current time
+-- |  |  thisisaverylong:password => Valid credentials
+-- |  |  thisisaverylongname:password => Valid credentials
+-- |  |  thisisaverylongnamev:password => Valid credentials
+-- |_ |_ web:TeSt => Valid credentials, account disabled
 -- 
--- @args smblockout Unless this is set to <code>1</code> or <code>true</code>, the script won't continue if it 
+-- @args smblockout This argument will force the script to continue if it 
 --       locks out an account or thinks it will lock out an account. 
 -- @args brutelimit Limits the number of usernames checked in the script. In some domains, 
 --       it's possible to end up with 10,000+ usernames on each server. By default, this
@@ -96,7 +96,7 @@ determined with a fairly efficient bruteforce. For example, if the actual passwo
 author = "Ron Bowes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
-categories = {"intrusive", "auth"}
+categories = {"intrusive", "brute"}
 
 require 'msrpc'
 require 'smb'
@@ -115,40 +115,47 @@ end
 ---The possible result codes. These are simplified from the actual codes that SMB returns. 
 local results =
 {
-	SUCCESS            = 1, -- Login was successful
-	GUEST_ACCESS       = 2, -- Login was successful, but was granted guest access
-	NOT_GRANTED        = 3, -- Password was correct, but user wasn't allowed to log in (often happens with blank passwords)
-	DISABLED           = 4, -- Password was correct, but user's account is disabled
-	EXPIRED            = 5, -- Password was correct, but user's account is expired
-	CHANGE_PASSWORD    = 6, -- Password was correct, but user can't log in without changing it
-	ACCOUNT_LOCKED     = 7, -- User's account is locked out (hopefully not by us!)
-	ACCOUNT_LOCKED_NOW = 8, -- User's account just became locked out (oops!)
-	FAIL               = 9  -- User's password was incorrect
+	SUCCESS             =  1, -- Login was successful
+	GUEST_ACCESS        =  2, -- Login was successful, but was granted guest access
+	NOT_GRANTED         =  3, -- Password was correct, but user wasn't allowed to log in (often happens with blank passwords)
+	DISABLED            =  4, -- Password was correct, but user's account is disabled
+	EXPIRED             =  5, -- Password was correct, but user's account is expired
+	CHANGE_PASSWORD     =  6, -- Password was correct, but user can't log in without changing it
+	ACCOUNT_LOCKED      =  7, -- User's account is locked out (hopefully not by us!)
+	ACCOUNT_LOCKED_NOW  =  8, -- User's account just became locked out (oops!)
+	FAIL                =  9, -- User's password was incorrect
+	INVALID_LOGON_HOURS = 10, -- Password was correct, but user's account has logon time restrictions in place
+	INVALID_WORKSTATION = 11  -- Password was correct, but user's account has workstation restrictions in place
 }
 
 ---Strings for debugging output
 local result_short_strings = {}
-result_short_strings[results.SUCCESS]            = "SUCCESS"
-result_short_strings[results.GUEST_ACCESS]       = "GUEST_ACCESS"
-result_short_strings[results.NOT_GRANTED]        = "NOT_GRANTED"
-result_short_strings[results.DISABLED]           = "DISABLED"
-result_short_strings[results.EXPIRED]            = "EXPIRED"
-result_short_strings[results.CHANGE_PASSWORD]    = "CHANGE_PASSWORD"
-result_short_strings[results.ACCOUNT_LOCKED]     = "LOCKED"
-result_short_strings[results.ACCOUNT_LOCKED_NOW] = "LOCKED_NOW"
-result_short_strings[results.FAIL]               = "FAIL"
+result_short_strings[results.SUCCESS]             = "SUCCESS"
+result_short_strings[results.GUEST_ACCESS]        = "GUEST_ACCESS"
+result_short_strings[results.NOT_GRANTED]         = "NOT_GRANTED"
+result_short_strings[results.DISABLED]            = "DISABLED"
+result_short_strings[results.EXPIRED]             = "EXPIRED"
+result_short_strings[results.CHANGE_PASSWORD]     = "CHANGE_PASSWORD"
+result_short_strings[results.ACCOUNT_LOCKED]      = "LOCKED"
+result_short_strings[results.ACCOUNT_LOCKED_NOW]  = "LOCKED_NOW"
+result_short_strings[results.FAIL]                = "FAIL"
+result_short_strings[results.INVALID_LOGON_HOURS] = "INVALID_LOGON_HOURS"
+result_short_strings[results.INVALID_WORKSTATION] = "INVALID_WORKSTATION"
+
 
 ---The strings that the user will see
 local result_strings = {}
-result_strings[results.SUCCESS]            = "Login was successful"
-result_strings[results.GUEST_ACCESS]       = "Login was successful, but was granted guest access"
-result_strings[results.NOT_GRANTED]        = "Password was correct, but user wasn't allowed to log in (often happens with blank passwords)"
-result_strings[results.DISABLED]           = "Password was correct, but user's account is disabled"
-result_strings[results.EXPIRED]            = "Password was correct, but user's account is expired"
-result_strings[results.CHANGE_PASSWORD]    = "Password was correct, but user can't log in without changing it"
-result_strings[results.ACCOUNT_LOCKED]     = "User's account is locked out (hopefully not by us!)"
-result_strings[results.ACCOUNT_LOCKED_NOW] = "User's account just became locked out (oops!)"
-result_strings[results.FAIL]               = "User's password was incorrect"
+result_strings[results.SUCCESS]              = "Valid credentials"
+result_strings[results.GUEST_ACCESS]         = "Valid credentials, account granted guest access only"
+result_strings[results.NOT_GRANTED]          = "Valid credentials, but account wasn't allowed to log in (often happens with blank passwords)"
+result_strings[results.DISABLED]             = "Valid credentials, account disabled"
+result_strings[results.EXPIRED]              = "Valid credentials, account expired"
+result_strings[results.CHANGE_PASSWORD]      = "Valid credentials, password must be changed at next logon"
+result_strings[results.ACCOUNT_LOCKED]       = "Valid credentials, account locked (hopefully not by us!)"
+result_strings[results.ACCOUNT_LOCKED_NOW]   = "Valid credentials, account just became locked (oops!)"
+result_strings[results.FAIL]                 = "Invalid credentials"
+result_strings[results.INVALID_LOGON_HOURS]  = "Valid credentials, account cannot log in at current time"
+result_strings[results.INVALID_WORKSTATION]  = "Valid credentials, account cannot log in from current host"
 
 ---Constants for special passwords. These each contain a null character, which is illegal in 
 -- actual passwords. 
@@ -171,13 +178,6 @@ local function get_random_string(length, set)
 	end
 
 	local str = ""
-
-	-- Seed the random number, if we haven't already
-	if not nmap.registry.smbbrute or not nmap.registry.smbbrute.seeded then
-		math.randomseed(os.time())
-		nmap.registry.smbbrute = {}
-		nmap.registry.smbbrute.seeded = true
-	end
 
 	for i = 1, length, 1 do
 		local random = math.random(#set)
@@ -340,6 +340,12 @@ local function check_login(hostinfo, username, password, logintype)
 			result = results.DISABLED
 		elseif(err == "NT_STATUS_PASSWORD_MUST_CHANGE") then
 			result = results.CHANGE_PASSWORD
+		elseif(err == "NT_STATUS_INVALID_LOGON_HOURS") then
+			result = results.INVALID_LOGON_HOURS
+		elseif(err == "NT_STATUS_INVALID_WORKSTATION") then
+			result = results.INVALID_WORKSTATION
+		elseif(err == "NT_STATUS_ACCOUNT_EXPIRED") then
+			result = results.EXPIRED
 		else
 			result = results.FAIL
 		end
@@ -510,7 +516,7 @@ end
 -- portion among the domains. Returns true if lockouts could happen, false otherwise. 
 local function bad_lockout_policy(host)
 	-- If the user is ok with locking out accounts, just return
-	if(nmap.registry.args.smblockout == "1" or nmap.registry.args.smblockout == "true") then
+	if(stdnse.get_script_args( "smblockout" )) then
 		stdnse.print_debug(1, "smb-brute: Not checking server's lockout policy")
 		return true, false
 	end
@@ -549,7 +555,7 @@ local function initialize(host)
 
 	-- Get the OS (identifying windows versions tells us which hash to use)
 	result, os = smb.get_os(host)
-	if(result == false) then
+	if(result == false or os['os'] == nil) then
 		hostinfo['os'] = "<Unknown>"
 	else
 		hostinfo['os'] = os['os']
@@ -735,7 +741,7 @@ function test_lockouts(hostinfo)
 		return 
 	end
 
-	if(nmap.registry.args.smblockout == 1 or nmap.registry.args.smblockout == "true") then
+	if(stdnse.get_script_args( "smblockout" )) then
 		return
 	end
 
@@ -1009,7 +1015,7 @@ local function go(host)
 				hostinfo['locked_usernames'][username] = true
 
 				-- Unless the user requested to keep going, stop the check
-				if(not(nmap.registry.args.smblockout == "1" or nmap.registry.args.smblockout == "true")) then
+				if(not(stdnse.get_script_args( "smblockout" ))) then
 					-- Mark it as found, which is technically true
 					status, err = found_account(hostinfo, username, nil, results.ACCOUNT_LOCKED_NOW)
 					if(status == false) then

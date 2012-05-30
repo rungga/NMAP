@@ -29,18 +29,23 @@ Attempts to get a list of tables from a MongoDB database.
 -- |       name = admin
 -- |_  totalSize = 167772160
 
--- version 0.1
+-- version 0.2
 -- Created 01/12/2010 - v0.1 - created by Martin Holst Swende <martin@swende.se>
-
+-- Revised 01/03/2012 - v0.2 - added authentication support <patrik@cqure.net>
 
 author = "Martin Holst Swende"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
-require "mongodb"
+dependencies = {"mongodb-brute"}
+
+require "creds"
 require "shortport"
+require 'stdnse'
+stdnse.silent_require('mongodb')
 
 portrule = shortport.port_or_service({27017}, {"mongodb"})
+
 function action(host,port)
 
 	local socket = nmap.new_socket()
@@ -56,6 +61,19 @@ function action(host,port)
 
 	try( socket:connect(host, port) )
 	
+	-- uglyness to allow creds.mongodb to work, as the port is not recognized
+	-- as mongodb, unless a service scan was run
+	local ps = port.service
+	port.service = 'mongodb'
+	local c = creds.Credentials:new(creds.ALL_DATA, host, port)
+	for cred in c:getCredentials(creds.State.VALID + creds.State.PARAM) do
+		local status, err = mongodb.login(socket, "admin", cred.user, cred.pass)
+		if ( not(status) ) then
+			return err
+		end
+	end
+	port.service = ps
+	
 	local req, result, packet, err, status
 	--Build packet
 	status, packet = mongodb.listDbQuery()
@@ -65,6 +83,10 @@ function action(host,port)
 	status, result = mongodb.query(socket, packet)
 	if not status then return result end-- Error message
 	
+	port.version.name ='mongodb'
+	port.version.product='MongoDB'
+	nmap.set_port_version(host,port,'hardmatched')
+
 	local output = mongodb.queryResultToTable(result)
 	if err ~= nil then 
 		stdnse.log_error(err) 

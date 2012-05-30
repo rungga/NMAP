@@ -28,7 +28,7 @@ set the username and password, etc.), but it probably won't ever require them.
 
 author = "Ron Bowes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"discovery", "safe"}
+categories = {"default", "discovery", "safe"}
 dependencies = {"smb-brute"}
 
 require 'smb'
@@ -63,7 +63,7 @@ action = function(host)
 
 	local result, username, domain = smb.get_account(host)
 	if(result ~= false) then
-		table.insert(response, string.format("Account that was used for smb scripts: %s\%s", domain, stdnse.string_or_blank(username, '<blank>')))
+		table.insert(response, string.format("Account that was used for smb scripts: %s%s", domain, stdnse.string_or_blank(username, '<blank>')))
 	end
 	
 	-- User-level authentication or share-level authentication

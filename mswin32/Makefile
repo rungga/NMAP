@@ -1,5 +1,5 @@
 MAKENSIS="/cygdrive/c/Program Files/NSIS/makensis.exe"
-VCEXPRESS := $(shell reg query "HKEY_CLASSES_ROOT\\Applications\\VCExpress.exe\\shell\\edit\\command" | egrep '[A-H]:\\' | cut -d\" -f2 | sed 's%\\%/%g' | tr -d '\n')
+VCEXPRESS := $(shell reg query "HKEY_CLASSES_ROOT\\Applications\\VCExpress.exe\\shell\\edit\\command" | egrep -i '[A-H]:\\' | cut -d\" -f2 | sed 's%\\%/%g' | tr -d '\n')
 export NMAP_VERSION := $(shell grep '^\#[ \t]*define[ \t]\+NMAP_VERSION' ../nmap.h | sed -e 's/.*"\(.*\)".*/\1/' -e 'q')
 export NMAP_NUM_VERSION := $(shell grep '^\#[ \t]*define[ \t]\+NMAP_NUM_VERSION' ../nmap.h | sed -e 's/.*"\(.*\)".*/\1/' -e 'q')
 COMMA_VERSION=$(shell echo $(NMAP_NUM_VERSION) | tr '.' ',')
@@ -18,12 +18,16 @@ winbuild:
 	@./license-format/licformat.sh ../COPYING > LICENSE
 
 	"$(VCEXPRESS)" nmap.sln /build release /log $(LOGLOC)
+	"$(VCEXPRESS)" nmap.sln /build release /project nmap-update /log $(LOGLOC)
 	$(MAKENSIS) winpcap/winpcap-nmap.nsi
 	rm -rf nmap-$(NMAP_VERSION)
 	rm -f nmap-$(NMAP_VERSION)-win32.zip
 	mkdir nmap-$(NMAP_VERSION)
 	cd Release && cp -r ../../CHANGELOG ../../COPYING nmap-mac-prefixes nmap-os-db nmap-payloads nmap-protocols nmap-rpc nmap-service-probes nmap-services nmap.exe nmap.xsl nse_main.lua ../nmap_performance.reg ../../README-WIN32 ../../docs/3rd-party-licenses.txt ../nmap-$(NMAP_VERSION)/
-	cp -f OpenSSL/bin/*.dll ./nmap-$(NMAP_VERSION)/
+# Use "cmd /c copy" rather than "cp" to preserve Windows ACLs. Using
+# "cp" means that the copied DLLs don't have the same ACL and cause an
+# error on startup: 0xc0000022.
+	cmd /c copy OpenSSL\\bin\\*.dll nmap-$(NMAP_VERSION)
 	mkdir nmap-$(NMAP_VERSION)/scripts
 	cd Release && cp -f $(NSE_FILES) ../nmap-$(NMAP_VERSION)/scripts/
 	cd Release && for f in `find nselib -name .svn -prune -o -type d -print`; do \
@@ -36,9 +40,11 @@ winbuild:
 	rm -rf nmap-$(NMAP_VERSION)/licenses/.svn
 	cp winpcap/winpcap-nmap-*.exe nmap-$(NMAP_VERSION)
 	cp vcredist_x86.exe nmap-$(NMAP_VERSION)
+	cp vcredist2008_x86.exe nmap-$(NMAP_VERSION)
 	cp ../ncat/Release/ncat.exe nmap-$(NMAP_VERSION)
 	cp ../ncat/Release/ca-bundle.crt nmap-$(NMAP_VERSION)
 	cp ../nping/Release/nping.exe nmap-$(NMAP_VERSION)
+	cp ../nmap-update/Release/nmap-update.exe nmap-$(NMAP_VERSION)
 # Install the ndiff batch file wrapper in the zip distribution.
 	cp ../ndiff/ndiff nmap-$(NMAP_VERSION)/ndiff.py
 	cp python-wrap.bat nmap-$(NMAP_VERSION)/ndiff.bat
@@ -48,7 +54,6 @@ winbuild:
 	cd ../zenmap && install_scripts/windows/copy_and_compile.bat
 	cp -R ../zenmap/dist/* nmap-$(NMAP_VERSION)/
 	cp ../zenmap/README nmap-$(NMAP_VERSION)/ZENMAP_README
-	cp vcredist2008_x86.exe nmap-$(NMAP_VERSION)
 	cp ../zenmap/COPYING_HIGWIDGETS nmap-$(NMAP_VERSION)
 	cp ../ndiff/README nmap-$(NMAP_VERSION)/NDIFF_README
 	cp nsis/AddToPath.nsh nsis/Nmap.nsi nsis/shortcuts.ini nsis/final.ini nmap-$(NMAP_VERSION)

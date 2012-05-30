@@ -32,7 +32,7 @@
 
 Status of this document:    DRAFT
 First version:              May 29, 2009.
-Last revision date:         August 11, 2010.
+Last revision date:         April 27, 2011.
 
 +-----------------------------------------------------------------------------+
 
@@ -108,13 +108,13 @@ This documents presents the technical specification of the Nping Echo Protocol.
     it may be quite difficult to coordinate, specially when the person at
     the remote host does not even know what an IP address is.
 
-    To solve this problem, Nping will have a mode called "Echo mode" (We are
-    still looking for a better name, suggestions are welcome), that will
-    give it the power of a combination like hping + tcpdump.
+    To solve this problem, Nping implements a new mode of operation, called
+    "Echo mode", which provides a combination of a packet generator and a
+    remote sniffer.
 
-    Both machines have to be running Nping, one of them in server mode and
-    the other in client mode. The way it works is: the Nping
-    client performs an initial handshake with the server over some
+    The Echo mode is based on a client/server architecture. Both ends run Nping,
+    one of them in server mode and the other in client mode. The way it works
+    is: the Nping client performs an initial handshake with the server over some
     standard port (creating a side-channel). Then it notifies the server
     what packets are about to be sent. The server sets up a liberal BPF
     filter that captures those packets, and starts listening. When the server
@@ -182,7 +182,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
                 Informs the server of the highest version it supports and sends
                 the initial authentication parameters.
 
-            NEP_HANDSHAKE_FINAL
+            NEP_HANDSHAKE_FINAL (S->C)
                 Echoes server nonce back to the server.
 
             NEP_PACKET_SPEC:  (C->S):
@@ -208,7 +208,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
 
         Message type: 8 bits
             Integer that indicates the type of packet. It must be one of the
-            type codes defined in section 2.2.
+            type codes defined in section 2.3.
 
 
         Total Length:  16 bits
@@ -226,7 +226,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
 
         Timestamp:  32 bits
             Current time of the sender. This time is expressed as the number
-            of seconds elapsed since 00:00, 01/01/1970 (epoch time).
+            of seconds elapsed since 00:00, 01/01/1970 UTC (epoch time).
 
         Reserved:  32 bits
             Reserved for future use. Reserved fields have been added for two
@@ -325,10 +325,6 @@ This documents presents the technical specification of the Nping Echo Protocol.
             cryptographically secure PRNG and must not be reused. This is
             the data that should be used by the client to construct its
             cipher block initialization vector.
-
-        Timestamp:  32 bits
-            Current time at the server. This time is expressed as the number
-            of seconds elapsed since 00:00, 01/01/1970 (epoch time).
 
         Reserved:  120 bits
             Reserved for future use.
@@ -444,18 +440,15 @@ This documents presents the technical specification of the Nping Echo Protocol.
             the data that should be used by the server to construct its
             cipher block initialization vector.
 
-        Timestamp:  32 bits
-            Current time at the client. This time is expressed as the number
-            of seconds elapsed since 00:00, 01/01/1970 (epoch time).
-
         Partner IP address:  128 bits
             This is the server's IP address as seen by the client. This field
             has 128 bits to allow use of both IPv4 and IPv6 addresses. When
             IPv4 is used, only the first four bytes are used. The rest may be
             set to zero or filled with random data.
 
-        IP version: Version of the address in the "Partner IP address" field.
-            It should take one of the following values:
+        IP version: 8-bits
+            Version of the address in the "Partner IP address" field. It should
+            take one of the following values:
 
                 0x04 : for IP version 4.
                 0x06 : for IP version 6.
@@ -520,7 +513,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
 
 
         Client Nonce:  256 bits
-            Nonce value received from the client in the previous
+            Nonce value received from the client in the preceding
             NEP_HANDSHAKE_CLIENT message.
 
         Partner IP address:  128 bits
@@ -528,14 +521,15 @@ This documents presents the technical specification of the Nping Echo Protocol.
             has 128 bits to allow use of both IPv4 and IPv6 addresses. When
             IPv4 is used, only the first four bytes are used. The rest may be
             set to zero or filled with random data. The inclusion of this
-            information lets the client immediatly detect the presence of
+            information lets the client immediately detect the presence of
             some intermediate devices that change his source IP (e.g a NAT box).
             This is a modification of the original X.509 three way
             authentication protocol, provided, among other things, in order to
-            make the man-in-the-middle atack described in [1] more difficult.
+            make the man-in-the-middle attack described in [1] more difficult.
 
-        IP version: Version of the address in the "Partner IP address" field.
-            It should take one of the following values:
+        IP version: 8 bits
+            Version of the address in the "Partner IP address" field. It should
+            take one of the following values:
 
                 0x04 : for IP version 4.
                 0x06 : for IP version 6.
@@ -544,8 +538,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
     2.7 Operation NEP_PACKET_SPEC
 
         The NEP_PACKET_SPEC message is sent by the client to tell the server
-        what kind of packets it should expect. Additionally, the client may
-        also include a custom BPF filter for the server.
+        what kind of packets it should expect.
 
             0                   1                   2                   3
             0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -577,7 +570,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
         40  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-        IP version : 8 bits
+        IP version: 8 bits
             Specifies which is the expected IP version. It must contain one
             of the following values:
 
@@ -696,13 +689,28 @@ This documents presents the technical specification of the Nping Echo Protocol.
             specifiers are set, "length" can never be higher than 106 bytes.
             Servers should carefully check the structure of the PacketSpec
             field and close the session established with the sender if it
-            doesn't meet the requirements specified in this document.
+            does not meet the requirements specified in this document.
 
-            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            | PAYLOAD_MAGIC |    Length     |                               |
-            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+         Value                 +
-            |                                                               |
-            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+               | PAYLOAD_MAGIC |    Length     |                               |
+               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+         Value                 +
+               |                                                               |
+               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+               PAYLOAD_MAGIC:  8 bits.
+                    Field code. MUST be set to 0xFF.
+
+               Length:  8 bits.
+                    Length of the data in the "Value" field. MUST be greater
+                    than zero; MUST NOT be greater than the remaining space in
+                    the PacketSpec field and MUST NEVER exceed 106 bytes.
+
+               Value: variable length.
+                    Payload data. Its length must be the one specified in the
+                    "Length" field. It may contain any binary value. Comparisons
+                    at the server side should be made at the bit level so the
+                    encoding should match the one used at the application layer
+                    in the packets that are produced and sent by the client.
 
 
             Here is an example of how a typical specifier list looks like:
@@ -730,7 +738,10 @@ This documents presents the technical specification of the Nping Echo Protocol.
 
             All packet specifications MUST include the IPv4_ID specifier
             (or IPv6_Flow for IPv6) and at least three other fields specifiers.
-            Clients that fail to do so should be rejected by servers. 
+            Additionally, clients MUST NEVER specify the same field specifier
+            more than once in a NEP_PACKET_SPEC message. Clients that send
+            messages that do not meet these requirements MUST be rejected by the
+            server.
 
 
     2.8 Operation NEP_READY
@@ -812,7 +823,9 @@ This documents presents the technical specification of the Nping Echo Protocol.
 
         Packet Length:  16 bits.
             Specifies the length of the echoed packet measured in bytes.
-            It must be in NETWORK byte order and must not exceed 9212 bytes.
+            The value stored in this field must be in NETWORK byte order and
+            must never be greater than 9212, as that is the maximum number of
+            bytes that can be echoed per packet.
 
         Packet:  variable length.
             This corresponds to the packet being echoed. Servers should
@@ -832,8 +845,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
         and informs the other end that the sender is terminating the NEP
         session and closing the TCP connection. This message includes an error
         description string that should explain the reason why the session is
-        being terminated (eg: authentication failed, invalid message format,
-        etc).
+        being terminated (e.g. authentication failed, invalid message format).
 
             0                   1                   2                   3
             0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -958,7 +970,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
             |<<------------------->>|
 
 
-        The following diagrams represents a session where the server fails to
+        The following diagram represents a session where the server fails to
         provide a valid NEP_HANDSHAKE_SERVER message.
 
          +------+                +------+
@@ -974,7 +986,7 @@ This documents presents the technical specification of the Nping Echo Protocol.
 
 
 
-        The following diagrams represents a session where the client fails to
+        The following diagram represents a session where the client fails to
         provide a valid NEP_HANDSHAKE_CLIENT message.
 
 
@@ -1011,8 +1023,9 @@ This documents presents the technical specification of the Nping Echo Protocol.
 
         The cipher suite to be used for data encryption is AES-128.
 
-        When one of the two participating entities receives an encrypted
-        message, it performs the following steps:
+        When one of the two participating entities receives a fully encrypted
+        message (any message other than NEP_HANDSHAKE_SERVER, NEP_HANDSHAKE_CLIENT
+        or NEP_HANDSHAKE_FINAL), it performs the following steps:
 
         1. Reads 128 bits and decrypts them.
         2. Checks that version equals 0x01
@@ -1029,10 +1042,10 @@ This documents presents the technical specification of the Nping Echo Protocol.
         6. Checks the received total length. For messages whose length is
            fixed, it should check whether the received length matches the
            expected length of the message. For variable length messages, it
-           should check that the length is at least, higher or equal than the
-           minium length for that kind of message.
+           should check that the length is at least, higher than or equal to the
+           minimum length for that kind of message.
         7. If all tests succeed, then the remaining bits are read
-           (TotalLength - 128bits)
+           (remaining = TotalLength - 128bits)
         8. Any remaining ciphertext is decrypted.
         9. An alternative message authentication code is computed over the
            unencrypted data and matched against the received one. If both codes
@@ -1041,22 +1054,10 @@ This documents presents the technical specification of the Nping Echo Protocol.
            of the message is someone who knows the secret) and fresh (the
            message is new and has not been replayed).
 
-           Note that this last statement may not always be true. The sequence
-           number space is only 2^32 and the lifetime of a given timestamp is
-           left unspecified so, in practical terms, there is chance for an
-           attacker to replay previously captured packets during the lifetime
-           of the timestamp. However, as all message contents are encrypted,
-           only entities that know the secret may know the information that
-           the messages contain. Also, for this attack to work against the
-           server, the number of past sequence numbers that it stores should
-           be exhausted, in order for it to allow a reused number in the
-           authentication handshake.
-
-
 
     2.13 Cryptographic key derivation.
 
-        Five cryptographic keys are generated for each client sesson. All of
+        Five cryptographic keys are generated for each client session. All of
         them are derived from a single shared secret (a passphrase), known by
         client and server. The key derivation process is the following:
 
@@ -1071,14 +1072,14 @@ This documents presents the technical specification of the Nping Echo Protocol.
         handshake, and KEY_TYPE_ID is a string that varies depending on the
         type of key being derived. (See below for its definitions).
 
-        As described above, a total of 5 symmetric keys are used. Those keys
+        As mentioned above, a total of 5 symmetric keys are used. Those keys
         are:
 
         NEP_KEY_MAC_S2C : Key used by the server to sign its messages.
             For this type of key, KEY_TYPE_ID="NEPkeyforMACServer2Client"
             (unquoted) and NONCES equals the server nonce in the
             NEP_HANDSHAKE_SERVER message, concatenated with the client nonce
-            in the NEP_HANDSHAKE_CLIENT message (SERVER_NONCE|CLIENT_NONCE).
+            in the NEP_HANDSHAKE_CLIENT message (SERVER_NONCE + CLIENT_NONCE).
 
         NEP_KEY_MAC_S2C_INITIAL : Key used by the server to sign its
             NEP_HANDSHAKE_SERVER messages. This is a special case key because
@@ -1086,26 +1087,28 @@ This documents presents the technical specification of the Nping Echo Protocol.
             the only key that is not influenced by the client's nonce). For
             this type of key, KEY_TYPE_ID="NEPkeyforMACServer2ClientInitial"
             (unquoted) and NONCES equals the nonce in the NEP_HANDSHAKE_SERVER
-            message, concatenated with an empty client nonce (a nonce with
-            all its bits set to zero).
+            message, concatenated with an empty client nonce, in other words,
+            a nonce with all its bits set to zero (SERVER_NONCE + ZEROED_NONCE).
 
         NEP_KEY_MAC_C2S : Key used by the client to sign its messages.
             For this type of key, KEY_TYPE_ID="NEPkeyforMACClient2Server"
             (unquoted) and NONCES equals the server nonce in the
             NEP_HANDSHAKE_SERVER message, concatenated with the client nonce
-            in the NEP_HANDSHAKE_CLIENT message (SERVER_NONCE|CLIENT_NONCE).
+            in the NEP_HANDSHAKE_CLIENT message (SERVER_NONCE + CLIENT_NONCE).
 
         NEP_KEY_CIPHERTEXT_C2S : Key used by the client to encrypt its
             messages. For this type of key, KEY_TYPE_ID=
             "NEPkeyforCiphertextClient2Server" (unquoted) and NONCES equals the
             server nonce in the NEP_HANDSHAKE_SERVER message, concatenated with
-            the client nonce in the NEP_HANDSHAKE_CLIENT message.
+            the client nonce in the NEP_HANDSHAKE_CLIENT message
+            (SERVER_NONCE + CLIENT_NONCE).
 
         NEP_KEY_CIPHERTEXT_S2C : Key used by the server to encrypt its
             messages. For this type of key, KEY_TYPE_ID=
             "NEPkeyforCiphertextServer2Client" (unquoted) and NONCES equals the
             server nonce in the NEP_HANDSHAKE_SERVER message, concatenated with
-            the client nonce in the NEP_HANDSHAKE_CLIENT message.
+            the client nonce in the NEP_HANDSHAKE_CLIENT message
+            (SERVER_NONCE + CLIENT_NONCE).
 
         When not all 256 bits are required, the last 256-N bits of key material
         may be discarded, where N is the desired key length. This is, if less

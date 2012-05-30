@@ -2,7 +2,7 @@
  * ncat_ssl.c -- SSL support functions.                                    *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2011 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -12,11 +12,12 @@
  * technology into proprietary software, we sell alternative licenses      *
  * (contact sales@insecure.com).  Dozens of software vendors already       *
  * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, and version detection.                                       *
+ * detection, version detection, and the Nmap Scripting Engine.            *
  *                                                                         *
  * Note that the GPL places important restrictions on "derived works", yet *
  * it does not provide a detailed definition of that term.  To avoid       *
- * misunderstandings, we consider an application to constitute a           *
+ * misunderstandings, we interpret that term as broadly as copyright law   *
+ * allows.  For example, we consider an application to constitute a        *
  * "derivative work" for the purpose of this license if it does any of the *
  * following:                                                              *
  * o Integrates source code from Nmap                                      *
@@ -30,19 +31,20 @@
  * o Links to a library or executes a program that does any of the above   *
  *                                                                         *
  * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap.  This list is not exclusive, but is meant to clarify our *
- * interpretation of derived works with some common examples.  Our         *
- * interpretation applies only to Nmap--we don't speak for other people's  *
- * GPL works.                                                              *
+ * works of Nmap, as well as other software we distribute under this       *
+ * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
+ * but is meant to clarify our interpretation of derived works with some   *
+ * common examples.  Our interpretation applies only to Nmap--we don't     *
+ * speak for other people's GPL works.                                     *
  *                                                                         *
  * If you have any questions about the GPL licensing restrictions on using *
  * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
  * we also offer alternative license to integrate Nmap into proprietary    *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates as well as helping to     *
- * fund the continued development of Nmap technology.  Please email        *
- * sales@insecure.com for further information.                             *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@insecure.com for     *
+ * further information.                                                    *
  *                                                                         *
  * As a special exception to the GPL terms, Insecure.Com LLC grants        *
  * permission to link the code of this program with any version of the     *
@@ -66,15 +68,16 @@
  * and add new features.  You are highly encouraged to send your changes   *
  * to nmap-dev@insecure.org for possible incorporation into the main       *
  * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -85,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_ssl.c 21905 2011-01-21 00:04:51Z fyodor $ */
+/* $Id: ncat_ssl.c 28192 2012-03-01 06:53:35Z fyodor $ */
 
 #include "nbase.h"
 #include "ncat_config.h"
@@ -100,6 +103,11 @@
 #include <openssl/rand.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+/* Required for windows compilation to Eliminate APPLINK errors.
+   See http://www.openssl.org/support/faq.html#PROG2 */
+#ifdef WIN32
+#include <openssl/applink.c>
+#endif
 
 static SSL_CTX *sslctx;
 
@@ -559,6 +567,51 @@ char *ssl_cert_fp_str_sha1(const X509 *cert, char *strbuf, size_t len)
 
     return strbuf;
 }
+
+/* Tries to complete an ssl handshake on the socket received by fdinfo struct
+   if ssl is enabled on that socket. */
+
+int ssl_handshake(struct fdinfo *sinfo)
+{
+    int ret = 0;
+    int sslerr = 0;
+
+    if(sinfo == NULL) {
+        if (o.debug)
+           logdebug("ncat_ssl.c: Invoking ssl_handshake() with a NULL parameter "
+                    "is a serious bug. Please fix it.\n");
+        return -1;
+    }
+
+    if(!o.ssl)
+        return -1;
+
+    /* Initialize the socket too if it isn't.  */
+    if(!sinfo->ssl)
+        sinfo->ssl = new_ssl(sinfo->fd);
+
+    ret = SSL_accept(sinfo->ssl);
+
+    if(ret == 1)
+        return NCAT_SSL_HANDSHAKE_COMPLETED;
+
+    sslerr = SSL_get_error(sinfo->ssl, ret);
+
+    if(ret == -1) {
+        if(sslerr == SSL_ERROR_WANT_READ)
+            return NCAT_SSL_HANDSHAKE_PENDING_READ;
+        if(sslerr == SSL_ERROR_WANT_WRITE)
+            return NCAT_SSL_HANDSHAKE_PENDING_WRITE;
+    }
+
+    if (o.verbose) {
+        loguser("Failed SSL connection from %s: %s\n",
+        inet_socktop(&sinfo->remoteaddr),
+                     ERR_error_string(ERR_get_error(), NULL));
+    }
+    return NCAT_SSL_HANDSHAKE_FAILED;
+}
+
 #endif
 
 

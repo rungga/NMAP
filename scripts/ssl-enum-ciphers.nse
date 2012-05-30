@@ -3,6 +3,16 @@ This script repeatedly initiates SSL/TLS connections, each time trying a new
 cipher or compressor while recording whether a host accepts or rejects it. The
 end result is a list of all the ciphers and compressors that a server accepts.
 
+Each cipher is shown with a strength rating: one of <code>strong</code>,
+<code>weak</code>, or <code>unknown strength</code>. The output line
+beginning with <code>Least strength</code> shows the strength of the
+weakest cipher offered. If you are auditing for weak ciphers, you would
+want to look more closely at any port where <code>Least strength</code>
+is not <code>strong</code>. The cipher strength database is in the file
+<code>nselib/data/ssl-ciphers</code>, or you can use a different file
+through the script argument
+<code>ssl-enum-ciphers.rankedcipherlist</code>.
+
 SSLv3/TLSv1 requires more effort to determine which ciphers and compression
 methods a server supports than SSLv2. A client lists the ciphers and compressors
 that it is capable of supporting, and the server will respond with a single
@@ -16,56 +26,35 @@ and therefore is quite noisy.
 -- @usage
 -- nmap --script ssl-enum-ciphers -p 443 <host>
 --
+-- @args ssl-enum-ciphers.rankedcipherlist A path to a file of cipher names and strength ratings
+--
 -- @output
 -- PORT    STATE SERVICE REASON
 -- 443/tcp open  https   syn-ack
 -- | ssl-enum-ciphers:
 -- |   SSLv3
--- |     Ciphers (18)
--- |       TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA
--- |       TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
--- |       TLS_DHE_RSA_WITH_AES_128_CBC_SHA
--- |       TLS_DHE_RSA_WITH_AES_256_CBC_SHA
--- |       TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
--- |       TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
--- |       TLS_DHE_RSA_WITH_DES_CBC_SHA
--- |       TLS_RSA_EXPORT_WITH_DES40_CBC_SHA
--- |       TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5
--- |       TLS_RSA_EXPORT_WITH_RC4_40_MD5
--- |       TLS_RSA_WITH_3DES_EDE_CBC_SHA
--- |       TLS_RSA_WITH_AES_128_CBC_SHA
--- |       TLS_RSA_WITH_AES_256_CBC_SHA
--- |       TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
--- |       TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
--- |       TLS_RSA_WITH_DES_CBC_SHA
--- |       TLS_RSA_WITH_RC4_128_MD5
--- |       TLS_RSA_WITH_RC4_128_SHA
+-- |     Ciphers (6)
+-- |       TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA - unknown strength
+-- |       TLS_DHE_RSA_WITH_AES_128_CBC_SHA - strong
+-- |       TLS_DHE_RSA_WITH_AES_256_CBC_SHA - unknown strength
+-- |       TLS_RSA_WITH_3DES_EDE_CBC_SHA - strong
+-- |       TLS_RSA_WITH_AES_128_CBC_SHA - strong
+-- |       TLS_RSA_WITH_AES_256_CBC_SHA - unknown strength
 -- |     Compressors (1)
 -- |       uncompressed
 -- |   TLSv1.0
--- |     Ciphers (18)
--- |       TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA
--- |       TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
--- |       TLS_DHE_RSA_WITH_AES_128_CBC_SHA
--- |       TLS_DHE_RSA_WITH_AES_256_CBC_SHA
--- |       TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA
--- |       TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA
--- |       TLS_DHE_RSA_WITH_DES_CBC_SHA
--- |       TLS_RSA_EXPORT_WITH_DES40_CBC_SHA
--- |       TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5
--- |       TLS_RSA_EXPORT_WITH_RC4_40_MD5
--- |       TLS_RSA_WITH_3DES_EDE_CBC_SHA
--- |       TLS_RSA_WITH_AES_128_CBC_SHA
--- |       TLS_RSA_WITH_AES_256_CBC_SHA
--- |       TLS_RSA_WITH_CAMELLIA_128_CBC_SHA
--- |       TLS_RSA_WITH_CAMELLIA_256_CBC_SHA
--- |       TLS_RSA_WITH_DES_CBC_SHA
--- |       TLS_RSA_WITH_RC4_128_MD5
--- |       TLS_RSA_WITH_RC4_128_SHA
+-- |     Ciphers (6)
+-- |       TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA - unknown strength
+-- |       TLS_DHE_RSA_WITH_AES_128_CBC_SHA - strong
+-- |       TLS_DHE_RSA_WITH_AES_256_CBC_SHA - unknown strength
+-- |       TLS_RSA_WITH_3DES_EDE_CBC_SHA - strong
+-- |       TLS_RSA_WITH_AES_128_CBC_SHA - strong
+-- |       TLS_RSA_WITH_AES_256_CBC_SHA - unknown strength
 -- |     Compressors (1)
--- |_      uncompressed
+-- |       uncompressed
+-- |_  Least strength = unknown strength
 
-author = "Mak Kolybabi <mak@kolybabi.com>"
+author = "Mak Kolybabi <mak@kolybabi.com>, Gabriel Lawrence"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
@@ -75,37 +64,6 @@ require("bin")
 require("nmap")
 require("shortport")
 require("stdnse")
-
-local SSL_PORTS = {
-	443,
-	465,
-	587,
-	636,
-	989,
-	990,
-	992,
-	993,
-	994,
-	995,
-	5061,
-	6679,
-	6697,
-	8443
-}
-
-local SSL_SERVICES = {
-	"ftps",
-	"ftps-data",
-	"https",
-	"https-alt",
-	"imaps",
-	"ircs",
-	"ldapssl",
-	"pop3s",
-	"sip-tls",
-	"smtps",
-	"telnets"
-}
 
 -- Most of the values in the tables below are from:
 -- http://www.iana.org/assignments/tls-parameters/
@@ -195,11 +153,12 @@ TLS_HANDSHAKETYPE_REGISTRY = {
 
 --
 -- Compression Algorithms
+-- http://www.iana.org/assignments/comp-meth-ids
 --
 COMPRESSORS = {
-	["uncompressed"]		= 0,
-	["ansiX962_compressed_prime"]	= 1,
-	["ansiX962_compressed_char2"]	= 2
+	["NULL"]		= 0,
+	["DEFLATE"]		= 1,
+	["LZS"]			= 64
 }
 
 --
@@ -234,6 +193,8 @@ CIPHERS = {
 	["TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA"]	= 0x0019,
 	["TLS_DH_anon_WITH_DES_CBC_SHA"]		= 0x001A,
 	["TLS_DH_anon_WITH_3DES_EDE_CBC_SHA"]		= 0x001B,
+	["SSL_FORTEZZA_KEA_WITH_NULL_SHA"]              = 0x001C,
+	["SSL_FORTEZZA_KEA_WITH_FORTEZZA_CBC_SHA"]      = 0x001D,
 	["TLS_KRB5_WITH_DES_CBC_SHA"]			= 0x001E,
 	["TLS_KRB5_WITH_3DES_EDE_CBC_SHA"]		= 0x001F,
 	["TLS_KRB5_WITH_RC4_128_SHA"]			= 0x0020,
@@ -343,6 +304,18 @@ CIPHERS = {
 	["TLS_RSA_PSK_WITH_AES_256_CBC_SHA384"]		= 0x00B7,
 	["TLS_RSA_PSK_WITH_NULL_SHA256"]		= 0x00B8,
 	["TLS_RSA_PSK_WITH_NULL_SHA384"]		= 0x00B9,
+	["TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256"]        = 0x00BA,
+	["TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA256"]     = 0x00BB,
+	["TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA256"]     = 0x00BC,
+	["TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA256"]    = 0x00BD,
+	["TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256"]    = 0x00BE,
+	["TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA256"]    = 0x00BF,
+	["TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256"]        = 0x00C0,
+	["TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA256"]     = 0x00C1,
+	["TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA256"]     = 0x00C2,
+	["TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA256"]    = 0x00C3,
+	["TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256"]    = 0x00C4,
+	["TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA256"]    = 0x00C5,
 	["TLS_RENEGO_PROTECTION_REQUEST"]		= 0x00FF,
 	["TLS_ECDH_ECDSA_WITH_NULL_SHA"]		= 0xC001,
 	["TLS_ECDH_ECDSA_WITH_RC4_128_SHA"]		= 0xC002,
@@ -406,6 +379,17 @@ CIPHERS = {
 	["SSL_RSA_FIPS_WITH_DES_CBC_SHA"]		= 0xFEFE,
 	["SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"]		= 0xFEFF
 }
+
+cipherstrength = {
+	["weak"]	= 0,
+	["unknown strength"]	= 1,
+	["strong"]	= 2
+}
+
+local rankedciphers={}
+local mincipherstrength=2
+local rankedciphersfilename=false
+local policy=true
 
 local function record_read(buffer, i)
 	local b, h, j, len
@@ -626,7 +610,7 @@ local function try_protocol(host, port, protocol)
 	local ciphers, compressors, results
 
 	local function find_ciphers()
-		local name, protocol_worked, record, results, t
+		local name, protocol_worked, record, results, t,cipherstr
 
 		results = {}
 
@@ -661,6 +645,17 @@ local function try_protocol(host, port, protocol)
 
 				-- Add cipher to the list of accepted ciphers.
 				name = record["body"]["cipher"]
+				if rankedciphersfilename and rankedciphers[name] then
+					cipherstr=rankedciphers[name]
+				else
+					cipherstr="unknown strength"
+				end
+				stdnse.print_debug(2, "Strength of %s rated %d.",cipherstr,cipherstrength[cipherstr])
+				if mincipherstrength>cipherstrength[cipherstr] then
+					stdnse.print_debug(2, "Downgrading min cipher strength to %d.",cipherstrength[cipherstr])
+					mincipherstrength=cipherstrength[cipherstr]
+				end
+				name=name.." - "..cipherstr
 				table.insert(results, name)
 			end
 		end
@@ -698,12 +693,14 @@ local function try_protocol(host, port, protocol)
 				stdnse.print_debug(2, "Compressor %s rejected.", name)
 			elseif record["type"] ~= "handshake" or record["body"]["type"] ~= "server_hello" then
 				stdnse.print_debug(2, "Unexpected record received.")
+			elseif record["body"]["compressor"] ~= name then
+				protocol_worked = true
+				stdnse.print_debug(2, "Compressor %s rejected.", name)
 			else
 				protocol_worked = true
 				stdnse.print_debug(2, "Compressor %s chosen.", name)
 
 				-- Add compressor to the list of accepted compressors.
-				name = record["body"]["compressor"]
 				table.insert(results, name)
 			end
 		end
@@ -735,27 +732,54 @@ local function try_protocol(host, port, protocol)
 	return results
 end
 
-portrule = function(host, port)
-	local is_ssl = shortport.port_or_service(SSL_PORTS, SSL_SERVICES)
+-- Shamelessly stolen from nselib/unpwdb.lua and changed a bit. (Gabriel Lawrence)
+local filltable = function(filename,table)
+	if #table ~= 0 then
+		return true
+	end
 
-	-- This script only handles SSL/TLS over TCP.
-	if port.protocol ~= "tcp" then
+	local file = io.open(filename, "r")
+
+	if not file then
 		return false
 	end
 
-	if port.version.service_tunnel == "ssl" then
-		return true
+	while true do
+		local l = file:read()
+
+		if not l then
+			break
+		end
+
+		-- Comments takes up a whole line
+		if not l:match("#!comment:") then
+			lsplit=stdnse.strsplit("%s+", l)
+			if cipherstrength[lsplit[2]] then
+				table[lsplit[1]] = lsplit[2]
+			else
+				stdnse.print_debug(1,"Strength not defined, ignoring: %s:%s",lsplit[1],lsplit[2])
+			end
+		end
 	end
 
-	if is_ssl(host, port) then
-		return true
-	end
+	file:close()
 
-	return false
+	return true
 end
+
+portrule = shortport.ssl
 
 action = function(host, port)
 	local name, result, results
+
+	rankedciphersfilename=stdnse.get_script_args("ssl-enum-ciphers.rankedcipherlist")
+	if rankedciphersfilename then
+		filltable(rankedciphersfilename,rankedciphers)
+	else
+		rankedciphersfilename = nmap.fetchfile( "nselib/data/ssl-ciphers" )
+		stdnse.print_debug(1, "Ranked ciphers filename: %s", rankedciphersfilename)
+		filltable(rankedciphersfilename,rankedciphers)
+	end
 
 	results = {}
 
@@ -770,6 +794,13 @@ action = function(host, port)
 
 	-- Sort protocol results by name.
 	table.sort(results, function(a, b) return a["name"] < b["name"] end)
+	if rankedciphersfilename then
+		for k, v in pairs(cipherstrength) do
+			if v == mincipherstrength then
+				table.insert(results, "Least strength = " .. k)
+			end
+		end
+	end
 
 	return stdnse.format_output(true, results)
 end

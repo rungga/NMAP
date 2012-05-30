@@ -1,5 +1,5 @@
 description = [[
-This script launches a DNS fuzzing attack against any DNS server. 
+Launches a DNS fuzzing attack against DNS servers. 
 
 The script induces errors into randomly generated but valid DNS packets.
 The packet template that we use includes one uncompressed and one
@@ -280,7 +280,6 @@ function corruptAndSend (host, port, query)
 end
 
 action = function(host, port)
-     math.randomseed(os.time())
      local endT
      local timelimit, err
      local retStr
