@@ -57,7 +57,7 @@ install: build
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
-	$(MAKE) prefix=`pwd`/debian/tmp/usr install
+	$(MAKE) DESTDIR=`pwd`/debian/tmp install
 	find debian/tmp/usr/lib/python* -type f | xargs sed -i "s:`pwd`/debian/tmp::g"
 	rm debian/tmp/usr/bin/uninstall_zenmap
 
@@ -77,6 +77,7 @@ binary-common:
 	dh_installdocs docs/*.txt
 	dh_installchangelogs CHANGELOG
 	dh_movefiles
+	mv debian/nmap/usr/share/man/pt_PT debian/nmap/usr/share/man/pt
 	dh_undocumented
 	dh_desktop
 	dh_python2

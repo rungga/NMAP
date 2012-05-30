@@ -396,12 +396,6 @@ if test $have_libpcap = yes; then
     CPPFLAGS="-I$LIBPCAP_INC $CPPFLAGS"
     LDFLAGS="-L$LIBPCAP_LIB $LDFLAGS"
   fi
-
-  # link with -lpcap for the purposes of this test
-  LIBS_OLD="$LIBS"
-  LIBS="$LIBS -lpcap"
-  PCAP_IS_SUITABLE([have_libpcap=yes], [have_libpcap=no], [have_libpcap=yes])
-  LIBS="$LIBS_OLD"
 fi
 
 if test $have_libpcap != yes; then

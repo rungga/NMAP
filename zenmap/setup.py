@@ -202,7 +202,7 @@ class my_install(install):
         install.run(self)
 
         self.set_perms()
-        # self.set_modules_path()
+        self.set_modules_path()
         self.fix_paths()
         self.create_uninstaller()
         self.write_installed_files()
