@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=ncat
 Encoding=UTF-8
-Exec=sh -c "ncat -h"
+Exec=sh -c "ncat -h;sudo -s"
 Icon=kali-menu.png
 StartupNotify=false
 Terminal=true
