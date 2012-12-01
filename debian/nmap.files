@@ -22,3 +22,5 @@ usr/share/man/sk
 usr/share/man/zh
 usr/share/ncat
 usr/share/nmap
+usr/share/applications/kali-nmap.desktop
+usr/share/applications/kali-ncat.desktop
