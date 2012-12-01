@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=nmap
+Encoding=UTF-8
+Exec=sh -c "nmap"
+Icon=kali-menu.png
+StartupNotify=false
+Terminal=true
+Type=Application
+Categories=01-02-identify-live-hosts;01-04-network-scanners;01-09-service-fingerprinting;08-02-tunneling;
