@@ -1,3 +1,9 @@
+nmap (6.00-0.1kali3) kali; urgency=low
+
+  * Fixed desktop copy in rules file
+
+ -- Mati Aharoni <muts@kali.org>  Sat, 01 Dec 2012 10:30:33 -0500
+
 nmap (6.00-0.1kali2) kali; urgency=low
 
   * Updating desktop files
