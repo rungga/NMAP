@@ -71,8 +71,6 @@ binary-common:
 	dh_installdirs
 	dh_installman
 	mv debian/tmp/usr/lib/python* debian/zenmap/usr/lib/
-	mkdir -p debian/nmap/usr/share/applications
-	mv debian/kali-*.desktop debian/nmap/usr/share/applications
 	dh_installdocs docs/*.txt
 	dh_installchangelogs CHANGELOG
 	dh_movefiles
