@@ -1,3 +1,10 @@
+local msrpc = require "msrpc"
+local os = require "os"
+local smb = require "smb"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Pulls back information about the remote system from the registry. Getting all
 of the information requires an administrative account, although a user account
@@ -50,9 +57,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery","intrusive"}
 dependencies = {"smb-brute"}
 
-require 'msrpc'
-require 'smb'
-require 'stdnse'
 
 -- TODO: This script needs some love
 
@@ -125,7 +129,10 @@ local function get_info_registry(host)
 	result['status-processor_level'], result['processor_level']               = reg_get_value(smbstate, openhklm_result['handle'], "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", "PROCESSOR_LEVEL")
 	result['status-processor_revision'], result['processor_revision']         = reg_get_value(smbstate, openhklm_result['handle'], "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", "PROCESSOR_REVISION")
 
-	for i = 0, result['number_of_processors'] - 1, 1 do
+	-- remove trailing zero terminator
+	local num_procs = result['number_of_processors']:match("^[^%z]*")
+
+	for i = 0, tonumber(num_procs) - 1, 1 do
 		result['status-~mhz'..i], result['~mhz' .. i]                               = reg_get_value(smbstate, openhklm_result['handle'], "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\" .. i, "~MHz")
 		result['status-identifier'..i], result['identifier' .. i]                   = reg_get_value(smbstate, openhklm_result['handle'], "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\" .. i, "Identifier")
 		result['status-processornamestring'..i], result['processornamestring' .. i] = reg_get_value(smbstate, openhklm_result['handle'], "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\" .. i, "ProcessorNameString")
@@ -197,7 +204,9 @@ action = function(host)
 
 		local hardware = {}
 		hardware['name'] = "Hardware"
-		for i = 0, result['number_of_processors'] - 1, 1 do
+		-- remove trailing zero terminator
+		local num_procs = result['number_of_processors']:match("^[^%z]*")
+		for i = 0, tonumber(num_procs) - 1, 1 do
 			if(result['status-processornamestring'..i] == false) then
 				result['status-processornamestring'..i] = "Unknown"
 			end

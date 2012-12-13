@@ -1,3 +1,11 @@
+local brute = require "brute"
+local creds = require "creds"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
+local mongodb = stdnse.silent_require "mongodb"
+
 description = [[
 Performs brute force password auditing against the MongoDB database.
 ]]
@@ -16,10 +24,6 @@ Performs brute force password auditing against the MongoDB database.
 -- |_    Performed 3542 guesses in 9 seconds, average tps: 393
 --
 
-require 'brute'
-require 'shortport'
-require 'stdnse'
-stdnse.silent_require('mongodb')
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -47,7 +51,7 @@ Driver = {
 		if ( status ) then
 			return true, brute.Account:new(username, password, creds.State.VALID)
 		elseif ( resp ~= "Authentication failed" ) then
-			local err = brute.Error:new( err )
+			local err = brute.Error:new( resp )
 			err:setRetry( true )
 			return false, err					
 		end
@@ -96,7 +100,7 @@ action = function(host, port)
 	
 	engine.options.script_name = SCRIPT_NAME
 	engine.options.firstonly = true
-	status, result = engine:start()
+	local status, result = engine:start()
 
 	return result
 end

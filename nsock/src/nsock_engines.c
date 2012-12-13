@@ -55,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_engines.c 28195 2012-03-01 09:05:02Z henri $ */
+/* $Id: nsock_engines.c 30096 2012-10-21 23:20:35Z henri $ */
 
 #ifdef HAVE_CONFIG_H
 #include "nsock_config.h"
@@ -71,6 +71,20 @@
   #define ENGINE_EPOLL
 #endif /* HAVE_EPOLL */
 
+#if HAVE_KQUEUE
+  extern struct io_engine engine_kqueue;
+  #define ENGINE_KQUEUE &engine_kqueue,
+#else
+  #define ENGINE_KQUEUE
+#endif /* HAVE_KQUEUE */
+
+#if HAVE_POLL
+  extern struct io_engine engine_poll;
+  #define ENGINE_POLL &engine_poll,
+#else
+  #define ENGINE_POLL
+#endif /* HAVE_POLL */
+
 /* select() based engine is the fallback engine, we assume it's always available */
 extern struct io_engine engine_select;
 #define ENGINE_SELECT &engine_select,
@@ -79,6 +93,8 @@ extern struct io_engine engine_select;
  * available on your system. Engines must be sorted by order of preference */
 static struct io_engine *available_engines[] = {
   ENGINE_EPOLL
+  ENGINE_KQUEUE
+  ENGINE_POLL
   ENGINE_SELECT
   NULL
 };
@@ -107,13 +123,38 @@ struct io_engine *get_io_engine(void) {
   return engine;
 }
 
-void nsock_set_default_engine(char *engine) {
+int nsock_set_default_engine(char *engine) {
   if (engine_hint)
     free(engine_hint);
 
-  if (engine)
-    engine_hint = strdup(engine);
-  else
-    engine_hint = NULL;
+  if (engine) {
+    int i;
+
+    for (i = 0; available_engines[i] != NULL; i++) {
+      if (strcmp(engine, available_engines[i]->name) == 0) {
+        engine_hint = strdup(engine);
+        return 0;
+      }
+    }
+    return -1;
+  }
+  /* having engine = NULL is fine. This is actually the
+   * way to tell nsock to use the default engine again. */
+  engine_hint = NULL;
+  return 0;
+}
+
+const char *nsock_list_engines(void) {
+  return
+#if HAVE_EPOLL
+  "epoll "
+#endif
+#if HAVE_KQUEUE
+  "kqueue "
+#endif
+#if HAVE_POLL
+  "poll "
+#endif
+  "select";
 }
 

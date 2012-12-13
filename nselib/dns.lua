@@ -29,14 +29,19 @@
 --
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
-module(... or "dns", package.seeall)
 
-require("bit")
-require("ipOps")
-require("stdnse")
+local bin = require "bin"
+local bit = require "bit"
+local coroutine = require "coroutine"
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local base32 = require "base32"
+_ENV = stdnse.module("dns", stdnse.seeall)
 
 get_servers = nmap.get_dns_servers
-
 
 ---
 -- Table of DNS resource types.
@@ -56,6 +61,7 @@ types = {
     OPT = 41,
     SSHFP = 44,
     NSEC = 47,
+    NSEC3 = 50,
     AXFR = 252,
     ANY = 255
 }
@@ -204,7 +210,7 @@ local function processResponse( response, dname, dtype, options )
          else
              return findNiceAnswer(dtype, rPkt, options.retAll)
          end
-     else -- if not, ask the next server in authority
+     elseif ( not(options.noauth) ) then -- if not, ask the next server in authority
 
          local next_server = getAuthDns(rPkt)
 
@@ -222,6 +228,8 @@ local function processResponse( response, dname, dtype, options )
              options.tries = options.tries - 1
              return query(dname, options)
          end
+     elseif ( options.retPkt ) then
+         return true, rPkt
      end
 
      -- nothing worked
@@ -241,6 +249,7 @@ end
 -- * <code>retAll</code>: Return all answers, not just the first.
 -- * <code>retPkt</code>: Return the packet instead of using the answer-fetching mechanism.
 -- * <code>norecurse</code>: If true, do not set the recursion (RD) flag.
+-- * <code>noauth</code>: If true, do not try to find authoritative server
 -- * <code>multiple</code>: If true, expects multiple hosts to respond to multicast request
 -- * <code>flags</code>: numeric value to set flags in the DNS query to a specific value
 -- * <code>id</code>: numeric value to use for the DNS transaction id
@@ -739,7 +748,7 @@ end
 -- @param fqdn containing the fully qualified domain name
 -- @return encQ containing the encoded value
 local function encodeFQDN(fqdn)
-    if ( not(fqdn) or #fqdn == 0 ) then return end
+    if ( not(fqdn) or #fqdn == 0 ) then return string.char(0) end
 
     local parts = stdnse.strsplit("%.", fqdn)
     local encQ = ""
@@ -1026,6 +1035,49 @@ decoder[types.NSEC] = function (entry, data, pos)
             entry.NSEC.types[(block_num - 1) * 256 + i] = true
         end
     end
+end
+-- Decodes NSEC3 records, puts result in <code>entry.NSEC3</code>. See RFC 5155.
+--
+-- <code>entry.NSEC3</code> has the fields <code>dname</code>,
+-- <code>hash.alg</code>, and <code>hash.base32</code>.
+-- <code>hash.bin</code>, and <code>hash.hex</code>.
+-- <code>salt.bin</code>, and <code>salt.hex</code>.
+-- <code>iterations</code>, and <code>types</code>.
+-- @param entry RR in packet.
+-- @param data Complete encoded DNS packet.
+-- @param pos Position in packet after RR.
+decoder[types.NSEC3] = function (entry, data, pos)
+   local np = pos - #entry.data
+   local _
+   local flags
+
+   entry.NSEC3 = {}
+   entry.NSEC3.dname = entry.dname
+   entry.NSEC3.salt, entry.NSEC3.hash = {}, {}
+
+   np, entry.NSEC3.hash.alg,flags,entry.NSEC3.iterations = bin.unpack(">CBS", data, np) 
+   -- do we even need to decode these do we care about opt out?
+   -- entry.NSEC3.flags = decodeFlagsNSEC3(flags)
+  
+   np, entry.NSEC3.salt.bin = bin.unpack(">p",  data, np)
+   _, entry.NSEC3.salt.hex = bin.unpack("H" .. #entry.NSEC3.salt.bin, entry.NSEC3.salt.bin)
+
+   np, entry.NSEC3.hash.bin = bin.unpack(">p" , data, np)
+   _, entry.NSEC3.hash.hex = bin.unpack(">H" .. #entry.NSEC3.hash.bin , entry.NSEC3.hash.bin)
+   entry.NSEC3.hash.base32 = base32.enc(entry.NSEC3.hash.bin, true)
+
+   np, entry.NSEC3.WinBlockNo, entry.NSEC3.bmplength = bin.unpack(">CC", data, np)
+   np, entry.NSEC3.bin = bin.unpack(">B".. entry.NSEC3.bmplength, data, np)
+   entry.NSEC3.types = {}
+   if entry.NSEC3.bin == nil then
+      entry.NSEC3.bin = ""
+   end
+   for i=1, string.len(entry.NSEC3.bin) do
+      local bit = string.sub(entry.NSEC3.bin,i,i)
+      if bit == "1" then
+         table.insert(entry.NSEC3.types, (entry.NSEC3.WinBlockNo*256+i-1))
+      end
+   end
 end
 
 -- Decodes records that consist only of one domain, for example CNAME, NS, PTR.
@@ -1472,3 +1524,5 @@ function update(dname, options)
     end
     return false
 end
+
+return _ENV;

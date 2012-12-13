@@ -1,3 +1,13 @@
+local coroutine = require "coroutine"
+local dns = require "dns"
+local io = require "io"
+local math = require "math"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Attempts to enumerate DNS hostnames by brute force guessing of common subdomains.
 ]]
@@ -43,9 +53,6 @@ hostrule = function(host)
 end
 
 
-require 'dns'
-require 'stdnse'
-require 'target'
 
 local HOST_LIST = {
 	'www', 'mail', 'blog', 'ns0', 'ns1', 'mail2', 'mail3', 'admin', 'ads', 'ssh',
@@ -149,7 +156,7 @@ local function srv_main(domainname, srvresults, srv_iter)
 				local hostn = name..'.'..domainname
 				addr = stdnse.strsplit(":",addr)
 				for _, dtype in ipairs({"A", "AAAA"}) do
-					local srvres = resolve(addr[4], dtype) 
+					local srvres = resolve(addr[4], dtype)
 					if(srvres) then
 						for srvhost,srvip in ipairs(srvres) do
 							stdnse.print_debug("Hostname: "..hostn.." IP: "..srvip)
@@ -179,6 +186,8 @@ action = function(host)
 	if not nmap.registry.bruteddomains then
 		nmap.registry.bruteddomains = {}
 	end
+
+	local dosrv
 	if(not table.contains(nmap.registry.bruteddomains,domainname)) then
 		table.insert(nmap.registry.bruteddomains, domainname)
 		stdnse.print_debug("Starting dns-brute at: "..domainname)
@@ -226,10 +235,12 @@ action = function(host)
 		local done
 		-- wait for all threads to finish
 		while( not(done) ) do
-			condvar("wait")
 			done = true
 			for thread in pairs(threads) do
 				if (coroutine.status(thread) ~= "dead") then done = false end
+			end
+			if ( not(done) ) then
+				condvar("wait")
 			end
 		end
 
@@ -240,7 +251,7 @@ action = function(host)
 			local condvar = nmap.condvar( srvresults )
 			stdnse.print_debug("SRV's per thread: "..howmany_ip)
 			repeat
-				local j = math.min(i+howmany_ip, #srvlist)	
+				local j = math.min(i+howmany_ip, #srvlist)
 				local name_iter = array_iter(srvlist, i, j)
 				threads[stdnse.new_thread(srv_main, domainname, srvresults, name_iter)] = true
 				i = j+1
@@ -248,16 +259,18 @@ action = function(host)
 			local done
 			-- wait for all threads to finish
 			while( not(done) ) do
-				condvar("wait")
 				done = true
 				for thread in pairs(threads) do
 					if (coroutine.status(thread) ~= "dead") then done = false end
 				end
+				if ( not(done) ) then
+					condvar("wait")
+				end
 			end
 		end
 
-		response = {}
-		t_dns = {}
+		local response = {}
+		local t_dns = {}
 		t_dns['name'] = "DNS Brute-force hostnames"
 		if(#results==0) then
 			table.insert(t_dns,"No results.")
@@ -267,7 +280,7 @@ action = function(host)
 		end
 		response[#response + 1] = t_dns
 		if(dosrv) then
-			t_srv = {}
+			local t_srv = {}
 			t_srv['name'] = "SRV results"
 			if(#srvresults==0) then
 				table.insert(t_srv,"No results.")

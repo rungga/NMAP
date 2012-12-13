@@ -2,10 +2,11 @@
 --
 -- @author "Patrik Karlsson <patrik@cqure.net>"
 
-module(... or "redis", package.seeall)
-
-local match = require 'match'		
-
+local match = require "match"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
+_ENV = stdnse.module("redis", stdnse.seeall)
 
 Request = {
 
@@ -48,7 +49,7 @@ Response = {
 	end,
 	
 	receive = function(self)
-		local status, data = self.socket:receive_buf("\r\n")
+		local status, data = self.socket:receive_buf("\r\n", false)
 		if ( not(status) ) then
 			return false, "Failed to receive data from server"
 		end
@@ -77,7 +78,7 @@ Response = {
 			
 			local len = tonumber(data:match("^%$(%d*)"))
 			-- we should only have a single line, so we can just peel of the length	
-			status, data = self.socket:receive_buf(match.numbytes(len))
+			status, data = self.socket:receive_buf(match.numbytes(len), false)
 			if( not(status) ) then
 				return false, "Failed to receive data from server"
 			end
@@ -92,12 +93,12 @@ Response = {
 			
 			for i=1, count do
 				-- peel of the length
-				local status = self.socket:receive_buf("\r\n")
+				local status = self.socket:receive_buf("\r\n", false)
 				if( not(status) ) then
 					return false, "Failed to receive data from server"
 				end
 
-				status, data = self.socket:receive_buf("\r\n")
+				status, data = self.socket:receive_buf("\r\n", false)
 				if( not(status) ) then
 					return false, "Failed to receive data from server"
 				end
@@ -141,3 +142,5 @@ Helper = {
 	end
 	
 }
+
+return _ENV;

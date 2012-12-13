@@ -1,3 +1,11 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local tab = require "tab"
+local table = require "table"
+
 description = [[
 Queries Quake3-style master servers for game servers (many games other than Quake 3 use this same protocol).
 ]]
@@ -19,10 +27,6 @@ Queries Quake3-style master servers for game servers (many games other than Quak
 author = "Toni Ruottu"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
-require "datafiles"
-require "shortport"
-require "bin"
-require "tab"
 
 portrule = shortport.port_or_service ({20110, 20510, 27950, 30710}, "quake3-master", {"udp"})
 postrule = function()
@@ -74,6 +78,7 @@ local function getservers(host, port, q3protocol)
 	local probe = bin.pack("CCCCA", 0xff, 0xff, 0xff, 0xff, string.format("getservers %s empty full\n", q3protocol))
         socket:send(probe)
 
+  local data
 	status, data = socket:receive() -- get some data
 	if not status then
 		return {}
@@ -81,6 +86,7 @@ local function getservers(host, port, q3protocol)
 	nmap.set_port_state(host, port, "open")
 
 	local magic = bin.pack("CCCCA", 0xff, 0xff, 0xff, 0xff, "getserversResponse")
+	local tmp
 	while #data < #magic do -- get header
 		status, tmp = socket:receive()
 		if status then
@@ -92,7 +98,7 @@ local function getservers(host, port, q3protocol)
 	end
 
 	port.version.name = "quake3-master"
-        nmap.set_port_version(host, port, "hardmatched")
+        nmap.set_port_version(host, port)
 
 	local EOT = bin.pack("ACCC", "EOT", 0, 0, 0)
 	local pieces = stdnse.strsplit("\\", data)
@@ -109,7 +115,7 @@ local function getservers(host, port, q3protocol)
 
 	local servers = {}
 	for _, value in ipairs(pieces) do
-		parts = {bin.unpack("CCCC>S", value)}
+		local parts = {bin.unpack("CCCC>S", value)}
 		if #parts > 5 then
 			local o1 = parts[2]
 			local o2 = parts[3]
@@ -146,6 +152,7 @@ end
 local function dropdupes(tables, stringify)
 	local unique = {}
 	local dupe = {}
+	local s
 	for _, v in ipairs(tables) do
 		s = stringify(v)
 		if not dupe[s] then
@@ -204,10 +211,10 @@ local function protocols()
 	local t = tab.new()
 	tab.addrow(t, '#', 'PROTOCOL', 'GAME', 'SERVERS')
 	for i, p in ipairs(sortable) do
-		pos = i .. '.'
-		protocol = p[1]
+		local pos = i .. '.'
+		local protocol = p[1]
 		count = p[2]
-		game = KNOWN_PROTOCOLS[protocol]
+		local game = KNOWN_PROTOCOLS[protocol]
 		if game == "unknown" then
 			game = ""
 		end

@@ -52,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: engine_select.c 28415 2012-04-07 08:16:08Z david $ */
+/* $Id: engine_select.c 30099 2012-10-22 04:26:19Z henri $ */
 
 #ifndef WIN32
 #include <sys/select.h>
@@ -126,7 +126,9 @@ void process_event(mspool *nsp, gh_list *evlist, msevent *nse, int ev);
 void process_iod_events(mspool *nsp, msiod *nsi, int ev);
 
 #if HAVE_PCAP
+#ifndef PCAP_CAN_DO_SELECT
 int pcap_read_on_nonselect(mspool *nsp);
+#endif
 #endif
 
 /* defined in nsock_event.c */
@@ -208,8 +210,10 @@ int select_iod_unregister(mspool *nsp, msiod *iod) {
     {
       CHECKED_FD_CLR(iod->sd, &sinfo->fds_master_r);
       CHECKED_FD_CLR(iod->sd, &sinfo->fds_master_w);
+      CHECKED_FD_CLR(iod->sd, &sinfo->fds_master_x);
       CHECKED_FD_CLR(iod->sd, &sinfo->fds_results_r);
       CHECKED_FD_CLR(iod->sd, &sinfo->fds_results_w);
+      CHECKED_FD_CLR(iod->sd, &sinfo->fds_results_x);
     }
 
     if (sinfo->max_sd == iod->sd)
@@ -313,11 +317,13 @@ int select_loop(mspool *nsp, int msec_timeout) {
     }
 
 #if HAVE_PCAP
+#ifndef PCAP_CAN_DO_SELECT
     /* do non-blocking read on pcap devices that doesn't support select()
      * If there is anything read, just leave this loop. */
     if (pcap_read_on_nonselect(nsp)) {
       /* okay, something was read. */
     } else
+#endif
 #endif
     {
       /* Set up the descriptors for select */
@@ -349,7 +355,7 @@ int select_loop(mspool *nsp, int msec_timeout) {
 
 /* ---- INTERNAL FUNCTIONS ---- */
 
-static int get_evmask(const mspool *nsp, const msiod *nsi) {
+static inline int get_evmask(const mspool *nsp, const msiod *nsi) {
   struct select_engine_info *sinfo = (struct select_engine_info *)nsp->engine_data;
   int sd, evmask;
 

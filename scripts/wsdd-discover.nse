@@ -1,3 +1,10 @@
+local coroutine = require "coroutine"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+local wsdd = require "wsdd"
+
 description = [[ 
 Retrieves and displays information from devices supporting the Web
 Services Dynamic Discovery (WS-Discovery) protocol. It also attempts
@@ -28,8 +35,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"safe", "discovery", "default"}
 
-require 'shortport'
-require 'wsdd'
 
 portrule = shortport.portnumber(3702, "udp", {"open", "open|filtered"})
 
@@ -45,15 +50,8 @@ discoverThread = function( funcname, host, port, results )
 	local helper = wsdd.Helper:new(host, port)
 	helper:setTimeout(timeout)
 	
-	local func = loadstring( "return helper:" .. funcname .. "()" )
-	setfenv(func, setmetatable({ helper=helper; }, {__index = _G}))
-	
-	if ( func ) then
-		local status, result = func()
-		if ( status ) then table.insert(results, result) end
-	else
-		stdnse.print_debug("ERROR: Failed to call function: %s", funcname)
-	end
+	local status, result = helper[funcname](helper)
+	if ( status ) then table.insert(results, result) end
 	condvar("broadcast")
 end
 
@@ -77,10 +75,12 @@ action = function(host, port)
 	local done
 	-- wait for all threads to finish
 	while( not(done) ) do
-		condvar("wait")
 		done = true
 		for thread in pairs(threads) do
 			if (coroutine.status(thread) ~= "dead") then done = false end
+		end
+		if ( not(done) ) then
+			condvar("wait")
 		end
 	end
 

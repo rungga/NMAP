@@ -1,3 +1,9 @@
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+local versant = require "versant"
+
 description = [[
 Extracts information, including file paths, version and database names from
 a Versant object database.
@@ -31,8 +37,6 @@ a Versant object database.
 -- |_      Version: 8.0.2
 --
 
-require 'shortport'
-require 'versant'
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -62,6 +66,7 @@ action = function(host, port)
 		return fail("Failed to connect to server")
 	end
 
+  local result
 	status, result = v:getVODInfo()
 	if ( not(status) ) then
 		return fail("Failed to get VOD information")
@@ -78,7 +83,7 @@ action = function(host, port)
 	
 	port.version.product = "Versant Database"
 	port.version.name = "versant"
-	nmap.set_port_version(host, port, "hardmatched")
+	nmap.set_port_version(host, port)
 
 	-- the script may fail after this part, but we want to report at least
 	-- the above information if that's the case.

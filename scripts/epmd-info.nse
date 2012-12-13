@@ -1,3 +1,10 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Connects to Erlang Port Mapper Daemon (epmd) and retrieves a list of nodes with their respective port numbers.
 ]]
@@ -17,8 +24,6 @@ Connects to Erlang Port Mapper Daemon (epmd) and retrieves a list of nodes with 
 author = "Toni Ruottu"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
-require "shortport"
-require "bin"
 
 portrule = shortport.port_or_service (4369, "epmd")
 
@@ -40,9 +45,9 @@ action = function(host, port)
 		data = data .. tmp
 		status, tmp = socket:receive()
 	end
-	pos, realport = bin.unpack(">I", data)
-	nodestring = string.sub(data, pos, -2)
-	nodes = stdnse.strsplit("\n", nodestring)
+	local pos, realport = bin.unpack(">I", data)
+	local nodestring = string.sub(data, pos, -2)
+	local nodes = stdnse.strsplit("\n", nodestring)
 	local response = {}
 	table.insert(response, 'epmd running on port ' .. realport)
 	for _, node in ipairs(nodes) do

@@ -55,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_iod.c 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: nsock_iod.c 29169 2012-07-09 16:45:49Z henri $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -121,6 +121,8 @@ nsock_iod nsi_new2(nsock_pool nsockp, int sd, void *userdata) {
   nsi->userdata = userdata;
   nsi->nsp = (mspool *)nsockp;
 
+  nsi->_flags = 0;
+
   nsi->read_count = 0;
   nsi->write_count = 0;
 
@@ -139,6 +141,10 @@ nsock_iod nsi_new2(nsock_pool nsockp, int sd, void *userdata) {
 
   /* The nsp keeps track of active msiods so it can delete them if it is deleted */
   nsi->entry_in_nsp_active_iods = gh_list_append(&nsp->active_iods, nsi);
+
+  if (nsp->tracelevel > 1)
+    nsock_trace(nsp, "nsi_new (IOD #%lu)", nsi->id);
+
   return (nsock_iod)nsi;
 }
 
@@ -162,15 +168,14 @@ void nsi_delete(nsock_iod nsockiod, int pending_response) {
 
   assert(nsi);
 
-  
-  if (nsi->nsp->tracelevel > 1)
-    nsock_trace(nsi->nsp, "nsi_delete() (IOD #%lu)", nsi->id);
-
   if (nsi->state == NSIOD_STATE_DELETED) {
     /* This nsi is already marked as deleted, will probably be removed from the
      * list very soon. Just return to avoid breaking reentrancy. */
     return;
   }
+
+  if (nsi->nsp->tracelevel > 1)
+    nsock_trace(nsi->nsp, "nsi_delete (IOD #%lu)", nsi->id);
 
   if (nsi->events_pending > 0) {
     /* shit -- they killed the msiod while an event was still pending on it.
@@ -228,7 +233,7 @@ void nsi_delete(nsock_iod nsockiod, int pending_response) {
     if (SSL_shutdown(nsi->ssl) == -1) {
 
       if (nsi->nsp->tracelevel > 1)
-        nsock_trace(nsi->nsp, "nsi_delete(): SSL shutdown failed (%s) on NSI %li",
+        nsock_trace(nsi->nsp, "nsi_delete: SSL shutdown failed (%s) on NSI %li",
                     ERR_reason_error_string(SSL_get_error(nsi->ssl, -1)), nsi->id);
     }
 

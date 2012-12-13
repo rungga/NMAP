@@ -1,3 +1,11 @@
+local brute = require "brute"
+local comm = require "comm"
+local creds = require "creds"
+local math = require "math"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+
 description=[[
 Performs brute force password auditing against IRC (Internet Relay Chat) servers.
 ]]
@@ -21,9 +29,6 @@ Performs brute force password auditing against IRC (Internet Relay Chat) servers
 -- Created 26/10/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 --
 
-require 'brute'
-require 'shortport'
-require 'comm'
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -55,7 +60,7 @@ Driver = {
 
 	login = function(self, _, password)
 		local msg = ("PASS %s\r\nNICK nmap_brute\r\nUSER anonymous 0 * :Nmap brute\r\n"):format(password)
-		local status = self.socket:send(msg)
+		local status, data = self.socket:send(msg)
 		local success = false
 		
 		if ( not(status) ) then
@@ -131,6 +136,7 @@ action = function(host, port)
 	engine.options.script_name = SCRIPT_NAME	
     engine.options.firstonly = true
     engine.options.passonly = true
+  local result
 	status, result = engine:start()
 
 	return result

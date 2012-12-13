@@ -1,3 +1,9 @@
+local nmap = require "nmap"
+local os = require "os"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local tab = require "tab"
+
 description = [[
 Retrieves information (including system architecture, process ID, and
 server time) from distributed memory object caching system memcached.
@@ -28,8 +34,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'shortport'
-require 'tab'
 
 -- currently, we only support the TCP, text based protocol
 portrule = shortport.port_or_service(11211, "memcached", "tcp")
@@ -69,7 +73,7 @@ end
 local function recvResponse(socket)	
 	local kvs = {}
 	repeat
-		local status, response = socket:receive_buf("\r\n")
+		local status, response = socket:receive_buf("\r\n", false)
 		if ( not(status) ) then
 			return false, "Failed to receive response from server"
 		end

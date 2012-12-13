@@ -1,3 +1,11 @@
+local bin = require "bin"
+local comm = require "comm"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Enumerates SCADA Modbus slave ids (sids) and collects their device information.
 
@@ -34,10 +42,6 @@ author = "Alexander Rudakov"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
-require "bin"
-require "comm"
-require "stdnse"
-require "shortport"
 
 portrule = shortport.portnumber(502, "tcp")
 
@@ -101,7 +105,7 @@ end
 local extract_slave_id = function(response)
     local byte_count = string.byte(response, 9)
     if ( byte_count == nil or byte_count == 0) then return nil end
-    offset, slave_id = bin.unpack("A"..byte_count, response, 10)
+    local offset, slave_id = bin.unpack("A"..byte_count, response, 10)
     return slave_id
 end
 
@@ -126,7 +130,7 @@ action = function(host, port)
 
     for sid = 1, 246 do
         stdnse.print_debug(3, "Sending command with sid = %d", sid)
-        rsid = form_rsid(sid, 0x11, "")
+        local rsid = form_rsid(sid, 0x11, "")
 
         local status, result = comm.exchange(host, port, rsid, opts)
         if ( status and (#result >= 8) ) then
@@ -159,7 +163,7 @@ action = function(host, port)
     if ( #results > 0 ) then
         port.state = "open"
         port.version.name = "modbus"
-        nmap.set_port_version(host, port, "hardmatched")
+        nmap.set_port_version(host, port)
     end
 
     return stdnse.format_output(true, results)

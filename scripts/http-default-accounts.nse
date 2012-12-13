@@ -1,3 +1,12 @@
+local _G = require "_G"
+local creds = require "creds"
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Tests for access with default credentials used by a variety of web applications and devices.  
 
@@ -45,9 +54,6 @@ author = "Paulino Calderon"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "auth", "safe"}
 
-require "creds"
-require "http"
-require "shortport"
 portrule = shortport.http
 
 ---
@@ -140,14 +146,14 @@ local function load_fingerprints(filename, cat)
 
   -- Load the file
   stdnse.print_debug(1, "%s: Loading fingerprints: %s", SCRIPT_NAME, filename_full)
-  file = loadfile(filename_full)
+  local env = setmetatable({fingerprints = {}}, {__index = _G});
+  file = loadfile(filename_full, "t", env)
   if( not(file) ) then
     stdnse.print_debug(1, "%s: Couldn't load the file: %s", SCRIPT_NAME, filename_full)
     return false, "Couldn't load fingerprint file: " .. filename_full
   end
-  setfenv(file, setmetatable({fingerprints = {}; }, {__index = _G}))
   file()
-  fingerprints = getfenv(file)["fingerprints"]
+  fingerprints = env.fingerprints
 
   -- Validate fingerprints
   local valid_flag = validate_fingerprints(fingerprints)
@@ -214,12 +220,19 @@ end
 -- the login routine is initialized to check for default credentials authentication
 ---
 action = function(host, port)
-  local fingerprintload_status, fingerprints, requests, results
+  local fingerprintload_status, status, fingerprints, requests, results
   local fingerprint_filename = stdnse.get_script_args("http-default-accounts.fingerprintfile") or "http-default-accounts-fingerprints.lua"
   local category = stdnse.get_script_args("http-default-accounts.category") or false
   local basepath = stdnse.get_script_args("http-default-accounts.basepath") or "/"
   local output_lns = {}
 
+  -- Identify servers that answer 200 to invalid HTTP requests and exit as these would invalidate the tests
+  local _, http_status, _ = http.identify_404(host,port)
+  if ( http_status == 200 ) then
+    stdnse.print_debug(1, "%s: Exiting due to ambiguous response from web server on %s:%s. All URIs return status 200.", SCRIPT_NAME, host.ip, port.number)
+    return false
+  end
+  
   --Load fingerprint data or abort 
   status, fingerprints = load_fingerprints(fingerprint_filename, category)
   if(not(status)) then

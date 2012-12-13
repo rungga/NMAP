@@ -1,7 +1,13 @@
+local bin = require "bin"
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local tab = require "tab"
+local table = require "table"
+
 description = [[
 Discovers hosts and routing information from devices running RIPng on the
-LAN by sending a RIPng Request command and collecting the responses
-from all responsive devices.
+LAN by sending a broadcast RIPng Request command and collecting any responses.
 ]]
 
 ---
@@ -23,8 +29,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
-require 'ipOps'
-require 'tab'
 
 prerule = function() return ( nmap.address_family() == "inet6" ) end
 

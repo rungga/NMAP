@@ -1,3 +1,12 @@
+local creds = require "creds"
+local http = require "http"
+local json = require "json"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Obtains information from a Bitcoin server by calling <code>getinfo</code> on its JSON-RPC interface.
 ]]
@@ -27,10 +36,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"http-brute"}
 
-require 'http'
-require 'shortport'
-require 'json'
-require 'creds'
 
 portrule = shortport.portnumber(8332)
 
@@ -59,7 +64,7 @@ function ServiceProxy:new(host, port, path, options)
 	self.options = options
 	self.__index = function(_, method)
 		return function(...)
-			return self:call(method, arg)
+			return self:call(method, table.pack(...))
 		end
 	end
 	return o
@@ -135,7 +140,7 @@ action = function(host, port)
 			if info.version then
 				port.version.version = decode_bitcoin_version(info.version)
 			end
-			nmap.set_port_version(host, port, "hardmatched")
+			nmap.set_port_version(host, port)
 		end
 	end
 

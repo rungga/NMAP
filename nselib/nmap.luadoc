@@ -431,10 +431,10 @@ function bind(addr, port)
 -- <code>"tcp"</code>.
 --
 -- If <code>host</code> is a host table, it must contain at least one of the
--- keys <code>addr</code> or <code>targetname</code>. If <code>targetname</code>
+-- keys <code>ip</code> or <code>name</code>. If <code>name</code>
 -- is given, it is used to request the correct certificate in SSL connections.
--- Passing a string instead of a host table acts like <code>host.addr</code> and
--- <code>host.targetname</code> were set to the same value. If <code>port</code>
+-- Passing a string instead of a host table acts like <code>host.ip</code> and
+-- <code>host.name</code> were set to the same value. If <code>port</code>
 -- is a table, it must contain the <code>number</code> key.
 --
 -- On success the function returns a true value. On failure it returns a false
@@ -773,15 +773,19 @@ function ethernet_close()
 -- @usage dnet:ip_open()
 function ip_open()
 
---- Sends a raw IPv4 packet.
+--- Sends a raw IPv4 or IPv6 packet.
 --
 -- The dnet object must be associated with a previously opened socket. The
 -- packet must begin with an IP header. If there was no previous valid call
 -- to <code>ip_open</code> an error is thrown.
 -- @param packet An IP packet to send.
+-- @param dst A destination address, as a host table or string. If omitted, the
+-- destination address is read from the packet; however this is deprecated, because
+-- the packet does not contain the scope ID required to send to certain IPv6
+-- addresses.
 -- @see new_dnet
--- @usage dnet:ip_send(packet)
-function ip_send(packet)
+-- @usage dnet:ip_send(packet, dst)
+function ip_send(packet, dst)
 
 --- Closes a raw IPv4 socket.
 -- @see new_dnet, ip_open

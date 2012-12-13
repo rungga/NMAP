@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: ncat_core.c 30240 2012-11-13 08:40:49Z henri $ */
 
 #include "ncat.h"
 #include "util.h"
@@ -130,7 +130,8 @@ struct options o;
 struct timeval start_time;
 
 /* Initializes global options to their default values. */
-void options_init(void) {
+void options_init(void)
+{
     o.verbose = 0;
     o.debug = 0;
     o.target = NULL;
@@ -159,6 +160,8 @@ void options_init(void) {
     addrset_init(&o.denyset);
     o.httpserver = 0;
 
+    o.nsock_engine = 0;
+
     o.numsrcrtes = 0;
     o.srcrteptr = 4;
 
@@ -179,38 +182,61 @@ void options_init(void) {
 #endif
 }
 
-/* Tries to resolve the given name (or literal IP) into a sockaddr structure.
-   Pass 0 for the port if you don't care. Returns 0 if hostname cannot be
-   resolved. */
-int resolve(char *hostname, unsigned short port,
-            struct sockaddr_storage *ss, size_t *sslen, int af)
+/* Internal helper for resolve and resolve_numeric. addl_flags is ored into
+   hints.ai_flags, so you can add AI_NUMERICHOST. */
+static int resolve_internal(const char *hostname, unsigned short port,
+    struct sockaddr_storage *ss, size_t *sslen, int af, int addl_flags)
 {
     struct addrinfo hints;
     struct addrinfo *result;
     char portbuf[16];
     int rc;
 
+    assert(hostname);
     assert(ss);
     assert(sslen);
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = af;
     hints.ai_socktype = SOCK_DGRAM;
-    if (o.nodns)
-        hints.ai_flags |= AI_NUMERICHOST;
+    hints.ai_flags |= addl_flags;
 
     /* Make the port number a string to give to getaddrinfo. */
     rc = Snprintf(portbuf, sizeof(portbuf), "%hu", port);
-    assert(rc >= 0 && rc < sizeof(portbuf));
+    assert(rc >= 0 && (size_t) rc < sizeof(portbuf));
 
     rc = getaddrinfo(hostname, portbuf, &hints, &result);
-    if (rc != 0 || result == NULL)
-        return 0;
+    if (rc != 0)
+        return rc;
+    if (result == NULL)
+        return EAI_NONAME;
     assert(result->ai_addrlen > 0 && result->ai_addrlen <= (int) sizeof(struct sockaddr_storage));
     *sslen = result->ai_addrlen;
     memcpy(ss, result->ai_addr, *sslen);
     freeaddrinfo(result);
-    return 1;
+
+    return 0;
+}
+
+/* Resolves the given hostname or IP address with getaddrinfo, and stores the
+   first result (if any) in *ss and *sslen. The value of port will be set in the
+   appropriate place in *ss; set to 0 if you don't care. af may be AF_UNSPEC, in
+   which case getaddrinfo may return e.g. both IPv4 and IPv6 results; which one
+   is first depends on the system configuration. Returns 0 on success, or a
+   getaddrinfo return code (suitable for passing to gai_strerror) on failure.
+   *ss and *sslen are always defined when this function returns 0.
+
+   If the global o.nodns is true, then do not resolve any names with DNS. */
+int resolve(const char *hostname, unsigned short port,
+    struct sockaddr_storage *ss, size_t *sslen, int af)
+{
+    int flags;
+
+    flags = 0;
+    if (o.nodns)
+        flags |= AI_NUMERICHOST;
+
+    return resolve_internal(hostname, port, ss, sslen, af, flags);
 }
 
 int fdinfo_close(struct fdinfo *fdn)
@@ -290,6 +316,22 @@ int fdinfo_send(struct fdinfo *fdn, const char *buf, size_t size)
     return send(fdn->fd, buf, size, 0);
 }
 
+/* If we are sending a large amount of data, we might momentarily run out of send
+   space and get an EAGAIN when we send. Temporarily convert a socket to
+   blocking more, do the send, and unblock it again. Assumes that the socket was
+   in nonblocking mode to begin with; it has the side effect of leaving the
+   socket nonblocking on return. */
+static int blocking_fdinfo_send(struct fdinfo *fdn, const char *buf, size_t size)
+{
+    int ret;
+
+    block_socket(fdn->fd);
+    ret = fdinfo_send(fdn, buf, size);
+    unblock_socket(fdn->fd);
+
+    return ret;
+}
+
 int ncat_send(struct fdinfo *fdn, const char *buf, size_t size)
 {
     int n;
@@ -297,7 +339,7 @@ int ncat_send(struct fdinfo *fdn, const char *buf, size_t size)
     if (o.recvonly)
         return size;
 
-    n = fdinfo_send(fdn, buf, size);
+    n = blocking_fdinfo_send(fdn, buf, size);
     if (n <= 0)
         return n;
 
@@ -314,7 +356,7 @@ int ncat_broadcast(fd_set *fds, const fd_list_t *fdlist, const char *msg, size_t
     int i, ret;
 
     if (o.recvonly)
-        return 0;
+        return size;
 
     ret = 0;
     for (i = 0; i <= fdlist->fdmax; i++) {
@@ -322,7 +364,7 @@ int ncat_broadcast(fd_set *fds, const fd_list_t *fdlist, const char *msg, size_t
             continue;
 
         fdn = get_fdinfo(fdlist, i);
-        if (fdinfo_send(fdn, msg, size) <= 0) {
+        if (blocking_fdinfo_send(fdn, msg, size) <= 0) {
             if (o.debug > 1)
                 logdebug("Error sending to fd %d: %s.\n", i, socket_strerror(socket_errno()));
             ret = -1;
@@ -384,7 +426,7 @@ int ncat_delay_timer(int delayval)
  * Return the open file descriptor. */
 int ncat_openlog(const char *logfile, int append)
 {
-    if(append)
+    if (append)
         return Open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0664);
     else
         return Open(logfile, O_WRONLY | O_CREAT | O_TRUNC, 0664);
@@ -423,7 +465,7 @@ static int ncat_hexdump(int logfd, const char *data, int len)
     for (i = 1; i <= len; i++) {
         if (i % 16 == 1) {
             /* Hex address output */
-            Snprintf(addrstr, sizeof(addrstr), "%.4x", (u_int)(p - data));
+            Snprintf(addrstr, sizeof(addrstr), "%.4x", (u_int) (p - data));
         }
 
         c = *p;

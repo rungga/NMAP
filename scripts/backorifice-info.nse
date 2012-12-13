@@ -1,3 +1,11 @@
+local bin = require "bin"
+local bit = require "bit"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Connects to a BackOrifice service and gathers information about
 the host and the BackOrifice service itself.
@@ -67,11 +75,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"backorifice-brute"}
 
-require("stdnse")
-require("nmap")
-require("bin")
-require("bit")
-require("shortport")
 
 portrule = shortport.port_or_service (31337, "BackOrifice", "udp")
 
@@ -220,7 +223,7 @@ end
 local function BOunpack(packet)
 	local pos, magic = bin.unpack("A8",packet)
 
-	if magic ~= MAGICSTRING then return nul,TYPE.ERROR end  --received non-BO packet
+	if magic ~= MAGICSTRING then return nil,TYPE.ERROR end  --received non-BO packet
 
 	local packetsize, packetid, type_packet, data
 	pos, packetsize, packetid, type_packet = bin.unpack("<IIC",packet,pos)
@@ -250,7 +253,7 @@ local function insert_version_info(host,port,BOversion,BOhostname,initial_seed,p
 	end
 	port.version.hostname = BOhostname
 	if(port.version.ostype == nil) then port.version.ostype = "Windows" end
-	nmap.set_port_version(host, port, "hardmatched")
+	nmap.set_port_version(host, port)
 	nmap.set_port_state(host, port, "open")
 end
 
@@ -259,7 +262,7 @@ action = function( host, port )
 	local initial_seed = stdnse.get_script_args( SCRIPT_NAME .. ".seed" )
 	local password = stdnse.get_script_args(SCRIPT_NAME .. ".password")
 	local socket = nmap.new_socket("udp")
-	try = nmap.new_try(function() socket:close() end)
+	local try = nmap.new_try(function() socket:close() end)
 	socket:set_timeout(5000)
 
 	local output_all={}

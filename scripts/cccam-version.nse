@@ -1,3 +1,8 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local string = require "string"
+
 description = [[
 Detects the CCcam service (software for sharing subscription TV among
 multiple receivers).
@@ -14,8 +19,6 @@ categories = {"version"}
 
 author = "David Fifield"
 
-require("bin")
-require("shortport")
 
 -- A chi-square test for the null hypothesis that the members of data are drawn
 -- from a uniform distribution over num_cats categories.
@@ -43,9 +46,9 @@ end
 -- splitbits("abc", 5) --> {"01100", "00101", "10001", "00110"}
 -- Any short final group is omitted.
 local function splitbits(s, n)
-	local bits, seq
+	local seq
 
-	_, bits = bin.unpack("B" .. #s, s)
+	local _, bits = bin.unpack("B" .. #s, s)
 	seq = {}
 	for i = 1, #bits - n, n do
 		seq[#seq + 1] = bits:sub(i, i + n - 1)
@@ -132,5 +135,5 @@ function action(host, port)
 
 	port.version.name = "cccam"
 	port.version.version = "CCcam DVR card sharing system"
-	nmap.set_port_version(host, port, "hardmatched")
+	nmap.set_port_version(host, port)
 end

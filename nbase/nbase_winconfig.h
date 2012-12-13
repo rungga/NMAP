@@ -92,11 +92,12 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_winconfig.h 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: nbase_winconfig.h 29022 2012-06-21 04:25:25Z sean $ */
 
 #ifndef NBASE_WINCONFIG_H
 #define NBASE_WINCONFIG_H
-
+//This disables the warning 4800 http://msdn.microsoft.com/en-us/library/b6801kcy(v=vs.71).aspx
+#pragma warning(disable : 4800)
 /* It doesn't really have strucct IP, but we use a different one instead
 	of the one that comes with Nmap */
 #define HAVE_STRUCT_IP 1

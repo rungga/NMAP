@@ -1,14 +1,20 @@
 ---
--- A tiny Versant library allowing some basic information enumeration.
--- The code is entirely based on packet dumps captured when using the Versant
+-- A tiny library allowing some basic information enumeration from
+-- Versant object database software (see
+-- http://en.wikipedia.org/wiki/Versant_Corporation).  The code is
+-- entirely based on packet dumps captured when using the Versant
 -- Management Center administration application.
 --
 -- @author "Patrik Karlsson <patrik@cqure.net>"
 --
 
-module(... or "versant", package.seeall)
-
-require 'match'
+local stdnse = require "stdnse"
+local bin = require "bin"
+local match = require "match"
+local nmap = require "nmap"
+local package = require "package"
+local table = require "table"
+_ENV = stdnse.module("versant", stdnse.seeall)
 
 Versant = {
 	
@@ -277,3 +283,5 @@ Versant.OBE = {
 		return true, result
 	end,
 }
+
+return _ENV;

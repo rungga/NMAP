@@ -21,6 +21,8 @@ my $HOST = "localhost";
 my $IPV6_ADDR = "::1";
 my $PORT = 40000;
 my $PROXY_PORT = 40001;
+my $UNIXSOCK = "ncat.unixsock";
+my $UNIXSOCK_TMP = "ncat.unixsock_tmp";
 
 my $BUFSIZ = 1024;
 
@@ -531,6 +533,35 @@ sub {
 };
 kill_children;
 
+# Test UNIX domain sockets listening
+($s_pid, $s_out, $s_in) = ncat("-l", "-U", $UNIXSOCK);
+test "Server UNIX socket listen on $UNIXSOCK (STREAM)",
+sub {
+	my $resp;
+
+	unlink($UNIXSOCK);
+	my ($c_pid, $c_out, $c_in) = ncat("-U", $UNIXSOCK);
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from client";
+};
+kill_children;
+unlink($UNIXSOCK);
+
+($s_pid, $s_out, $s_in) = ncat("-l", "-U", "--udp", $UNIXSOCK);
+test "Server UNIX socket listen on $UNIXSOCK --udp (DGRAM)",
+sub {
+	my $resp;
+
+	unlink($UNIXSOCK);
+	my ($c_pid, $c_out, $c_in) = ncat("-U", "--udp", $UNIXSOCK);
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out);
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\" from client";
+};
+kill_children;
+unlink($UNIXSOCK);
+
 server_client_test "Connect success exit code",
 [], ["--send-only"], sub {
 	my ($pid, $code);
@@ -655,16 +686,37 @@ sub {
 };
 kill_children;
 
+server_client_test_all "Messages are logged to output file",
+["--output", "server.log"], ["--output", "client.log"], sub {
+
+	syswrite($c_in, "abc\n");
+	sleep 1;
+	syswrite($s_in, "def\n");
+	sleep 1;
+	close($c_in);
+	open(FH, "server.log");
+	my $contents = join("", <FH>);
+	close(FH);
+	$contents eq "abc\ndef\n" or die "Server logged " . d($contents);
+	open(FH, "client.log");
+	$contents = join("", <FH>);
+	close(FH);
+	$contents eq "abc\ndef\n" or die "Client logged " . d($contents);
+};
+unlink "server.log";
+unlink "client.log";
+kill_children;
+
 server_client_test_tcp_sctp_ssl "Debug messages go to stderr",
 ["-vvv"], ["-vvv"], sub {
 	my $resp;
 
 	syswrite($c_in, "abc\n");
-	close($c_in);
 	$resp = timeout_read($s_out) or die "Read timeout";
 	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
 	syswrite($s_in, "abc\n");
 	close($s_in);
+	close($c_in);
 	$resp = timeout_read($c_out) or die "Read timeout";
 	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
 };
@@ -687,6 +739,36 @@ server_client_test_tcp_sctp_ssl "Server sends EOF after client disconnect",
 	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
 	$resp = timeout_read($s_out);
 	!defined($resp) or die "Server didn't send EOF";
+};
+kill_children;
+
+server_client_test "Client shutdown()s connection when reading EOF",
+[], [], sub {
+	my $resp;
+
+	syswrite($c_in, "abc\n");
+	$resp = timeout_read($s_out) or die "Read timeout";
+	$resp eq "abc\n" or die "Server got \"$resp\", not \"abc\\n\"";
+
+	close($c_in);
+
+	$resp = timeout_read($s_out);
+	!defined($resp) or die "Server didn't get EOF (got \"$resp\")";
+};
+kill_children;
+
+server_client_test "Server shutdown()s connection when reading EOF",
+[], [], sub {
+	my $resp;
+
+	syswrite($s_in, "abc\n");
+	$resp = timeout_read($c_out) or die "Read timeout";
+	$resp eq "abc\n" or die "Client got \"$resp\", not \"abc\\n\"";
+
+	close($s_in);
+
+	$resp = timeout_read($c_out);
+	!defined($resp) or die "Client didn't get EOF (got \"$resp\")";
 };
 kill_children;
 
@@ -1194,6 +1276,33 @@ sub {
 	$port == 1234 or die "Client connected to prosy with source port $port, not 1234";
 };
 kill_children;
+
+# Test connecting to UNIX datagram socket with -s
+test "Connect to UNIX datagram socket with -s",
+sub {
+	my ($pid, $code);
+	local $SIG{CHLD} = sub { };
+	local *SOCK;
+	my $buff;
+
+	unlink($UNIXSOCK);
+	unlink($UNIXSOCK_TMP);
+
+	socket(SOCK, AF_UNIX, SOCK_DGRAM, 0) or die;
+	bind(SOCK, sockaddr_un($UNIXSOCK)) or die;
+
+	my ($c_pid, $c_out, $c_in) = ncat("-U", "--udp", "-s", $UNIXSOCK_TMP, $UNIXSOCK);
+	syswrite($c_in, "abc\n");
+	close($c_in);
+
+	my $peeraddr = recv(SOCK, $buff, 4, 0) or die;
+	my ($path) = sockaddr_un($peeraddr);
+	$path eq $UNIXSOCK_TMP or die "Client connected to prosy with source socket path $path, not $UNIXSOCK_TMP";
+};
+kill_children;
+unlink($UNIXSOCK);
+unlink($UNIXSOCK_TMP);
+
 
 # HTTP proxy tests.
 

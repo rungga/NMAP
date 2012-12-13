@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: sys_wrap.c 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: sys_wrap.c 28993 2012-06-19 02:53:01Z david $ */
 
 #include <limits.h>
 
@@ -97,7 +97,7 @@
 
 void *Calloc(size_t nmemb, size_t size)
 {
-    void    *ret;
+    void *ret;
 
     /* older libcs don't check for int overflow */
     smul(nmemb, size);
@@ -166,35 +166,12 @@ ssize_t Read(int fd, void *buf, size_t count)
     return ret;
 }
 
-ssize_t Recv(int s, void *buf, size_t len, int flags)
-{
-    ssize_t ret;
-
-    ret = recv(s, (char*)buf, len, flags);
-    if (ret < 0)
-        die("recv");
-
-    return ret;
-}
-
-ssize_t Recvfrom(int s, void *buf, size_t len, int flags,
-                    struct sockaddr *from, socklen_t *fromlen)
-{
-    ssize_t ret;
-
-    ret = recvfrom(s, (char*)buf, len, flags, from, fromlen);
-    if (ret < 0)
-        die("recvfrom");
-
-    return ret;
-}
-
 int Setsockopt(int s, int level, int optname, const void *optval,
                     socklen_t optlen)
 {
     int ret;
 
-    ret = setsockopt(s, level, optname, (const char*)optval, optlen);
+    ret = setsockopt(s, level, optname, (const char *) optval, optlen);
     if (ret < 0)
         die("setsockopt");
 
@@ -203,7 +180,7 @@ int Setsockopt(int s, int level, int optname, const void *optval,
 
 sighandler_t Signal(int signum, sighandler_t handler)
 {
-    sighandler_t    ret;
+    sighandler_t ret;
 
     ret = signal(signum, handler);
     if (ret == SIG_ERR)
@@ -226,7 +203,7 @@ int Socket(int domain, int type, int protocol)
 
 char *Strdup(const char *s)
 {
-    char    *ret;
+    char *ret;
 
     ret = strdup(s);
     if (ret == NULL)

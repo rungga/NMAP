@@ -1,3 +1,10 @@
+local comm = require "comm"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Retrieves system information (OS version, available memory, etc.) from
 a listening Ganglia Monitoring Daemon or Ganglia Meta Daemon.
@@ -21,7 +28,6 @@ For more information about Ganglia, see:
 --		   Set the timeout in seconds. The default value is 60.
 --		   This should be enough for a grid of more than 100 hosts at 200Kb/s.
 --		   About 5KB-10KB of data is returned for each host in the cluster.
-
 -- @args ganglia-info.bytes
 --		   Set the number of bytes to retrieve. The default value is 1000000.
 --		   This should be enough for a grid of more than 100 hosts.
@@ -78,8 +84,6 @@ author = "Brendan Coles"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
-require("comm")
-require("shortport")
 
 portrule = shortport.port_or_service ({8649,8651}, "ganglia", {"tcp"})
 

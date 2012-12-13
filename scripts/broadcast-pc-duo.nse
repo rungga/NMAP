@@ -1,5 +1,12 @@
+local bin = require "bin"
+local coroutine = require "coroutine"
+local nmap = require "nmap"
+local os = require "os"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
-Discovers PC-DUO remote control hosts and gateways running on a LAN by sending a special UDP probe.
+Discovers PC-DUO remote control hosts and gateways running on a LAN by sending a special broadcast UDP probe.
 ]]
 
 ---
@@ -106,11 +113,13 @@ action = function()
 
 	-- wait until the probes are all done
 	repeat
-		condvar "wait"
 		for thread in pairs(threads) do
 			if coroutine.status(thread) == "dead" then
 				threads[thread] = nil
 			end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until next(threads) == nil
     

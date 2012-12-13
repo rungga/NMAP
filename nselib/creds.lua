@@ -92,10 +92,15 @@
 --                              * added saveToFile function for saving credential
 --								* table to file in CSV or text formats
 
-module(... or "creds", package.seeall)
+local bit = require "bit"
+local coroutine = require "coroutine"
+local io = require "io"
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
+_ENV = stdnse.module("creds", stdnse.seeall)
 
-require('ipOps')
-require('bit')
 
 -- Table containing the different account states
 State = {
@@ -109,6 +114,7 @@ State = {
 	HOST_RESTRICTED = 128,
 	LOCKED_VALID = 256,
 	DISABLED_VALID = 512,
+	HASHED = 1024,
 }
 
 StateMsg = {
@@ -122,6 +128,7 @@ StateMsg = {
 	[State.HOST_RESTRICTED] = 'Valid credentials, account cannot log in from current host',
 	[State.LOCKED_VALID]    = 'Valid credentials, account locked',
 	[State.DISABLED_VALID]  = 'Valid credentials, account disabled',
+	[State.HASHED]  = 'Hashed valid or invalid credentials',
 }
 
 
@@ -327,9 +334,17 @@ Credentials = {
 			local svc = ("%s/%s"):format(v.port,v.service)
 			local c
 			if ( v.user and #v.user > 0 ) then
-				c = ("%s:%s - %s"):format(v.user, v.pass, StateMsg[v.state] or "Unknown state")
+				if StateMsg[v.state] then
+				        c = ("%s:%s - %s"):format(v.user, v.pass, StateMsg[v.state])
+				else
+				        c = ("%s:%s"):format(v.user, v.pass)
+				end
 			else
-				c = ("%s - %s"):format(v.pass, StateMsg[v.state] or "Unknown state")
+				if StateMsg[v.state] then
+					c = ("%s - %s"):format(v.pass, StateMsg[v.state])
+				else
+					c = ("%s"):format(v.pass)
+				end
 			end
 			local script = v.scriptname
 			assert(type(h)=="string", "Could not determine a valid host")
@@ -423,3 +438,5 @@ Credentials = {
 	end,
 	
 }
+
+return _ENV;

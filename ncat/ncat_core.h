@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.h 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: ncat_core.h 30240 2012-11-13 08:40:49Z henri $ */
 
 #include "nsock.h"
 #include "nbase.h"
@@ -142,6 +142,7 @@ struct options {
     struct addrset allowset;
     struct addrset denyset;
     int httpserver;
+    int nsock_engine;
 
     /* Loose source-routing stuff */
     struct in_addr srcrtes[8];
@@ -172,10 +173,16 @@ extern struct timeval start_time;
 /* Initializes global options to their default values. */
 void options_init(void);
 
-/* Tries to resolve the given name (or literal IP) into a sockaddr structure.
-   Pass 0 for the port if you don't care. Returns 0 if hostname cannot be
-   resolved. */
-int resolve(char *hostname, unsigned short port,
+/* Resolves the given hostname or IP address with getaddrinfo, and stores the
+   first result (if any) in *ss and *sslen. The value of port will be set in the
+   appropriate place in *ss; set to 0 if you don't care. af may be AF_UNSPEC, in
+   which case getaddrinfo may return e.g. both IPv4 and IPv6 results; which one
+   is first depends on the system configuration. Returns 0 on success, or a
+   getaddrinfo return code (suitable for passing to gai_strerror) on failure.
+   *ss and *sslen are always defined when this function returns 0.
+
+   If the global o.nodns is true, then do not resolve any names with DNS. */
+int resolve(const char *hostname, unsigned short port,
             struct sockaddr_storage *ss, size_t *sslen, int af);
 
 int fdinfo_close(struct fdinfo *fdn);

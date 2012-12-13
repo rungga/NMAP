@@ -3,42 +3,45 @@
 -- functions that are too small to justify modules of their own.
 --
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @class module
+-- @name stdnse
 
+local _G = require "_G"
+local coroutine = require "coroutine"
+local math = require "math"
+local nmap = require "nmap"
+local os = require "os"
+local string = require "string"
+local table = require "table"
 local assert = assert;
 local error = error;
-local pairs = pairs
+local getmetatable = getmetatable;
 local ipairs = ipairs
+local pairs = pairs
+local rawset = rawset
+local require = require;
+local select = select
+local setmetatable = setmetatable;
 local tonumber = tonumber;
 local type = type
-local select = select
-local unpack = unpack
 
 local ceil = math.ceil
 local max = math.max
+
 local format = string.format;
 local rep = string.rep
+
 local concat = table.concat;
 local insert = table.insert;
-local os = os
-local math = math
-local string = string
+local pack = table.pack;
+local unpack = table.unpack;
 
-local io = require 'io'; -- TODO: Remove
-
-local nmap = require "nmap";
-
-local c_funcs = require "stdnse.c";
+local difftime = os.difftime;
+local time = os.time;
 
 local EMPTY = {}; -- Empty constant table
 
-module(... or "stdnse");
-
--- Load C functions from stdnse.c into this namespace.
-for k, v in pairs(c_funcs) do
-  _M[k] = v
-end
--- Remove visibility of the stdnse.c table.
-c = nil
+_ENV = require "strict" {};
 
 --- Sleeps for a given amount of time.
 --
@@ -49,8 +52,7 @@ c = nil
 -- @class function
 -- @param t Time to sleep, in seconds.
 -- @usage stdnse.sleep(1.5)
-
--- sleep is a C function defined in nse_nmaplib.cc.
+_ENV.sleep = nmap.socket.sleep;
 
 ---
 -- Prints a formatted debug message if the current debugging level is greater
@@ -134,6 +136,30 @@ function strsplit(pattern, text)
     end
   end
   return list;
+end
+
+--- Generate a random string.
+-- You can either provide your own charset or the function will use
+-- a default one which is [A-Z].
+-- @param len Length of the string we want to generate.
+-- @param charset Charset that will be used to generate the string.
+-- @return A random string of length <code>len</code> consisting of
+-- characters from <code>charset</code> if one was provided, otherwise
+-- <code>charset</code> defaults to [A-Z] letters.
+function generate_random_string(len, charset)
+  local t = {}
+  local ascii_A = 65
+  local ascii_Z = 90
+  if charset then
+    for i=1,len do
+      t[i]=charset[math.random(#charset)]
+    end
+  else
+    for i=1,len do
+      t[i]=string.char(math.random(ascii_A,ascii_Z))
+    end
+  end
+  return table.concat(t)
 end
 
 --- Return a wrapper closure around a socket that buffers socket reads into
@@ -336,6 +362,81 @@ function parse_timespec(timespec)
   return t * m
 end
 
+-- Find the offset in seconds between local time and UTC. That is, if we
+-- interpret a UTC date table as a local date table by passing it to os.time,
+-- how much must be added to the resulting integer timestamp to make it
+-- correct?
+local function utc_offset(t)
+  -- What does the calendar say locally?
+  local localtime = os.date("*t", t)
+  -- What does the calendar say in UTC?
+  local gmtime = os.date("!*t", t)
+  -- Interpret both as local calendar dates and find the difference.
+  return difftime(os.time(localtime), os.time(gmtime))
+end
+--- Convert a date table into an integer timestamp. Unlike os.time, this does
+-- not assume that the date table represents a local time. Rather, it takes an
+-- optional offset number of seconds representing the time zone, and returns
+-- the timestamp that would result using that time zone as local time. If the
+-- offset is omitted or 0, the date table is interpreted as a UTC date. For
+-- example, 4:00 UTC is the same as 5:00 UTC+1:
+-- <code>
+-- date_to_timestamp({year=1970,month=1,day=1,hour=4,min=0,sec=0})          --> 14400
+-- date_to_timestamp({year=1970,month=1,day=1,hour=4,min=0,sec=0}, 0)       --> 14400
+-- date_to_timestamp({year=1970,month=1,day=1,hour=5,min=0,sec=0}, 1*60*60) --> 14400
+-- </code>
+-- And 4:00 UTC+1 is an earlier time:
+-- <code>
+-- date_to_timestamp({year=1970,month=1,day=1,hour=4,min=0,sec=0}, 1*60*60) --> 10800
+-- </code>
+function date_to_timestamp(date, offset)
+  offset = offset or 0
+  return os.time(date) + utc_offset(os.time(date)) - offset
+end
+
+local function format_tz(offset)
+  local sign, hh, mm
+
+  if not offset then
+    return ""
+  end
+  if offset < 0 then
+    sign = "-"
+    offset = -offset
+  else
+    sign = "+"
+  end
+  -- Truncate to minutes.
+  offset = math.floor(offset / 60)
+  hh = math.floor(offset / 60)
+  mm = math.floor(math.fmod(offset, 60))
+
+  return string.format("%s%02d:%02d", sign, hh, mm)
+end
+--- Format a date and time (and optional time zone) for structured output.
+--
+-- Formatting is done according to RFC 3339 (a profile of ISO 8601), except
+-- that a time zone may be omitted to signify an unspecified local time zone.
+-- Time zones are given as an integer number of seconds from UTC. Use
+-- <code>0</code> to mark UTC itself. Formatted strings with a time zone look
+-- like this:
+-- <code>
+-- format_timestamp(os.time(), 0)       --> "2012-09-07T23:37:42+00:00"
+-- format_timestamp(os.time(), 2*60*60) --> "2012-09-07T23:37:42+02:00"
+-- </code>
+-- Without a time zone they look like this:
+-- <code>
+-- format_timestamp(os.time())          --> "2012-09-07T23:37:42"
+-- </code>
+--
+-- This function should be used for all dates emitted as part of NSE structured
+-- output.
+function format_timestamp(t, offset)
+  local tz_string tz_string = format_tz(offset)
+  offset = offset or 0
+  return os.date("!%Y-%m-%dT%H:%M:%S", t + offset) .. tz_string
+end
+
 --- Format the difference between times <code>t2</code> and <code>t1</code>
 -- into a string in one of the forms (signs may vary):
 -- * 0s
@@ -349,7 +450,7 @@ end
 function format_difftime(t2, t1)
   local d, s, sign, yeardiff
 
-  d = os.difftime(os.time(t2), os.time(t1))
+  d = difftime(time(t2), time(t1))
   if d > 0 then
     sign = "+"
   elseif d < 0 then
@@ -373,11 +474,11 @@ function format_difftime(t2, t1)
     local tmpyear = t1.year
     -- Put t1 in the same year as t2.
     t1.year = t2.year
-    d = os.difftime(os.time(t2), os.time(t1))
+    d = difftime(time(t2), time(t1))
     if d < 0 then
       -- Too far. Back off one year.
       t1.year = t2.year - 1
-      d = os.difftime(os.time(t2), os.time(t1))
+      d = difftime(time(t2), time(t1))
     end
     yeardiff = t1.year - tmpyear
     t1.year = tmpyear
@@ -853,7 +954,7 @@ end
 --  repeat
 --    local j = math.min(i+10, #requests);
 --    local co = stdnse.new_thread(thread_main, host, port, responses,
---        unpack(requests, i, j));
+--        table.unpack(requests, i, j));
 --    threads[co] = true;
 --    i = j+1;
 --  until i > #requests;
@@ -968,4 +1069,89 @@ function in_port_range(port,port_range)
 	return false
 end
 
+--- Module function that mimics some behavior of Lua 5.1 module function.
+--
+-- This convenience function returns a module environment to set the _ENV
+-- upvalue. The _NAME, _PACKAGE, and _M fields are set as in the Lua 5.1
+-- version of this function. Each option function (e.g. stdnse.seeall)
+-- passed is run with the new environment, in order.
+--
+-- @see stdnse.seeall
+-- @see strict
+-- @usage
+--   _ENV = stdnse.module(name, stdnse.seeall, require "strict");
+-- @param name The module name.
+-- @param ... Option functions which modify the environment of the module.
+function module (name, ...)
+  local env = {};
+  env._NAME = name;
+  env._PACKAGE = name:match("(.+)%.[^.]+$");
+  env._M = env;
+  local mods = pack(...);
+  for i = 1, mods.n do
+    mods[i](env);
+  end
+  return env;
+end
 
+--- Change environment to load global variables.
+--
+-- Option function for use with stdnse.module. It is the same
+-- as package.seeall from Lua 5.1.
+--
+-- @see stdnse.module
+-- @usage
+--  _ENV = stdnse.module(name, stdnse.seeall);
+-- @param env Environment to change.
+function seeall (env)
+  local m = getmetatable(env) or {};
+  m.__index = _G;
+  setmetatable(env, m);
+end
+
+--- Return a table that keeps elements in order of insertion.
+--
+-- The pairs function, called on a table returned by this function, will yield
+-- elements in the order they were inserted. This function is meant to be used
+-- to construct output tables returned by scripts.
+--
+-- Reinserting a key that is already in the table does not change its position
+-- in the order. However, removing a key by assigning to <code>nil</code> and
+-- then doing another assignment will move the key to the end of the order.
+--
+-- @return An ordered table.
+function output_table ()
+  local t = {}
+  local order = {}
+  local function iterator ()
+    for i, key in ipairs(order) do
+      coroutine.yield(key, t[key])
+    end
+  end
+  local mt = {
+    __newindex = function (_, k, v)
+      if t[k] == nil then
+        -- New key?
+        table.insert(order, k)
+      elseif v == nil then
+        -- Deleting an existing key?
+        for i, key in ipairs(order) do
+          if key == k then
+            table.remove(order, i)
+            break
+          end
+        end
+      end
+      rawset(t, k, v)
+    end,
+    __index = function (_, k)
+      return t[k]
+    end,
+    __pairs = function (_)
+      return coroutine.wrap(iterator)
+    end,
+  }
+  return setmetatable({}, mt)
+end
+
+return _ENV;

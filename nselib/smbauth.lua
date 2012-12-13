@@ -80,14 +80,14 @@
 --                   For information, see <code>smbauth.lua</code>. 
 --@args smbnoguest   Use to disable usage of the 'guest' account. 
 
-module(... or "smbauth", package.seeall)
+local bin = require "bin"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("smbauth", stdnse.seeall)
 
-require 'bit'
-require 'bin'
-require 'netbios'
-require 'stdnse'
-
-have_ssl = (nmap.have_ssl() and pcall(require, "openssl"))
+local have_ssl, openssl = pcall(require, "openssl")
 
 -- Constants
 local NTLMSSP_NEGOTIATE = 0x00000001
@@ -105,11 +105,11 @@ local ACCOUNT_TYPES = {
 }
 
 local function account_exists(host, username, domain)
-	if(nmap.registry[host.ip] == nil or nmap.registry[host.ip]['smbaccounts'] == nil) then
+	if(host.registry['smbaccounts'] == nil) then
 		return false
 	end
 
-	for i, j in pairs(nmap.registry[host.ip]['smbaccounts']) do
+	for i, j in pairs(host.registry['smbaccounts']) do
 		if(j['username'] == username and j['domain'] == domain) then
 			return true
 		end
@@ -120,13 +120,13 @@ end
 
 function next_account(host, num)
 	if(num == nil) then
-		if(nmap.registry[host.ip]['smbindex'] == nil) then
-			nmap.registry[host.ip]['smbindex'] = 1
+		if(host.registry['smbindex'] == nil) then
+			host.registry['smbindex'] = 1
 		else
-			nmap.registry[host.ip]['smbindex'] = nmap.registry[host.ip]['smbindex'] + 1
+			host.registry['smbindex'] = host.registry['smbindex'] + 1
 		end
 	else
-		nmap.registry[host.ip]['smbindex'] = num
+		host.registry['smbindex'] = num
 	end
 end
 
@@ -165,11 +165,8 @@ function add_account(host, username, domain, password, password_hash, hash_type,
 		return
 	end
 
-	if(nmap.registry[host.ip] == nil) then
-		nmap.registry[host.ip] = {}
-	end
-	if(nmap.registry[host.ip]['smbaccounts'] == nil) then
-		nmap.registry[host.ip]['smbaccounts'] = {}
+	if(host.registry['smbaccounts'] == nil) then
+		host.registry['smbaccounts'] = {}
 	end
 
 	-- Determine the type of account, if it wasn't given
@@ -204,10 +201,10 @@ function add_account(host, username, domain, password, password_hash, hash_type,
 	new_entry['account_type']  = account_type
 
 	-- Insert the new entry into the table
-	table.insert(nmap.registry[host.ip]['smbaccounts'], new_entry)
+	table.insert(host.registry['smbaccounts'], new_entry)
 
 	-- Sort the table based on the account type (we want anonymous at the end, administrator at the front)
-	table.sort(nmap.registry[host.ip]['smbaccounts'], function(a,b) return a['account_type'] > b['account_type'] end)
+	table.sort(host.registry['smbaccounts'], function(a,b) return a['account_type'] > b['account_type'] end)
 
 	-- Print a debug message
 	stdnse.print_debug(1, "SMB: Added account '%s' to account list", username)
@@ -215,7 +212,7 @@ function add_account(host, username, domain, password, password_hash, hash_type,
 	-- Reset the credentials
 	next_account(host, 1)
 
---	io.write("\n\n" .. nsedebug.tostr(nmap.registry[host.ip]['smbaccounts']) .. "\n\n")
+--	io.write("\n\n" .. nsedebug.tostr(host.registry['smbaccounts']) .. "\n\n")
 end
 
 ---Retrieve the current set of credentials set in the registry. If these fail, <code>next_credentials</code> should be
@@ -225,12 +222,12 @@ end
 --@return (result, username, domain, password, password_hash, hash_type) If result is false, username is an error message. Otherwise, username and password are
 --        the current username and password that should be used. 
 function get_account(host)
-	if(nmap.registry[host.ip]['smbindex'] == nil) then
-		nmap.registry[host.ip]['smbindex'] = 1
+	if(host.registry['smbindex'] == nil) then
+		host.registry['smbindex'] = 1
 	end
 
-	local index = nmap.registry[host.ip]['smbindex']
-	local account = nmap.registry[host.ip]['smbaccounts'][index]
+	local index = host.registry['smbindex']
+	local account = host.registry['smbaccounts'][index]
 
 	if(account == nil) then
 		return false, "No accounts left to try"
@@ -244,18 +241,13 @@ end
 --
 --@param host The host object. 
 function init_account(host)
-	-- Create the key if it exists
-	if(nmap.registry[host.ip] == nil) then
-		nmap.registry[host.ip] = {}
-	end
-
 	-- Don't run this more than once for each host
-	if(nmap.registry[host.ip]['smbaccounts'] ~= nil) then
+	if(host.registry['smbaccounts'] ~= nil) then
 		return
 	end
 
 	-- Create the list
-	nmap.registry[host.ip]['smbaccounts'] = {}
+	host.registry['smbaccounts'] = {}
 
 	-- Add the anonymous/guest accounts
 	add_account(host, '',      '', '', nil, 'none')
@@ -666,10 +658,10 @@ function get_password_response(ip, username, domain, password, password_hash, ha
 	return lm_response, ntlm_response, mac_key
 end
 
-function get_security_blob(security_blob, ip, username, domain, password, password_hash, hash_type)
+function get_security_blob(security_blob, ip, username, domain, password, password_hash, hash_type, flags)
 	local pos = 1
 	local new_blob
-	local flags = 0x00008215 -- (NEGOTIATE_SIGN_ALWAYS | NEGOTIATE_NTLM | NEGOTIATE_SIGN | REQUEST_TARGET | NEGOTIATE_UNICODE)
+	local flags = flags or 0x00008215 -- (NEGOTIATE_SIGN_ALWAYS | NEGOTIATE_NTLM | NEGOTIATE_SIGN | REQUEST_TARGET | NEGOTIATE_UNICODE)
 
 	if(security_blob == nil) then
 		-- If security_blob is nil, this is the initial packet
@@ -683,43 +675,53 @@ function get_security_blob(security_blob, ip, username, domain, password, passwo
 
 		return true, new_blob, "", ""
 	else
-		local identifier, message_type, domain_length, domain_max, domain_offset, server_flags, challenge, reserved
-
 		-- Parse the old security blob
-		pos, identifier, message_type, domain_length, domain_max, domain_offset, server_flags, challenge, reserved = bin.unpack("<LISSIIA8A8", security_blob, 1)
-
-		-- Get the information for the current login
-        local lanman, ntlm, mac_key = get_password_response(ip, username, domain, password, password_hash, hash_type, challenge, true)
+		local pos, identifier, message_type, domain_length, domain_max, domain_offset, server_flags, challenge, reserved = bin.unpack("<LISSIIA8A8", security_blob, 1)
+   	local lanman, ntlm, mac_key = get_password_response(ip, username, domain, password, password_hash, hash_type, challenge, true)
 
 		-- Convert the username and domain to unicode (TODO: Disable the unicode flag, evaluate if that'll work)
+		local hostname = to_unicode("nmap")
 		username = to_unicode(username)
-		domain   = to_unicode(domain)
+		domain   = (#username > 0 ) and to_unicode(domain) or ""
+		ntlm     = (#username > 0 ) and ntlm or ""
+		lanman   = (#username > 0 ) and lanman or string.char(0)
 
-		new_blob = bin.pack("<zISSISSISSISSISSISSII", 
-					"NTLMSSP",            -- Identifier
-					NTLMSSP_AUTH,         -- Type
-					#lanman,              -- Lanman (length, max, offset)
-					#lanman,              -- 
-					0x40,                 -- 
-					#ntlm,                -- NTLM (length, max, offset)
-					#ntlm,                -- 
-					0x40 + #lanman,       -- 
-					#domain,              -- Domain (length, max, offset)
-					#domain,              --
-					0x40 + #lanman + #ntlm,--
-					#username,            -- Username (length, max, offset)
-					#username,            -- 
-					0x40 + #lanman + #ntlm + #domain,
-					#domain,              -- Hostname (length, max, offset)
-					#domain,              --
-					0x40 + #lanman + #ntlm + #domain + #username,
-					#session_key,         -- Session key (length, max, offset)
-					#session_key,         --
-					0x40 + #lanman + #ntlm + #domain + #username + #domain,
-					flags                 -- Flags
-				)
+		local domain_offset = 0x40
+		local username_offset = domain_offset + #domain
+		local hostname_offset = username_offset + #username
+		local lanman_offset = hostname_offset + #hostname
+		local ntlm_offset = lanman_offset + #lanman
+		local sessionkey_offset = ntlm_offset + #ntlm
 
-		new_blob = new_blob .. bin.pack("AAAAAA", lanman, ntlm, domain, username, domain, session_key)
+		new_blob = bin.pack("<zISSISSISSISSISSISSIIAAAAAA",
+			"NTLMSSP",
+			NTLMSSP_AUTH,
+			#lanman,
+			#lanman,
+			lanman_offset,
+			( #ntlm > 0 and #ntlm - 16 or 0 ),
+			( #ntlm > 0 and #ntlm - 16 or 0 ),
+			ntlm_offset,
+			#domain,
+			#domain,
+			domain_offset,
+			#username,
+			#username,
+			username_offset,
+			#hostname,
+			#hostname,
+			hostname_offset,
+			#session_key,
+			#session_key,
+			sessionkey_offset,
+			flags,
+			domain,
+			username,
+			hostname,
+			lanman,
+			ntlm,
+			session_key)
+	
 		return true, new_blob, mac_key
 	end
 
@@ -830,3 +832,5 @@ end
 
 
 
+
+return _ENV;

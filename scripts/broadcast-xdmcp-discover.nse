@@ -1,3 +1,8 @@
+local os = require "os"
+local stdnse = require "stdnse"
+local table = require "table"
+local xdmcp = require "xdmcp"
+
 description = [[
 Discovers servers running the X Display Manager Control Protocol (XDMCP) by
 sending a XDMCP broadcast request to the LAN. Display managers allowing access
@@ -19,7 +24,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
-require 'xdmcp'
 
 prerule = function() return true end
 
@@ -35,7 +39,7 @@ action = function()
 	local req = xdmcp.Packet[xdmcp.OpCode.BCAST_QUERY]:new(nil)
 	local status, err = helper:send(req)
 	if ( not(status) ) then
-		return false, response
+		return false, err
 	end
 	
 	local timeout = arg_timeout or 5

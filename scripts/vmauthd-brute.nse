@@ -1,3 +1,8 @@
+local brute = require "brute"
+local creds = require "creds"
+local nmap = require "nmap"
+local shortport = require "shortport"
+
 description = [[
 Performs brute force password auditing against the VMWare Authentication Daemon (vmware-authd).
 ]]
@@ -20,8 +25,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
-require 'brute'
-require 'shortport'
 
 portrule = shortport.port_or_service(902, {"ssl/vmware-auth", "vmware-auth"}, "tcp")
 
@@ -42,7 +45,7 @@ Driver = {
 	end,
 	
 	login = function(self, username, password)
-		local status, line = self.socket:receive_buf("\r\n")
+		local status, line = self.socket:receive_buf("\r\n", false)
 		if ( line:match("^220 VMware Authentication Daemon.*SSL Required") ) then
 			self.socket:reconnect_ssl()
 		end
@@ -54,7 +57,7 @@ Driver = {
 			return false, err
 		end
 		
-		local status, response = self.socket:receive_buf("\r\n")
+		local status, response = self.socket:receive_buf("\r\n", false)
 		if ( not(status) or not(response:match("^331") ) ) then
 			local err = brute.Error:new( "Received unexpected response from server" )
 			err:setRetry( true )
@@ -67,7 +70,7 @@ Driver = {
 			err:setRetry( true )
 			return false, err
 		end
-		status, response = self.socket:receive_buf("\r\n")
+		status, response = self.socket:receive_buf("\r\n", false)
 
 		if ( response:match("^230") ) then
 			return true, brute.Account:new(username, password, creds.State.VALID)
@@ -90,7 +93,7 @@ local function checkAuthd(host, port)
 		return false, "Failed to connect to server"
 	end
 
-	local status, line = socket:receive_buf("\r\n")
+	local status, line = socket:receive_buf("\r\n", false)
 	socket:close()
 	if ( not(status) ) then
 		return false, "Failed to receive response from server"
@@ -111,6 +114,7 @@ action = function(host, port)
 
 	local engine = brute.Engine:new(Driver, host, port)
 	engine.options.script_name = SCRIPT_NAME
+	local result
 	status, result = engine:start()
 	return result
 end

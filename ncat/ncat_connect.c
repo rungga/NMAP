@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_connect.c 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: ncat_connect.c 30306 2012-11-29 03:19:52Z david $ */
 
 #include "base64.h"
 #include "nsock.h"
@@ -111,6 +111,14 @@
 #ifdef HAVE_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#endif
+
+#ifdef WIN32
+/* Define missing constant for shutdown(2).
+ * See:
+ * http://msdn.microsoft.com/en-us/library/windows/desktop/ms740481%28v=vs.85%29.aspx
+ */
+#define SHUT_WR SD_SEND
 #endif
 
 struct conn_state {
@@ -190,12 +198,12 @@ static void set_ssl_ctx_options(SSL_CTX *ctx)
     }
 
     if (o.sslcert != NULL && o.sslkey != NULL) {
-      if (SSL_CTX_use_certificate_file(ctx, o.sslcert, SSL_FILETYPE_PEM) != 1)
+        if (SSL_CTX_use_certificate_file(ctx, o.sslcert, SSL_FILETYPE_PEM) != 1)
             bye("SSL_CTX_use_certificate_file(): %s.", ERR_error_string(ERR_get_error(), NULL));
-      if (SSL_CTX_use_PrivateKey_file(ctx, o.sslkey, SSL_FILETYPE_PEM) != 1)
+        if (SSL_CTX_use_PrivateKey_file(ctx, o.sslkey, SSL_FILETYPE_PEM) != 1)
             bye("SSL_CTX_use_Privatekey_file(): %s.", ERR_error_string(ERR_get_error(), NULL));
     } else {
-      if ((o.sslcert == NULL)!= (o.sslkey == NULL))
+        if ((o.sslcert == NULL) != (o.sslkey == NULL))
             bye("The --ssl-key and --ssl-cert options must be used together.");
     }
 }
@@ -205,6 +213,7 @@ static void set_ssl_ctx_options(SSL_CTX *ctx)
 static void connect_report(nsock_iod nsi)
 {
     union sockaddr_u peer;
+    zmem(&peer, sizeof(peer.storage));
 
     nsi_getlastcommunicationinfo(nsi, NULL, NULL, NULL,
         &peer.sockaddr, sizeof(peer.storage));
@@ -236,10 +245,20 @@ static void connect_report(nsock_iod nsi)
             assert(ssl_cert_fp_str_sha1(cert, digest_buf, sizeof(digest_buf)) != NULL);
             loguser("SHA-1 fingerprint: %s\n", digest_buf);
         } else {
-            loguser("Connected to %s:%hu.\n", inet_socktop(&peer), nsi_peerport(nsi));
+#if HAVE_SYS_UN_H
+            if (peer.sockaddr.sa_family == AF_UNIX)
+                loguser("Connected to %s.\n", peer.un.sun_path);
+            else
+#endif
+                loguser("Connected to %s:%hu.\n", inet_socktop(&peer), nsi_peerport(nsi));
         }
 #else
-        loguser("Connected to %s:%hu.\n", inet_socktop(&peer), nsi_peerport(nsi));
+#if HAVE_SYS_UN_H
+        if (peer.sockaddr.sa_family == AF_UNIX)
+            loguser("Connected to %s.\n", peer.un.sun_path);
+        else
+#endif
+            loguser("Connected to %s:%hu.\n", inet_socktop(&peer), nsi_peerport(nsi));
 #endif
     }
 }
@@ -458,9 +477,17 @@ bail:
     return -1;
 }
 
-int ncat_connect(void) {
+int ncat_connect(void)
+{
     nsock_pool mypool;
     int rc;
+
+    /* Unless explicitely asked not to do so, ncat uses the
+     * fallback nsock engine to maximize compatibility between
+     * operating systems and the different use cases.
+     */
+    if (!o.nsock_engine)
+        nsock_set_default_engine("select");
 
     /* Create an nsock pool */
     if ((mypool = nsp_new(NULL)) == NULL)
@@ -474,7 +501,7 @@ int ncat_connect(void) {
     nsp_setbroadcast(mypool, 1);
 
 #ifdef HAVE_OPENSSL
-    set_ssl_ctx_options((SSL_CTX *)nsp_ssl_init(mypool));
+    set_ssl_ctx_options((SSL_CTX *) nsp_ssl_init(mypool));
 #endif
 
     if (httpconnect.storage.ss_family == AF_UNSPEC
@@ -487,6 +514,27 @@ int ncat_connect(void) {
         if (nsi_set_hostname(cs.sock_nsi, o.target) == -1)
             bye("Failed to set hostname on iod.");
 
+#if HAVE_SYS_UN_H
+        /* For DGRAM UNIX socket we have to use source socket */
+        if (o.af == AF_UNIX && o.udp)
+        {
+            if (srcaddr.storage.ss_family != AF_UNIX) {
+                char *tmp_name = NULL;
+                /* If no source socket was specified, we have to create temporary one. */
+                if ((tmp_name = tempnam(NULL, "ncat.")) == NULL)
+                    bye("Failed to create name for temporary DGRAM source Unix domain socket (tempnam).");
+
+                srcaddr.un.sun_family = AF_UNIX;
+                strncpy(srcaddr.un.sun_path, tmp_name, sizeof(srcaddr.un.sun_path));
+                free (tmp_name);
+            }
+            nsi_set_localaddr(cs.sock_nsi, &srcaddr.storage, SUN_LEN((struct sockaddr_un *)&srcaddr.storage));
+
+            if (o.verbose)
+                loguser("[%s] used as source DGRAM Unix domain socket.\n", srcaddr.un.sun_path);
+        }
+        else
+#endif
         if (srcaddr.storage.ss_family != AF_UNSPEC)
             nsi_set_localaddr(cs.sock_nsi, &srcaddr.storage, sizeof(srcaddr.storage));
 
@@ -502,6 +550,19 @@ int ncat_connect(void) {
             free(ipopts); /* Nsock has its own copy */
         }
 
+#if HAVE_SYS_UN_H
+        if (o.af == AF_UNIX) {
+            if (o.udp) {
+                nsock_connect_unixsock_datagram(mypool, cs.sock_nsi, connect_handler, NULL,
+                                                &targetss.sockaddr,
+                                                SUN_LEN((struct sockaddr_un *)&targetss.sockaddr));
+            } else {
+                nsock_connect_unixsock_stream(mypool, cs.sock_nsi, connect_handler, o.conntimeout,
+                                              NULL, &targetss.sockaddr,
+                                              SUN_LEN((struct sockaddr_un *)&targetss.sockaddr));
+            }
+        } else
+#endif
         if (o.udp) {
             nsock_connect_udp(mypool, cs.sock_nsi, connect_handler,
                               NULL, &targetss.sockaddr, targetsslen,
@@ -623,6 +684,14 @@ int ncat_connect(void) {
             nsi_get_read_count(cs.sock_nsi), time);
     }
 
+#if HAVE_SYS_UN_H
+    if (o.af == AF_UNIX && o.udp) {
+        if (o.verbose)
+            loguser("Deleting source DGRAM Unix domain socket. [%s]\n", srcaddr.un.sun_path);
+        unlink(srcaddr.un.sun_path);
+    }
+#endif
+
     nsp_delete(mypool);
 
     return rc == NSOCK_LOOP_ERROR ? 1 : 0;
@@ -649,7 +718,7 @@ static void connect_handler(nsock_pool nsp, nsock_event evt, void *data)
     if (nsi_checkssl(cs.sock_nsi)) {
         /* Check the domain name. ssl_post_connect_check prints an
            error message if appropriate. */
-        if (!ssl_post_connect_check((SSL *)nsi_getssl(cs.sock_nsi), o.target))
+        if (!ssl_post_connect_check((SSL *) nsi_getssl(cs.sock_nsi), o.target))
             bye("Certificate verification error.");
     }
 #endif
@@ -677,7 +746,7 @@ static void post_connect(nsock_pool nsp, nsock_iod iod)
 #endif
         /* Convert Nsock's non-blocking socket to an ordinary blocking one. It's
            possible for a program to write fast enough that it will get an
-           EAGAIN on write on a non-blocking socket.*/
+           EAGAIN on write on a non-blocking socket. */
         block_socket(info.fd);
         netexec(&info, o.cmdexec);
     }
@@ -712,6 +781,8 @@ static void read_stdin_handler(nsock_pool nsp, nsock_event evt, void *data)
         if (o.sendonly) {
             /* In --send-only mode, exit after EOF on stdin. */
             nsock_loop_quit(nsp);
+        } else {
+            shutdown(nsi_getsd(cs.sock_nsi), SHUT_WR);
         }
         return;
     } else if (status == NSE_STATUS_ERROR) {

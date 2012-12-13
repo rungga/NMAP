@@ -1,3 +1,13 @@
+local http = require "http"
+local io = require "io"
+local ipOps = require "ipOps"
+local math = require "math"
+local nmap = require "nmap"
+local os = require "os"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Queries the WHOIS services of Regional Internet Registries (RIR) and attempts to retrieve information about the IP Address
 Assignment which contains the Target IP Address.
@@ -77,10 +87,6 @@ author = "jah"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "external", "safe"}
 
-local url    = require "url"
-local http   = require "http"
-local ipOps  = require "ipOps"
-local stdnse = require "stdnse"
 
 
 
@@ -921,7 +927,7 @@ function redirection_rules( db, ip, data, meta )
     -- iterate over each table of redirect info for a specific field
   for _, redirect_elems in ipairs( meta.redirects ) do
 
-    local obj, fld, pattern = unpack( redirect_elems )   -- three redirect elements
+    local obj, fld, pattern = table.unpack( redirect_elems )   -- three redirect elements
     -- if a field has been captured for the given redirect info
     if data[db][obj] and data[db][obj][fld] then
 
@@ -1168,6 +1174,7 @@ function get_assignment( ip, prefix )
   local first = string.sub( some_ip, 1, prefix ) .. hostbits
   err = {}
   first, err[#err+1] = ipOps.bin_to_ip( first )
+  local last
   last, err[#err+1] = ipOps.get_last_ip( ip, prefix )
   if #err > 0 then return nil, table.concat( err, " " ) end
 

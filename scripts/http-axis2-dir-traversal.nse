@@ -1,3 +1,12 @@
+local creds = require "creds"
+local http = require "http"
+local io = require "io"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Exploits a directory traversal vulnerability in Apache Axis2 version 1.4.1 by sending a specially crafted request to the parameter <code>xsd</code> (OSVDB-59001). By default it will try to retrieve the configuration file of the Axis2 service <code>'/conf/axis2.xml'</code> using the path <code>'/axis2/services/'</code> to return the username and password of the admin account.
 
@@ -33,9 +42,6 @@ author = "Paulino Calderon"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"vuln", "intrusive", "exploit"}
 
-require "http"
-require "shortport"
-require "creds"
 
 portrule = shortport.http
 
@@ -64,7 +70,7 @@ end
 -- @return Table containing the names and paths of the available services
 local function get_available_services(body) 
  local services = {}
- for service in string.gfind(body, '<h4>Service%sDescription%s:%s<font%scolor="black">(.-)</font></h4>') do
+ for service in string.gmatch(body, '<h4>Service%sDescription%s:%s<font%scolor="black">(.-)</font></h4>') do
     table.insert(services, service)
   end
 
@@ -146,7 +152,7 @@ action = function(host, port)
     --if body is empty something wrong could have happened...
     if string.len(req.body) <= 0 then
       if nmap.verbosity() >= 2 then
-        print_debug(1, "%s:Response was empty. The file does not exists or the web server does not have sufficient permissions", SCRIPT_NAME)
+        stdnse.print_debug(1, "%s:Response was empty. The file does not exists or the web server does not have sufficient permissions", SCRIPT_NAME)
       end
       return
     end

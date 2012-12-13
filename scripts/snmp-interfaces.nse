@@ -1,3 +1,12 @@
+local datafiles = require "datafiles"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local snmp = require "snmp"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Attempts to enumerate network interfaces through SNMP.
 
@@ -36,13 +45,9 @@ dependencies = {"snmp-brute"}
 -- Revised 04/11/2010 - v0.2 - moved snmp_walk to snmp library <patrik@cqure.net>
 -- Revised 08/10/2010 - v0.3 - prerule; add interface addresses to Nmap's target list (Kris Katterjohn)
 -- Revised 05/27/2011 - v0.4 - action; add MAC addresses to nmap.registry[host.ip]["mac-geolocation"] (Gorjan Petrovski)
+-- Revised 07/31/2012 - v0.5 - action; remove mac-geolocation changes (script removed from trunk)
 
 
-require "stdnse"
-require "shortport"
-require "snmp"
-require "datafiles"
-require "target"
 
 
 prerule = function()
@@ -180,18 +185,13 @@ end
 function get_mac_addr( mac )
 	local catch = function() return end
 	local try = nmap.new_try(catch)
-	-- Build the MAC prefix lookup table
-	if not nmap.registry.snmp_interfaces then
-		-- Create the table in the registry so we can share between script instances
-		nmap.registry.snmp_interfaces = {}
-		nmap.registry.snmp_interfaces.mac_prefixes = try(datafiles.parse_mac_prefixes())
-	end
+	local mac_prefixes = try(datafiles.parse_mac_prefixes())
 	
 	if mac:len() ~= 6 then
 		return "Unknown"
 	else
 		local prefix = string.upper(string.format("%02x%02x%02x", mac:byte(1), mac:byte(2), mac:byte(3)))
-		local manuf = nmap.registry.snmp_interfaces.mac_prefixes[prefix] or "Unknown"
+		local manuf = mac_prefixes[prefix] or "Unknown"
 		return string.format("%02x:%02x:%02x:%02x:%02x:%02x (%s)", mac:byte(1), mac:byte(2), mac:byte(3), mac:byte(4), mac:byte(5), mac:byte(6), manuf )
 	end
 end
@@ -204,13 +204,13 @@ function process_interfaces( tbl )
 	
 	-- Add the %. escape character to prevent matching the index on e.g. "1.3.6.1.2.1.2.2.1.10."
 	local if_index = "1.3.6.1.2.1.2.2.1.1%."
-	local if_descr = "1.3.6.1.2.1.2.2.1.2%."
-	local if_type = "1.3.6.1.2.1.2.2.1.3%."
-	local if_speed = "1.3.6.1.2.1.2.2.1.5%."
-	local if_phys_addr = "1.3.6.1.2.1.2.2.1.6%."
-	local if_status = "1.3.6.1.2.1.2.2.1.8%."
-	local if_in_octets = "1.3.6.1.2.1.2.2.1.10%."
-	local if_out_octets = "1.3.6.1.2.1.2.2.1.16%."
+	local if_descr = "1.3.6.1.2.1.2.2.1.2."
+	local if_type = "1.3.6.1.2.1.2.2.1.3."
+	local if_speed = "1.3.6.1.2.1.2.2.1.5."
+	local if_phys_addr = "1.3.6.1.2.1.2.2.1.6."
+	local if_status = "1.3.6.1.2.1.2.2.1.8."
+	local if_in_octets = "1.3.6.1.2.1.2.2.1.10."
+	local if_out_octets = "1.3.6.1.2.1.2.2.1.16."
 	local new_tbl = {}
 	
 	-- Some operating systems (such as MS Windows) don't list interfaces with consecutive indexes
@@ -357,7 +357,7 @@ function build_results( tbl )
 		if interface.descr then
 			item.name = interface.descr
 		else
-			item.name = string.format("Interface %d", item.index)
+			item.name = string.format("Interface %d", index)
 		end
 		
 		if interface.ip_addr and interface.netmask then
@@ -402,14 +402,6 @@ action = function(host, port)
 	local status
 	local srvhost, srvport
 	
-	-- table for mac-geolocation.nse
-	if not nmap.registry[host.ip] then 
-		nmap.registry[host.ip] = {}
-	end
-	if not nmap.registry[host.ip]["mac-geolocation"] then
-		nmap.registry[host.ip]["mac-geolocation"] = {}
-	end
-
 	if SCRIPT_TYPE == "prerule" then
 		srvhost = stdnse.get_script_args({"snmp-interfaces.host", "host"})
 		if not srvhost then
@@ -454,14 +446,6 @@ action = function(host, port)
 	end
 
 	local output = stdnse.format_output( true, build_results(interfaces) )
-
-	-- insert the MAC addresses into the mac-geolocation table
-	for _,item in ipairs(interfaces) do
-		if item.phys_addr then
-		table.insert(nmap.registry[host.ip]["mac-geolocation"], item.phys_addr:match("^(%x+:%x+:%x+:%x+:%x+:%x+)"))
-		end
-	end
-	table.insert(nmap.registry[host.ip]["mac-geolocation"], "00:23:69:2a:b1:27")
 	
 	if SCRIPT_TYPE == "prerule" and target.ALLOW_NEW_TARGETS then
 		local sum = 0

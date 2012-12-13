@@ -1,6 +1,14 @@
+local bin = require "bin"
+local eap = require "eap"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
-Enumerates the authentication methods offered by an EAP authenticator for a
-given identity or for the anonymous identity if no argument is passed.
+Enumerates the authentication methods offered by an EAP (Extensible
+Authentication Protocol) authenticator for a given identity or for the
+anonymous identity if no argument is passed.
 ]]
 
 ---
@@ -26,11 +34,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = { "broadcast", "safe" }
 
-require 'nmap'
-require 'packet'
-require 'bin'
-require 'stdnse'
-require 'eap'
 
 prerule = function()
 	return nmap.is_privileged()
@@ -72,7 +75,7 @@ action = function()
 	end	    
 	stdnse.print_debug(1, "iface: %s", iface.device)
 
-	timeout = 10 * 1000
+	local timeout = 10 * 1000
 	if arg_timeout then
 		timeout = arg_timeout * 1000
 	end

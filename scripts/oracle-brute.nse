@@ -1,3 +1,14 @@
+local brute = require "brute"
+local coroutine = require "coroutine"
+local creds = require "creds"
+local io = require "io"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local tns = require "tns"
+
+local openssl = stdnse.silent_require "openssl"
+
 description = [[
 Performs brute force password auditing against Oracle servers.
 
@@ -46,6 +57,8 @@ result in a large number of accounts being locked out on the database server.
 --                             changed code to use ConnectionPool
 -- Revised 03/13/2012 - v0.4 - revised by László Tóth
 --                             added support for SYSDBA accounts
+-- Revised 08/07/2012 - v0.5 - revised to suit the changes in brute
+-- 							   library [Aleksandar Nikolic]
 
 --
 -- Summary
@@ -57,12 +70,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
-require 'shortport'
-require 'brute'
-require 'stdnse'
-stdnse.silent_require 'openssl'
-require 'tns'
-require 'creds'
 
 portrule = shortport.port_or_service(1521, "oracle-tns", "tcp", "open")
 
@@ -208,7 +215,7 @@ action = function(host, port)
 			return ("\n  ERROR: Failed to open %s"):format(DEFAULT_ACCOUNTS)
 		end
 
-		engine:addIterator(brute.Iterators.credential_iterator(f))
+		engine.iterator = brute.Iterators.credential_iterator(f)
 	end
 	
 	engine.options.script_name = SCRIPT_NAME

@@ -1,3 +1,9 @@
+local coroutine = require "coroutine"
+local dhcp6 = require "dhcp6"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Sends a DHCPv6 request (Solicit) to the DHCPv6 multicast address,
 parses the response, then extracts and prints the address along with
@@ -29,7 +35,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
-require 'dhcp6'
 
 prerule = function()
 	if not nmap.is_privileged() then
@@ -99,11 +104,13 @@ action = function(host, port)
 	
 	-- wait until the probes are all done
 	repeat
-		condvar "wait"
 		for thread in pairs(threads) do
 			if coroutine.status(thread) == "dead" then
 				threads[thread] = nil
 			end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until next(threads) == nil
 

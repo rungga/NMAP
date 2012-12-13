@@ -1,3 +1,14 @@
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local ssh1 = require "ssh1"
+local ssh2 = require "ssh2"
+local stdnse = require "stdnse"
+local table = require "table"
+local base64 = require "base64"
+
+local openssl = stdnse.silent_require "openssl"
+
 description = [[
 Shows SSH hostkeys.
 
@@ -49,17 +60,48 @@ The script also includes a postrule that check for duplicate hosts using the gat
 -- |   192.168.1.1
 -- |_  192.168.1.2
 --
+--@xmloutput
+-- <table>
+--   <elem key="key">ssh-dss AAAAB3NzaC1kc3MAAACBANraqxAILTygMTgFu/0snrJck8BkhOpBbN61DAZENgeulLMaJdmNFWZpvhLOJVXSqHt2TCrspbMyvpBH4Fnv7Kb+QBAhXyzeCNnOQ7OVBfqNzkfezoFrQJgOQZSEenP6sCVDqcW2j0KVumnYdPU7FGa8SLfNqA+hUOR2HSSluynFAAAAFQDWKNq4PVbpDA7UExE8JSHnWxv4AwAAAIAWEDdNu5mWfTz52IdxELNjsmn5FvKRmnhPqq/PrTkYqAADL5WYazg7POQZ4yI2nqTq++47ONDK87Wke3qbeIhMrV13Mrgf2JuCUSNqrfEmvzZ2l9x3QyZrj+bJRPRuhwYq8rFup01qaANJ0p4WS/7voNbRhh+l57FkJF+XAJRRTAAAAIEAts1Se+u+hV9ZedXopzfXv1I5ZOSONxZanM10wjM2GRWygCYsHqDM315swBPkzhmB73oBesnhDW3bq0dmW3wvk4gzQZ2E2SHhzVGjlgDpjEahlQ+XGpDZsvqqFGGGx8lvKYFUxBR+UkqMRGmjkHw5sK5ydO1n4R3XJ4FfQFqmoyU=</elem>
+--   <elem key="bits">1024</elem>
+--   <elem key="fingerprint">18782fd3be7178a38e584b5a83bd60a8</elem>
+--   <elem key="type">ssh-dss</elem>
+-- </table>
+-- <table>
+--   <elem key="key">ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAwVuv2gcr0maaKQ69VVIEv2ob4OxnuI64fkeOnCXD1lUx5tTA+vefXUWEMxgMuA7iX4irJHy2zer0NQ3Z3yJvr5scPgTYIaEOp5Uo/eGFG9Agpk5wE8CoF0e47iCAPHqzlmP2V7aNURLMODb3jVZuI07A2ZRrMGrD8d888E2ORVORv1rYeTYCqcMMoVFmX9l3gWEdk4yx3w5sD8v501Iuyd1v19mPfyhrI5E1E1nl/Xjp5N0/xP2GUBrdkDMxKaxqTPMie/f0dXBUPQQN697a5q+5lBRPhKYOtn6yQKCd9s1Q22nxn72Jmi1RzbMyYJ52FosDT755Qmb46GLrDMaZMQ==</elem>
+--   <elem key="bits">2048</elem>
+--   <elem key="fingerprint">f058cef4aaa4591c8edd4d0744c82511</elem>
+--   <elem key="type">ssh-rsa</elem>
+-- </table>
+--
+--@xmloutput
+-- <table>
+--   <table key="hosts">
+--     <elem>192.168.1.1</elem>
+--     <elem>192.168.1.2</elem>
+--   </table>
+--   <table key="key">
+--     <elem key="fingerprint">2c2275604bc33b18a2972c967e28dcdd</elem>
+--     <elem key="bits">2048</elem>
+--     <elem key="type">ssh-rsa</elem>
+--   </table>
+-- </table>
+-- <table>
+--   <table key="hosts">
+--     <elem>192.168.1.1</elem>
+--     <elem>192.168.1.2</elem>
+--   </table>
+--   <table key="key">
+--     <elem key="fingerprint">60ac4d51b1cd8509121692761d5d276e</elem>
+--     <elem key="bits">1024</elem>
+--     <elem key="type">ssh-dss</elem>
+--   </table>
+-- </table>
 
 author = "Sven Klemm"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"safe","default","discovery"}
 
-require("ipOps")
-require("shortport")
-require("stdnse")
-stdnse.silent_require("openssl")
-require("ssh1")
-require("ssh2")
 
 portrule = shortport.port_or_service(22, "ssh")
 
@@ -79,6 +121,7 @@ end
 --@param port nmap port table of the currently probed port
 local function portaction(host, port)
   local output = {}
+  local output_tab = {}
   local keys = {}
   local _,key
   local format = nmap.registry.args.ssh_hostkey or "hex"
@@ -93,8 +136,23 @@ local function portaction(host, port)
   key = ssh2.fetch_host_key( host, port, "ssh-rsa" )
   if key then table.insert( keys, key ) end
 
+  key = ssh2.fetch_host_key( host, port, "ecdsa-sha2-nistp256" )
+  if key then table.insert( keys, key ) end
+
+  key = ssh2.fetch_host_key( host, port, "ecdsa-sha2-nistp384" )
+  if key then table.insert( keys, key ) end
+
+  key = ssh2.fetch_host_key( host, port, "ecdsa-sha2-nistp521" )
+  if key then table.insert( keys, key ) end
+
   for _, key in ipairs( keys ) do
     add_key_to_registry( host, key )
+    table.insert(output_tab, {
+      fingerprint=stdnse.tohex(key.fingerprint),
+      type=key.key_type,
+      bits=key.bits,
+      key=base64.enc(key.key),
+    })
     if format:find( 'hex', 1, true ) or all_formats then
       table.insert( output, ssh1.fingerprint_hex( key.fingerprint, key.algorithm, key.bits ) )
     end
@@ -113,7 +171,7 @@ local function portaction(host, port)
   end
 
   if #output > 0 then
-    return table.concat( output, '\n' )
+    return output_tab, table.concat( output, '\n' )
   end
 end
 
@@ -134,6 +192,8 @@ end
 local function postaction()
   local hostkeys = {}
   local output = {}
+  local output_tab = {}
+  local revmap = {}
 
   -- create a reverse mapping key_fingerprint -> host(s)
   for ip, keys in pairs(nmap.registry.sshhostkey) do
@@ -141,6 +201,11 @@ local function postaction()
       local fp = ssh1.fingerprint_hex(key.fingerprint, key.algorithm, key.bits)
       if not hostkeys[fp] then
         hostkeys[fp] = {}
+        revmap[fp] = {
+          fingerprint=stdnse.tohex(key.fingerprint,{separator=":"}),
+          type=key.key_type,
+          bits=key.bits
+        }
       end
       -- discard duplicate IPs
       if not contains(hostkeys[fp], ip) then
@@ -154,15 +219,18 @@ local function postaction()
     if #hostkeys[key] > 1 then
       table.sort(hostkeys[key], function(a, b) return ipOps.compare_ip(a, "lt", b) end)
       local str = 'Key ' .. key .. ' used by:'
+      local tab = {key=revmap[key], hosts={}}
       for _, host in ipairs(hostkeys[key]) do
         str = str .. '\n  ' .. host
+        table.insert(tab.hosts, host)
       end
       table.insert(output, str)
+      table.insert(output_tab, tab)
     end
   end
 
   if #output > 0 then
-    return 'Possible duplicate hosts\n' .. table.concat(output, '\n')
+    return output_tab, 'Possible duplicate hosts\n' .. table.concat(output, '\n')
   end
 end
 

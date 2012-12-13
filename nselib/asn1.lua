@@ -15,9 +15,13 @@
 --										o Each script or library should now create it's own Encoder and Decoder instance
 --
 
-module(... or "asn1",package.seeall)
-
-require("bit")
+local bin = require "bin"
+local bit = require "bit"
+local math = require "math"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("asn1", stdnse.seeall)
 
 BERCLASS = {
 	Universal = 0,
@@ -199,7 +203,7 @@ ASN1Decoder = {
 	   if pos <= last then
 	      oid._snmp = '06'
 	      pos, octet = bin.unpack("C", encStr, pos)
-	      oid[2] = math.mod(octet, 40)
+	      oid[2] = math.fmod(octet, 40)
 	      octet = octet - oid[2]
 	      oid[1] = octet/40
 	   end
@@ -273,11 +277,12 @@ ASN1Decoder = {
 --
 ASN1Encoder = {
 
-	new = function(self,o)
-            o = o or {}
-            setmetatable(o, self)
-            self.__index = self
-            return o
+	new = function(self)
+		local o = {}
+		setmetatable(o, self)
+		self.__index = self
+		o:registerBaseEncoders()
+		return o
     end,
 
 	---
@@ -328,6 +333,14 @@ ASN1Encoder = {
 			end
 		end
 		
+		-- Table encoder
+		self.encoder['table'] = function( self, val )
+			assert('table' == type(val), "val is not a table")
+			assert(#val.type > 0, "Table is missing the type field")
+			assert(val.value ~= nil, "Table is missing the value field")
+			return bin.pack("HAA", val.type, self.encodeLength(#val.value), val.value)
+		end
+		
 		-- Integer encoder
 		self.encoder['number'] = function( self, val )
 			local ival = self.encodeInt(val)
@@ -372,7 +385,7 @@ ASN1Encoder = {
 	   if val > 0 then
 	      local valStr = ""
 	      while (val > 0) do
-		 lsb = math.mod(val, 256)
+		 lsb = math.fmod(val, 256)
 		 valStr = valStr .. bin.pack("C", lsb)
 		 val = math.floor(val/256)
 	      end
@@ -390,7 +403,7 @@ ASN1Encoder = {
 	      end
 	      local valStr = ""
 	      while (tcval > 0) do
-		 lsb = math.mod(tcval, 256)
+		 lsb = math.fmod(tcval, 256)
 		 valStr = valStr .. bin.pack("C", lsb)
 		 tcval = math.floor(tcval/256)
 	      end
@@ -471,3 +484,5 @@ function intToBER( i )
 end
 
 
+
+return _ENV;

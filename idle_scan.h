@@ -95,7 +95,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: idle_scan.h 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: idle_scan.h 29676 2012-08-28 07:50:09Z david $ */
 
 #ifndef IDLE_SCAN_H
 #define IDLE_SCAN_H
@@ -110,6 +110,6 @@ class Target;
    port is received (those scans are in pos_scan).  Super_scan
    includes scans such as FIN/XMAS/NULL/Maimon/UDP and IP Proto scans */
 void idle_scan(Target *target, u16 *portarray, int numports,
-	       char *proxy, const struct scan_lists * ports);
+               char *proxy, const struct scan_lists *ports);
 
 #endif /* IDLE_SCAN_H */

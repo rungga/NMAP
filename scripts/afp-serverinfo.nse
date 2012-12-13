@@ -1,3 +1,10 @@
+local afp = require "afp"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Shows AFP server information. This information includes the server's
 hostname, IPv4 and IPv6 addresses, and hardware type (for example
@@ -41,10 +48,6 @@ author = "Andrew Orr"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
-require 'shortport'
-require 'stdnse'
-require 'afp'
-require 'bit'
 
 portrule = shortport.portnumber(548, "tcp")
 
@@ -68,9 +71,9 @@ action = function(host, port)
   try( socket:connect(host, port) )
 
   -- get our data
-  afp_proto = afp.Proto:new( { socket=socket } )
+  local afp_proto = afp.Proto:new( { socket=socket } )
 
-  response = afp_proto:fp_get_server_info( socket )
+  local response = afp_proto:fp_get_server_info( socket )
   response = response.result
   
   -- all the server information is output in the order it occurs in the server

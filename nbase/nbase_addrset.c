@@ -88,6 +88,8 @@
  *                                                                         *
  ***************************************************************************/
 
+/* $Id: nbase_addrset.c 29744 2012-09-10 20:53:09Z henri $ */
+
 /* The code in this file has tests in the file ncat/tests/test-addrset.sh. Run that
    program after making any big changes. Also, please add tests for any new
    features. */
@@ -137,7 +139,8 @@ void addrset_free(struct addrset *set)
 void addrset_elem_print(FILE *fp, const struct addrset_elem *elem)
 {
     const size_t num_bitvector = sizeof(octet_bitvector) / sizeof(bitvector_t);
-    int i, j;
+    int i; 
+	size_t j;
 
     if (elem->type == ADDRSET_TYPE_IPV4_BITVECTOR) {
         for (i = 0; i < 4; i++) {

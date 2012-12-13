@@ -1,3 +1,10 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local tab = require "tab"
+local table = require "table"
+
 description = [[
 Retrieves version and database information from a SAP Max DB database.
 ]]
@@ -27,8 +34,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = { "default", "version" }
 
-require 'shortport'
-require 'tab'
 
 portrule = shortport.port_or_service(7210, "maxdb", "tcp")
 
@@ -165,7 +170,7 @@ action = function(host, port)
 	port.version.product = "SAP MaxDB"
 	port.version.version = version_info.VERSION
 	port.version.ostype = version_info.SYSNAME
-	nmap.set_port_version(host, port, "hardmatched")
+	nmap.set_port_version(host, port)
 	
 	return stdnse.format_output(true, result)
 end

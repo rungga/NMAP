@@ -91,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOps.h 28544 2012-05-08 05:49:51Z david $ */
+/* $Id: NmapOps.h 29688 2012-08-28 14:29:11Z david $ */
 
 #include "nmap.h"
 #include "global_structures.h"
@@ -191,8 +191,8 @@ class NmapOps {
   int generate_random_ips; /* -iR option */
   FingerPrintDB *reference_FPs; /* Used in the new OS scan system. */
   std::vector<FingerMatch> os_labels_ipv6;
-  u16 magic_port;
-  unsigned short magic_port_set; /* Was this set by user? */
+  u16 magic_port; /* The source port set by -g or --source-port. */
+  bool magic_port_set; /* Was this set by user? */
 
   /* Scan timing/politeness issues */
   int timing_level; // 0-5, corresponding to Paranoid, Sneaky, Polite, Normal, Aggressive, Insane
@@ -218,7 +218,7 @@ class NmapOps {
   void setMinRttTimeout(int rtt);
   void setInitialRttTimeout(int rtt);
   void setMaxRetransmissions(int max_retransmit);
-  int getMaxRetransmissions() { return max_retransmissions; }
+  unsigned int getMaxRetransmissions() { return max_retransmissions; }
 
   /* Similar functions for Host group size */
   int minHostGroupSz() { return min_host_group_sz; }
@@ -321,8 +321,14 @@ class NmapOps {
   int resolve_all;
   char *dns_servers;
 
-  // Logging options
-  bool log_errors;
+  /* Do IPv4 ARP or IPv6 ND scan of directly connected Ethernet hosts, even if
+     non-ARP host discovery options are used? This is normally more efficient,
+     not only because ARP/ND scan is faster, but because we need the MAC
+     addresses provided by ARP or ND scan in order to do IP-based host discovery
+     anyway. But when a network uses proxy ARP, all hosts will appear to be up
+     unless you do an IP host discovery on them. This option is true by default. */
+  bool implicitARPPing;
+
   // If true, write <os><osclass/><osmatch/></os> as in xmloutputversion 1.03
   // rather than <os><osmatch><osclass/></osmatch></os> as in 1.04 and later.
   bool deprecated_xml_osclass;
@@ -367,7 +373,7 @@ class NmapOps {
   int max_rtt_timeout;
   int min_rtt_timeout;
   int initial_rtt_timeout;
-  int max_retransmissions;
+  unsigned int max_retransmissions;
   unsigned int max_tcp_scan_delay;
   unsigned int max_udp_scan_delay;
   unsigned int max_sctp_scan_delay;

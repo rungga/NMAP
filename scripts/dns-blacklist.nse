@@ -1,3 +1,8 @@
+local dnsbl = require "dnsbl"
+local ipOps = require "ipOps"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Checks target IP addresses against multiple DNS anti-spam and open
 proxy blacklists and returns a list of services for which an IP has been flagged.  Checks may be limited by service category (eg: SPAM,
@@ -27,7 +32,7 @@ PROXY) or to a specific service name.  ]]
 -- |     bl.spamcop.net - SPAM
 -- |_    spam.dnsbl.sorbs.net - SPAM
 --
--- Supported blacklist list mode (--script-arg dns-blacklist.list):
+-- Supported blacklist list mode (--script-args dns-blacklist.list):
 -- | dns-blacklist: 
 -- |   PROXY
 -- |     dnsbl.ahbl.org
@@ -68,10 +73,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"external", "safe"}
 
-require 'dns'
-require 'dnsbl'
-require 'tab'
-require 'ipOps'
 
 -- The script can be run either as a host- or pre-rule
 hostrule = function() return true end

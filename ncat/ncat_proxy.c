@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_proxy.c 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: ncat_proxy.c 30228 2012-11-12 19:01:01Z david $ */
 
 #include "base64.h"
 #include "http.h"
@@ -104,7 +104,8 @@
 /* SIG_CHLD handler */
 static void proxyreaper(int signo)
 {
-    while (waitpid(-1, NULL, WNOHANG) > 0);
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
 }
 #endif
 
@@ -209,7 +210,7 @@ int ncat_http_server(void)
         if (o.debug > 1)
             logdebug("select returned %d fds ready\n", fds_ready);
 
-        for (i = 0; i <= listen_fdlist.fdmax && fds_ready >0; i++) {
+        for (i = 0; i <= listen_fdlist.fdmax && fds_ready > 0; i++) {
             /* Loop through descriptors until there is something ready */
             if (!FD_ISSET(i, &read_fds))
                 continue;
@@ -231,7 +232,7 @@ int ncat_http_server(void)
                         continue;
                     }
                     if (o.debug > 1)
-                            logdebug("forking handler for %d\n", i);
+                        logdebug("forking handler for %d\n", i);
                     fork_handler(i, c);
                 }
             }
@@ -424,7 +425,7 @@ static int handle_connect(struct socket_buffer *client_sock,
 {
     union sockaddr_u su;
     size_t sslen = sizeof(su.storage);
-    int maxfd, s;
+    int maxfd, s, rc;
     char *line;
     size_t len;
     fd_set m, r;
@@ -437,9 +438,12 @@ static int handle_connect(struct socket_buffer *client_sock,
     if (o.debug > 1)
         logdebug("CONNECT to %s:%hu.\n", request->uri.host, request->uri.port);
 
-    if (!resolve(request->uri.host, request->uri.port, &su.storage, &sslen, o.af)) {
-        if (o.debug)
-            logdebug("Can't resolve name %s.\n", request->uri.host);
+    rc = resolve(request->uri.host, request->uri.port, &su.storage, &sslen, o.af);
+    if (rc != 0) {
+        if (o.debug) {
+            logdebug("Can't resolve name \"%s\": %s.\n",
+                request->uri.host, gai_strerror(rc));
+        }
         return 504;
     }
 
@@ -459,7 +463,7 @@ static int handle_connect(struct socket_buffer *client_sock,
     line = socket_buffer_remainder(client_sock, &len);
     if (send(s, line, len, 0) < 0) {
         if (o.debug)
-            logdebug("Error sending %u leftover bytes: %s.\n", len, strerror(errno));
+            logdebug("Error sending %lu leftover bytes: %s.\n", (unsigned long) len, strerror(errno));
         Close(s);
         return 0;
     }
@@ -529,7 +533,7 @@ static int handle_method(struct socket_buffer *client_sock,
     union sockaddr_u su;
     size_t sslen = sizeof(su.storage);
     int code;
-    int s;
+    int s, rc;
 
     if (strcmp(request->uri.scheme, "http") != 0) {
         if (o.verbose)
@@ -542,9 +546,12 @@ static int handle_method(struct socket_buffer *client_sock,
         return 400;
     }
 
-    if (!resolve(request->uri.host, request->uri.port, &su.storage, &sslen, o.af)) {
-        if (o.debug)
-            logdebug("Can't resolve name %s:%d.\n", request->uri.host, request->uri.port);
+    rc = resolve(request->uri.host, request->uri.port, &su.storage, &sslen, o.af);
+    if (rc != 0) {
+        if (o.debug) {
+            logdebug("Can't resolve name %s:%d: %s.\n",
+                request->uri.host, request->uri.port, gai_strerror(rc));
+        }
         return 504;
     }
 

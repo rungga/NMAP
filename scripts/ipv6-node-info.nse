@@ -1,3 +1,13 @@
+local bin = require "bin"
+local bit = require "bit"
+local dns = require "dns"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local string = require "string"
+
+local openssl = stdnse.silent_require "openssl"
+
 description = [[
 Obtains hostnames, IPv4 and IPv6 addresses through IPv6 Node Information Queries.
 
@@ -26,12 +36,6 @@ categories = {"default", "discovery", "safe"}
 
 author = "David Fifield"
 
-require("bin")
-require("bit")
-require("dns")
-require("stdnse")
-require("packet")
-stdnse.silent_require("openssl")
 
 local ICMPv6_NODEINFOQUERY = 139
 local   ICMPv6_NODEINFOQUERY_IPv6ADDR = 0
@@ -98,12 +102,12 @@ local function send_queries(host)
 
 	dnet = nmap.new_dnet()
 	dnet:ip_open()
-	p = build_ni_query(host.bin_ip_src, host.bin_ip, QTYPE_NODEADDRESSES)
-	dnet:ip_send(p)
+	local p = build_ni_query(host.bin_ip_src, host.bin_ip, QTYPE_NODEADDRESSES)
+	dnet:ip_send(p, host)
 	p = build_ni_query(host.bin_ip_src, host.bin_ip, QTYPE_NODENAME)
-	dnet:ip_send(p)
+	dnet:ip_send(p, host)
 	p = build_ni_query(host.bin_ip_src, host.bin_ip, QTYPE_NODEIPV4ADDRESSES)
-	dnet:ip_send(p)
+	dnet:ip_send(p, host)
 	dnet:ip_close()
 end
 

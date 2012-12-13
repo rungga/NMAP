@@ -1,3 +1,11 @@
+local _G = require "_G"
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Enumerates directories used by popular web applications and servers.
 
@@ -56,10 +64,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"discovery", "intrusive", "vuln"}
 
-require 'http'
-require 'shortport'
-require 'stdnse'
-require 'nsedebug'
 
 portrule = shortport.http
 
@@ -174,16 +178,16 @@ local function get_fingerprints(fingerprint_file, category)
 	end
 
 	stdnse.print_debug("http-enum: Loading fingerprint database: %s", filename_full)
-	local file = loadfile(filename_full)
+	local env = setmetatable({fingerprints = {}}, {__index = _G})
+	local file = loadfile(filename_full, "t", env)
 	if(not(file)) then
 		stdnse.print_debug("http-enum: Couldn't load configuration file: %s", filename_full)
 		return false, "Couldn't load fingerprint file: " .. filename_full
 	end
 
-	setfenv(file, setmetatable({fingerprints = {}; }, {__index = _G}))
 	file()
 
-	local fingerprints = getfenv(file)["fingerprints"]
+	local fingerprints = env.fingerprints
 
 	-- Sanity check our file to ensure that all the fields were good. If any are bad, we 
 	-- stop and don't load the file. 
@@ -234,26 +238,21 @@ local function get_fingerprints(fingerprint_file, category)
 			end
 		end
 
-		-- Ensure that there's a 'matches' field
-		if(not(fingerprint.matches)) then
-			return false, "'matches' field has to be an array for path " .. path
-		end
-
 		-- Ensure that matches is an array
 		if(type(fingerprint.matches) ~= 'table') then
-			return false, "'matches' field has to be a table for path " .. path
+			return false, "'matches' field has to be a table"
 		end
 
 		-- Loop through the matches
 		for i, match in pairs(fingerprint.matches) do
 			-- Make sure we have a valid index
 			if(type(i) ~= 'number') then
-				return false, "The 'path' table is an array, not a table; all indexes should be numeric"
+				return false, "The 'matches' table is an array, not a table; all indexes should be numeric"
 			end
 
 			-- Check that every element in the table is an array
 			if(type(match) ~= 'table') then
-				return false, "Every element of 'matches' field has to be a table for path " .. path
+				return false, "Every element of 'matches' field has to be a table"
 			end
 
 			-- Check the output field
@@ -274,14 +273,14 @@ local function get_fingerprints(fingerprint_file, category)
 
 		-- Make sure the severity is an integer between 1 and 4. Default it to 1. 
 		if(fingerprint.severity and (type(fingerprint.severity) ~= 'number' or fingerprint.severity < 1 or fingerprint.severity > 4)) then
-			return false, "The 'severity' field has to be an integer between 1 and 4 for path " .. path
+			return false, "The 'severity' field has to be an integer between 1 and 4"
 		else
 			fingerprint.severity = 1
 		end
 
 		-- Make sure ignore_404 is a boolean. Default it to false. 
 		if(fingerprint.ignore_404 and type(fingerprint.ignore_404) ~= 'boolean') then
-			return false, "The 'ignore_404' field has to be a boolean for path " .. path
+			return false, "The 'ignore_404' field has to be a boolean"
 		else
 			fingerprint.ignore_404 = false
 		end
@@ -374,14 +373,24 @@ action = function(host, port)
 			basepath = '/' .. basepath
 		end
 	end
-
+  
+  local results_nopipeline = {}
 	-- Loop through the fingerprints
 	stdnse.print_debug(1, "http-enum: Searching for entries under path '%s' (change with 'http-enum.basepath' argument)", basepath)
 	for i = 1, #fingerprints, 1 do
 		-- Add each path. The order very much matters here. 
 		for j = 1, #fingerprints[i].probes, 1 do
-			all = http.pipeline_add(basepath .. fingerprints[i].probes[j].path, nil, all, fingerprints[i].probes[j].method or 'GET')
-		end
+      if fingerprints[i].probes[j].nopipeline then
+        local res = http.generic_request(host, port, fingerprints[i].probes[j].method or 'GET', basepath .. fingerprints[i].probes[j].path, nil)
+        if res.status then
+          table.insert(results_nopipeline, res)
+        else
+          table.insert(results_nopipeline, false)
+        end
+      else
+        all = http.pipeline_add(basepath .. fingerprints[i].probes[j].path, nil, all, fingerprints[i].probes[j].method or 'GET')
+      end
+    end
 	end
 
 	-- Perform all the requests. 
@@ -395,14 +404,20 @@ action = function(host, port)
 
 	-- Loop through the fingerprints. Note that for each fingerprint, we may have multiple results
 	local j = 1
+  local j_nopipeline = 1
 	for i, fingerprint in ipairs(fingerprints) do
 
 		-- Loop through the paths for each fingerprint in the same order we did the requests. Each of these will
 		-- have one result, so increment the result value at each iteration
 		for _, probe in ipairs(fingerprint.probes) do
-			local result = results[j]
-			j = j + 1
-
+      local result
+      if probe.nopipeline then
+        result = results_nopipeline[j_nopipeline]
+        j_nopipeline = j_nopipeline + 1
+      else
+        result = results[j]
+        j = j + 1
+      end
 			if(result) then
 				local path = basepath .. probe['path']
 				local good = true

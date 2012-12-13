@@ -1,3 +1,9 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local vulns = require "vulns"
+
 description = [[
 Checks if a machine is vulnerable to MS12-020 RDP vulnerability.
 
@@ -62,9 +68,6 @@ author = "Aleksandar Nikolic, based on python script by sleepya"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln"}
 
-require "shortport"
-require "stdnse"
-require "vulns"
 
 portrule = shortport.port_or_service({3389},{"ms-wbt-server"})
 
@@ -171,6 +174,12 @@ action = function(host, port)
 	rdp_vuln_0152.state = vulns.STATE.NOT_VULN
 	rdp_vuln_0002.state = vulns.STATE.NOT_VULN
 
+	-- Sleep for 0.2 seconds to make sure the script works even with SYN scan.
+	-- Posible reason for this is that Windows resets the connection if we try to 
+	-- reconect too fast to the same port after doing a SYN scan and not completing the
+	-- handshake. In my tests, sleep values above 0.1s prevent the connection reset.
+	stdnse.sleep(0.2) 
+
 	socket:connect(host.ip, port)
 	status, err = socket:send(connectionRequest)
 
@@ -189,9 +198,9 @@ action = function(host, port)
 	status, response = socket:receive_bytes(0) -- recieve another attach user confirm
 	pos,user2 = bin.unpack(">S",response:sub(10,11)) -- second user's channel - 1001
 	user2 = user2+1001 -- second user's channel
-	data4 = bin.pack(">SS",user1,user2)
-	data5 = bin.pack("H","0300000c02f08038") -- channel join request TPDU
-	channelJoinRequest = data5 .. data4
+	local data4 = bin.pack(">SS",user1,user2)
+	local data5 = bin.pack("H","0300000c02f08038") -- channel join request TPDU
+	local channelJoinRequest = data5 .. data4
 	status, err = socket:send(channelJoinRequest) -- bogus channel join request user1 requests channel of user2
 	status, response = socket:receive_bytes(0)
 	if response:sub(8,9) == bin.pack("H","3e00") then

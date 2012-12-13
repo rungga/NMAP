@@ -1,3 +1,10 @@
+local bin = require "bin"
+local math = require "math"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Classifies a host's IP ID sequence (test for susceptibility to idle
 scan).
@@ -28,10 +35,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
-require 'bin'
-require 'packet'
-require 'nmap'
-require 'stdnse'
 
 local NUMPROBES = 6
 
@@ -218,7 +221,7 @@ action = function(host)
 	local tcp = genericpkt(host, ipidseqport)
 
 	while i <= NUMPROBES do
-		try(sock:ip_send(tcp.buf))
+		try(sock:ip_send(tcp.buf, host))
 
 		local status, len, _, layer3 = pcap:pcap_receive()
 		local test = bin.pack('AA=S=S', tcp.ip_bin_src, tcp.ip_bin_dst, tcp.tcp_sport, tcp.tcp_dport)

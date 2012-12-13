@@ -3,11 +3,15 @@
 --
 -- @author "Patrik Karlsson <patrik@cqure.net>"
 
-module(... or "rsync",package.seeall)
+local base64 = require "base64"
+local bin = require "bin"
+local match = require "match"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
+local openssl = stdnse.silent_require "openssl"
+_ENV = stdnse.module("rsync", stdnse.seeall)
 
-require 'base64'
-require 'match'
-stdnse.silent_require 'openssl'
 
 -- The Helper class serves as the main interface for script writers
 Helper = {
@@ -35,7 +39,7 @@ Helper = {
 		if ( not(status) ) then
 			return false, err
 		end
-		local status, data = self.socket:receive_buf("\n")
+		local status, data = self.socket:receive_buf("\n", false)
 		if( not(status) ) then
 			return false, err
 		end
@@ -115,7 +119,7 @@ Helper = {
 		
 		local modules = {}
 		while(true) do
-			status, data = self.socket:receive_buf("\n")
+			status, data = self.socket:receive_buf("\n", false)
 			if (not(status)) then
 				return false, data
 			end
@@ -148,13 +152,13 @@ Helper = {
 			return false, data
 		end
 
-		status, data = self.socket:receive_buf(match.numbytes(4))
+		status, data = self.socket:receive_buf(match.numbytes(4), false)
 		if ( not(status) ) then
 			return false, data
 		end
 		
 		local pos, len = bin.unpack("<S", data)
-		status, data = self.socket:receive_buf(match.numbytes(len))
+		status, data = self.socket:receive_buf(match.numbytes(len), false)
 		if ( not(status) ) then
 			return false, data
 		end
@@ -167,3 +171,5 @@ Helper = {
 	disconnect = function(self) return self.socket:close() end,
 	
 }
+
+return _ENV;

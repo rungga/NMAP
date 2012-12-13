@@ -1,3 +1,9 @@
+local http = require "http"
+local io = require "io"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+
 description = [[
 Exploits a directory traversal vulnerability existing in Majordomo2 to retrieve remote files. (CVE-2011-0049). 
 
@@ -34,8 +40,6 @@ author = "Paulino Calderon"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "vuln", "exploit"}
 
-require "http"
-require "shortport"
 
 portrule = shortport.http
 
@@ -75,6 +79,7 @@ action = function(host, port)
       stdnse.print_debug(1, "%s:[Error] The server is not vulnerable, '%s' was not found or the web server has insufficient permissions to read it", SCRIPT_NAME, rfile)
       return
     end
+    local _
     _, _, rfile_content = string.find(response.body, '<pre>(.*)<!%-%- Majordomo help_foot format file %-%->')
     output_lines[#output_lines+1] = rfile.." was found:\n"..rfile_content
     if filewrite then

@@ -1,3 +1,8 @@
+local comm = require "comm"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local string = require "string"
+
 description = [[
 Attempts to extract system information from the point-to-point tunneling protocol (PPTP) service.
 ]]
@@ -15,8 +20,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"version"}
 
-require "comm"
-require "shortport"
 
 portrule = shortport.version_port_or_service(1723)
 
@@ -51,7 +54,7 @@ action = function(host, port)
 	local result
 		
 	-- check to see if the packet we got back matches the beginning of a PPTP Start-Control-Connection-Reply packet
-	result = string.match(response, "%z\156%z\001\026\043(.*)")
+	result = string.match(response, "\0\156\0\001\026\043(.*)")
 	local output
 	
 	if result ~= nil then
@@ -67,13 +70,13 @@ action = function(host, port)
 		-- get the hostname (64 octets)
 		local s3
 		s3 = string.sub(result, 24, 87)
-		hostname = string.match(s3, "(.-)%z")
+		hostname = string.match(s3, "(.-)\0")
 
 		-- get the vendor (should be 64 octets, but capture to end of the string to be safe)
 		local s4, length
 		length = #result
 		s4 = string.sub(result, 88, length)
-		vendor = string.match(s4, "(.-)%z")
+		vendor = string.match(s4, "(.-)\0")
 	
 		port.version.name = "pptp"
 		port.version.name_confidence = 10
@@ -82,7 +85,7 @@ action = function(host, port)
 		if hostname ~= nil then port.version.hostname = hostname end
 		
 		port.version.service_tunnel = "none"
-		nmap.set_port_version(host, port, "hardmatched")
+		nmap.set_port_version(host, port)
 	end
 
 end

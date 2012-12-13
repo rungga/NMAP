@@ -1,3 +1,10 @@
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Retrieves information from an Apache HBase (Hadoop database) region server HTTP status page.
 
@@ -34,9 +41,6 @@ author = "John R. Bond"
 license = "Simplified (2-clause) BSD license--See http://nmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
-require ("shortport")
-require ("http")
-require ("target")
 
 portrule = function(host, port)
 	-- Run for the special port number, or for any HTTP-like service that is
@@ -49,9 +53,11 @@ action = function( host, port )
 
 	local result = {}
 	local region_servers = {}
-	local uri = "/regionserver.jsp"
+	-- uri was previously "/regionserver.jsp". See
+	-- http://seclists.org/nmap-dev/2012/q3/903.
+	local uri = "/rs-status"
 	stdnse.print_debug(1, ("%s:HTTP GET %s:%s%s"):format(SCRIPT_NAME, host.targetname or host.ip, port.number, uri))
-	local response = http.get( host.targetname or host.ip, port.number, uri )
+	local response = http.get( host, port, uri )
 	stdnse.print_debug(1, ("%s: Status %s"):format(SCRIPT_NAME,response['status-line'] or "No Response"))
 	if response['status-line'] and response['status-line']:match("200%s+OK") and response['body']  then
 		local body = response['body']:gsub("%%","%%%%")
@@ -86,7 +92,7 @@ action = function( host, port )
 				end
 			end
 		end
-		nmap.set_port_version(host, port, "hardmatched")
+		nmap.set_port_version(host, port)
 		return stdnse.format_output(true, result)
 	end
 end

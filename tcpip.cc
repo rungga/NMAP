@@ -92,7 +92,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: tcpip.cc 28448 2012-04-11 01:46:43Z fyodor $ */
+/* $Id: tcpip.cc 30160 2012-10-31 17:00:55Z david $ */
 #ifdef WIN32
 #include "nmap_winconfig.h"
 #endif
@@ -138,6 +138,26 @@ static PacketCounter PktCt;
 
 
 
+/* Create a raw socket and do things that always apply to raw sockets:
+    * Set SO_BROADCAST.
+    * Set IP_HDRINCL.
+    * Bind to an interface with SO_BINDTODEVICE (if o.device is set).
+   The socket is created with address family AF_INET, but may be usable for
+   AF_INET6, depending on the operating system. */
+int nmap_raw_socket() {
+  int rawsd;
+
+  rawsd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+  if (rawsd < 0)
+    return rawsd;
+  broadcast_socket(rawsd);
+#ifndef WIN32
+  sethdrinclude(rawsd);
+#endif
+  socket_bindtodevice(rawsd, o.device);
+
+  return rawsd;
+}
 
 /* Fill buf (up to buflen -- truncate if necessary but always
    terminate) with a short representation of the packet stats.
@@ -156,9 +176,9 @@ char *getFinalPacketStats(char *buf, int buflen) {
 #endif
            PktCt.sendPackets,
            format_bytecount(PktCt.sendBytes, sendbytesasc,
-                         sizeof(sendbytesasc)), PktCt.recvPackets,
+                            sizeof(sendbytesasc)), PktCt.recvPackets,
            format_bytecount(PktCt.recvBytes, recvbytesasc,
-                         sizeof(recvbytesasc)));
+                            sizeof(recvbytesasc)));
   return buf;
 }
 
@@ -245,8 +265,8 @@ void PacketTrace::traceND(pdirection pdir, const u8 *frame, u32 len,
 
   if (len < sizeof(*ip6) + sizeof(*icmpv6)) {
     error("Packet tracer: ND packets must be at least %lu bytes long (is %lu).",
-    	(unsigned long) (sizeof(*ip6) + sizeof(*icmpv6)),
-	(unsigned long) len);
+          (unsigned long) (sizeof(*ip6) + sizeof(*icmpv6)),
+          (unsigned long) len);
     return;
   }
   ip6 = (struct ip6_hdr *) frame;
@@ -272,7 +292,7 @@ void PacketTrace::traceND(pdirection pdir, const u8 *frame, u32 len,
     } else {
       inet_ntop(AF_INET6, &msg->nd.icmpv6_target, tgt_is, sizeof(tgt_is));
       Snprintf(desc, sizeof(desc), "%s is at %s",
-        tgt_is, eth_ntoa(&msg->nd.icmpv6_mac));
+               tgt_is, eth_ntoa(&msg->nd.icmpv6_mac));
     }
   } else {
     error("Unknown ICMPV6 type in %s.", __func__);
@@ -295,23 +315,23 @@ void PacketTrace::traceND(pdirection pdir, const u8 *frame, u32 len,
    IMPORTANT: This is a wrapper for function ippackethdrinfo(). Check
    nbase/nbase_net.c for details on the returned buffer. */
 static const char *nmap_format_ippacket(const u8 *packet, u32 len) {
- int detail=LOW_DETAIL;
- if(o.debugging==2){
-    detail=MEDIUM_DETAIL;
- }else if(o.debugging>=3){
-    detail=HIGH_DETAIL;
- }
- return ippackethdrinfo(packet, len, detail);
+  int detail = LOW_DETAIL;
+  if (o.debugging == 2) {
+    detail = MEDIUM_DETAIL;
+  } else if (o.debugging >= 3) {
+    detail = HIGH_DETAIL;
+  }
+  return ippackethdrinfo(packet, len, detail);
 }
 
 
 
 
-  /* Takes an IP PACKET and prints it if packet tracing is enabled.
-     'packet' must point to the IPv4 header. The direction must be
-     PacketTrace::SENT or PacketTrace::RCVD .  Optional 'now' argument
-     makes this function slightly more efficient by avoiding a gettimeofday()
-     call. */
+/* Takes an IP PACKET and prints it if packet tracing is enabled.
+   'packet' must point to the IPv4 header. The direction must be
+   PacketTrace::SENT or PacketTrace::RCVD .  Optional 'now' argument
+   makes this function slightly more efficient by avoiding a gettimeofday()
+   call. */
 void PacketTrace::trace(pdirection pdir, const u8 *packet, u32 len,
                         struct timeval *now) {
   struct timeval tv;
@@ -437,8 +457,7 @@ const char *inet_socktop(struct sockaddr_storage *ss) {
    This function calls getaddrinfo and returns the same addrinfo linked list
    that getaddrinfo produces. Returns NULL for any error or failure to resolve.
    You need to call freeaddrinfo on the result if non-NULL. */
-struct addrinfo *resolve_all(const char *hostname, int pf)
-{
+struct addrinfo *resolve_all(const char *hostname, int pf) {
   struct addrinfo hints;
   struct addrinfo *result;
   int rc;
@@ -458,8 +477,8 @@ struct addrinfo *resolve_all(const char *hostname, int pf)
 /* Send a pre-built IPv4 packet. Handles fragmentation and whether to send with
    an ethernet handle or a socket. */
 static int send_ipv4_packet(int sd, const struct eth_nfo *eth,
-  const struct sockaddr_in *dst,
-  const u8 *packet, unsigned int packetlen) {
+                            const struct sockaddr_in *dst,
+                            const u8 *packet, unsigned int packetlen) {
   struct ip *ip = (struct ip *) packet;
   int res;
 
@@ -467,10 +486,10 @@ static int send_ipv4_packet(int sd, const struct eth_nfo *eth,
   assert((int) packetlen > 0);
 
   /* Fragmentation requested && packet is bigger than MTU */
-  if(o.fragscan && !(ntohs(ip->ip_off) & IP_DF) &&
-     (packetlen - ip->ip_hl * 4 > (unsigned int) o.fragscan)){
+  if (o.fragscan && !(ntohs(ip->ip_off) & IP_DF) &&
+      (packetlen - ip->ip_hl * 4 > (unsigned int) o.fragscan)) {
     res = send_frag_ip_packet(sd, eth, dst, packet, packetlen, o.fragscan);
-  }else{
+  } else {
     res = send_ip_packet_eth_or_sd(sd, eth, dst, packet, packetlen);
   }
   if (res != -1)
@@ -480,8 +499,8 @@ static int send_ipv4_packet(int sd, const struct eth_nfo *eth,
 }
 
 static int send_ipv6_packet(int sd, const struct eth_nfo *eth,
-  const struct sockaddr_in6 *dst,
-  const u8 *packet, unsigned int packetlen){
+                            const struct sockaddr_in6 *dst,
+                            const u8 *packet, unsigned int packetlen) {
   int res;
 
   res = send_ipv6_packet_eth_or_sd(sd, eth, dst, packet, packetlen);
@@ -492,8 +511,8 @@ static int send_ipv6_packet(int sd, const struct eth_nfo *eth,
 }
 
 int send_ip_packet(int sd, const struct eth_nfo *eth,
-  const struct sockaddr_storage *dst,
-  const u8 *packet, unsigned int packetlen) {
+                   const struct sockaddr_storage *dst,
+                   const u8 *packet, unsigned int packetlen) {
   struct ip *ip = (struct ip *) packet;
 
   /* Ensure there's enough to read ip->ip_v at least. */
@@ -509,9 +528,6 @@ int send_ip_packet(int sd, const struct eth_nfo *eth,
   }
 
   fatal("%s only understands IP versions 4 and 6 (got %u)", __func__, ip->ip_v);
-
-  /* This should not be reached. Just in case. */
-  assert(0);
 }
 
 
@@ -519,7 +535,7 @@ int send_ip_packet(int sd, const struct eth_nfo *eth,
    ipv4_pseudoheader_cksum, this knows about STUPID_SOLARIS_CHECKSUM_BUG and
    takes care of o.badsum. */
 static u16 ipv4_cksum(const struct in_addr *src, const struct in_addr *dst,
-  u8 proto, const void *data, u16 len) {
+                      u8 proto, const void *data, u16 len) {
   u16 sum;
 
 #if STUPID_SOLARIS_CHECKSUM_BUG
@@ -540,7 +556,7 @@ static u16 ipv4_cksum(const struct in_addr *src, const struct in_addr *dst,
 /* Return an IPv6 pseudoheader checksum for the given protocol and data. Unlike
    ipv6_pseudoheader_cksum, this takes care of o.badsum. */
 static u16 ipv6_cksum(const struct in6_addr *src, const struct in6_addr *dst,
-  u8 nxt, const void *data, u16 len) {
+                      u8 nxt, const void *data, u16 len) {
   u16 sum;
 
   sum = ipv6_pseudoheader_cksum(src, dst, nxt, len, data);
@@ -589,8 +605,7 @@ static inline int fill_ip_raw(struct ip *ip, int packetlen, const u8 *ipopt,
 
 #if HAVE_IP_IP_SUM
   ip->ip_sum = 0;
-  ip->ip_sum =
-      in_cksum((unsigned short *) ip, sizeof(struct ip) + ipoptlen);
+  ip->ip_sum = in_cksum((unsigned short *) ip, sizeof(struct ip) + ipoptlen);
 #endif
   return (sizeof(struct ip) + ipoptlen);
 }
@@ -610,12 +625,12 @@ u8 *build_ip_raw(const struct in_addr *source,
   struct ip *ip = (struct ip *) packet;
   static int myttl = 0;
 
-/* check that required fields are there and not too silly */
+  /* check that required fields are there and not too silly */
   assert(source);
   assert(victim);
   assert(ipoptlen % 4 == 0);
 
-/* Time to live */
+  /* Time to live */
   if (ttl == -1) {
     myttl = (get_random_uint() % 23) + 37;
   } else {
@@ -636,7 +651,7 @@ u8 *build_ip_raw(const struct in_addr *source,
 u8 *build_ipv6_raw(const struct in6_addr *source,
                    const struct in6_addr *victim, u8 tc, u32 flowlabel,
                    u8 nextheader, int hoplimit,
-                   char *data, u16 datalen, u32 *outpacketlen) {
+                   const char *data, u16 datalen, u32 *outpacketlen) {
   u8 *packet;
 
   assert(source != NULL);
@@ -660,7 +675,7 @@ u8 *build_ipv6_raw(const struct in6_addr *source,
 static u8 *build_tcp(u16 sport, u16 dport, u32 seq, u32 ack, u8 reserved,
                      u8 flags, u16 window, u16 urp,
                      const u8 *tcpopt, int tcpoptlen,
-                     char *data, u16 datalen, u32 *packetlen) {
+                     const char *data, u16 datalen, u32 *packetlen) {
   struct tcp_hdr *tcp;
   u8 *packet;
 
@@ -719,17 +734,17 @@ u8 *build_tcp_raw(const struct in_addr *source,
                   const struct in_addr *victim, int ttl, u16 ipid, u8 tos,
                   bool df, const u8 *ipopt, int ipoptlen, u16 sport, u16 dport,
                   u32 seq, u32 ack, u8 reserved, u8 flags, u16 window,
-                  u16 urp, const u8 *tcpopt, int tcpoptlen, char *data,
+                  u16 urp, const u8 *tcpopt, int tcpoptlen, const char *data,
                   u16 datalen, u32 *packetlen) {
   struct tcp_hdr *tcp;
   u32 tcplen;
   u8 *ip;
 
   tcp = (struct tcp_hdr *) build_tcp(sport, dport, seq, ack, reserved, flags,
-    window, urp, tcpopt, tcpoptlen, data, datalen, &tcplen);
+                                     window, urp, tcpopt, tcpoptlen, data, datalen, &tcplen);
   tcp->th_sum = ipv4_cksum(source, victim, IPPROTO_TCP, tcp, tcplen);
   ip = build_ip_raw(source, victim, IPPROTO_TCP, ttl, ipid, tos, df,
-    ipopt, ipoptlen, (char *) tcp, tcplen, packetlen);
+                    ipopt, ipoptlen, (char *) tcp, tcplen, packetlen);
   free(tcp);
 
   return ip;
@@ -745,17 +760,17 @@ u8 *build_tcp_raw_ipv6(const struct in6_addr *source,
                        const struct in6_addr *victim, u8 tc, u32 flowlabel,
                        u8 hoplimit, u16 sport, u16 dport, u32 seq, u32 ack,
                        u8 reserved, u8 flags, u16 window, u16 urp,
-                       const u8 *tcpopt, int tcpoptlen, char *data,
+                       const u8 *tcpopt, int tcpoptlen, const char *data,
                        u16 datalen, u32 *packetlen) {
   struct tcp_hdr *tcp;
   u32 tcplen;
   u8 *ipv6;
 
   tcp = (struct tcp_hdr *) build_tcp(sport, dport, seq, ack, reserved, flags,
-    window, urp, tcpopt, tcpoptlen, data, datalen, &tcplen);
+                                     window, urp, tcpopt, tcpoptlen, data, datalen, &tcplen);
   tcp->th_sum = ipv6_cksum(source, victim, IPPROTO_TCP, tcp, tcplen);
   ipv6 = build_ipv6_raw(source, victim, tc, flowlabel, IPPROTO_TCP, hoplimit,
-    (char *) tcp, tcplen, packetlen);
+                        (char *) tcp, tcplen, packetlen);
   free(tcp);
 
   return ipv6;
@@ -767,7 +782,7 @@ int send_tcp_raw(int sd, const struct eth_nfo *eth,
                  const struct in_addr *victim, int ttl, bool df,
                  u8 *ipops, int ipoptlen, u16 sport, u16 dport, u32 seq,
                  u32 ack, u8 reserved, u8 flags, u16 window, u16 urp,
-                 u8 *options, int optlen, char *data, u16 datalen) {
+                 u8 *options, int optlen, const char *data, u16 datalen) {
   struct sockaddr_storage dst;
   struct sockaddr_in *dst_in;
   unsigned int packetlen;
@@ -799,7 +814,7 @@ int send_tcp_raw_decoys(int sd, const struct eth_nfo *eth,
                         u16 sport, u16 dport,
                         u32 seq, u32 ack, u8 reserved, u8 flags,
                         u16 window, u16 urp, u8 *options, int optlen,
-                        char *data, u16 datalen) {
+                        const char *data, u16 datalen) {
   int decoy;
 
   for (decoy = 0; decoy < o.numdecoys; decoy++)
@@ -858,7 +873,7 @@ u8 *build_udp_raw(const struct in_addr *source, const struct in_addr *victim,
   udp = (struct udp_hdr *) build_udp(sport, dport, data, datalen, &udplen);
   udp->uh_sum = ipv4_cksum(source, victim, IPPROTO_UDP, udp, udplen);
   ip = build_ip_raw(source, victim, IPPROTO_UDP, ttl, ipid, tos, df,
-    ipopt, ipoptlen, (char *) udp, udplen, packetlen);
+                    ipopt, ipoptlen, (char *) udp, udplen, packetlen);
   free(udp);
 
   return ip;
@@ -873,7 +888,7 @@ u8 *build_udp_raw(const struct in_addr *source, const struct in_addr *victim,
 u8 *build_udp_raw_ipv6(const struct in6_addr *source,
                        const struct in6_addr *victim, u8 tc, u32 flowlabel,
                        u8 hoplimit, u16 sport, u16 dport,
-                       char *data, u16 datalen, u32 *packetlen) {
+                       const char *data, u16 datalen, u32 *packetlen) {
   struct udp_hdr *udp;
   u32 udplen;
   u8 *ipv6;
@@ -881,7 +896,7 @@ u8 *build_udp_raw_ipv6(const struct in6_addr *source,
   udp = (struct udp_hdr *) build_udp(sport, dport, data, datalen, &udplen);
   udp->uh_sum = ipv6_cksum(source, victim, IPPROTO_UDP, udp, udplen);
   ipv6 = build_ipv6_raw(source, victim, tc, flowlabel, IPPROTO_UDP, hoplimit,
-    (char *) udp, udplen, packetlen);
+                        (char *) udp, udplen, packetlen);
   free(udp);
 
   return ipv6;
@@ -891,7 +906,7 @@ int send_udp_raw(int sd, const struct eth_nfo *eth,
                  struct in_addr *source, const struct in_addr *victim,
                  int ttl, u16 ipid,
                  u8 *ipopt, int ipoptlen,
-                 u16 sport, u16 dport, char *data, u16 datalen) {
+                 u16 sport, u16 dport, const char *data, u16 datalen) {
   struct sockaddr_storage dst;
   struct sockaddr_in *dst_in;
   unsigned int packetlen;
@@ -917,7 +932,7 @@ int send_udp_raw_decoys(int sd, const struct eth_nfo *eth,
                         const struct in_addr *victim,
                         int ttl, u16 ipid,
                         u8 *ipops, int ipoptlen,
-                        u16 sport, u16 dport, char *data, u16 datalen) {
+                        u16 sport, u16 dport, const char *data, u16 datalen) {
   int decoy;
 
   for (decoy = 0; decoy < o.numdecoys; decoy++)
@@ -977,13 +992,13 @@ u8 *build_sctp_raw(const struct in_addr *source,
                    const struct in_addr *victim, int ttl, u16 ipid,
                    u8 tos, bool df, u8 *ipopt, int ipoptlen, u16 sport,
                    u16 dport, u32 vtag, char *chunks, int chunkslen,
-                   char *data, u16 datalen, u32 *packetlen) {
+                   const char *data, u16 datalen, u32 *packetlen) {
   u8 *ip, *sctp;
   u32 sctplen;
 
   sctp = build_sctp(sport, dport, vtag, chunks, chunkslen, data, datalen, &sctplen);
   ip = build_ip_raw(source, victim, IPPROTO_SCTP, ttl, ipid, tos, df,
-    ipopt, ipoptlen, (char *) sctp, sctplen, packetlen);
+                    ipopt, ipoptlen, (char *) sctp, sctplen, packetlen);
   free(sctp);
 
   return ip;
@@ -992,14 +1007,14 @@ u8 *build_sctp_raw(const struct in_addr *source,
 u8 *build_sctp_raw_ipv6(const struct in6_addr *source,
                         const struct in6_addr *victim, u8 tc, u32 flowlabel,
                         u8 hoplimit, u16 sport, u16 dport, u32 vtag,
-                        char *chunks, int chunkslen, char *data, u16 datalen,
+                        char *chunks, int chunkslen, const char *data, u16 datalen,
                         u32 *packetlen) {
   u8 *ipv6, *sctp;
   u32 sctplen;
 
   sctp = build_sctp(sport, dport, vtag, chunks, chunkslen, data, datalen, &sctplen);
   ipv6 = build_ipv6_raw(source, victim, tc, flowlabel, IPPROTO_SCTP, hoplimit,
-    (char *) sctp, sctplen, packetlen);
+                        (char *) sctp, sctplen, packetlen);
   free(sctp);
 
   return ipv6;
@@ -1016,7 +1031,7 @@ u8 *build_sctp_raw_ipv6(const struct in6_addr *source,
 u8 *build_icmp_raw(const struct in_addr *source,
                    const struct in_addr *victim, int ttl, u16 ipid,
                    u8 tos, bool df, u8 *ipopt, int ipoptlen, u16 seq,
-                   unsigned short id, u8 ptype, u8 pcode, char *data,
+                   unsigned short id, u8 ptype, u8 pcode, const char *data,
                    u16 datalen, u32 *packetlen) {
   struct ppkt {
     u8 type;
@@ -1083,7 +1098,7 @@ u8 *build_icmp_raw(const struct in_addr *source,
 u8 *build_icmpv6_raw(const struct in6_addr *source,
                      const struct in6_addr *victim, u8 tc, u32 flowlabel,
                      u8 hoplimit, u16 seq, u16 id, u8 ptype, u8 pcode,
-                     char *data, u16 datalen, u32 *packetlen) {
+                     const char *data, u16 datalen, u32 *packetlen) {
   char *packet;
   struct icmpv6_hdr *icmpv6;
   union icmpv6_msg *msg;
@@ -1110,12 +1125,12 @@ u8 *build_icmpv6_raw(const struct in6_addr *source,
 
   icmpv6->icmpv6_cksum = 0;
   icmpv6->icmpv6_cksum = ipv6_pseudoheader_cksum(source, victim,
-    IPPROTO_ICMPV6, icmplen, icmpv6);
+                         IPPROTO_ICMPV6, icmplen, icmpv6);
   if (o.badsum)
     icmpv6->icmpv6_cksum--;
 
   ipv6 = build_ipv6_raw(source, victim, tc, flowlabel, IPPROTO_ICMPV6, hoplimit,
-    packet, icmplen, packetlen);
+                        packet, icmplen, packetlen);
 
   free(packet);
   return ipv6;
@@ -1130,7 +1145,7 @@ u8 *build_icmpv6_raw(const struct in6_addr *source,
 u8 *build_igmp_raw(const struct in_addr *source,
                    const struct in_addr *victim, int ttl, u16 ipid,
                    u8 tos, bool df, u8 *ipopt, int ipoptlen, u8 ptype,
-                   u8 pcode, char *data, u16 datalen, u32 *packetlen) {
+                   u8 pcode, const char *data, u16 datalen, u32 *packetlen) {
   struct {
     u8 igmp_type;
     u8 igmp_code;
@@ -1190,8 +1205,7 @@ int readtcppacket(const u8 *packet, int readdata) {
 
   struct ip *ip = (struct ip *) packet;
   struct tcp_hdr *tcp = (struct tcp_hdr *) (packet + sizeof(struct ip));
-  const unsigned char *data =
-      packet + sizeof(struct ip) + sizeof(struct tcp_hdr);
+  const unsigned char *data = packet + sizeof(struct ip) + sizeof(struct tcp_hdr);
   int tot_len;
   struct in_addr bullshit, bullshit2;
   char sourcehost[16];
@@ -1205,7 +1219,6 @@ int readtcppacket(const u8 *packet, int readdata) {
 
   bullshit.s_addr = ip->ip_src.s_addr;
   bullshit2.s_addr = ip->ip_dst.s_addr;
-
   realfrag = htons(ntohs(ip->ip_off) & IP_OFFMASK);
   tot_len = htons(ip->ip_len);
   strncpy(sourcehost, inet_ntoa(bullshit), 16);
@@ -1479,7 +1492,7 @@ static bool validatepkt(u8 *ipc, unsigned *len) {
    should specify that in pcap_open_live() */
 /* to_usec is the timeout period in microseconds -- use 0 to skip the
    test and -1 to block forever.  Note that we don't interrupt pcap, so
-   low values (and 0) degenerate to the timeout specified 
+   low values (and 0) degenerate to the timeout specified
    in pcap_open_live() */
 /* If rcvdtime is non-null and a packet is returned, rcvd will be
    filled with the time that packet was captured from the wire by
@@ -1531,7 +1544,7 @@ char *readip_pcap(pcap_t *pd, unsigned int *len, long to_usec,
     to_usec = 0;
   }
 
-/* New packet capture device, need to recompute offset */
+  /* New packet capture device, need to recompute offset */
   if ((datalink = pcap_datalink(pd)) < 0)
     fatal("Cannot obtain datalink information: %s", pcap_geterr(pd));
 
@@ -1714,7 +1727,7 @@ char *readip_pcap(pcap_t *pd, unsigned int *len, long to_usec,
     // sent the packet (which is according to gettimeofday() in nbase).  For now, I will sadly have to
     // use gettimeofday() for Windows in this case
     // Actually I now allow .05 discrepancy.   So maybe this isn't needed.  I'll comment out for now.
-    // Nope: it is still needed at least for Windows.  Sometimes the time from he pcap header is a 
+    // Nope: it is still needed at least for Windows.  Sometimes the time from he pcap header is a
     // COUPLE SECONDS before the gettimeofday() results :(.
 #if defined(WIN32) || defined(__amigaos__)
     gettimeofday(&tv_end, NULL);
@@ -1745,7 +1758,7 @@ char *readip_pcap(pcap_t *pd, unsigned int *len, long to_usec,
    that can be used for packet tracing. This is intended to be used
    by Nmap only. Any other calling this should pass NULL instead. */
 int read_na_pcap(pcap_t *pd, u8 *sendermac, struct sockaddr_in6 *senderIP, long to_usec,
-                  struct timeval *rcvdtime, bool *has_mac) {
+                 struct timeval *rcvdtime, bool *has_mac) {
   struct ip *ip_tmp;
   struct icmpv6_hdr *icmp6_header;
   struct icmpv6_msg_nd *na;
@@ -1771,30 +1784,29 @@ int read_na_pcap(pcap_t *pd, u8 *sendermac, struct sockaddr_in6 *senderIP, long 
   }
 
   do {
-    ip_tmp = (struct ip *) readip_pcap(pd, &datalen, to_usec, rcvdtime,
-        &linknfo, true);
-    if(ip_tmp){ //Check Neighbor Advertisement Packet.
+    ip_tmp = (struct ip *) readip_pcap(pd, &datalen, to_usec, rcvdtime, &linknfo, true);
+    if (ip_tmp) { //Check Neighbor Advertisement Packet.
       /* OK, we got a packet.  Most packet validity tests are taken care
        * of in readip_pcap, so this is simple
        */
       data = ip_get_data(ip_tmp, &datalen, &hdr);
       if (data == NULL)
         continue;
-      if (hdr.proto == IPPROTO_ICMPV6){
+      if (hdr.proto == IPPROTO_ICMPV6) {
         icmp6_header = (struct icmpv6_hdr *)data;
         na = (struct icmpv6_msg_nd *) ((unsigned char*)data + ICMPV6_HDR_LEN);
         if (icmp6_header->icmpv6_type == ICMPV6_NEIGHBOR_ADVERTISEMENT &&
-            icmp6_header->icmpv6_code == 0){
+            icmp6_header->icmpv6_code == 0) {
           //Set target IPv6 address
           senderIP->sin6_family = AF_INET6;
           memcpy(&senderIP->sin6_addr.s6_addr, &na->icmpv6_target, 16);
           //Set MAC
-          if (datalen == ICMPV6_HDR_LEN + sizeof(struct icmpv6_msg_nd)){
-            if (na->icmpv6_option_type == 2 && na->icmpv6_option_length == 1){
+          if (datalen == ICMPV6_HDR_LEN + sizeof(struct icmpv6_msg_nd)) {
+            if (na->icmpv6_option_type == 2 && na->icmpv6_option_length == 1) {
               *has_mac = true;
               memcpy(sendermac, &na->icmpv6_mac, 6);
             }
-          } else{
+          } else {
             *has_mac = false;
           }
         }
@@ -1899,11 +1911,9 @@ int setTargetMACIfAvailable(Target *target, struct link_header *linkhdr,
    have already been called on target before this.  The target device
    and src mac address should also already be set.  */
 bool setTargetNextHopMAC(Target *target) {
-  struct sockaddr_storage targetss, srcss;
+  struct sockaddr_storage targetss;
   size_t sslen;
-  arp_t *a;
   u8 mac[6];
-  struct arp_entry ae;
 
   if (target->ifType() != devt_ethernet)
     return false; /* Duh. */
@@ -1925,43 +1935,10 @@ bool setTargetNextHopMAC(Target *target) {
       fatal("%s: Failed to determine nextHop to target", __func__);
   }
 
-  /* First, let us check the Nmap arp cache ... */
-  if (mac_cache_get(&targetss, mac)) {
+  if (getNextHopMAC(target->deviceFullName(), target->SrcMACAddress(), target->SourceSockAddr(), &targetss, mac)) {
     target->setNextHopMACAddress(mac);
     return true;
   }
-
-  /* Maybe the system ARP cache will be more helpful */
-  a = arp_open();
-  addr_ston((sockaddr *) & targetss, &ae.arp_pa);
-  if (arp_get(a, &ae) == 0) {
-    mac_cache_set(&targetss, ae.arp_ha.addr_eth.data);
-    target->setNextHopMACAddress(ae.arp_ha.addr_eth.data);
-    arp_close(a);
-    return true;
-  }
-  arp_close(a);
-
-  /* OK, the last choice is to send our own damn ARP request (and
-     retransmissions if necessary) to determine the MAC */
-  target->SourceSockAddr(&srcss, NULL);
-  if (target->af() == AF_INET){
-    if (doArp(target->deviceFullName(), target->SrcMACAddress(),
-              &srcss, &targetss, mac, PacketTrace::traceArp)) {
-      mac_cache_set(&targetss, mac);
-      target->setNextHopMACAddress(mac);
-      return true;
-    }
-  }
-  else if (target->af() == AF_INET6){
-    if (doND(target->deviceFullName(), target->SrcMACAddress(),
-              &srcss, &targetss, mac, PacketTrace::traceND)) {
-      mac_cache_set(&targetss, mac);
-      target->setNextHopMACAddress(mac);
-      return true;
-    }
-  }
-
 
   /* I'm afraid that we couldn't find it!  Maybe it doesn't exist? */
   return false;
@@ -1969,16 +1946,15 @@ bool setTargetNextHopMAC(Target *target) {
 
 /* Like to getTargetNextHopMAC(), but for arbitrary hosts (not Targets) */
 bool getNextHopMAC(const char *iface, const u8 *srcmac, const struct sockaddr_storage *srcss,
-		   const struct sockaddr_storage *dstss, u8 *dstmac)
-{
+                   const struct sockaddr_storage *dstss, u8 *dstmac) {
   arp_t *a;
   struct arp_entry ae;
 
-  /* Nmap's ARP cache */
+  /* First, let us check the Nmap arp cache ... */
   if (mac_cache_get(dstss, dstmac))
     return true;
 
-  /* System ARP cache */
+  /* Maybe the system ARP cache will be more helpful */
   a = arp_open();
   addr_ston((sockaddr *) dstss, &ae.arp_pa);
   if (arp_get(a, &ae) == 0) {
@@ -1989,10 +1965,18 @@ bool getNextHopMAC(const char *iface, const u8 *srcmac, const struct sockaddr_st
   }
   arp_close(a);
 
-  /* Send ARP */
-  if (doArp(iface, srcmac, srcss, dstss, dstmac, PacketTrace::traceArp)) {
-    mac_cache_set(dstss, dstmac);
-    return true;
+  /* OK, the last choice is to send our own damn ARP request (and
+     retransmissions if necessary) to determine the MAC */
+  if (dstss->ss_family == AF_INET) {
+    if (doArp(iface, srcmac, srcss, dstss, dstmac, PacketTrace::traceArp)) {
+      mac_cache_set(dstss, dstmac);
+      return true;
+    }
+  } else if (dstss->ss_family == AF_INET6) {
+    if (doND(iface, srcmac, srcss, dstss, dstmac, PacketTrace::traceND)) {
+      mac_cache_set(dstss, dstmac);
+      return true;
+    }
   }
 
   return false;

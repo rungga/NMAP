@@ -1,3 +1,10 @@
+local _G = require "_G"
+local mysql = require "mysql"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Audits MySQL database server security configuration against parts of
 the CIS MySQL v1.0.2 benchmark (the engine can be used for other MySQL
@@ -82,27 +89,27 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'shortport'
-require 'mysql'
 
 portrule = shortport.port_or_service(3306, "mysql")
-local TEMPLATE_NAME = ""
+local TEMPLATE_NAME, ADMIN_ACCOUNTS = "", ""
 
 local function loadAuditRulebase( filename )
-
-	local file, err = loadfile(filename)
 	local rules = {}
+
+	local env = setmetatable({
+		test = function(t) table.insert(rules, t) end;
+	}, {__index = _G})
+
+	local file, err = loadfile(filename, "t", env)
 
 	if ( not(file) ) then
 		return false, ("ERROR: Failed to load rulebase:\n%s"):format(err)
 	end
 	
-	setfenv(file, setmetatable({
-		test = function(t) table.insert(rules, t) end;
-	}, {__index = _G}))
 	
 	file()
-	TEMPLATE_NAME = getfenv(file)["TEMPLATE_NAME"]
+	TEMPLATE_NAME = env.TEMPLATE_NAME
+	ADMIN_ACCOUNTS = env.ADMIN_ACCOUNTS
 	return true, rules
 end
 
@@ -121,7 +128,7 @@ action = function( host, port )
 	end
 
 	local status, tests = loadAuditRulebase( filename )
-	if( not(status) ) then return rules end
+	if( not(status) ) then return tests end
 
 	local socket = nmap.new_socket()
 	status = socket:connect(host, port)
@@ -166,7 +173,10 @@ action = function( host, port )
 	socket:close()
 	results.name = TEMPLATE_NAME
 
-	table.insert(results, {"", ("The audit was performed using the db-account: %s"):format(username)})
+	table.insert(results, "")
+	table.insert(results, {name = "Additional information", ("The audit was performed using the db-account: %s"):format(username),
+		("The following admin accounts were excluded from the audit: %s"):format(stdnse.strjoin(",", ADMIN_ACCOUNTS))
+	})
 
 	return stdnse.format_output(true, { results })
 end

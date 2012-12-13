@@ -32,11 +32,14 @@
 --                           - changed version/verack handling to support
 --                             February 20th 2012 bitcoin protocol switchover
 
-module(... or "bitcoin", package.seeall)
-
-require 'ipOps'
-stdnse.silent_require('openssl')
-
+local bin = require "bin"
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local os = require "os"
+local stdnse = require "stdnse"
+local table = require "table"
+local openssl = stdnse.silent_require('openssl')
+_ENV = stdnse.module("bitcoin", stdnse.seeall)
 
 -- A class that supports the BitCoin network address structure
 NetworkAddress = {
@@ -623,3 +626,5 @@ Helper = {
 		return self.socket:close()
 	end	
 }
+
+return _ENV;

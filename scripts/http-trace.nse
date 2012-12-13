@@ -1,3 +1,8 @@
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
 description = [[
 Sends an HTTP TRACE request and shows if the method TRACE is enabled. If debug is enabled, it returns the header fields that were modified in the response.
 ]]
@@ -24,9 +29,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"vuln", "discovery", "safe"}
 
-require "shortport"
-require "stdnse"
-require "http"
 
 portrule = shortport.http
 
@@ -35,7 +37,9 @@ portrule = shortport.http
 --@param response_headers The HTTP response headers 
 local validate = function(response, response_headers)
   local output_lines = {}
-
+  if ( not(response) ) then
+    return
+  end
   if not(response:match("HTTP/1.[01] 200") or response:match("TRACE / HTTP/1.[01]")) then
     return
   else

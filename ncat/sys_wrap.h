@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: sys_wrap.h 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: sys_wrap.h 29761 2012-09-12 04:54:19Z david $ */
 
 #ifndef SYS_WRAP_H
 #define SYS_WRAP_H
@@ -128,19 +128,17 @@
 /* need an autoconf to check for this */
 typedef void (*sighandler_t)(int);
 
-void * Calloc(size_t nmemb, size_t size);
+void *Calloc(size_t nmemb, size_t size);
 int Close(int fd);
 int Connect(int sockfd, const struct sockaddr *serv_addr, socklen_t addrlen);
 int Dup2(int oldfd, int newfd);
 int Listen(int s, int backlog);
 int Open(const char *pathname, int flags, mode_t mode);
 ssize_t Read(int fd, void *buf, size_t count);
-ssize_t Recv(int s, void *buf, size_t len, int flags);
-ssize_t Recvfrom(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen);
 int Setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen);
 sighandler_t Signal(int signum, sighandler_t handler);
 int Socket(int domain, int type, int protocol);
-char * Strdup(const char *s);
+char *Strdup(const char *s);
 ssize_t Write(int fd, const void *buf, size_t count);
 
 #endif

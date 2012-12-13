@@ -25,10 +25,12 @@ author = "Paulino Calderon"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery","safe"}
 
-require "http"
-require "shortport"
-require "stdnse"
-stdnse.silent_require "openssl"
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
+local openssl = stdnse.silent_require "openssl"
 
 portrule = shortport.http
 
@@ -56,8 +58,15 @@ action = function(host, port)
 	local icon_hash, stylesheet_hash
 	local output_lines
 	local installation_version
-	
-        -- Are the default icons there?
+
+	-- Identify servers that answer 200 to invalid HTTP requests and exit as these would invalidate the tests
+	local _, http_status, _ = http.identify_404(host,port)
+	if ( http_status == 200 ) then
+		stdnse.print_debug(1, "%s: Exiting due to ambiguous response from web server on %s:%s. All URIs return status 200.", SCRIPT_NAME, host.ip, port.number)
+		return false
+	end
+
+	-- Are the default icons there?
 	png_icon_response = http.get(host, port, PNG_ICON_QUERY)
 	gif_icon_response = http.get(host, port, GIF_ICON_QUERY)
 	if png_icon_response.body and png_icon_response.status == 200 then

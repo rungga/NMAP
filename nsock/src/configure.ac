@@ -112,7 +112,9 @@ if test "$pcap_enabled" != "no"; then
   AC_DEFINE(HAVE_PCAP)
 fi
 
-AC_CHECK_FUNCS(epoll_create epoll_ctl epoll_wait, [AC_DEFINE(HAVE_EPOLL)], )
+AX_HAVE_EPOLL([AC_DEFINE(HAVE_EPOLL)], )
+AX_HAVE_POLL([AC_DEFINE(HAVE_POLL)], )
+AC_CHECK_FUNCS(kqueue kevent, [AC_DEFINE(HAVE_KQUEUE)], )
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -138,7 +140,7 @@ AC_CHECK_FUNC(nanosleep, , AC_CHECK_LIB(posix4, nanosleep))
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(net/bpf.h sys/ioctl.h)
+AC_CHECK_HEADERS(net/bpf.h sys/ioctl.h sys/un.h)
 
 # We test whether they specified openssl desires explicitly
 use_openssl="yes"

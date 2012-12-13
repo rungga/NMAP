@@ -55,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_pool.c 28195 2012-03-01 09:05:02Z henri $ */
+/* $Id: nsock_pool.c 29929 2012-10-03 15:43:16Z david $ */
 
 #include "nsock_internal.h"
 #include "gh_list.h"
@@ -147,6 +147,12 @@ void nsp_setbroadcast(nsock_pool nsp, int optval) {
   mt->broadcast = optval;
 }
 
+/* Sets the name of the interface for new sockets to bind to. */
+void nsp_setdevice(nsock_pool nsp, const char *device) {
+  mspool *mt = (mspool *)nsp;
+  mt->device = device;
+}
+
 /* And here is how you create an nsock_pool.  This allocates, initializes, and
  * returns an nsock_pool event aggregator.  In the case of error, NULL will be
  * returned.  If you do not wish to immediately associate any userdata, pass in
@@ -191,6 +197,8 @@ nsock_pool nsp_new(void *userdata) {
   gh_list_init(&nsp->free_events);
 
   nsp->next_event_serial = 1;
+
+  nsp->device = NULL;
 
 #if HAVE_OPENSSL
   nsp->sslctx = NULL;

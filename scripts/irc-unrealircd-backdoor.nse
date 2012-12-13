@@ -1,3 +1,10 @@
+local comm = require "comm"
+local nmap = require "nmap"
+local os = require "os"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+
 description = [[
 Checks if an IRC server is backdoored by running a time-based command (ping)
 and checking how long it takes to respond. 
@@ -46,9 +53,6 @@ author = "Vlatko Kosturjak and Ron Bowes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "malware", "vuln"}
 
-require "shortport"
-require "comm"
-require "stdnse"
 
 portrule = shortport.port_or_service({6666,6667,6697,6679,8067},{"irc","ircs"})
 
@@ -153,7 +157,7 @@ action = function(host, port)
 	end
 
 	-- Get the current time so we can measure the delay
-	time = os.time(os.date('*t'))
+	local time = os.time(os.date('*t'))
 	socket:set_timeout((delay + 5) * 1000)
 
 	-- Accumulate the response in the 'data' string

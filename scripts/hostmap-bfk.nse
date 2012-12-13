@@ -1,5 +1,13 @@
+local dns = require "dns"
+local http = require "http"
+local io = require "io"
+local ipOps = require "ipOps"
+local stdnse = require "stdnse"
+local string = require "string"
+local target = require "target"
+
 description = [[
-Tries to find hostnames that resolve to the target's IP address by querying the online database at http://www.bfk.de/bfk_dnslogger.html.
+Discovers hostnames that resolve to the target's IP address by querying the online database at http://www.bfk.de/bfk_dnslogger.html.
 
 The script is in the "external" category because it sends target IPs to a third party in order to query their database.
 
@@ -39,11 +47,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"external", "discovery", "intrusive"}
 
-require "dns"
-require "ipOps"
-require "http"
-require "stdnse"
-require "target"
 
 local HOSTMAP_SERVER = "www.bfk.de"
 
@@ -106,7 +109,7 @@ end
 
 -- Escape some potentially unsafe characters in a string meant to be a filename.
 function filename_escape(s)
-  return string.gsub(s, "[%z/=]", function(c)
+  return string.gsub(s, "[\0/=]", function(c)
     return string.format("=%02X", string.byte(c))
   end)
 end

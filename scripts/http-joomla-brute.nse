@@ -1,3 +1,10 @@
+local brute = require "brute"
+local creds = require "creds"
+local http = require "http"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+
 description = [[
 Performs brute force password auditing against Joomla web CMS installations.
 
@@ -50,10 +57,6 @@ author = "Paulino Calderon"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
-require 'shortport'
-require 'http'
-require 'brute'
-require 'creds'
 
 portrule = shortport.http
 
@@ -111,6 +114,7 @@ Driver = {
       stdnse.print_debug(1, "Initial check passed. Launching brute force attack")
       session_cookie_str = response.cookies[1]["name"].."="..response.cookies[1]["value"];
       if response.body then
+      local _
       _, _, security_token = string.find(response.body, '<input type="hidden" name="(%w+)" value="1" />')
       end
       if security_token then

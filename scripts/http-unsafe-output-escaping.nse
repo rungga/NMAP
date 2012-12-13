@@ -1,3 +1,10 @@
+local http = require "http"
+local httpspider = require "httpspider"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+local url = require "url"
+
 description = [[
 Spiders a website and attempts to identify output escaping problems
 where content is reflected back to the user.  This script locates all
@@ -36,14 +43,11 @@ author = "Martin Holst Swende"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
-require 'httpspider'
-require 'shortport'
-require 'url'
 
 portrule = shortport.http
 
 local function dbg(str,...)
-	stdnse.print_debug(2,"%s:"..str, SCRIPT_NAME, unpack(arg))
+	stdnse.print_debug(2,"%s:"..str, SCRIPT_NAME, ...)
 end
 
 local function getHostPort(parsed)
@@ -62,7 +66,7 @@ local function getReflected(parsed, r)
 	local q = url.parse_query(parsed.query)
 	-- Check the values (and keys) and see if they are reflected in the page
 	for k,v in pairs(q) do
-		if r.response.body:find(v) then
+		if r.response.body and r.response.body:find(v, 1, true) then
 			dbg("Reflected content %s=%s", k,v)
 			reflected_values[k] = v
 			count = count +1
@@ -83,7 +87,7 @@ local function createMinedLinks(reflected_values, all_values)
 	local new_links = {}
 	for k,v in pairs(reflected_values) do
 		-- First  of all, add the payload to the reflected param
-		local urlParams = {k = addPayload(v)}
+		local urlParams = { [k] = addPayload(v)}
 		for k2,v2 in pairs(all_values) do
 			if k2 ~= k then
 				urlParams[k2] = v2
@@ -119,7 +123,7 @@ end
 
 action = function(host, port)
 
-	local crawler = httpspider.Crawler:new(host, port, '/', { scriptname = SCRIPT_NAME } )
+	local crawler = httpspider.Crawler:new(host, port, nil, { scriptname = SCRIPT_NAME } )
 	crawler:set_timeout(10000)
 	
 	local results = {}

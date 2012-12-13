@@ -1,3 +1,10 @@
+local io = require "io"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local sslcert = require "sslcert"
+local bin = require "bin"
+
 -- -*- mode: lua -*-
 -- vim: set filetype=lua :
 
@@ -22,30 +29,22 @@ include with Nmap) list.
 -- @output
 -- PORT    STATE SERVICE REASON
 -- 443/tcp open  https   syn-ack
--- |_ssl-known-key: 00:28:E7:D4:9C:FA:4A:A5:98:4F:E4:97:EB:73:48:56:07:87:E4:96 is in the database with reason Little Black Box 0.1.
+-- |_ssl-known-key: Found in Little Black Box 0.1 (SHA-1: 0028 e7d4 9cfa 4aa5 984f e497 eb73 4856 0787 e496)
+--
+-- @xmloutput
+-- <table>
+--   <elem key="section">Little Black Box 0.1</elem>
+--   <elem key="sha1">0028e7d49cfa4aa5984fe497eb7348560787e496</elem>
+-- </table>
 
 author = "Mak Kolybabi"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"safe", "discovery", "vuln"}
+categories = {"safe", "discovery", "vuln", "default"}
 
-require("bin")
-require("nmap")
-require("shortport")
-require("stdnse")
 
 local FINGERPRINT_FILE = "ssl-fingerprints"
 
 local get_fingerprints = function(path)
-	local pretty = function(key)
-		local s = key:sub(1, 2)
-
-		for i = 3, 40, 2 do
-			s = s .. ":" .. key:sub(i, i + 1)
-		end
-
-		return s:upper()
-	end
-
 	-- Check registry for cached fingerprints.
 	if nmap.registry.ssl_fingerprints then
 		stdnse.print_debug(2, "Using cached SSL fingerprints.")
@@ -80,12 +79,16 @@ local get_fingerprints = function(path)
 				section = line
 			elseif section ~= nil then
 				-- Add fingerprint to section.
-				line = pretty(line)
-				stdnse.print_debug(4, "Added key %s to database.", line)
-				fingerprints[line] = section
+				local fingerprint = bin.pack("H", line)
+				if #fingerprint == 20 then
+					fingerprints[fingerprint] = section
+					stdnse.print_debug(4, "Added key %s to database.", line)
+				else
+					stdnse.print_debug(0, "Cannot parse presumed fingerprint %q in section %q.", line, section)
+				end
 			else
 				-- Key found outside of section.
-				stdnse.print_debug(1, "Key %s is not in a section.", pretty(line))
+				stdnse.print_debug(1, "Key %s is not in a section.", line)
 			end
 		end
 	end
@@ -111,29 +114,21 @@ action = function(host, port)
 	end
 	local fingerprints = result
 
-	-- Connect to host.
-	local sock = nmap.new_socket()
-	local status, err = sock:connect(host, port, "ssl")
-	if not status then
-		stdnse.print_debug(1, "Failed to connect: %s", err)
-		return
-	end
-
 	-- Get SSL certificate.
-	local cert = sock:get_ssl_certificate()
-	sock:close()
-	if not cert:digest("sha1") then
-		stdnse.print_debug(2, "Certificate does not have a SHA-1 fingerprint.")
+	local status, cert = sslcert.getCertificate(host, port)
+	if not status then
+		stdnse.print_debug(1, "sslcert.getCertificate error: %s", cert)
 		return
 	end
+	local fingerprint = cert:digest("sha1")
+	local fingerprint_fmt = stdnse.tohex(fingerprint, {separator=" ", group=4})
 
 	-- Check SSL fingerprint against database.
-	local fingerprint = stdnse.tohex(cert:digest("sha1"), {separator=":", group=2}):upper()
 	local section = fingerprints[fingerprint]
 	if not section then
-		stdnse.print_debug(2, "%s was not in the database.", fingerprint)
+		stdnse.print_debug(2, "%s was not in the database.", fingerprint_fmt)
 		return
 	end
 
-	return "Found in " .. section .. " (certificate hash: " .. fingerprint .. ")"
+	return {section=section, sha1=stdnse.tohex(fingerprint)}, "Found in " .. section .. " (SHA-1: " .. fingerprint_fmt  .. ")"
 end

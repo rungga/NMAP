@@ -92,7 +92,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: Target.cc 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: Target.cc 29570 2012-08-14 16:36:25Z david $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
@@ -162,6 +162,10 @@ void Target::Recycle() {
 
 Target::~Target() {
   FreeInternal();
+  while (!scriptResults.empty()) {
+    scriptResults.front().clear();
+    scriptResults.pop_front();
+  }
 }
 
 void Target::FreeInternal() {

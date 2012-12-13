@@ -89,7 +89,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_main.c 28195 2012-03-01 09:05:02Z henri $ */
+/* $Id: ncat_main.c 30315 2012-11-29 18:44:46Z david $ */
 
 #include "nsock.h"
 #include "ncat.h"
@@ -125,6 +125,7 @@ static void parseproxy(char *str, struct sockaddr_storage *ss, unsigned short de
     int httpproxy = (defport == DEFAULT_PROXY_PORT);
     unsigned short portno;
     size_t sslen;
+    int rc;
 
     ptr = str;
 
@@ -136,8 +137,9 @@ static void parseproxy(char *str, struct sockaddr_storage *ss, unsigned short de
     else
         portno = defport;
 
-    if (!resolve(ptr, portno, ss, &sslen, o.af)) {
-        loguser("Could not resolve proxy \"%s\".\n", ptr);
+    rc = resolve(ptr, portno, ss, &sslen, o.af);
+    if (rc != 0) {
+        loguser("Could not resolve proxy \"%s\": %s.\n", ptr, gai_strerror(rc));
         if (o.af == AF_INET6 && httpproxy)
             loguser("Did you specify the port number? It's required for IPv6.\n");
         exit(EXIT_FAILURE);
@@ -227,6 +229,9 @@ int main(int argc, char *argv[])
     struct option long_options[] = {
         {"4",               no_argument,        NULL,         '4'},
         {"6",               no_argument,        NULL,         '6'},
+#if HAVE_SYS_UN_H
+        {"unixsock",        no_argument,        NULL,         'U'},
+#endif
         {"crlf",            no_argument,        NULL,         'C'},
         {"g",               required_argument,  NULL,         'g'},
         {"G",               required_argument,  NULL,         'G'},
@@ -284,7 +289,7 @@ int main(int argc, char *argv[])
     while (1) {
         /* handle command line arguments */
         int option_index;
-        int c = getopt_long(argc, argv, "46Cc:e:g:G:i:km:hp:d:lo:x:ts:uvw:n",
+        int c = getopt_long(argc, argv, "46UCc:e:g:G:i:km:hp:d:lo:x:ts:uvw:n",
                             long_options, &option_index);
 
         /* That's the end of the options. */
@@ -302,13 +307,18 @@ int main(int argc, char *argv[])
             bye("-6 chosen when IPv6 wasn't compiled in.");
 #endif
             break;
+#if HAVE_SYS_UN_H
+        case 'U':
+            o.af = AF_UNIX;
+            break;
+#endif
         case 'C':
             o.crlf = 1;
             break;
         case 'c':
             o.cmdexec = optarg;
             o.shellexec = 1;
-	    break;
+            break;
         case 'e':
             o.cmdexec = optarg;
             break;
@@ -317,8 +327,13 @@ int main(int argc, char *argv[])
             do {
                 union sockaddr_u addr;
                 size_t sslen;
-                if (!resolve(a, 0, &addr.storage, &sslen, AF_INET))
-                    bye("Sorry, could not resolve source route hop %s.", a);
+                int rc;
+
+                rc = resolve(a, 0, &addr.storage, &sslen, AF_INET);
+                if (rc != 0) {
+                    bye("Sorry, could not resolve source route hop \"%s\": %s.",
+                    a, gai_strerror(rc));
+                }
                 o.srcrtes[o.numsrcrtes] = addr.in.sin_addr;
             } while (o.numsrcrtes++ <= 8 && (a = strtok(NULL, ",")));
             if (o.numsrcrtes > 8)
@@ -339,7 +354,7 @@ int main(int argc, char *argv[])
         case 'd':
             o.linedelay = tval2msecs(optarg);
             if (o.linedelay <= 0)
-                bye("Invalid -d delay (must be greater than 0).", optarg);
+                bye("Invalid -d delay \"%s\" (must be greater than 0).", optarg);
             if (o.linedelay >= 100 * 1000 && tval_unit(optarg) == NULL)
                 bye("Since April 2010, the default unit for -d is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.linedelay / 1000.0 / 60, optarg, o.linedelay / 1000.0);
             break;
@@ -358,8 +373,8 @@ int main(int argc, char *argv[])
             o.idletimeout = tval2msecs(optarg);
             if (o.idletimeout <= 0)
                 bye("Invalid -i timeout (must be greater than 0).");
-            if (o.linedelay >= 100 * 1000 && tval_unit(optarg) == NULL)
-                bye("Since April 2010, the default unit for -i is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.linedelay / 1000.0 / 60, optarg, o.linedelay / 1000.0);
+            if (o.idletimeout >= 100 * 1000 && tval_unit(optarg) == NULL)
+                bye("Since April 2010, the default unit for -i is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.idletimeout / 1000.0 / 60, optarg, o.idletimeout / 1000.0);
             break;
         case 's':
             source = optarg;
@@ -384,8 +399,8 @@ int main(int argc, char *argv[])
             o.conntimeout = tval2msecs(optarg);
             if (o.conntimeout <= 0)
                 bye("Invalid -w timeout (must be greater than 0).");
-            if (o.linedelay >= 100 * 1000 && tval_unit(optarg) == NULL)
-                bye("Since April 2010, the default unit for -w is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.linedelay / 1000.0 / 60, optarg, o.linedelay / 1000.0);
+            if (o.conntimeout >= 100 * 1000 && tval_unit(optarg) == NULL)
+                bye("Since April 2010, the default unit for -w is seconds, so your time of \"%s\" is %.1f minutes. Use \"%sms\" for %g milliseconds.", optarg, o.conntimeout / 1000.0 / 60, optarg, o.conntimeout / 1000.0);
             break;
         case 't':
             o.telnet = 1;
@@ -394,83 +409,56 @@ int main(int argc, char *argv[])
             if (strcmp(long_options[option_index].name, "version") == 0) {
                 print_banner();
                 exit(EXIT_SUCCESS);
-            }
-            else if (strcmp(long_options[option_index].name, "proxy") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "proxy") == 0) {
                 if (proxyaddr)
                     bye("You can't specify more than one --proxy.");
                 proxyaddr = Strdup(optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "proxy-type") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "proxy-type") == 0) {
                 if (o.proxytype)
-                        bye("You can't specify more than one --proxy-type.");
+                    bye("You can't specify more than one --proxy-type.");
                 o.proxytype = Strdup(optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "proxy-auth") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "proxy-auth") == 0) {
                 if (o.proxy_auth)
-                        bye("You can't specify more than one --proxy-auth.");
+                    bye("You can't specify more than one --proxy-auth.");
                 o.proxy_auth = Strdup(optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "nsock-engine") == 0)
-            {
-                nsock_set_default_engine(optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "broker") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "nsock-engine") == 0) {
+                if (nsock_set_default_engine(optarg) < 0)
+                    bye("Unknown or non-available engine: %s.", optarg);
+                o.nsock_engine = 1;
+            } else if (strcmp(long_options[option_index].name, "broker") == 0) {
                 o.broker = 1;
                 /* --broker implies --listen. */
                 o.listen = 1;
-            }
-            else if (strcmp(long_options[option_index].name, "chat") == 0
-                     || strcmp(long_options[option_index].name, "talk") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "chat") == 0
+                       || strcmp(long_options[option_index].name, "talk") == 0) {
                 /* --talk is an older name for --chat. */
                 o.chat = 1;
                 /* --chat implies --broker. */
                 o.broker = 1;
-            }
-            else if (strcmp(long_options[option_index].name, "allow") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "allow") == 0) {
                 o.allow = 1;
                 host_list_add_spec(&allow_host_list, optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "allowfile") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "allowfile") == 0) {
                 o.allow = 1;
                 host_list_add_filename(&allow_host_list, optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "deny") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "deny") == 0) {
                 host_list_add_spec(&deny_host_list, optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "denyfile") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "denyfile") == 0) {
                 host_list_add_filename(&deny_host_list, optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "append-output") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "append-output") == 0) {
                 o.append = 1;
             }
 #ifdef HAVE_OPENSSL
-            else if (strcmp(long_options[option_index].name, "ssl-cert") == 0)
-            {
+            else if (strcmp(long_options[option_index].name, "ssl-cert") == 0) {
                 o.ssl = 1;
                 o.sslcert = Strdup(optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "ssl-key") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "ssl-key") == 0) {
                 o.ssl = 1;
                 o.sslkey = Strdup(optarg);
-            }
-            else if (strcmp(long_options[option_index].name, "ssl-verify") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "ssl-verify") == 0) {
                 o.sslverify = 1;
                 o.ssl = 1;
-            }
-            else if (strcmp(long_options[option_index].name, "ssl-trustfile") == 0)
-            {
+            } else if (strcmp(long_options[option_index].name, "ssl-trustfile") == 0) {
                 o.ssl = 1;
                 if (o.ssltrustfile != NULL)
                     bye("The --ssl-trustfile option may be given only once.");
@@ -490,6 +478,9 @@ int main(int argc, char *argv[])
 "'s' for seconds, 'm' for minutes, or 'h' for hours (e.g. 500ms).\n"
 "  -4                         Use IPv4 only\n"
 "  -6                         Use IPv6 only\n"
+#if HAVE_SYS_UN_H
+"  -U, --unixsock             Use Unix domain sockets only\n"
+#endif
 "  -C, --crlf                 Use CRLF for EOL sequence\n"
 "  -c, --sh-exec <command>    Executes the given command via /bin/sh\n"
 "  -e, --exec <command>       Executes the given command\n"
@@ -557,7 +548,25 @@ int main(int argc, char *argv[])
     else
         nbase_set_log(loguser, NULL);
 
-    /* Will be AF_INET or AF_INET6 when valid */
+#if HAVE_SYS_UN_H
+    /* Using Unix domain sockets, so do the checks now */
+    if (o.af == AF_UNIX) {
+        if (proxyaddr || o.proxytype)
+            bye("Proxy option not supported when using Unix domain sockets.");
+#ifdef HAVE_OPENSSL
+        if (o.ssl)
+            bye("SSL option not supported when using Unix domain sockets.");
+#endif
+        if (o.broker)
+            bye("Connection brokering not supported when using Unix domain sockets.");
+        if (srcport != -1)
+            bye("Specifying source port when using Unix domain sockets doesn't make sense.");
+        if (o.numsrcrtes > 0)
+            bye("Loose source routing not allowed when using Unix domain sockets.");
+    }
+#endif  /* HAVE_SYS_UN_H */
+
+    /* Will be AF_INET or AF_INET6 or AF_UNIX when valid */
     memset(&targetss.storage, 0, sizeof(targetss.storage));
     targetss.storage.ss_family = AF_UNSPEC;
     httpconnect.storage = socksconnect.storage = srcaddr.storage = targetss.storage;
@@ -569,34 +578,34 @@ int main(int argc, char *argv[])
     }
 
     if (proxyaddr) {
-      if (!o.proxytype)
-          o.proxytype = Strdup("http");
+        if (!o.proxytype)
+            o.proxytype = Strdup("http");
 
-      if (!strcmp(o.proxytype, "http")) {
-          /* Parse HTTP proxy address and temporarily store it in httpconnect.  If
-           * the proxy server is given as an IPv6 address (not hostname), the port
-           * number MUST be specified as well or parsing will break (due to the
-           * colons in the IPv6 address and host:port separator).
-           */
+        if (!strcmp(o.proxytype, "http")) {
+            /* Parse HTTP proxy address and temporarily store it in httpconnect.  If
+             * the proxy server is given as an IPv6 address (not hostname), the port
+             * number MUST be specified as well or parsing will break (due to the
+             * colons in the IPv6 address and host:port separator).
+             */
 
-          parseproxy(proxyaddr, &httpconnect.storage, DEFAULT_PROXY_PORT);
-      } else if (!strcmp(o.proxytype, "socks4") || !strcmp(o.proxytype, "4")) {
-          /* Parse SOCKS proxy address and temporarily store it in socksconnect */
+            parseproxy(proxyaddr, &httpconnect.storage, DEFAULT_PROXY_PORT);
+        } else if (!strcmp(o.proxytype, "socks4") || !strcmp(o.proxytype, "4")) {
+            /* Parse SOCKS proxy address and temporarily store it in socksconnect */
 
-          parseproxy(proxyaddr, &socksconnect.storage, DEFAULT_SOCKS4_PORT);
-      } else {
-          bye("Invalid proxy type \"%s\".", o.proxytype);
-      }
+            parseproxy(proxyaddr, &socksconnect.storage, DEFAULT_SOCKS4_PORT);
+        } else {
+            bye("Invalid proxy type \"%s\".", o.proxytype);
+        }
 
-      free(o.proxytype);
-      free(proxyaddr);
+        free(o.proxytype);
+        free(proxyaddr);
     } else {
-      if (o.proxytype) {
-        if (!o.listen)
-          bye("Proxy type (--proxy-type) specified without proxy address (--proxy).");
-        if (strcmp(o.proxytype, "http"))
-          bye("Invalid proxy type \"%s\".", o.proxytype);
-      }
+        if (o.proxytype) {
+            if (!o.listen)
+                bye("Proxy type (--proxy-type) specified without proxy address (--proxy).");
+            if (strcmp(o.proxytype, "http"))
+                bye("Invalid proxy type \"%s\".", o.proxytype);
+        }
     }
 
     /* Default port */
@@ -604,11 +613,28 @@ int main(int argc, char *argv[])
 
     /* Resolve the given source address */
     if (source) {
+        int rc = 0;
+
         if (o.listen)
             bye("-l and -s are incompatible.  Specify the address and port to bind to like you would a host to connect to.");
 
-        if (!resolve(source, 0, &srcaddr.storage, &srcaddrlen, o.af))
-            bye("Could not resolve source address %s.", source);
+#if HAVE_SYS_UN_H
+        /* if using UNIX sockets just copy the path.
+         * If it's not valid, it will fail later! */
+        if (o.af == AF_UNIX) {
+            if (o.udp) {
+                srcaddr.un.sun_family = AF_UNIX;
+                strncpy(srcaddr.un.sun_path, source, sizeof(srcaddr.un.sun_path));
+                srcaddrlen = SUN_LEN(&srcaddr.un);
+            }
+            else
+                if (o.verbose)
+                    loguser("Specifying source socket for other than DATAGRAM Unix domain sockets have no effect.\n");
+        } else
+#endif
+            rc = resolve(source, 0, &srcaddr.storage, &srcaddrlen, o.af);
+        if (rc != 0)
+            bye("Could not resolve source address \"%s\": %s.", source, gai_strerror(rc));
     }
 
     host_list_to_set(&o.allowset, allow_host_list);
@@ -617,16 +643,37 @@ int main(int argc, char *argv[])
     host_list_free(deny_host_list);
 
     if (optind == argc) {
+#if HAVE_SYS_UN_H
+        if (o.af == AF_UNIX) {
+            if (!o.listen)
+                bye("You have to specify path to a socket to connect to.");
+            else
+                bye("You have to specify path to a socket to listen on.");
+        }
+#endif
         /* Listen defaults to any address and DEFAULT_NCAT_PORT */
         if (!o.listen)
             bye("You must specify a host to connect to.");
     } else {
+#if HAVE_SYS_UN_H
+        if (o.af == AF_UNIX) {
+            memset(&targetss.storage, 0, sizeof(struct sockaddr_un));
+            targetss.un.sun_family = AF_UNIX;
+            strncpy(targetss.un.sun_path, argv[optind], sizeof(targetss.un.sun_path));
+            targetsslen = SUN_LEN(&targetss.un);
+            o.target = argv[optind];
+            optind++;
+        } else
+#endif
         /* Resolve hostname if we're given one */
         if (strspn(argv[optind], "0123456789") != strlen(argv[optind])) {
+            int rc;
+
             o.target = argv[optind];
             /* resolve hostname */
-            if (!resolve(o.target, 0, &targetss.storage, &targetsslen, o.af))
-                bye("Could not resolve hostname %s.", o.target);
+            rc = resolve(o.target, 0, &targetss.storage, &targetsslen, o.af);
+            if (rc != 0)
+                bye("Could not resolve hostname \"%s\": %s.", o.target, gai_strerror(rc));
             optind++;
         } else {
             if (!o.listen)
@@ -635,6 +682,12 @@ int main(int argc, char *argv[])
     }
 
     /* Whatever's left is the port number; there should be at most one. */
+#if HAVE_SYS_UN_H
+    /* We do not use ports with Unix domain sockets. */
+    if (o.af == AF_UNIX && optind > argc)
+        bye("Using Unix domain sockets and specifying port doesn't make sense.");
+#endif
+
     if (optind + 1 < argc || (o.listen && srcport != -1 && optind + 1 == argc)) {
         loguser("Got more than one port specification:");
         if (o.listen && srcport != -1)
@@ -654,12 +707,21 @@ int main(int argc, char *argv[])
         o.portno = (unsigned short) long_port;
     }
 
-    if (o.af == AF_INET)
+    if (targetss.storage.ss_family == AF_INET)
         targetss.in.sin_port = htons(o.portno);
 #ifdef HAVE_IPV6
-    else
+    else if (targetss.storage.ss_family == AF_INET6)
         targetss.in6.sin6_port = htons(o.portno);
 #endif
+#if HAVE_SYS_UN_H
+    /* If we use Unix domain sockets, we have to count with them. */
+    else if (targetss.storage.ss_family == AF_UNIX)
+        ; /* Do nothing. */
+#endif
+    else if (targetss.storage.ss_family == AF_UNSPEC)
+	; /* Leave unspecified. */
+    else
+	bye("Unknown address family %d.", targetss.storage.ss_family);
 
     if (srcport != -1) {
         if (o.listen) {
@@ -723,7 +785,8 @@ connection brokering should work.");
 }
 
 /* connect error handling and operations. */
-static int ncat_connect_mode(void) {
+static int ncat_connect_mode(void)
+{
     /*
      * allow/deny commands with connect make no sense. If you don't want to
      * connect to a host, don't try to.
@@ -744,7 +807,8 @@ static int ncat_connect_mode(void) {
     return ncat_connect();
 }
 
-static int ncat_listen_mode(void) {
+static int ncat_listen_mode(void)
+{
     /* Can't 'listen' AND 'connect' to a proxy server at the same time. */
     if (httpconnect.storage.ss_family != AF_UNSPEC || socksconnect.storage.ss_family != AF_UNSPEC)
         bye("Invalid option combination: --proxy and -l.");
@@ -779,22 +843,22 @@ static int ncat_listen_mode(void) {
         int rc;
 
         /* No command-line address. Listen on IPv4 or IPv6 or both. */
-	/* Try to bind to IPv6 first; on AIX a bound IPv4 socket blocks an IPv6
+        /* Try to bind to IPv6 first; on AIX a bound IPv4 socket blocks an IPv6
            socket on the same port, despite IPV6_V6ONLY. */
 #ifdef HAVE_IPV6
         if (o.af == AF_INET6 || o.af == AF_UNSPEC) {
             ss_len = sizeof(listenaddrs[num_listenaddrs]);
             rc = resolve("::", o.portno, &listenaddrs[num_listenaddrs].storage, &ss_len, AF_INET6);
-            if (!rc)
-                bye("Failed to resolve default IPv6 address.");
+            if (rc != 0)
+                bye("Failed to resolve default IPv6 address: %s.", gai_strerror(rc));
             num_listenaddrs++;
         }
 #endif
         if (o.af == AF_INET || o.af == AF_UNSPEC) {
             ss_len = sizeof(listenaddrs[num_listenaddrs]);
             rc = resolve("0.0.0.0", o.portno, &listenaddrs[num_listenaddrs].storage, &ss_len, AF_INET);
-            if (!rc)
-                bye("Failed to resolve default IPv4 address.");
+            if (rc != 0)
+                bye("Failed to resolve default IPv4 address: %s.", gai_strerror(rc));
             num_listenaddrs++;
         }
     }

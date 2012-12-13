@@ -92,7 +92,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.h 28575 2012-05-14 23:13:10Z david $ */
+/* $Id: nmap.h 30317 2012-11-29 19:12:35Z fyodor $ */
 
 #ifndef NMAP_H
 #define NMAP_H
@@ -231,8 +231,8 @@ void *realloc();
 #ifndef NMAP_VERSION
 /* Edit this definition only within the quotes, because it is read from this
    file by the makefiles. */
-#define NMAP_VERSION "6.00"
-#define NMAP_NUM_VERSION "6.0.0.0"
+#define NMAP_VERSION "6.25"
+#define NMAP_NUM_VERSION "6.0.25.0"
 #endif
 /* The version number of updates retrieved by the nmap-update
    program. It can be different (but should always be the same or
@@ -256,14 +256,19 @@ void *realloc();
 #define MAX_TIMEOUTS MAX_SOCKETS   /* How many timed out connection attempts 
 				      in a row before we decide the host is 
 				      dead? */
-#define DEFAULT_TCP_PROBE_PORT_SPEC "80" /* The ports TCP ping probes go to if
-                                            unspecified by user -- uber hackers
-                                            change this to 113 */
-#define DEFAULT_UDP_PROBE_PORT_SPEC "40125" /* The port UDP ping probes go to
-                                               if unspecified by user */
-#define DEFAULT_SCTP_PROBE_PORT_SPEC "80" /* The port SCTP probes go to
-                                             if unspecified by
-                                             user */
+#define _STR(X) #X
+#define STR(X)  _STR(X)
+#define DEFAULT_TCP_PROBE_PORT 80 /* The ports TCP ping probes go to if
+                                     unspecified by user -- uber hackers
+                                     change this to 113 */
+#define DEFAULT_TCP_PROBE_PORT_SPEC STR(DEFAULT_TCP_PROBE_PORT)
+#define DEFAULT_UDP_PROBE_PORT 40125 /* The port UDP ping probes go to
+                                          if unspecified by user */
+#define DEFAULT_UDP_PROBE_PORT_SPEC STR(DEFAULT_UDP_PROBE_PORT)
+#define DEFAULT_SCTP_PROBE_PORT 80 /* The port SCTP probes go to
+                                      if unspecified by
+                                      user */
+#define DEFAULT_SCTP_PROBE_PORT_SPEC STR(DEFAULT_SCTP_PROBE_PORT)
 #define DEFAULT_PROTO_PROBE_PORT_SPEC "1,2,4" /* The IPProto ping probes to use
                                                  if unspecified by user */
 

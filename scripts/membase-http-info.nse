@@ -1,3 +1,10 @@
+local _G = require "_G"
+local http = require "http"
+local json = require "json"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local tab = require "tab"
+
 description = [[
 Retrieves information (hostname, OS, uptime, etc.) from the CouchBase
 Web Administration port.  The information retrieved by this script
@@ -32,10 +39,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'http'
-require 'json'
-require 'shortport'
-require 'tab'
 
 portrule = shortport.port_or_service(8091, "http", "tcp")
 
@@ -78,12 +81,12 @@ local order = {
 local function cmdReq(host, port, url, result)
 	local response = http.get(host, port, url)
 	
-	if ( 200 ~= response.status ) then
+	if ( 200 ~= response.status ) or ( response.header['server'] == nil ) then
 		return false
 	end
 	
 	if ( response.header['server'] and
-		 not(response.header['server']:match("^Membase Server")) ) then
+		 not( response.header['server']:match("^Couchbase Server") or response.header['server']:match("^Membase Server")  ) ) then
 		return false
 	end
 	
@@ -97,8 +100,8 @@ local function cmdReq(host, port, url, result)
 		local var, val = ""
 		for x in item:gmatch("(.-%])") do
 			var = var .. x
-			local func = loadstring("return " .. var)
-			setfenv(func, setmetatable({ parsed=parsed }, {__index = _G}))
+			local env = setmetatable({parsed=parsed}, {__index = _G})
+			local func = load("return " .. var, nil, "t", env)
 
 			if ( not(func()) ) then
 				val = nil
@@ -117,10 +120,17 @@ local function cmdReq(host, port, url, result)
 end
 
 action = function(host, port)
+  
+	-- Identify servers that answer 200 to invalid HTTP requests and exit as these would invalidate the tests
+	local _, http_status, _ = http.identify_404(host,port)
+	if ( http_status == 200 ) then
+		stdnse.print_debug(1, "%s: Exiting due to ambiguous response from web server on %s:%s. All URIs return status 200.", SCRIPT_NAME, host.ip, port.number)
+		return false
+	end
 
 	local urls = { "/pools/default/buckets", "/pools" }
 	
-	local result
+	local status, result
 	for _, u in ipairs(urls) do
 		status, result = cmdReq(host, port, u, result)
 	end

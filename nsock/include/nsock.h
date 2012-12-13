@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock.h 28195 2012-03-01 09:05:02Z henri $ */
+/* $Id: nsock.h 30231 2012-11-12 20:44:37Z david $ */
 
 #ifndef NSOCK_H
 #define NSOCK_H
@@ -75,6 +75,16 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 #endif
+
+#if HAVE_SYS_UN_H
+#include <sys/un.h>
+
+#ifndef SUN_LEN
+#include <string.h>
+# define SUN_LEN(ptr) (sizeof(*(ptr)) - sizeof((ptr)->sun_path))     \
+                      + strlen ((ptr)->sun_path))
+#endif
+#endif  /* HAVE_SYS_UN_H */
 
 #ifdef __cplusplus
 extern "C" {
@@ -183,6 +193,9 @@ void nsp_settrace(nsock_pool nsp, FILE *file, int level, const struct timeval *b
  * sockets (value of optval will be used directly in the setsockopt() call). */
 void nsp_setbroadcast(nsock_pool nsp, int optval);
 
+/* Sets the name of the interface for new sockets to bind to. */
+void nsp_setdevice(nsock_pool nsp, const char *device);
+
 /* Initializes an Nsock pool to create SSL connections. This sets an internal
  * SSL_CTX, which is like a template that sets options for all connections that
  * are made from it. Returns the SSL_CTX so you can set your own options. */
@@ -198,8 +211,13 @@ nsock_ssl_ctx nsp_ssl_init_max_speed(nsock_pool ms_pool);
  * strup()'ed by the library. No validity check is performed by this function,
  * beware nsp_new() will fatal() if an invalid/unavailable engine name was
  * supplied before.
- * Pass NULL to reset to default (use most efficient engine available). */
-void nsock_set_default_engine(char *engine);
+ * Pass NULL to reset to default (use most efficient engine available).
+ *
+ * Function returns 0 on success and -1 on error. */
+int nsock_set_default_engine(char *engine);
+
+/* Get a comma-separated list of available engines. */
+const char *nsock_list_engines(void);
 
 /* And here is how you create an nsock_pool.  This allocates, initializes, and
  * returns an nsock_pool event aggregator.  In the case of error, NULL will be
@@ -414,6 +432,24 @@ typedef void (*nsock_ev_handler)(nsock_pool, nsock_event, void *);
 
 /* Initialize an unconnected UDP socket. */
 int nsock_setup_udp(nsock_pool nsp, nsock_iod ms_iod, int af);
+
+#if HAVE_SYS_UN_H
+
+/* Request a UNIX domain sockets connection to the same system (by path to socket).
+ * This function connects to the socket of type SOCK_STREAM.  ss should be a
+ * sockaddr_storage, sockaddr_un as appropriate (just like what you would pass to
+ * connect).  sslen should be the sizeof the structure you are passing in. */
+nsock_event_id nsock_connect_unixsock_stream(nsock_pool nsp, nsock_iod nsiod, nsock_ev_handler handler,
+                                             int timeout_msecs, void *userdata, struct sockaddr *ss,
+                                             size_t sslen);
+
+/* Request a UNIX domain sockets connection to the same system (by path to socket).
+ * This function connects to the socket of type SOCK_DGRAM.  ss should be a
+ * sockaddr_storage, sockaddr_un as appropriate (just like what you would pass to
+ * connect).  sslen should be the sizeof the structure you are passing in. */
+nsock_event_id nsock_connect_unixsock_datagram(nsock_pool nsp, nsock_iod nsiod, nsock_ev_handler handler,
+                                               void *userdata, struct sockaddr *ss, size_t sslen);
+#endif /* HAVE_SYS_UN_H */
 
 /* Request a TCP connection to another system (by IP address).  The in_addr is
  * normal network byte order, but the port number should be given in HOST BYTE

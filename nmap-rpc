@@ -1,4 +1,4 @@
-# $Id: nmap-rpc 22721 2011-03-24 02:57:02Z david $ -*- mode: fundamental; -*-
+# $Id: nmap-rpc 29319 2012-07-24 12:32:31Z kroosec $ -*- mode: fundamental; -*-
 #
 # /***************************************************************************
 # * nmap-rpc -- Known RPC numbers.  Nmap uses them for RPC grinding.        *
@@ -1883,7 +1883,7 @@ dmispd		805306368	# Sun Solstice Enterprise DMI Service Provider
 sql_disp	805310465	# GNU SQL Server
 rdict		805898569	# "Internetworking with TCP/IP Vol 3"
 piktc_svc	806422610	# PIKT: Problem Informant/Killer Tool
-		822084608	# OLD - Inter-Language Unification (ILU)
+ilu		822084608	# OLD - Inter-Language Unification (ILU)
 #
 # LIGO Global Diagnostics System (GDS) - Diagnostics Test Tool (DTT)
 #

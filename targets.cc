@@ -92,7 +92,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.cc 28528 2012-05-04 15:12:25Z david $ */
+/* $Id: targets.cc 30008 2012-10-11 04:45:50Z david $ */
 
 
 #include "nbase/nbase_addrset.h"
@@ -106,15 +106,15 @@
 #include "nmap_tty.h"
 #include "utils.h"
 #include "xml.h"
-using namespace std;
+
 extern NmapOps o;
 
 /* Conducts an ARP ping sweep of the given hosts to determine which ones
    are up on a local ethernet network */
 static void arpping(Target *hostbatch[], int num_hosts) {
-  /* First I change hostbatch into a vector<Target *>, which is what ultra_scan
+  /* First I change hostbatch into a std::vector<Target *>, which is what ultra_scan
      takes.  I remove hosts that cannot be ARP scanned (such as localhost) */
-  vector<Target *> targets;
+  std::vector<Target *> targets;
   int targetno;
   targets.reserve(num_hosts);
 
@@ -303,7 +303,7 @@ static bool target_needs_new_hostgroup(const HostGroupState *hs, const Target *t
      replies. What happens is one target gets the replies for all probes
      referring to the same IP address. */
   for (i = 0; i < hs->current_batch_sz; i++) {
-    if (sockaddr_storage_cmp(hs->hostbatch[0]->TargetSockAddr(), target->TargetSockAddr()) == 0)
+    if (sockaddr_storage_cmp(hs->hostbatch[i]->TargetSockAddr(), target->TargetSockAddr()) == 0)
       return true;
   }
 
@@ -372,7 +372,9 @@ Target *nexthost(HostGroupState *hs, const addrset *exclude_group,
           )) {
         t->TargetSockAddr(&ss, &sslen);
         if (!nmap_route_dst(&ss, &rnfo)) {
-          fatal("%s: failed to determine route to %s", __func__, t->NameIP());
+          log_bogus_target(inet_ntop_ez(&ss, sslen));
+          error("%s: failed to determine route to %s", __func__, t->NameIP());
+          continue;
         }
         if (rnfo.direct_connect) {
           t->setDirectlyConnected(true);
@@ -438,7 +440,8 @@ batchfull:
   if (hs->hostbatch[0]->ifType() == devt_ethernet && 
       hs->hostbatch[0]->af() == AF_INET &&
       hs->hostbatch[0]->directlyConnected() && 
-      o.sendpref != PACKET_SEND_IP_STRONG) {
+      o.sendpref != PACKET_SEND_IP_STRONG &&
+      (pingtype == PINGTYPE_ARP || o.implicitARPPing)) {
     arpping(hs->hostbatch, hs->current_batch_sz);
     arpping_done = true;
   }
@@ -448,7 +451,8 @@ batchfull:
   if (hs->hostbatch[0]->ifType() == devt_ethernet &&
       hs->hostbatch[0]->af() == AF_INET6 &&
       hs->hostbatch[0]->directlyConnected() &&
-      o.sendpref != PACKET_SEND_IP_STRONG) {
+      o.sendpref != PACKET_SEND_IP_STRONG &&
+      (pingtype == PINGTYPE_ARP || o.implicitARPPing)) {
     arpping(hs->hostbatch, hs->current_batch_sz);
     arpping_done = true;
   }
@@ -467,8 +471,6 @@ batchfull:
     }
   }
 
-  /* TODO: Maybe I should allow real ping scan of directly connected
-     ethernet hosts? */
   /* Then we do the mass ping (if required - IP-level pings) */
   if ((pingtype == PINGTYPE_NONE && !arpping_done) || hs->hostbatch[0]->ifType() == devt_loopback) {
     for (i=0; i < hs->current_batch_sz; i++) {

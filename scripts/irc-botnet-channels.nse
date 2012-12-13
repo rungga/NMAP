@@ -1,3 +1,10 @@
+local comm = require "comm"
+local math = require "math"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Checks an IRC server for channels that are commonly used by malicious botnets.
 
@@ -38,10 +45,6 @@ categories = {"discovery", "vuln", "safe"}
 -- |   #loic
 -- |_  #RxBot
 
-require("stdnse")
-require "shortport"
-require("nsedebug")
-require("comm")
 
 -- See RFC 2812 for protocol documentation.
 
@@ -142,7 +145,7 @@ local function irc_compose_message(prefix, command, ...)
 
 	params = {...}
 	for i, param in ipairs(params) do
-		if not string.match(param, "^[^%z\r\n :][^%z\r\n ]*$") then
+		if not string.match(param, "^[^\0\r\n :][^\0\r\n ]*$") then
 			if i < #params then
 				return nil, "Bad format for param."
 			else

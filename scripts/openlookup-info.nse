@@ -1,3 +1,11 @@
+local comm = require "comm"
+local nmap = require "nmap"
+local os = require "os"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Parses and displays the banner information of an OpenLookup (network key-value store) server.
 ]]
@@ -20,9 +28,6 @@ author = "Toni Ruottu"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe", "version"}
 
-require("comm")
-require("stdnse")
-require("shortport")
 
 portrule = shortport.port_or_service(5850, "openlookup")
 
@@ -247,7 +252,7 @@ action = function(host, port)
 	if version then
 		port.version.version = version
 	end
-	nmap.set_port_version(host, port, "hardmatched")
+	nmap.set_port_version(host, port)
 	if #options < 1 then
 		return
 	end

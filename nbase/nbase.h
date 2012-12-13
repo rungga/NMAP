@@ -95,7 +95,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase.h 28247 2012-03-08 23:56:26Z david $ */
+/* $Id: nbase.h 30067 2012-10-20 15:00:10Z henri $ */
 
 #ifndef NBASE_H
 #define NBASE_H
@@ -149,6 +149,11 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+
+#if HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
+
 #if HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -422,7 +427,7 @@ void replacenonprintable(char *str, int strlength, char replchar);
 /* Returns one if the file pathname given exists, is not a directory and
  * is readable by the executing process.  Returns two if it is readable
  * and is a directory.  Otherwise returns 0. */
-int fileexistsandisreadable(const char *pathname);
+int file_is_readable(const char *pathname);
 
 /* Portable, incompatible replacements for dirname and basename. */
 char *path_get_dirname(const char *path);
@@ -454,6 +459,7 @@ int inheritable_socket(int af, int style, int protocol);
 int dup_socket(int sd);
 int unblock_socket(int sd);
 int block_socket(int sd);
+int socket_bindtodevice(int sd, const char *device);
 
 /* CRC32 Cyclic Redundancy Check */
 unsigned long nbase_crc32(unsigned char *buf, int len);

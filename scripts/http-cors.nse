@@ -1,3 +1,9 @@
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Tests an http server for Cross-Origin Resource Sharing (CORS), a way
 for domains to explicitly opt in to having certain methods invoked by
@@ -27,9 +33,6 @@ author = "Toni Ruottu"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 
-require("shortport")
-require("stdnse")
-require("http")
 
 portrule =  shortport.http
 
@@ -45,7 +48,7 @@ local function origin_ok(raw, origin)
 	if raw == "null" then
 		return false
 	end
-	allowed = stdnse.strsplit(" ", raw)
+	local allowed = stdnse.strsplit(" ", raw)
 	for _, ao in ipairs(allowed) do
 		if origin == ao then
 			return true
@@ -70,7 +73,7 @@ local function method_ok(raw, method)
 end
 
 local function test(host, port, method, origin)
-	header = {
+	local header = {
 		["Origin"] = origin,
 		["Access-Control-Request-Method"] = method,
 	}

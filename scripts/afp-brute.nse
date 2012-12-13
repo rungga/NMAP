@@ -1,3 +1,15 @@
+local afp = require "afp"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local unpwdb = require "unpwdb"
+
+-- we dont really need openssl here, but let's attempt to load it as a way
+-- to simply prevent the script from running, in case we don't have it
+local openssl = stdnse.silent_require("openssl")
+
 description = [[
 Performs password guessing against Apple Filing Protocol (AFP).
 ]]
@@ -28,10 +40,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
-require 'shortport'
-require 'stdnse'
-require 'afp'
-require 'unpwdb'
 
 -- Version 0.3
 -- Created 01/15/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
@@ -46,6 +54,7 @@ action = function( host, port )
 	local result, response, status = {}, nil, nil
 	local valid_accounts, found_users = {}, {}
 	local helper
+	local usernames, passwords
 	
  	status, usernames = unpwdb.usernames()
 	if not status then return end

@@ -58,9 +58,14 @@
 --								x Apache Derby
 --								x IBM Informix Dynamic Server
 
-module(... or "drda", package.seeall)
-
-require "bin"
+local bin = require "bin"
+local bit = require "bit"
+local match = require "match"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("drda", stdnse.seeall)
 
 -- CodePoint constants
 CodePoint = {
@@ -70,14 +75,14 @@ CodePoint = {
 	ACCSEC		= 0x106d,
 	SECCHK		= 0x106e,
 	EXCSAT 		= 0x1041,
-	PRDID		= 0x112e,
+	PRDID			= 0x112e,
 	SRVCLSNM 	= 0x1147,
 	SVRCOD		= 0x1149,
 	SYNERRCD	= 0x114a,
 	SRVRLSLV 	= 0x115a,
 	EXTNAM 		= 0x115e,
 	SRVNAM 		= 0x116d,
-	USRID		= 0x11a0,
+	USRID			= 0x11a0,
 	PASSWORD	= 0x11a1,
 	SECMEC		= 0x11a2,
 	SECCHKCD	= 0x11a4,
@@ -116,11 +121,12 @@ SecMec =
 DRDAPacket = {
 	
 	new = function(self, drda_array)
-		local o = {}
-       	setmetatable(o, self)
-        self.__index = self
-		o.drda_array = drda_array
-		o.count = #drda_array
+		local o = {
+			drda_array = drda_array,
+			count = #drda_array
+		}
+		setmetatable(o, self)
+		self.__index = self
 		return o
 	end,
 
@@ -157,11 +163,12 @@ DRDAPacket = {
 DRDA = {
 	
 	new = function(self, ddm)
-		local o = {}
-       	setmetatable(o, self)
-        self.__index = self
-		o.Parameters = {}
-		o.DDM = ddm
+		local o = {
+			Parameters = {},
+			DDM = ddm
+		}
+		setmetatable(o, self)
+		self.__index = self
 		return o
 	end,
 	
@@ -218,14 +225,12 @@ DRDA = {
 	--
 	-- @return data containing the object instance		
 	__tostring = function(self)
-		local data
-		
 		if ( not(self.DDM) ) then
 			stdnse.print_debug("drda.DRDA.toString: DDM cannot be nil")
 			return nil
 		end
 		
-		data = bin.pack(">SCCSSS", self.DDM.Length, self.DDM.Magic, self.DDM.Format, self.DDM.CorelId, self.DDM.Length2, self.DDM.CodePoint )
+		local data = bin.pack(">SCCSSS", self.DDM.Length, self.DDM.Magic, self.DDM.Format, self.DDM.CorelId, self.DDM.Length2, self.DDM.CodePoint )
 		for k,v in ipairs(self.Parameters) do
 			data = data .. tostring(v)
 		end
@@ -248,28 +253,27 @@ DRDA = {
 	-- @return Data (if status is true) or error string (if status is false).	
 	receive = function( self, db2socket )
 		local DDM_SIZE = 10
-		local status, data, ddm, param
 		local pos = 1
 		
 		-- first read atleast enough so that we can populate the DDM
-		status, data = db2socket:recv( DDM_SIZE )
+		local status, data = db2socket:receive_buf( match.numbytes(DDM_SIZE), true )
 		if ( not(status) ) then
 			stdnse.print_debug("drda.DRDA.receive: %s", data)
 			return false, ("Failed to read at least %d bytes from socket"):format(DDM_SIZE)
 		end
 		
-		ddm = DDM:new()
+		local ddm = DDM:new()
 		ddm:fromString( data )
 		self:setDDM( ddm )
 		
-		status, data = db2socket:recv( ddm.Length - 10 )
+		status, data = db2socket:receive_buf( match.numbytes(ddm.Length - 10), true )
 		if ( not(status) ) then
 			return false, ("Failed to read the remaining %d bytes of the DRDA message")
 		end
 
 		-- add parameters until pos reaches the "end"
 		repeat
-			param = DRDAParameter:new()
+			local param = DRDAParameter:new()
 			pos = param:fromString( data, pos )
 			self:addParameter( param )
 		until ( #data <= pos )
@@ -288,16 +292,13 @@ DRDAParameter = {
 	-- @param data string containing the data portion of the DRDA parameter
 	-- @return o DRDAParameter object 
 	new = function(self, codepoint, data)
-		local o = {}
-       	setmetatable(o, self)
-        self.__index = self
-		o.CodePoint = codepoint
-		if ( data ) then
-			o.Data = data
-			o.Length = #o.Data + 4
-		else
-			o.Length = 4
-		end
+		local o = {
+			CodePoint = codepoint,
+			Data = data,
+			Length = ( data and #data + 4 or 4 )
+		}
+		setmetatable(o, self)
+		self.__index = self
 		return o
 	end,
 
@@ -305,8 +306,7 @@ DRDAParameter = {
 	--
 	-- @return data string containing the DRDA Parameter
 	__tostring = function( self )
-		local data = bin.pack(">SS", self.Length, self.CodePoint )
-		
+		local data = bin.pack(">SS", self.Length, self.CodePoint )	
 		if ( self.Data ) then
 			data = data .. bin.pack("A", self.Data)
 		end
@@ -374,16 +374,13 @@ DDM = {
 	-- @param corelid
 	-- @return DDM object
 	new = function(self, codepoint, format, corelid)
-		local o = {}
-       	setmetatable(o, self)
-        self.__index = self
-		o.CodePoint = codepoint
-		if ( format ) then
-			o.Format = format
-		end
-		if ( corelid ) then
-			o.CorelId = corelid
-		end
+		local o = {
+			CodePoint = codepoint,
+			Format = format,
+			CorelId = corelid
+		}
+		setmetatable(o, self)
+		self.__index = self
 		return o
 	end,
 
@@ -525,8 +522,8 @@ Helper = {
 
 	new = function(self)
 		local o = {}
-       	setmetatable(o, self)
-        self.__index = self
+		setmetatable(o, self)
+		self.__index = self
 		return o
 	end,
 	
@@ -537,9 +534,8 @@ Helper = {
 	-- @return Status (true or false).
 	-- @return Error code (if status is false).	
 	connect = function( self, host, port )
-		self.db2socket = DB2Socket:new()
-		self.comm = Comm:new( self.db2socket )
-		return self.db2socket:connect(host, port)
+		self.comm = Comm:new( host, port )
+		return self.comm:connect()
 	end,
 
 	--- Closes an open connection.
@@ -547,7 +543,7 @@ Helper = {
 	-- @return Status (true or false).
 	-- @return Error code (if status is false).	
 	close = function( self )
-		self.db2socket:close()
+		self.comm:close()
 	end,
 	
 	--- Returns Server Information (name, platform, version)
@@ -557,12 +553,12 @@ Helper = {
 	getServerInfo = function( self )
 		local mgrlvlls = bin.pack("H", "1403000724070008240f00081440000814740008")
 		local drda_excsat = Command.EXCSAT( "", "", "", mgrlvlls, "" )
-		local drda, response, param, status, err, packet
+		local response, param, err
 	
-		status, packet = self.comm:exchDRDAPacket( DRDAPacket:new( { drda_excsat } ) )
+		local status, packet = self.comm:exchDRDAPacket( DRDAPacket:new( { drda_excsat } ) )
 		if ( not(status) ) then	return false, err end
 	
-		drda = packet:getDRDAByCodePoint( CodePoint.EXCSATRD )
+		local drda = packet:getDRDAByCodePoint( CodePoint.EXCSATRD )
 		if ( drda ) then
 			response = {}
 			param = drda:getParameter( CodePoint.EXTNAM )
@@ -596,9 +592,6 @@ Helper = {
 	-- @return Status (true or false)
 	-- @return err message (if status if false)
 	login = function( self, database, username, password )
-		local drda = {}
-		local packet, data, param, status, err, _
-		
 		local mgrlvlls = bin.pack("H", "1403000724070008240f00081440000814740008")
 		local secmec, prdid = "\00\03", "JCC03010"
 		local tdovr = bin.pack("H", "0006119c04b80006119d04b00006119e04b8")
@@ -609,7 +602,7 @@ Helper = {
 		local drda_secchk = Command.SECCHK( secmec, database, username, password )
 		local drda_accrdb = Command.ACCRDB( database, string.char(0x24,0x07), "DNC10060", nil, "QTDSQLASC",  crrtkn, tdovr)
 				
-		status, packet = self.comm:exchDRDAPacket( DRDAPacket:new( { drda_excsat, drda_accsec } ) )
+		local status, packet = self.comm:exchDRDAPacket( DRDAPacket:new( { drda_excsat, drda_accsec } ) )
 		if( not(status) ) then return false, packet end
 		
 		if ( packet:getDRDAByCodePoint( CodePoint.RDBNFNRM ) or
@@ -618,12 +611,12 @@ Helper = {
 			return false, "ERROR: Database not found"
 		end
 		
-		drda = packet:getDRDAByCodePoint( CodePoint.ACCSECRD )
+		local drda = packet:getDRDAByCodePoint( CodePoint.ACCSECRD )
 		if ( not(drda) ) then
 			return false, "ERROR: Response did not contain any valid security mechanisms"
 		end
 		
-		param = drda:getParameter( CodePoint.SECMEC )
+		local param = drda:getParameter( CodePoint.SECMEC )
 		if ( not(param) ) then
 			stdnse.print_debug("drda.Helper.login: ERROR: Response did not contain any valid security mechanisms")
 			return false, "ERROR: Response did not contain any valid security mechanisms"
@@ -662,9 +655,7 @@ Helper = {
 			 packet:getDRDAByCodePoint( CodePoint.RDBAFLRM ) ) then
 			return false, "ERROR: Database not found"
 		end
-
 		return false, "ERROR: Login failed"
-		
 	end,
 	
 }
@@ -672,12 +663,37 @@ Helper = {
 -- The communication class
 Comm = {
 	
-	new = function(self, socket)
-		local o = {}
-       	setmetatable(o, self)
-        self.__index = self
-		o.socket = socket
+	new = function(self, host, port)
+		local o = {
+			host = host,
+			port = port,
+			socket = nmap.new_socket()
+		}
+		setmetatable(o, self)
+		self.__index = self
 		return o
+	end,
+	
+	connect = function(self)
+		return self.socket:connect(self.host, self.port)
+	end,
+	
+	close = function(self)
+		return self.socket:close()
+	end,
+	
+	recvDRDA = function( self )
+		local drda_tbl = {}
+		
+		repeat
+			local drda = DRDA:new()
+			local status, err = drda:receive( self.socket )
+			if ( not(status) ) then
+				return false, err
+			end
+			table.insert(drda_tbl, drda)
+		until ( not(drda.DDM:isChained()) )
+		return true, drda_tbl
 	end,
 	
 	--- Sends a packet to the server and receives the response
@@ -687,134 +703,21 @@ Comm = {
 	-- @return packet an instance of DRDAPacket
 	exchDRDAPacket = function( self, packet )
 		local drda, err
-		local status, err = self.socket:sendDRDA( packet )
+		local status, err = self.socket:send( tostring(packet) )
 		
 		if ( not(status) ) then
 			stdnse.print_debug("drda.Helper.login: ERROR: DB2Socket error: %s", err )
 			return false, ("ERROR: DB2Socket error: %s"):format( err )
 		end
 		
-		status, drda = self.socket:recvDRDA()
+		status, drda = self:recvDRDA()
 		if( not(status) ) then
 			stdnse.print_debug("drda.Helper.login: ERROR: DB2Socket error: %s", drda )
 			return false, ("ERROR: DB2Socket error: %s"):format( drda )
 		end
-		
 		return true, DRDAPacket:new( drda )
-	
 	end
 	
-}
-
--- The DB2Socket class
---
--- Allows for reading an exact count of bytes opposed to the nmap socket
--- implementation that does at least count of bytes.
---
--- The DB2Socket makes use of nmaps underlying socket implementation and
--- buffers the bytes exceeding the number asked for. The next call to the
--- <code>recv</code> function will fetch bytes from the buffer and call
--- the <code>recieve_bytes</code> function of the underlying when there
--- are no more buffered bytes.
---
--- The <code>connect</code>, <code>close</code> and <code>send</code>
--- functions are wrappers around the same functions of the nmap socket code.
--- Consult the nsedoc for additional information on these.
-DB2Socket = {
-	
-	retries = 3,
-	
-	new = function(self)
-		local o = {}
-       	setmetatable(o, self)
-        self.__index = self
-		o.Socket = nmap.new_socket()
-		o.Buffer = nil
-		return o
-	end,
-	
-
-	--- Establishes a connection.
-	--
-	-- @param hostid Host table, hostname, or IP address.
-	-- @param port Port table or number.
-	-- @param protocol <code>"tcp"</code>, <code>"udp"</code>, or
-	-- @return Status (true or false).
-	-- @return Error code (if status is false).
-	connect = function( self, hostid, port, protocol )
-		return self.Socket:connect( hostid, port, protocol )
-	end,
-	
-	--- Closes an open connection.
-	--
-	-- @return Status (true or false).
-	-- @return Error code (if status is false).
-	close = function( self )
-		return self.Socket:close()
-	end,
-	
-	--- Opposed to the <code>socket:receive_bytes</code> function, that returns
-	-- at least x bytes, this function returns the amount of bytes requested.
-	--
-	-- @param count of bytes to read
-	-- @return true on success, false on failure
-	-- @return data containing bytes read from the socket
-	-- 		   err containing error message if status is false
-	recv = function( self, count )
-		local status, data
-	
-		self.Buffer = self.Buffer or ""
-	
-		if ( #self.Buffer < count ) then
-			status, data = self.Socket:receive_bytes( count - #self.Buffer )
-			if ( not(status) or #data < count - #self.Buffer ) then
-				return false, data
-			end
-			self.Buffer = self.Buffer .. data
-		end
-			
-		data = self.Buffer:sub( 1, count )
-		self.Buffer = self.Buffer:sub( count + 1)
-	
-		return true, data	
-	end,
-	
-	--- Sends data over the socket
-	--
-	-- @return Status (true or false).
-	-- @return Error code (if status is false).
-	send = function( self, data )
-		return self.Socket:send( data )
-	end,
-	
-	--- Sends a single or multiple DRDA's over the socket
-	--
-	-- @param drda a single or a table containing multiple DRDA's
-	-- @return Status (true or false).
-	-- @return Error code (if status is false).
-	sendDRDA = function( self, drda )
-		return self:send(tostring(drda))
-	end,
-	
-	--- Reads a single or multiple DRDA's of the socket
-	--
-	-- @return status (true or false)
-	-- @return drda table containing retrieved DRDA's
-	recvDRDA = function( self )
-		local status, err
-		local drda_tbl = {}
-		
-		repeat
-			local drda = DRDA:new()
-			status, err = drda:receive( self )
-			if ( not(status) ) then
-				return false, err
-			end
-			table.insert(drda_tbl, drda)
-		until ( not(drda.DDM:isChained()) )
-			
-		return true, drda_tbl
-	end,
 }
 
 -- EBCDIC/ASCII Conversion tables
@@ -848,10 +751,10 @@ StringUtil =
 	-- @param ascii string containing the ASCII value
 	-- @return string containing the EBCDIC value
 	toEBCDIC = function( ascii )
-		local val, ret = 0, ""
+		local ret = ""
 
 		for i=1, #ascii do
-			val = ascii.byte(ascii,i) + 1
+			local val = ascii.byte(ascii,i) + 1
 			ret = ret .. a2e_tbl:sub(val, val)
 		end
 		return ret
@@ -862,10 +765,10 @@ StringUtil =
 	-- @param ebcdic string containing EBCDIC value
 	-- @return string containing ASCII value
 	toASCII = function( ebcdic )
-		local val, ret = 0, ""
+		local ret = ""
 		
 		for i=1, #ebcdic do
-			val = ebcdic.byte(ebcdic,i) + 1
+			local val = ebcdic.byte(ebcdic,i) + 1
 			ret = ret .. e2a_tbl:sub(val, val)
 		end
 		return ret
@@ -887,3 +790,5 @@ StringUtil =
 		return str
 	end,
 }
+
+return _ENV;

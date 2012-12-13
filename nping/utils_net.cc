@@ -106,7 +106,7 @@ extern NpingOps o;
 int atoIP(const char *hostname, struct in_addr *dst){
   struct sockaddr_in i;
   unsigned int stlen=0;
-  if ( resolve(hostname, 0, 0, (sockaddr_storage*)&i, (size_t *)&stlen , PF_INET) == 0 )
+  if ( resolve(hostname, 0, (sockaddr_storage*)&i, (size_t *)&stlen , PF_INET) != 0 )
     return OP_FAILURE;
   *dst=i.sin_addr;
   return OP_SUCCESS;
@@ -118,7 +118,7 @@ int atoIP(const char *hostname, struct sockaddr_storage *ss, int family){
     return OP_FAILURE;
   if(family!=AF_INET && family!=AF_INET6)
     return OP_FAILURE;
-  if ( resolve(hostname, 0, 0, ss, &stlen , family) == 0 )
+  if ( resolve(hostname, 0, ss, &stlen , family) != 0 )
     return OP_FAILURE;
   return OP_SUCCESS;
 } /* End of atoIP */
@@ -556,7 +556,7 @@ int resolveCached(char *host, struct sockaddr_storage *ss, size_t *sslen, int pf
   misses++;
   outPrint(DBG_4, "resolveCached(): Cache miss %d for %s\n", misses, host);
 
-  if( (result=resolve(host, 0, 0, ss, sslen, pf)) == 1 ){
+  if( (result=resolve(host, 0, ss, sslen, pf)) == 0 ){
 	
 	  /* Increment count */
 	  if( cached_count < MAX_CACHED_HOSTS )
@@ -1151,6 +1151,8 @@ int send_packet(NpingTarget *target, int rawfd, u8 *pkt, size_t pktLen){
          s6.sin6_port=0;
 
         res = Sendto("send_packet", rawfd, pkt, pktLen, 0, (struct sockaddr *)&s6, (int) sizeof(struct sockaddr_in6));
+        /*Sendto returns errors as -1 according to netutil.cc so lets catch that and return OP_FAILURE*/
+        if (res == -1) return OP_FAILURE;
     }else{ /* IPv4 */
         struct sockaddr_storage dst;
         size_t dstlen;
@@ -1162,6 +1164,8 @@ int send_packet(NpingTarget *target, int rawfd, u8 *pkt, size_t pktLen){
             res = send_frag_ip_packet(rawfd, NULL, (struct sockaddr_in *) &dst, pkt, pktLen, o.getMTU() );
         else
             res = send_ip_packet_sd(rawfd, (struct sockaddr_in *) &dst, pkt, pktLen);
+        /*send_ip_packet_sd calls Sendto which returns errors as -1 according to netutil.cc so lets catch that and return OP_FAILURE*/
+        if (res == -1) return OP_FAILURE;
     }
   }
   return OP_SUCCESS;
@@ -1513,7 +1517,7 @@ int getinterfaces_inet6_linux(if6_t *ifbuf, int max_ifaces){
     outFatal(QT_3,"getinterfaces_inet6_linux() NULL values supplied");
  
   /* TODO: Do we fatal() or should we just error and return OP_FAILURE? */
-  if ( !fileexistsandisreadable(PATH_PROC_IFINET6) )
+  if ( !file_is_readable(PATH_PROC_IFINET6) )
     outFatal(QT_3, "Couldn't get IPv6 interface information. File %s does not exist or you don't have read permissions.", PATH_PROC_IFINET6);
   if( (if6file=fopen(PATH_PROC_IFINET6, "r"))==NULL )
     outFatal(QT_3, "Failed to open %s.", PATH_PROC_IFINET6);
@@ -1707,7 +1711,7 @@ int getroutes_inet6_linux(route6_t *rtbuf, int max_routes){
     outFatal(QT_3,"getroutes_inet6_linux() NULL values supplied");
  
   /* TODO: Do we fatal() or should we just error and return OP_FAILURE? */
-  if ( !fileexistsandisreadable(PATH_PROC_IPV6ROUTE) )
+  if ( !file_is_readable(PATH_PROC_IPV6ROUTE) )
     outFatal(QT_3, "Couldn't get IPv6 route information. File %s does not exist or you don't have read permissions.", PATH_PROC_IPV6ROUTE);
   if( (route6file=fopen(PATH_PROC_IPV6ROUTE, "r"))==NULL )
     outFatal(QT_3, "Failed to open %s.", PATH_PROC_IPV6ROUTE);

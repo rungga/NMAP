@@ -4,12 +4,13 @@
 -- @author Sven Klemm <sven@c3d2.de>
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
-module(... or "ssh2",package.seeall)
-
-require "bin"
-require "base64"
-require "openssl"
-require "stdnse"
+local base64 = require "base64"
+local bin = require "bin"
+local nmap = require "nmap"
+local openssl = require "openssl"
+local stdnse = require "stdnse"
+local string = require "string"
+_ENV = stdnse.module("ssh2", stdnse.seeall)
 
 -- table holding transport layer functions
 transport = {}
@@ -75,7 +76,7 @@ transport.build = function( payload )
 end
 
 --- Extract the payload from a received SSH-2 packet.
--- @param packet Peceived SSH-2 packet.
+-- @param packet Received SSH-2 packet.
 -- @return Payload of the SSH-2 packet.
 transport.payload = function( packet )
   local packet_length, padding_length, payload_length, payload, offset
@@ -214,6 +215,15 @@ fetch_host_key = function( host, port, key_type )
     local n
     _, _, _, n = bin.unpack( ">aaa", public_host_key )
     bits = openssl.bignum_bin2bn( n ):num_bits()
+  elseif key_type == 'ecdsa-sha2-nistp256' then
+    algorithm = "ECDSA"
+    bits = "256"
+  elseif key_type == 'ecdsa-sha2-nistp384' then
+    algorithm = "ECDSA"
+    bits = "384"
+  elseif key_type == 'ecdsa-sha2-nistp521' then
+    algorithm = "ECDSA"
+    bits = "521"
   else
     stdnse.print_debug( "Unsupported key type: %s", key_type )
   end
@@ -238,3 +248,5 @@ SSH2 = {
   SSH_MSG_KEXDH_REPLY = 31,
 }
 
+
+return _ENV;

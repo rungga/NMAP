@@ -122,6 +122,7 @@ int ProbeMode::init_nsock(){
       /* Create a new nsock pool */
       if ((nsp = nsp_new(NULL)) == NULL)
         outFatal(QT_3, "Failed to create new pool.  QUITTING.\n");
+      nsp_setdevice(nsp, o.getDevice());
 
       /* Allow broadcast addresses */
       nsp_setbroadcast(nsp, 1);
@@ -179,7 +180,6 @@ int ProbeMode::start(){
   char *filterstring;              /**< Stores BFP filter spec string        */
   char *auxpnt=NULL;               /**< Aux str pointer                      */
   int rawipsd=-1;                  /**< Descriptor for raw IP socket         */
-  nsock_event_id ev;               /**< Stores returned event IDs            */
   enum nsock_loopstatus loopret;   /**< Stores nsock_loop returned status    */
   nsock_iod pcap_nsi;              /**< Stores Pcap IOD                      */
   u32 packetno=0;                  /**< Total packet count                   */
@@ -233,12 +233,16 @@ int ProbeMode::start(){
 
                 /* Schedule a TCP Connect attempt */
                 if( first_time ){
-                    ev=nsock_timer_create(nsp, tcpconnect_event_handler, 1, &pkts2send[pc]);
+                    nsock_timer_create(nsp, tcpconnect_event_handler, 1, &pkts2send[pc]);
                     first_time=false;
                     loopret=nsock_loop(nsp, 2);
+                    if (loopret == NSOCK_LOOP_ERROR)
+                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
                 }else{
-                    ev=nsock_timer_create(nsp, tcpconnect_event_handler, o.getDelay()+1, &pkts2send[pc]);
+                    nsock_timer_create(nsp, tcpconnect_event_handler, o.getDelay()+1, &pkts2send[pc]);
                     loopret=nsock_loop(nsp, o.getDelay()+1);
+                    if (loopret == NSOCK_LOOP_ERROR)
+                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
                 }
             }
         }
@@ -247,6 +251,8 @@ int ProbeMode::start(){
     /* If there are some events pending, we'll wait for DEFAULT_WAIT_AFTER_PROBES ms,
      * otherwise nsock_loop() will return inmediatly */
     loopret=nsock_loop(nsp, DEFAULT_WAIT_AFTER_PROBES);
+    if (loopret == NSOCK_LOOP_ERROR)
+        outFatal(QT_3, "Unexpected nsock_loop error.\n");
     o.stats.stopRxClock();
     return OP_SUCCESS;
   break; /* case TCP_CONNECT */
@@ -281,12 +287,16 @@ int ProbeMode::start(){
 
                 /* Schedule a UDP attempt */
                 if( first_time ){
-                    ev=nsock_timer_create(nsp, udpunpriv_event_handler, 1, &pkts2send[pc]);
+                    nsock_timer_create(nsp, udpunpriv_event_handler, 1, &pkts2send[pc]);
                     first_time=false;
                     loopret=nsock_loop(nsp, 2);
+                    if (loopret == NSOCK_LOOP_ERROR)
+                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
                 }else{
-                    ev=nsock_timer_create(nsp, udpunpriv_event_handler, o.getDelay(), &pkts2send[pc]);
+                    nsock_timer_create(nsp, udpunpriv_event_handler, o.getDelay(), &pkts2send[pc]);
                     loopret=nsock_loop(nsp, o.getDelay());
+                    if (loopret == NSOCK_LOOP_ERROR)
+                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
                 }
             }
         }
@@ -296,6 +306,8 @@ int ProbeMode::start(){
      * otherwise nsock_loop() will return inmediatly */
     if(!o.disablePacketCapture()){
         loopret=nsock_loop(nsp, DEFAULT_WAIT_AFTER_PROBES);
+        if (loopret == NSOCK_LOOP_ERROR)
+            outFatal(QT_3, "Unexpected nsock_loop error.\n");
     }
     o.stats.stopRxClock();
     return OP_SUCCESS;
@@ -385,18 +397,22 @@ int ProbeMode::start(){
                         /* Tell nsock we expect one reply. Actually we schedule 2 pcap events just in case
                          * we get more than one response. */
                         if(!o.disablePacketCapture()){
-                            ev=nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
-                            ev=nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
+                            nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
+                            nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
                         }
 
                           /* Let nsock handle probe transmission and inter-probe delay */
                         if( first_time ){
-                            ev=nsock_timer_create(nsp, nping_event_handler, 1, &pkts2send[pc]);
+                            nsock_timer_create(nsp, nping_event_handler, 1, &pkts2send[pc]);
                             first_time=false;
                             loopret=nsock_loop(nsp, 2);
+                            if (loopret == NSOCK_LOOP_ERROR)
+                                outFatal(QT_3, "Unexpected nsock_loop error.\n");
                         }else{
-                            ev=nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
+                            nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
                             loopret=nsock_loop(nsp, o.getDelay()+1);
+                            if (loopret == NSOCK_LOOP_ERROR)
+                                outFatal(QT_3, "Unexpected nsock_loop error.\n");
                         }
                     }
                 }
@@ -431,18 +447,22 @@ int ProbeMode::start(){
                     /* Tell nsock we expect one reply. Actually we schedule 2 pcap events just in case
                      * we get more than one response. */
                     if(!o.disablePacketCapture()){
-                        ev=nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
-                        ev=nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
+                        nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
+                        nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, o.getDelay(), NULL);
                     }
 
                     /* Let nsock handle probe transmission and inter-probe delay */
                     if( first_time ){
-                        ev=nsock_timer_create(nsp, nping_event_handler, 1, &pkts2send[pc]);
+                        nsock_timer_create(nsp, nping_event_handler, 1, &pkts2send[pc]);
                         first_time=false;
                         loopret=nsock_loop(nsp, 2);
+                        if (loopret == NSOCK_LOOP_ERROR)
+                            outFatal(QT_3, "Unexpected nsock_loop error.\n");
                     }else{
-                        ev=nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
+                        nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
                         loopret=nsock_loop(nsp, o.getDelay()+1);
+                        if (loopret == NSOCK_LOOP_ERROR)
+                            outFatal(QT_3, "Unexpected nsock_loop error.\n");
                     }
                 }
             }
@@ -452,9 +472,10 @@ int ProbeMode::start(){
 
     o.stats.stopTxClock();
     if(!o.disablePacketCapture()){
-        ev=nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, DEFAULT_WAIT_AFTER_PROBES, NULL);
-        ev=nsock_timer_create(nsp, nping_event_handler, DEFAULT_WAIT_AFTER_PROBES,NULL);
+        nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, DEFAULT_WAIT_AFTER_PROBES, NULL);
         loopret=nsock_loop(nsp, DEFAULT_WAIT_AFTER_PROBES);
+        if (loopret == NSOCK_LOOP_ERROR)
+           outFatal(QT_3, "Unexpected nsock_loop error.\n");
         o.stats.stopRxClock();
     }
    /* Close opened descriptors */
@@ -2162,6 +2183,9 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
     case NSE_TYPE_READ:
         /* Do an actual read() of the recv data */
         readbuff=nse_readbuf(nse, &readbytes);
+        if(readbuff==NULL){
+            outFatal(QT_3, "Error: nse_readbuff failed to read in the from the probe");
+        }
         /* Determine which target are we dealing with */
         nsi_getlastcommunicationinfo(nsi, NULL, &family, NULL, (struct sockaddr*)&peer, sizeof(struct sockaddr_storage) );
         if(family==AF_INET6){

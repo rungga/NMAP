@@ -1,3 +1,10 @@
+local nmap = require "nmap"
+local os = require "os"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Attempts to extract system information (OS, hardware, etc.) from the Sun Service Tags service agent (UDP port 6481).
 
@@ -70,8 +77,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
-require("stdnse")
-require("shortport")
 
 -- Mapping from XML element names to human-readable table labels.
 local XML_TO_TEXT = {
@@ -167,9 +172,11 @@ action = function(host, port)
         get_agent(host, xport, output)
 
         -- Check if any other service tags are registered and enumerate them
+        local svctags_list
         status, svctags_list = get_svctag_list(host, xport, output)
         if status then
-            svctags = {}
+            local svctags = {}
+            local tag
             for _, svctag in ipairs(svctags_list) do
                 svctags['name'] = "Service Tags"
                 status, tag = get_svctag(host, port, svctag)
@@ -180,6 +187,9 @@ action = function(host, port)
             table.insert(output, svctags)
         end
     end
+
+    port.name = "servicetags"
+    nmap.set_port_version(host, port)
 
     return stdnse.format_output(true, output)
 end

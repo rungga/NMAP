@@ -1,3 +1,10 @@
+local datafiles = require "datafiles"
+local netbios = require "netbios"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Attempts to retrieve the target's NetBIOS names and MAC address.
 
@@ -33,8 +40,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 -- Christopher R. Hertel. 
 categories = {"default", "discovery", "safe"}
 
-require "netbios"
-require "datafiles"
 
 hostrule = function(host)
 
@@ -75,38 +80,33 @@ action = function(host)
 	
 
 	-- Get the list of NetBIOS names
-	status, names, statistics = netbios.do_nbstat(host.ip)
-	status, names, statistics = netbios.do_nbstat(host.ip)
-	status, names, statistics = netbios.do_nbstat(host.ip)
-	status, names, statistics = netbios.do_nbstat(host.ip)
+	status, names, statistics = netbios.do_nbstat(host)
+	status, names, statistics = netbios.do_nbstat(host)
+	status, names, statistics = netbios.do_nbstat(host)
+	status, names, statistics = netbios.do_nbstat(host)
 	if(status == false) then
 		return stdnse.format_output(false, names)
 	end
 
 	-- Get the server name
-	status, server_name = netbios.get_server_name(host.ip, names)
+	status, server_name = netbios.get_server_name(host, names)
 	if(status == false) then
 		return stdnse.format_output(false, server_name)
 	end
 
 	-- Get the logged in user
-	status, user_name = netbios.get_user_name(host.ip, names)
+	status, user_name = netbios.get_user_name(host, names)
 	if(status == false) then
 		return stdnse.format_output(false, user_name)
 	end
 
-	-- Build the MAC prefix lookup table
-	if not nmap.registry.nbstat then
-		-- Create the table in the registry so we can share between script instances
-		nmap.registry.nbstat = {}
-		nmap.registry.nbstat.mac_prefixes = try(datafiles.parse_mac_prefixes())
-	end
+  local mac_prefixes = try(datafiles.parse_mac_prefixes())
 	
 	-- Format the Mac address in the standard way
 	if(#statistics >= 6) then
 		-- MAC prefixes are matched on the first three bytes, all uppercase
 		prefix = string.upper(string.format("%02x%02x%02x", statistics:byte(1), statistics:byte(2), statistics:byte(3)))
-		manuf = nmap.registry.nbstat.mac_prefixes[prefix]
+		manuf = mac_prefixes[prefix]
 		if manuf == nil then
 			manuf = "unknown"
 		end

@@ -59,7 +59,7 @@
 --
 -- Therefore TCP is the preferred method of communication and the library
 -- always attempts to connect to the TCP port of the RPC program first.
--- This behaviour can be overrided by setting the rpc.protocol argument.
+-- This behaviour can be overridden by setting the rpc.protocol argument.
 -- The portmap service is always queried over the protocol specified in the
 -- port information used to call the Helper function from the script.
 --
@@ -75,8 +75,16 @@
 -- @args rpc.protocol table If set overrides the preferred order in which
 --       protocols are tested. (ie. "tcp", "udp")
 
-module(... or "rpc", package.seeall)
-require("datafiles")
+local bin = require "bin"
+local bit = require "bit"
+local datafiles = require "datafiles"
+local math = require "math"
+local nmap = require "nmap"
+local os = require "os"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("rpc", stdnse.seeall)
 
 -- Version 0.3
 --
@@ -123,7 +131,7 @@ RPC_version = {
 -- Low-level communication class
 Comm = {
 
-    --- Creats a new rpc Comm object
+    --- Creates a new rpc Comm object
     --
     -- @param program name string
     -- @param version number containing the program version to use
@@ -134,6 +142,7 @@ Comm = {
       self.__index = self
       o.program = program
       o.program_id = Util.ProgNameToNumber(program)
+      o.checkprogver = true
       o:SetVersion(version)
       return o
     end,
@@ -155,10 +164,35 @@ Comm = {
         return status, err
       end
       if ( port.protocol == "tcp" ) then
-        socket = nmap.new_socket()
-        status, err = socket:connect(host, port)
+        if nmap.is_privileged() then
+          -- Try to bind to a reserved port
+          for i = 1, 10, 1 do
+            local resvport = math.random(1, 1024)
+            socket = nmap.new_socket()
+            status, err = socket:bind(nil, resvport)
+            if status then 
+              status, err = socket:connect(host, port)
+              if status or err == "TIMEOUT" then break end
+              socket:close()
+            end
+          end
+        else
+          socket = nmap.new_socket()
+          status, err = socket:connect(host, port)
+        end
       else
-        socket = nmap.new_socket("udp")
+        if nmap.is_privileged() then
+          -- Try to bind to a reserved port
+          for i = 1, 10, 1 do
+            local resvport = math.random(1, 1024)
+            socket = nmap.new_socket("udp")
+            status, err = socket:bind(nil, resvport)
+            if status then break end
+            socket:close()
+          end
+        else
+          socket = nmap.new_socket("udp")
+        end
       end
       if (not(status)) then
         return status, string.format("%s connect error: %s",
@@ -204,6 +238,7 @@ Comm = {
     -- @return status boolean true on success, false on failure
     -- @return string containing error message (if status is false)
     ChkVersion = function(self)
+      if not self.checkprogver then return true end
       if ( self.version > RPC_version[self.program].max or
       self.version < RPC_version[self.program].min ) then
         return false, string.format("RPC library does not support: %s version %d",
@@ -216,13 +251,30 @@ Comm = {
     --
     -- @return status boolean true
     SetVersion = function(self, version)
-      if (RPC_version[self.program] and RPC_args[self.program] and 
-      nmap.registry.args and nmap.registry.args[RPC_args[self.program].ver]) then
-        self.version = tonumber(nmap.registry.args[RPC_args[self.program].ver])
-      elseif (not(self.version) and version) then
-        self.version = version
-      end
-      return true, nil
+	if self.checkprogver then
+	    if (RPC_version[self.program] and RPC_args[self.program] and 
+		nmap.registry.args and nmap.registry.args[RPC_args[self.program].ver]) then
+		self.version = tonumber(nmap.registry.args[RPC_args[self.program].ver])
+	    elseif (not(self.version) and version) then
+		self.version = version
+	    end
+	else
+	    self.version = version
+	end
+	return true, nil
+    end,
+
+    --- Sets the verification of the specified program and version support
+    -- before trying to connecting.
+    -- @param check boolean to enable or disable checking of program and version support.
+    SetCheckProgVer = function(self, check)
+	self.checkprogver = check	
+    end,
+
+    --- Sets the RPC program ID to use.
+    -- @param progid number Program ID to set.
+    SetProgID = function(self, progid)
+	self.program_id = progid
     end,
 
     --- Checks if data contains enough bytes to read the <code>needed</code> amount
@@ -251,28 +303,41 @@ Comm = {
 
     --- Creates a RPC header
     --
-    -- @param xid number
-    -- @param procedure number containing the procedure to call
-    -- @param auth table containing the authentication data to use
+    -- @param xid number. If no xid was provided, a random one will be used.
+    -- @param procedure number containing the procedure to call. Defaults to <code>0</code>.
+    -- @param auth table containing the authentication data to use. Defaults to NULL authentication.
     -- @return status boolean true on success, false on failure
     -- @return string of bytes on success, error message on failure
     CreateHeader = function( self, xid, procedure, auth )
       local RPC_VERSION = 2
       local packet
-
-      if not(xid) then
-        xid = math.random(1234567890)
-      end
-      if not auth then
-        return false, "Comm.CreateHeader: No authentication specified"
-      elseif auth.type ~= Portmap.AuthType.NULL then
-        return false, "Comm.CreateHeader: invalid authentication type specified"
-      end
+      -- Defaulting to NULL Authentication
+      local auth = auth or {type = Portmap.AuthType.NULL}
+      local xid = xid or math.random(1234567890)
+      local procedure = procedure or 0
 
       packet = bin.pack( ">IIIIII", xid, Portmap.MessageType.CALL, RPC_VERSION,
                     self.program_id, self.version, procedure )
       if auth.type == Portmap.AuthType.NULL then
         packet = packet .. bin.pack( "IIII", 0, 0, 0, 0 )
+      elseif auth.type == Portmap.AuthType.UNIX then
+        packet = packet .. Util.marshall_int32(auth.type)
+        local blob = Util.marshall_int32(nmap.clock()) --time
+        blob = blob .. Util.marshall_vopaque(auth.hostname or 'localhost')
+        blob = blob .. Util.marshall_int32(auth.uid or 0)
+        blob = blob .. Util.marshall_int32(auth.gid or 0)
+        if auth.gids then --len prefix gid list
+          blob = blob .. Util.marshall_int32(#auth.gids)
+          for _,gid in ipairs(auth.gids) do
+            blob = blob .. Util.marshall_int32(gid)
+          end
+        else
+          blob = blob .. Util.marshall_int32(0)
+        end
+        packet = packet .. Util.marshall_vopaque(blob)
+        packet = packet .. bin.pack( "II", 0, 0 ) --AUTH_NULL verf
+      else
+        return false, "Comm.CreateHeader: invalid authentication type specified"
       end
       return true, packet
     end,
@@ -297,7 +362,7 @@ Comm = {
       status, tmp = self:GetAdditionalBytes( data, pos, HEADER_LEN - ( data:len() - pos ) )
       if not status then
         stdnse.print_debug(4,
-            string.format("Comm.ReceivePacket: failed to call GetAdditionalBytes"))
+            string.format("Comm.DecodeHeader: failed to call GetAdditionalBytes"))
         return -1, nil
       end
       data = data .. tmp
@@ -317,7 +382,7 @@ Comm = {
       status, data = self:GetAdditionalBytes( data, pos, header.verifier.length - 8 )
       if not status then
         stdnse.print_debug(4,
-            string.format("Comm.ReceivePacket: failed to call GetAdditionalBytes"))
+            string.format("Comm.DecodeHeader: failed to call GetAdditionalBytes"))
         return -1, nil
       end
       pos, header.verifier.data = bin.unpack("A" .. header.verifier.length - 8, data, pos )
@@ -343,7 +408,12 @@ Comm = {
       local tmp, lastfragment, length
       local data, pos = "", 1
 
+      -- Maximum number of allowed attempts to parse the received bytes. This
+      -- prevents the code from looping endlessly on invalid content.
+      local retries = 400
+
       repeat
+        retries = retries - 1
         lastfragment = false
         status, data = self:GetAdditionalBytes( data, pos, 4 )
         if ( not(status) ) then
@@ -388,7 +458,11 @@ Comm = {
 
         pos = pos + length
         data = bufcopy
-      until lastfragment == true
+      until (lastfragment == true) or (retries == 0)
+
+      if retries == 0 then
+        return false, "Aborted after too many retries"
+      end
       return true, data
     end
   end,
@@ -442,7 +516,8 @@ Portmap =
   -- TODO: add more Authentication Protocols
   AuthType =
   {
-    NULL = 0
+    NULL = 0,
+    UNIX = 1,
   },
 
   -- TODO: complete Authentication stats and error messages
@@ -820,7 +895,7 @@ Mount = {
     end
 
     packet = comm:EncodePacket(nil, Mount.Procedure.EXPORT,
-                              { type=Portmap.AuthType.NULL }, nil )
+                              { type=Portmap.AuthType.UNIX }, nil )
     if (not(comm:SendPacket( packet ))) then
       return false, "Mount.Export: Failed to send data"
     end
@@ -830,7 +905,7 @@ Mount = {
       return false, "Mount.Export: Failed to read data from socket"
     end
 
-    -- make sure we have atleast 24 bytes to unpack the header
+    -- make sure we have at least 24 bytes to unpack the header
     status, data = comm:GetAdditionalBytes( data, pos, 24 )
     if (not(status)) then
       return false, "Mount.Export: Failed to call GetAdditionalBytes"
@@ -957,7 +1032,7 @@ Mount = {
 
     data = Util.marshall_vopaque(path)
 
-    packet = comm:EncodePacket( nil, Mount.Procedure.MOUNT, { type=Portmap.AuthType.NULL }, data )
+    packet = comm:EncodePacket( nil, Mount.Procedure.MOUNT, { type=Portmap.AuthType.UNIX }, data )
     if (not(comm:SendPacket(packet))) then
       return false, "Mount: Failed to send data"
     end
@@ -1047,7 +1122,7 @@ Mount = {
 
     data = Util.marshall_vopaque(path)
 
-    packet = comm:EncodePacket( nil, Mount.Procedure.UMNT, { type=Portmap.AuthType.NULL }, data )
+    packet = comm:EncodePacket( nil, Mount.Procedure.UMNT, { type=Portmap.AuthType.UNIX }, data )
     if (not(comm:SendPacket(packet))) then
       return false, "Unmount: Failed to send data"
     end
@@ -1485,7 +1560,7 @@ NFS = {
       data = bin.pack("A>I>I", file_handle, cookie, count)
     end
     packet = comm:EncodePacket( nil, NFS.Procedure[comm.version].READDIR,
-                              { type=Portmap.AuthType.NULL }, data )
+                              { type=Portmap.AuthType.UNIX }, data )
     if(not(comm:SendPacket( packet ))) then
       return false, "ReadDir: Failed to send data"
     end
@@ -1605,7 +1680,7 @@ NFS = {
 
     data = Util.marshall_opaque(dir_handle) .. Util.marshall_vopaque(file)
     packet = comm:EncodePacket(nil, NFS.Procedure[comm.version].LOOKUP,
-                              {type=Portmap.AuthType.NULL}, data)
+                              {type=Portmap.AuthType.UNIX}, data)
     if(not(comm:SendPacket(packet))) then
       return false, "LookUp: Failed to send data"
     end
@@ -1782,7 +1857,7 @@ NFS = {
                     opaque_data, dircount, maxcount)
 
     packet = comm:EncodePacket(nil, NFS.Procedure[comm.version].READDIRPLUS,
-                              {type = Portmap.AuthType.NULL }, data)
+                              {type = Portmap.AuthType.UNIX }, data)
 
     if (not(comm:SendPacket(packet))) then
       return false, "ReadDirPlus: Failed to send data"
@@ -1861,7 +1936,7 @@ NFS = {
 
     data = bin.pack("A", file_handle)
     packet = comm:EncodePacket(nil, NFS.Procedure[comm.version].FSSTAT,
-                              {type = Portmap.AuthType.NULL}, data)
+                              {type = Portmap.AuthType.UNIX}, data)
 
     if (not(comm:SendPacket(packet))) then
       return false, "FsStat: Failed to send data"
@@ -1943,7 +2018,7 @@ NFS = {
 
     data = Util.marshall_opaque(file_handle)
     packet = comm:EncodePacket(nil, NFS.Procedure[comm.version].FSINFO,
-                               {type = Portmap.AuthType.NULL}, data)
+                               {type = Portmap.AuthType.UNIX}, data)
 
     if (not(comm:SendPacket(packet))) then
       return false, "FsInfo: Failed to send data"
@@ -2022,7 +2097,7 @@ NFS = {
 
     data = Util.marshall_opaque(file_handle)
     packet = comm:EncodePacket(nil, NFS.Procedure[comm.version].PATHCONF,
-                               {type = Portmap.AuthType.NULL}, data)
+                               {type = Portmap.AuthType.UNIX}, data)
 
     if (not(comm:SendPacket(packet))) then
       return false, "PathConf: Failed to send data"
@@ -2099,7 +2174,7 @@ NFS = {
 
     data = Util.marshall_opaque(file_handle) .. Util.marshall_uint32(access)
     packet = comm:EncodePacket(nil, NFS.Procedure[comm.version].ACCESS,
-                               {type = Portmap.AuthType.NULL}, data)
+                               {type = Portmap.AuthType.UNIX}, data)
 
     if (not(comm:SendPacket(packet))) then
       return false, "Access: Failed to send data"
@@ -2147,7 +2222,7 @@ NFS = {
     end
 
     data = Util.marshall_opaque(file_handle)
-    packet = comm:EncodePacket( nil, NFS.Procedure[comm.version].STATFS, { type=Portmap.AuthType.NULL }, data )
+    packet = comm:EncodePacket( nil, NFS.Procedure[comm.version].STATFS, { type=Portmap.AuthType.UNIX }, data )
     if (not(comm:SendPacket( packet ))) then
       return false, "StatFS: Failed to send data"
     end
@@ -2227,7 +2302,7 @@ NFS = {
     local data, packet, status, attribs, pos, header
 
     data = Util.marshall_opaque(file_handle)
-    packet = comm:EncodePacket( nil, NFS.Procedure[comm.version].GETATTR, { type=Portmap.AuthType.NULL }, data )
+    packet = comm:EncodePacket( nil, NFS.Procedure[comm.version].GETATTR, { type=Portmap.AuthType.UNIX }, data )
     if(not(comm:SendPacket(packet))) then
       return false, "GetAttr: Failed to send data"
     end
@@ -2863,7 +2938,7 @@ Util =
           if Util.FileType[code] then
             return Util.FileType[code].char
           else
-            stdnse.print_debug(1,"FtypeToChar: Unkown file type, mode: %o", mode)
+            stdnse.print_debug(1,"FtypeToChar: Unknown file type, mode: %o", mode)
             return ""
           end
         end,
@@ -2953,12 +3028,12 @@ Util =
           end
 
           return string.format("%s%s  uid: %5d  gid: %5d  %6s  %s",
-                                rpc.Util.FtypeToChar(attr.mode),
-                                rpc.Util.FpermToString(attr.mode),
+                                Util.FtypeToChar(attr.mode),
+                                Util.FpermToString(attr.mode),
                                 attr.uid,
                                 attr.gid,
-                                rpc.Util.SizeToHuman(attr.size),
-                                rpc.Util.TimeToString(attr[time].seconds))
+                                Util.SizeToHuman(attr.size),
+                                Util.TimeToString(attr[time].seconds))
         end,
 
         marshall_int32 = function(int32, count)
@@ -3351,13 +3426,15 @@ Util =
   --
   -- Calculates the number of fill bytes needed
   -- @param length contains the length of the string
-  -- @return the amount of pad needed to be divideable by 4
+  -- @return the amount of pad needed to be dividable by 4
   CalcFillBytes = function(length)
       -- calculate fill bytes
-    if math.mod( length, 4 ) ~= 0 then
-      return (4 - math.mod( length, 4))
+    if math.fmod( length, 4 ) ~= 0 then
+      return (4 - math.fmod( length, 4))
     else
       return 0
     end
   end
 }
+
+return _ENV;
