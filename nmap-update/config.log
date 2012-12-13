@@ -330,6 +330,7 @@ on kali
 config.status:818: creating Makefile
 config.status:921: WARNING:  'Makefile.in' seems to ignore the --datarootdir setting
 config.status:818: creating config.h
+config.status:993: config.h is unchanged
 
 ## ---------------- ##
 ## Cache variables. ##
