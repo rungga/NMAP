@@ -1,3 +1,14 @@
+local math = require "math"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local tns = require "tns"
+local unpwdb = require "unpwdb"
+
+local openssl = stdnse.silent_require "openssl"
+
 description = [[
 Attempts to enumerate valid Oracle user names against unpatched Oracle 11g
 servers (this bug was fixed in Oracle's October 2009 Critical Patch Update).
@@ -32,11 +43,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 
-require 'shortport'
-require 'unpwdb'
-require 'stdnse'
-stdnse.silent_require 'openssl'
-require 'tns'
 
 portrule = shortport.port_or_service(1521, 'oracle-tns' )
 
@@ -55,7 +61,7 @@ local function checkAccount( host, port, user )
 	-- A bit ugly, the helper should probably provide a getSocket function
 	tnscomm = tns.Comm:new( helper.tnssocket )
 	
-	status, auth = tnscomm:exchTNSPacket( tns.Packet.PreAuth:new( user, auth_options ) )
+	status, auth = tnscomm:exchTNSPacket( tns.Packet.PreAuth:new( user, auth_options, helper.os ) )
 	if ( not(status) ) then
 		return false, auth
 	end
@@ -100,7 +106,7 @@ action = function( host, port )
 	local usernames
 	
 	if ( not( nmap.registry.args['oracle-enum-users.sid'] ) and not( nmap.registry.args['tns.sid'] ) ) then
-		return "ERROR: Oracle instance not set (see oracle-brute.sid or tns.sid)"
+		return "ERROR: Oracle instance not set (see oracle-enum-users.sid or tns.sid)"
 	end
 	
 	status, usernames = unpwdb.usernames()

@@ -95,7 +95,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.cc 28544 2012-05-08 05:49:51Z david $ */
+/* $Id: output.cc 30306 2012-11-29 03:19:52Z david $ */
 
 #include "nmap.h"
 #include "output.h"
@@ -105,7 +105,6 @@
 #include "MACLookup.h"
 #include "portreasons.h"
 #include "protocols.h"
-#include "nmap_rpc.h"
 #include "Target.h"
 #include "utils.h"
 #include "xml.h"
@@ -118,10 +117,6 @@
 #include <vector>
 #include <list>
 #include <sstream>
-
-/* Workaround for lack of namespace std on HP-UX 11.00 */
-namespace std {};
-using namespace std;
 
 extern NmapOps o;
 static const char *logtypes[LOG_NUM_FILES] = LOG_NAMES;
@@ -234,13 +229,6 @@ static void print_xml_service(const struct serviceDeductions *sd) {
   xml_attribute("method", "%s", (sd->dtype == SERVICE_DETECTION_TABLE) ? "table" : "probed");
   xml_attribute("conf", "%i", sd->name_confidence);
 
-  if (sd->rpc_status == RPC_STATUS_GOOD_PROG) {
-    xml_attribute("rpcnum", "%li", sd->rpc_program);
-    xml_attribute("lowver", "%i", sd->rpc_lowver);
-    xml_attribute("highver", "%i", sd->rpc_highver);
-    xml_attribute("proto", "rpc");
-  }
-
   if (sd->cpe.empty()) {
     xml_close_empty_tag();
   } else {
@@ -260,10 +248,16 @@ static void print_xml_service(const struct serviceDeductions *sd) {
 /* Show a fatal error explaining that an interface is not Ethernet and won't
    work on Windows. Do nothing if --send-ip (PACKET_SEND_IP_STRONG) was used. */
 void win32_fatal_raw_sockets(const char *devname) {
-  if ((o.sendpref & PACKET_SEND_IP_STRONG) == 0) {
+  if ((o.sendpref & PACKET_SEND_IP_STRONG) != 0)
+    return;
+
+  if (devname != NULL) {
     fatal("Only ethernet devices can be used for raw scans on Windows, and\n"
           "\"%s\" is not an ethernet device. Use the --unprivileged option\n"
 	  "for this scan.", devname);
+  } else {
+    fatal("Only ethernet devices can be used for raw scans on Windows. Use\n"
+          "the --unprivileged option for this scan.", devname);
   }
 }
 
@@ -275,8 +269,8 @@ void win32_fatal_raw_sockets(const char *devname) {
 static void print_iflist_pcap_mapping(const struct interface_info *iflist,
                                       int numifs) {
   pcap_if_t *pcap_ifs;
-  list<const pcap_if_t *> leftover_pcap_ifs;
-  list<const pcap_if_t *>::iterator leftover_p;
+  std::list<const pcap_if_t *> leftover_pcap_ifs;
+  std::list<const pcap_if_t *>::iterator leftover_p;
   int i;
 
   /* Build a list of "leftover" libpcap interfaces. Initially it contains all
@@ -297,7 +291,7 @@ static void print_iflist_pcap_mapping(const struct interface_info *iflist,
 
       if (DnetName2PcapName(iflist[i].devname, pcap_name, sizeof(pcap_name))) {
         /* We got a name. Remove it from the list of leftovers. */
-        list<const pcap_if_t *>::iterator next;
+        std::list<const pcap_if_t *>::iterator next;
         for (leftover_p = leftover_pcap_ifs.begin();
              leftover_p != leftover_pcap_ifs.end(); leftover_p = next) {
           next = leftover_p;
@@ -425,16 +419,46 @@ int print_iflist(void) {
 }
 
 #ifndef NOLUA
+/* Escape control characters to make a string safe to display on a terminal. */
+static std::string escape_for_screen(const std::string s) {
+  std::string r;
+
+  for (unsigned int i = 0; i < s.size(); i++) {
+    char buf[5];
+    unsigned char c = s[i];
+    if (c == '\t' || c == '\r' || c == '\n' || (0x20 <= c && c <= 0x7e)) {
+      r += c;
+    } else {
+      Snprintf(buf, sizeof(buf), "\\x%02X", c);
+      r += buf;
+    }
+  }
+
+  return r;
+}
+
+/* Do something to protect characters that can't appear in XML. This is not a
+   reversible transform, more a last-ditch effort to write readable XML with
+   characters that shouldn't be part of regular output anyway. The escaping that
+   xml_write_escaped is not enough; some characters are not allowed to appear in
+   XML, not even escaped. */
+std::string protect_xml(const std::string s) {
+  /* escape_for_screen is good enough. */
+  return escape_for_screen(s);
+}
+
 static char *formatScriptOutput(ScriptResult sr) {
   std::vector<std::string> lines;
 
-  const char *c_output;
+  std::string c_output;
   const char *p, *q;
   std::string result;
   unsigned int i;
 
-  c_output = sr.get_output();
-  p = c_output;
+  c_output = escape_for_screen(sr.get_output_str());
+  if (c_output.empty())
+    return NULL;
+  p = c_output.c_str();
 
   while (*p != '\0') {
     q = strchr(p, '\n');
@@ -471,14 +495,11 @@ static char *formatScriptOutput(ScriptResult sr) {
    should write helper functions to handle the table creation */
 void printportoutput(Target *currenths, PortList *plist) {
   char protocol[MAX_IPPROTOSTRLEN + 1];
-  char rpcinfo[64];
-  char rpcmachineinfo[64];
   char portinfo[64];
   char grepvers[256];
   char *p;
   const char *state;
   char serviceinfo[64];
-  char *name = NULL;
   int i;
   int first = 1;
   struct protoent *proto;
@@ -498,7 +519,7 @@ void printportoutput(Target *currenths, PortList *plist) {
   int numignoredports = plist->numIgnoredPorts();
   int numports = plist->numPorts();
 
-  vector<const char *> saved_servicefps;
+  std::vector<const char *> saved_servicefps;
 
   if (o.noportscan)
     return;
@@ -647,7 +668,7 @@ void printportoutput(Target *currenths, PortList *plist) {
         if (o.reason)
           Tbl->addItem(rowno, reasoncol, true, port_reason_str(current->reason));
         state = statenum2str(current->state);
-        proto = nmap_getprotbynum(htons(current->portno));
+        proto = nmap_getprotbynum(current->portno);
         Snprintf(portinfo, sizeof(portinfo), "%s", proto ? proto->p_name : "unknown");
         Tbl->addItemFormatted(rowno, portcol, false, "%d", current->portno);
         Tbl->addItem(rowno, statecol, true, state);
@@ -662,8 +683,11 @@ void printportoutput(Target *currenths, PortList *plist) {
         xml_attribute("state", "%s", state);
         xml_attribute("reason", "%s", reason_str(current->reason.reason_id, SINGULAR));
         xml_attribute("reason_ttl", "%d", current->reason.ttl);
-        if (current->reason.ip_addr.ss_family != AF_UNSPEC)
-          xml_attribute("reason_ip", "%s", inet_ntop_ez(&current->reason.ip_addr, sizeof(current->reason.ip_addr)));
+        if (current->reason.ip_addr.sockaddr.sa_family != AF_UNSPEC) {
+          struct sockaddr_storage ss;
+          memcpy(&ss, &current->reason.ip_addr, sizeof(current->reason.ip_addr));
+          xml_attribute("reason_ip", "%s", inet_ntop_ez(&ss, sizeof(ss)));
+        }
         xml_close_empty_tag();
 
         if (proto && proto->p_name && *proto->p_name) {
@@ -696,41 +720,7 @@ void printportoutput(Target *currenths, PortList *plist) {
         if (sd.service_fp && saved_servicefps.size() <= 8)
           saved_servicefps.push_back(sd.service_fp);
 
-        switch (sd.rpc_status) {
-        case RPC_STATUS_UNTESTED:
-          rpcinfo[0] = '\0';
-          strcpy(rpcmachineinfo, "");
-          break;
-        case RPC_STATUS_UNKNOWN:
-          strcpy(rpcinfo, "(RPC (Unknown Prog #))");
-          strcpy(rpcmachineinfo, "R");
-          break;
-        case RPC_STATUS_NOT_RPC:
-          rpcinfo[0] = '\0';
-          strcpy(rpcmachineinfo, "N");
-          break;
-        case RPC_STATUS_GOOD_PROG:
-          name = nmap_getrpcnamebynum(sd.rpc_program);
-          Snprintf(rpcmachineinfo, sizeof(rpcmachineinfo),
-                   "(%s:%li*%i-%i)", (name) ? name : "", sd.rpc_program,
-                   sd.rpc_lowver, sd.rpc_highver);
-          if (!name) {
-            Snprintf(rpcinfo, sizeof(rpcinfo), "(#%li (unknown) V%i-%i)",
-                     sd.rpc_program, sd.rpc_lowver, sd.rpc_highver);
-          } else {
-            if (sd.rpc_lowver == sd.rpc_highver) {
-              Snprintf(rpcinfo, sizeof(rpcinfo), "(%s V%i)", name,
-                       sd.rpc_lowver);
-            } else
-              Snprintf(rpcinfo, sizeof(rpcinfo), "(%s V%i-%i)", name,
-                       sd.rpc_lowver, sd.rpc_highver);
-          }
-          break;
-        default:
-          fatal("Unknown rpc_status %d", sd.rpc_status);
-          break;
-        }
-        current->getNmapServiceName(serviceinfo, sizeof(serviceinfo), rpcinfo);
+        current->getNmapServiceName(serviceinfo, sizeof(serviceinfo));
 
         Tbl->addItem(rowno, portcol, true, portinfo);
         Tbl->addItem(rowno, statecol, false, state);
@@ -739,14 +729,14 @@ void printportoutput(Target *currenths, PortList *plist) {
           Tbl->addItem(rowno, reasoncol, true, port_reason_str(current->reason));
 
         sd.populateFullVersionString(fullversion, sizeof(fullversion));
-        if (*fullversion)
+        if (*fullversion && versioncol > 0)
           Tbl->addItem(rowno, versioncol, true, fullversion);
 
         // How should we escape illegal chars in grepable output?
         // Well, a reasonably clean way would be backslash escapes
         // such as \/ and \\ .  // But that makes it harder to pick
         // out fields with awk, cut, and such.  So I'm gonna use the
-        // ugly hat (fitting to grepable output) or replacing the '/'
+        // ugly hack (fitting to grepable output) of replacing the '/'
         // character with '|' in the version field.
         Strncpy(grepvers, fullversion, sizeof(grepvers) / sizeof(*grepvers));
         p = grepvers;
@@ -763,8 +753,8 @@ void printportoutput(Target *currenths, PortList *plist) {
             p++;
           }
         }
-        log_write(LOG_MACHINE, "%d/%s/%s//%s/%s/%s/", current->portno,
-                  state, protocol, serviceinfo, rpcmachineinfo, grepvers);
+        log_write(LOG_MACHINE, "%d/%s/%s//%s/%s/", current->portno,
+                  state, protocol, serviceinfo, grepvers);
 
         xml_open_start_tag("port");
         xml_attribute("protocol", "%s", protocol);
@@ -774,8 +764,11 @@ void printportoutput(Target *currenths, PortList *plist) {
         xml_attribute("state", "%s", state);
         xml_attribute("reason", "%s", reason_str(current->reason.reason_id, SINGULAR));
         xml_attribute("reason_ttl", "%d", current->reason.ttl);
-        if (current->reason.ip_addr.ss_family != AF_UNSPEC)
-          xml_attribute("reason_ip", "%s", inet_ntop_ez(&current->reason.ip_addr, sizeof(current->reason.ip_addr)));
+        if (current->reason.ip_addr.sockaddr.sa_family != AF_UNSPEC) {
+          struct sockaddr_storage ss;
+          memcpy(&ss, &current->reason.ip_addr, sizeof(current->reason.ip_addr));
+          xml_attribute("reason_ip", "%s", inet_ntop_ez(&ss, sizeof(ss)));
+        }
         xml_close_empty_tag();
 
         if (sd.name || sd.service_fp || sd.service_tunnel != SERVICE_TUNNEL_NONE)
@@ -785,17 +778,17 @@ void printportoutput(Target *currenths, PortList *plist) {
 #ifndef NOLUA
         if (o.script) {
           ScriptResults::const_iterator ssr_iter;
-
+          //Sort the results before outputing them on the screen
+          current->scriptResults.sort(comparescriptids);
           for (ssr_iter = current->scriptResults.begin();
                ssr_iter != current->scriptResults.end(); ssr_iter++) {
-            xml_open_start_tag("script");
-            xml_attribute("id", "%s", ssr_iter->get_id());
-            xml_attribute("output", "%s", ssr_iter->get_output());
-            xml_close_empty_tag();
+            ssr_iter->write_xml();
 
             char *script_output = formatScriptOutput((*ssr_iter));
-            Tbl->addItem(rowno, 0, true, true, script_output);
-            free(script_output);
+            if (script_output != NULL) {
+              Tbl->addItem(rowno, 0, true, true, script_output);
+              free(script_output);
+            }
             rowno++;
           }
 
@@ -906,11 +899,9 @@ char *logfilename(const char *str, struct tm *tm) {
 }
 
 /* This is the workhorse of the logging functions.  Usually it is
-   called through log_write(), but it can be called directly if you
-   are dealing with a vfprintf-style va_list.  Unlike log_write, YOU
-   CAN ONLY CALL THIS WITH ONE LOG TYPE (not a bitmask full of them).
-   In addition, YOU MUST SANDWHICH EACH EXECUTION IF THIS CALL BETWEEN
-   va_start() AND va_end() calls. */
+   called through log_write(), but it can be called directly if you are dealing
+   with a vfprintf-style va_list. YOU MUST SANDWHICH EACH EXECUTION IF THIS CALL
+   BETWEEN va_start() AND va_end() calls. */
 void log_vwrite(int logt, const char *fmt, va_list ap) {
   char *writebuf;
   bool skid_noxlate = false;
@@ -918,51 +909,64 @@ void log_vwrite(int logt, const char *fmt, va_list ap) {
   int len;
   int fileidx = 0;
   int l;
+  int logtype;
   va_list apcopy;
 
-  if (logt == LOG_SKID_NOXLT) {
-    logt = LOG_SKID;
-    skid_noxlate = true;
-  }
+  for (logtype = 1; logtype <= LOG_MAX; logtype <<= 1) {
 
-  switch (logt) {
-  case LOG_STDOUT:
-    vfprintf(o.nmap_stdout, fmt, ap);
-    break;
+    if (!(logt & logtype))
+      continue;
 
-  case LOG_STDERR:
-    fflush(stdout); // Otherwise some systems will print stderr out of order
-    vfprintf(stderr, fmt, ap);
-    break;
+    switch (logtype) {
+      case LOG_STDOUT:
+        vfprintf(o.nmap_stdout, fmt, ap);
+        break;
 
-  case LOG_NORMAL:
-  case LOG_MACHINE:
-  case LOG_SKID:
-  case LOG_XML:
-    len = alloc_vsprintf(&writebuf, fmt, ap);
-    if (writebuf == NULL)
-      fatal("%s: alloc_vsprintf failed.", __func__);
-    l = logt;
-    fileidx = 0;
-    while ((l & 1) == 0) {
-      fileidx++;
-      l >>= 1;
+      case LOG_STDERR:
+        fflush(stdout); // Otherwise some systems will print stderr out of order
+        vfprintf(stderr, fmt, ap);
+        break;
+
+      case LOG_SKID_NOXLT:
+        skid_noxlate = true;
+        /* no break */
+      case LOG_NORMAL:
+      case LOG_MACHINE:
+      case LOG_SKID:
+      case LOG_XML:
+        len = alloc_vsprintf(&writebuf, fmt, ap);
+        if (writebuf == NULL)
+          fatal("%s: alloc_vsprintf failed.", __func__);
+        if (logtype == LOG_SKID_NOXLT)
+            l = LOG_SKID;
+        else
+            l = logtype;
+        fileidx = 0;
+        while ((l & 1) == 0) {
+          fileidx++;
+          l >>= 1;
+        }
+        assert(fileidx < LOG_NUM_FILES);
+        if (o.logfd[fileidx] && len) {
+          if ((logtype & (LOG_SKID|LOG_SKID_NOXLT)) && !skid_noxlate)
+            skid_output(writebuf);
+
+          rc = fwrite(writebuf, len, 1, o.logfd[fileidx]);
+          if (rc != 1) {
+            fatal("Failed to write %d bytes of data to (logt==%d) stream. fwrite returned %d.  Quitting.", len, logtype, rc);
+          }
+          va_end(apcopy);
+        }
+        free(writebuf);
+        break;
+  
+      default:
+        /* Unknown log type.
+         * ---
+         * Note that we're not calling fatal() here to avoid infinite call loop
+         * between fatal() and this log_vwrite() function. */
+        assert(0); /* We want people to report it. */
     }
-    assert(fileidx < LOG_NUM_FILES);
-    if (o.logfd[fileidx]) {
-      if (logt == LOG_SKID && !skid_noxlate)
-        skid_output(writebuf);
-      rc = fwrite(writebuf, len, 1, o.logfd[fileidx]);
-      if (rc != 1) {
-        fatal("Failed to write %d bytes of data to (logt==%d) stream. fwrite returned %d.  Quitting.", len, logt, rc);
-      }
-      va_end(apcopy);
-    }
-    free(writebuf);
-    break;
-
-  default:
-    fatal("%s(): Passed unknown log type (%d).  Note that this function, unlike log_write, can only handle one log type at a time (no bitmasks)", __func__, logt);
   }
 
   return;
@@ -1075,25 +1079,20 @@ int log_open(int logt, int append, char *filename) {
    rangelist to the log stream given (such as LOG_MACHINE or LOG_XML) */
 static void output_rangelist_given_ports(int logt, unsigned short *ports,
                                          int numports) {
-  int i, previous_port = -2, range_start = -2, port;
-  char outpbuf[128];
+  int start, end;
 
-  for (i = 0; i <= numports; i++) {
-    port = (i < numports) ? ports[i] : 0xABCDE;
-    if (port != previous_port + 1) {
-      outpbuf[0] = '\0';
-      if (range_start != previous_port && range_start != -2)
-        sprintf(outpbuf, "-%hu", previous_port);
-      if (port != 0xABCDE) {
-        if (range_start != -2)
-          strcat(outpbuf, ",");
-        sprintf(outpbuf + strlen(outpbuf), "%hu", port);
-      }
-      if (*outpbuf)
-        log_write(logt, "%s", outpbuf);
-      range_start = port;
-    }
-    previous_port = port;
+  start = 0;
+  while (start < numports) {
+    end = start;
+    while (end + 1 < numports && ports[end + 1] == ports[end] + 1)
+      end++;
+    if (start > 0)
+      log_write(logt, ",");
+    if (start == end)
+      log_write(logt, "%hu", ports[start]);
+    else
+      log_write(logt, "%hu-%hu", ports[start], ports[end]);
+    start = end + 1;
   }
 }
 
@@ -1138,7 +1137,7 @@ static void doscanflags() {
   };
 
   if (o.scanflags != -1) {
-    string flagstring;
+    std::string flagstring;
 
     for (unsigned int i = 0; i < sizeof(flags) / sizeof(flags[0]); i++) {
       if (o.scanflags & flags[i].flag)
@@ -1259,6 +1258,7 @@ static void write_xml_initial_hostinfo(Target *currenths,
   xml_open_start_tag("status");
   xml_attribute("state", "%s", status);
   xml_attribute("reason", "%s", reason_str(currenths->reason.reason_id, SINGULAR));
+  xml_attribute("reason_ttl", "%d", currenths->reason.ttl);
   xml_close_empty_tag();
   xml_newline();
   xml_open_start_tag("address");
@@ -1486,7 +1486,7 @@ static void printosclassificationoutput(const struct
   const char *cpes[MAX_OS_CLASSMEMBERS];
   char fullfamily[MAX_OS_CLASSMEMBERS][128];    // "[vendor] [os family]"
   double familyaccuracy[MAX_OS_CLASSMEMBERS];   // highest accuracy for this fullfamily
-  char familygenerations[MAX_OS_CLASSMEMBERS][48];      // example: "4.X|5.X|6.X"
+  char familygenerations[MAX_OS_CLASSMEMBERS][96];      // example: "4.X|5.X|6.X"
   int numtypes = 0, numcpes = 0, numfamilies = 0;
   char tmpbuf[1024];
 
@@ -1876,11 +1876,11 @@ void printosscanoutput(Target *currenths) {
         log_write(LOG_NORMAL | LOG_SKID_NOXLT | LOG_STDOUT,
                   "OS fingerprint not ideal because: %s\n", reason);
 
+      for (i = 0; i < 10 && i < FPR->num_matches && FPR->accuracy[i] > FPR->accuracy[0] - 0.10; i++)
+        write_xml_osmatch(FPR->matches[i], FPR->accuracy[i]);
+
       if ((o.osscan_guess || reason) && FPR->num_matches > 0) {
         /* Print the best guesses available */
-        for (i = 0; i < 10 && i < FPR->num_matches && FPR->accuracy[i] > FPR->accuracy[0] - 0.10; i++)
-          write_xml_osmatch(FPR->matches[i], FPR->accuracy[i]);
-
         log_write(LOG_PLAIN, "Aggressive OS guesses: %s (%.f%%)",
                   FPR->matches[0]->OS_name, floor(FPR->accuracy[0] * 100));
         for (i = 1; i < 10 && FPR->num_matches > i && FPR->accuracy[i] > FPR->accuracy[0] - 0.10; i++)
@@ -2170,7 +2170,9 @@ void printscriptresults(ScriptResults *scriptResults, stype scantype) {
   char *script_output;
 
   if (scriptResults->size() > 0) {
-    if (scantype == SCRIPT_PRE_SCAN) {
+      // No sense sorting if we don't need too
+      scriptResults->sort(comparescriptids);
+      if (scantype == SCRIPT_PRE_SCAN) {
       xml_start_tag("prescript");
       log_write(LOG_PLAIN, "Pre-scan script results:\n");
     }
@@ -2182,13 +2184,13 @@ void printscriptresults(ScriptResults *scriptResults, stype scantype) {
     for (iter = scriptResults->begin();
          iter != scriptResults->end();
          iter++) {
-      xml_open_start_tag("script");
-      xml_attribute("id", "%s", iter->get_id());
-      xml_attribute("output", "%s", iter->get_output());
-      xml_close_empty_tag();
+      iter->write_xml();
+
       script_output = formatScriptOutput((*iter));
-      log_write(LOG_PLAIN, "%s\n", script_output);
-      free(script_output);
+      if (script_output != NULL) {
+        log_write(LOG_PLAIN, "%s\n", script_output);
+        free(script_output);
+      }
     }
     xml_end_tag();
   }
@@ -2199,18 +2201,20 @@ void printhostscriptresults(Target *currenths) {
   char *script_output;
 
   if (currenths->scriptResults.size() > 0) {
+    //no point sorting an empty list
+    currenths->scriptResults.sort(comparescriptids);
     xml_start_tag("hostscript");
     log_write(LOG_PLAIN, "\nHost script results:\n");
     for (iter = currenths->scriptResults.begin();
          iter != currenths->scriptResults.end();
          iter++) {
-      xml_open_start_tag("script");
-      xml_attribute("id", "%s", iter->get_id());
-      xml_attribute("output", "%s", iter->get_output());
-      xml_close_empty_tag();
+      iter->write_xml();
+
       script_output = formatScriptOutput((*iter));
-      log_write(LOG_PLAIN, "%s\n", script_output);
-      free(script_output);
+      if (script_output != NULL) {
+        log_write(LOG_PLAIN, "%s\n", script_output);
+        free(script_output);
+      }
     }
     xml_end_tag();
   }
@@ -2222,7 +2226,7 @@ static void printtraceroute_normal(Target *currenths) {
   static const int HOP_COL = 0, RTT_COL = 1, HOST_COL = 2;
   NmapOutputTable Tbl(currenths->traceroute_hops.size() + 1, 3);
   struct probespec probe;
-  list<TracerouteHop>::iterator it;
+  std::list<TracerouteHop>::iterator it;
   int row;
 
   /* No trace, must be localhost. */
@@ -2242,7 +2246,7 @@ static void printtraceroute_normal(Target *currenths) {
     log_write(LOG_PLAIN, "TRACEROUTE (using port %d/%s)\n",
               probe.pd.sctp.dport, proto2ascii_lowercase(probe.proto));
   } else if (probe.type == PS_ICMP || probe.type == PS_ICMPV6 || probe.type == PS_PROTO) {
-    struct protoent *proto = nmap_getprotbynum(htons(probe.proto));
+    struct protoent *proto = nmap_getprotbynum(probe.proto);
     log_write(LOG_PLAIN, "TRACEROUTE (using proto %d/%s)\n",
               probe.proto, proto ? proto->p_name : "unknown");
   } else if (probe.type == PS_NONE) {
@@ -2329,7 +2333,7 @@ static void printtraceroute_normal(Target *currenths) {
 
 static void printtraceroute_xml(Target *currenths) {
   struct probespec probe;
-  list<TracerouteHop>::iterator it;
+  std::list<TracerouteHop>::iterator it;
 
   /* No trace, must be localhost. */
   if (currenths->traceroute_hops.size() == 0)
@@ -2349,7 +2353,7 @@ static void printtraceroute_xml(Target *currenths) {
     xml_attribute("port", "%d", probe.pd.sctp.dport);
     xml_attribute("proto", "%s", proto2ascii_lowercase(probe.proto));
   } else if (probe.type == PS_ICMP || probe.type == PS_PROTO) {
-    struct protoent *proto = nmap_getprotbynum(htons(probe.proto));
+    struct protoent *proto = nmap_getprotbynum(probe.proto);
     if (proto == NULL)
       xml_attribute("proto", "%d", probe.proto);
     else
@@ -2608,3 +2612,18 @@ void printdatafilepaths() {
     }
   }
 }
+
+/*This is a helper function to determine the ordering of the script results
+  based on their id */
+bool comparescriptids(ScriptResult first, ScriptResult second){
+    //Pull the two id fields out for comparison
+    std::string firstid(first.get_id());
+    std::string secondid(second.get_id());
+
+    if (firstid < secondid)
+        return true;
+    else
+        return false;
+}
+
+

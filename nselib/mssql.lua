@@ -2,7 +2,7 @@
 -- MSSQL Library supporting a very limited subset of operations.
 --
 -- The library was designed and tested against Microsoft SQL Server 2005.
--- However, it should work with versions 7.0, 2000, 2005 and 2008. 
+-- However, it should work with versions 7.0, 2000, 2005, 2008 and 2012. 
 -- Only a minimal amount of parsers have been added for tokens, column types
 -- and column data in order to support the first scripts.
 -- 
@@ -102,7 +102,20 @@
 --			listening on 43210/tcp, which was not scanned) will be reported but
 --			will not be stored for use by other ms-sql-* scripts.
 
-module(... or "mssql", package.seeall)
+local bin = require "bin"
+local bit = require "bit"
+local math = require "math"
+local match = require "match"
+local nmap = require "nmap"
+local os = require "os"
+local shortport = require "shortport"
+local smb = require "smb"
+local smbauth = require "smbauth"
+local stdnse = require "stdnse"
+local strbuf = require "strbuf"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("mssql", stdnse.seeall)
 
 -- Created 01/17/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 03/28/2010 - v0.2 - fixed incorrect token types. added 30 seconds timeout
@@ -117,15 +130,14 @@ module(... or "mssql", package.seeall)
 --								* added support for integrated NTLMv1 authentication
 --
 --								(Patrik Karlsson, Chris Woodbury)
+-- Revised 08/19/2012 - v0.6 - added multiple data types
+-- 								* added detection and handling of null values when processing query responses from the server
+--								* added DoneProc response token support
+--
+--								(Tom Sellers)
+-- Updated 10/01/2012 - v0.7 - added support for 2012 and later service packs for 2005, 2008 and 2008 R2 (Rob Nicholls)
 
-require("bit")
-require("bin")
-require("stdnse")
-require("strbuf")
-require("smb")
-require("smbauth")
-  
-HAVE_SSL = (nmap.have_ssl() and pcall(require, "openssl"))
+local HAVE_SSL, openssl = pcall(require, "openssl")
 
 do
   namedpipes = smb.namedpipes
@@ -306,7 +318,7 @@ SqlServerVersionInfo =
 		local VERSION_LOOKUP_TABLE = {
 			["^6%.0"] = "6.0", ["^6%.5"] = "6.5", ["^7%.0"] = "7.0", 
 			["^8%.0"] = "2000",	["^9%.0"] = "2005",	["^10%.0"] = "2008",
-			["^10%.50"] = "2008 R2", ["^11%.0"] = "2011",
+			["^10%.50"] = "2008 R2", ["^11%.0"] = "2012",
 		}
 		
 		local product = ""
@@ -343,11 +355,13 @@ SqlServerVersionInfo =
 		local SP_LOOKUP_TABLE_2000 = { {194, "RTM"}, {384, "SP1"}, {532, "SP2"}, {534, "SP2"}, {760, "SP3"},
 			{766, "SP3a"}, {767, "SP3/SP3a"}, {2039, "SP4"}, }
 		
-		local SP_LOOKUP_TABLE_2005 = { {1399, "RTM"}, {2047, "SP1"}, {3042, "SP2"}, {4035, "SP3"}, }
+		local SP_LOOKUP_TABLE_2005 = { {1399, "RTM"}, {2047, "SP1"}, {3042, "SP2"}, {4035, "SP3"}, {5000, "SP4"}, }
 		
-		local SP_LOOKUP_TABLE_2008 = { {1600, "RTM"}, {2531, "SP1"}, {4000, "SP2"}, }
+		local SP_LOOKUP_TABLE_2008 = { {1600, "RTM"}, {2531, "SP1"}, {4000, "SP2"}, {5500, "SP3"}, }
 		
-		local SP_LOOKUP_TABLE_2008R2 = { {1600, "RTM"}, {2500, "SP1"}, }
+		local SP_LOOKUP_TABLE_2008R2 = { {1600, "RTM"}, {2500, "SP1"}, {4000, "SP2"}, }
+
+		local SP_LOOKUP_TABLE_2012 = { {2100, "RTM"}, }
 	
 	
 		if ( not self.brandedVersion ) then
@@ -361,6 +375,7 @@ SqlServerVersionInfo =
 			elseif self.brandedVersion == "2005" then spLookupTable = SP_LOOKUP_TABLE_2005
 			elseif self.brandedVersion == "2008" then spLookupTable = SP_LOOKUP_TABLE_2008
 			elseif self.brandedVersion == "2008 R2" then spLookupTable = SP_LOOKUP_TABLE_2008R2
+			elseif self.brandedVersion == "2012" then spLookupTable = SP_LOOKUP_TABLE_2012
 		end
 		
 		return spLookupTable
@@ -668,30 +683,42 @@ PacketType =
 -- TDS response token types
 TokenType = 
 {
-	ReturnStatus = 0x79,
-	TDS7Results = 0x81,
-	ErrorMessage = 0xAA,
-	InformationMessage = 0xAB,
+	ReturnStatus         = 0x79,
+	TDS7Results          = 0x81,
+	ErrorMessage         = 0xAA,
+	InformationMessage   = 0xAB,
 	LoginAcknowledgement = 0xAD,
-	Row = 0xD1,
-	OrderBy = 0xA9,
-	EnvironmentChange = 0xE3,
-	NTLMSSP_CHALLENGE = 0xed,
-	Done = 0xFD,
-	DoneInProc = 0xFF,
+	Row                  = 0xD1,
+	OrderBy              = 0xA9,
+	EnvironmentChange    = 0xE3,
+	NTLMSSP_CHALLENGE    = 0xed,
+	Done                 = 0xFD,
+	DoneProc             = 0xFE,
+	DoneInProc           = 0xFF,
 }
 
 -- SQL Server/Sybase data types
 DataTypes = 
 {
-	SYBINTN = 0x26,
-	SYBINT2 = 0x34,
-	SYBINT4 = 0x38,
-	SYBDATETIME = 0x3D,
-	SYBDATETIMN = 0x6F,
+	SQLTEXT       = 0x23,
+	GUIDTYPE      = 0x24,
+	SYBINTN       = 0x26,
+	SYBINT2       = 0x34,
+	SYBINT4       = 0x38,
+	SYBDATETIME   = 0x3D,
+	NTEXTTYPE     = 0x63,
+	BITNTYPE      = 0x68,
+	DECIMALNTYPE  = 0x6A,
+	NUMERICNTYPE  = 0x6C,
+	FLTNTYPE      = 0x6D,
+	MONEYNTYPE    = 0x6E,
+	SYBDATETIMN   = 0x6F,
 	XSYBVARBINARY = 0xA5,
-	XSYBVARCHAR = 0xA7,
-	XSYBNVARCHAR = 0xE7,
+	XSYBVARCHAR   = 0xA7,
+	BIGBINARYTYPE = 0xAD,
+	BIGCHARTYPE   = 0xAF,
+	XSYBNVARCHAR  = 0xE7,
+	SQLNCHAR      = 0xEF,
 }
 
 -- SQL Server login error codes
@@ -722,22 +749,27 @@ ColumnInfo =
 
 	Parse =
 	{
-		[DataTypes.XSYBNVARCHAR] = function( data, pos )
+
+		[DataTypes.SQLTEXT] = function( data, pos )
 			local colinfo = {}
 			local tmp
 			
-			pos, colinfo.lts, colinfo.codepage, colinfo.flags, colinfo.charset, 
-			colinfo.msglen = bin.unpack("<SSSCC", data, pos )
+			pos, colinfo.unknown, colinfo.codepage, colinfo.flags, colinfo.charset = bin.unpack("<ISSC", data, pos )
+
+			pos, colinfo.tablenamelen = bin.unpack("s", data, pos )
+			pos, colinfo.tablename		= bin.unpack("A" .. (colinfo.tablenamelen * 2), data, pos)
+			pos, colinfo.msglen			  = bin.unpack("<C", data, pos )
 			pos, tmp = bin.unpack("A" .. (colinfo.msglen * 2), data, pos)
+
 			colinfo.text = Util.FromWideChar(tmp)
-		
+
 			return pos, colinfo
 		end,
-		
-		[DataTypes.SYBINT2] = function( data, pos )
-			return ColumnInfo.Parse[DataTypes.SYBDATETIME](data, pos)
+
+		[DataTypes.GUIDTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.SYBINTN](data, pos)
 		end,
-		
+
 		[DataTypes.SYBINTN] = function( data, pos )
 			local colinfo = {}
 			local tmp
@@ -745,25 +777,18 @@ ColumnInfo =
 			pos, colinfo.unknown, colinfo.msglen = bin.unpack("<CC", data, pos)
 			pos, tmp = bin.unpack("A" .. (colinfo.msglen * 2), data, pos )
 			colinfo.text = Util.FromWideChar(tmp)
-			
+
 			return pos, colinfo
 		end,
-		
+
+		[DataTypes.SYBINT2] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.SYBDATETIME](data, pos)
+		end,
+
 		[DataTypes.SYBINT4] = function( data, pos )
 			return ColumnInfo.Parse[DataTypes.SYBDATETIME](data, pos)
 		end,
-		
-		[DataTypes.XSYBVARBINARY] = function( data, pos )
-			local colinfo = {}
-			local tmp
 
-			pos, colinfo.lts, colinfo.msglen = bin.unpack("<SC", data, pos)
-			pos, tmp = bin.unpack("A" .. (colinfo.msglen * 2), data, pos )
-			colinfo.text = Util.FromWideChar(tmp)
-			
-			return pos, colinfo
-		end,
-		
 		[DataTypes.SYBDATETIME] = function( data, pos )
 			local colinfo = {}
 			local tmp
@@ -774,15 +799,82 @@ ColumnInfo =
 	
 			return pos, colinfo
 		end,
-		
+
+		[DataTypes.NTEXTTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.SQLTEXT](data, pos)
+		end,
+
+		[DataTypes.BITNTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.SYBINTN](data, pos)
+		end,
+
+		[DataTypes.DECIMALNTYPE] = function( data, pos )
+			local colinfo = {}
+			local tmp
+
+			pos, colinfo.unknown, colinfo.precision, colinfo.scale = bin.unpack("<CCC", data, pos)
+			pos, colinfo.msglen = bin.unpack("<C",data,pos)
+			pos, tmp = bin.unpack("A" .. (colinfo.msglen * 2), data, pos )
+			colinfo.text = Util.FromWideChar(tmp)
+
+			return pos, colinfo
+		end,
+
+		[DataTypes.NUMERICNTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.DECIMALNTYPE](data, pos)
+		end,
+
+		[DataTypes.FLTNTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.SYBINTN](data, pos)
+		end,
+
+		[DataTypes.MONEYNTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.SYBINTN](data, pos)
+		end,
+
 		[DataTypes.SYBDATETIMN] = function( data, pos )
 			return ColumnInfo.Parse[DataTypes.SYBINTN](data, pos)
 		end,
-		
+
+		[DataTypes.XSYBVARBINARY] = function( data, pos )
+			local colinfo = {}
+			local tmp
+
+			pos, colinfo.lts, colinfo.msglen = bin.unpack("<SC", data, pos)
+			pos, tmp = bin.unpack("A" .. (colinfo.msglen * 2), data, pos )
+			colinfo.text = Util.FromWideChar(tmp)
+			
+			return pos, colinfo
+		end,
+
 		[DataTypes.XSYBVARCHAR] = function( data, pos )
 			return ColumnInfo.Parse[DataTypes.XSYBNVARCHAR](data, pos)
 		end,
-			
+
+		[DataTypes.BIGBINARYTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.XSYBVARBINARY](data, pos)
+		end,
+
+		[DataTypes.BIGCHARTYPE] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.XSYBNVARCHAR](data, pos)
+		end,
+
+		[DataTypes.XSYBNVARCHAR] = function( data, pos )
+			local colinfo = {}
+			local tmp
+
+			pos, colinfo.lts, colinfo.codepage, colinfo.flags, colinfo.charset, 
+			colinfo.msglen = bin.unpack("<SSSCC", data, pos )
+			pos, tmp = bin.unpack("A" .. (colinfo.msglen * 2), data, pos)
+			colinfo.text = Util.FromWideChar(tmp)
+
+			return pos, colinfo
+		end,
+
+		[DataTypes.SQLNCHAR] = function( data, pos )
+			return ColumnInfo.Parse[DataTypes.XSYBNVARCHAR](data, pos)
+		end,
+  
 	}
 	
 }
@@ -791,32 +883,92 @@ ColumnInfo =
 ColumnData = 
 {
 	Parse = {
-		
-		[DataTypes.XSYBNVARCHAR] = function( data, pos )
-			local size, coldata
-			
-			pos, size = bin.unpack( "<S", data, pos )
-			pos, coldata = bin.unpack( "A"..size, data, pos )
 
-			return pos, Util.FromWideChar(coldata)
-		end,
-		
-		[DataTypes.XSYBVARCHAR] = function( data, pos )
-			local size, coldata
+		[DataTypes.SQLTEXT] = function( data, pos )
+			local len, coldata
 			
-			pos, size = bin.unpack( "<S", data, pos )
-			pos, coldata = bin.unpack( "A"..size, data, pos )
+			-- The first len value is the size of the meta data block
+			-- for non-null values this seems to be 0x10 / 16 bytes
+			pos, len = bin.unpack( "<C", data, pos )
+
+			if ( len == 0 ) then
+				return pos, 'Null'
+			end
+
+			-- Skip over the text update time and date values, we don't need them
+			-- We may come back add parsing for this information.
+			pos = pos + len 
+
+			-- skip a label, should be 'dummyTS'
+			pos = pos + 8
+
+			-- extract the actual data
+			pos, len = bin.unpack( "<I", data, pos )
+			pos, coldata = bin.unpack( "A"..len, data, pos )
 
 			return pos, coldata
 		end,
 
-		[DataTypes.XSYBVARBINARY] = function( data, pos )
-			local coldata, size
-
-			pos, size = bin.unpack( "<S", data, pos )
-			pos, coldata = bin.unpack( "A"..size, data, pos )
+		[DataTypes.GUIDTYPE] = function( data, pos )
+			local len, coldata, index, nextdata
+			local hex = {}
+			pos, len = bin.unpack("C", data, pos)
 			
-			return pos, "0x" .. select(2, bin.unpack("H"..coldata:len(), coldata ) )
+			if ( len == 0 ) then
+				return pos, 'Null'
+				
+			elseif ( len == 16 ) then
+				
+				-- Return the first 8 bytes
+				for index=1, 8 do
+					pos, hex[index] = bin.unpack("H", data, pos)
+				end
+				
+				-- reorder the bytes
+				coldata = hex[4] .. hex[3] .. hex[2] .. hex[1]
+				coldata = coldata .. '-' .. hex[6] .. hex[5]
+				coldata = coldata .. '-' .. hex[8] .. hex[7]
+				
+				pos, nextdata = bin.unpack("H2", data, pos)
+				coldata = coldata .. '-' .. nextdata		 
+				
+				pos, nextdata = bin.unpack("H6", data, pos)
+				coldata = coldata .. '-' .. nextdata
+			 
+			else
+				 stdnse.print_debug("Unhandled length (%d) for GUIDTYPE", len)
+				return pos + len, 'Unsupported Data'
+			end	
+
+			return pos, coldata
+		end,	
+		
+		[DataTypes.SYBINTN] = function( data, pos )
+			local len, num
+			pos, len = bin.unpack("C", data, pos)
+
+      if ( len == 0 ) then
+        return pos, 'Null'
+			elseif ( len == 1 ) then
+				return bin.unpack("C", data, pos)
+			elseif ( len == 2 ) then
+				return bin.unpack("<s", data, pos)
+			elseif ( len == 4 ) then
+				return bin.unpack("<i", data, pos)
+			elseif ( len == 8 ) then
+				return bin.unpack("<l", data, pos)
+			else
+				return -1, ("Unhandled length (%d) for SYBINTN"):format(len)
+			end
+
+			return -1, "Error"
+		end,
+		
+		[DataTypes.SYBINT2] = function( data, pos )
+			local num
+			pos, num = bin.unpack("<S", data, pos)
+			
+			return pos, num
 		end,
 		
 		[DataTypes.SYBINT4] = function( data, pos )
@@ -826,45 +978,257 @@ ColumnData =
 			return pos, num
 		end,
 
-		[DataTypes.SYBINT2] = function( data, pos )
-			local num
-			pos, num = bin.unpack("<S", data, pos)
+		[DataTypes.SYBDATETIME] = function( data, pos )
+			local hi, lo, result_seconds, result
+			local tds_epoch, system_epoch, tds_offset_seconds
+
+			pos, hi, lo = bin.unpack("<iI", data, pos)
+
+			tds_epoch = os.time( {year = 1900, month = 1, day = 1, hour = 00, min = 00, sec = 00, isdst = nil} )
+			-- determine the offset between the tds_epoch and the local system epoch
+			system_epoch       = os.time( os.date("*t", 0))
+			tds_offset_seconds = os.difftime(tds_epoch,system_epoch)
+ 
+			result_seconds = (hi*24*60*60) + (lo/300)
+
+			result = os.date("!%b %d, %Y %H:%M:%S", tds_offset_seconds + result_seconds )
+			return pos, result
+		end,
+ 
+		[DataTypes.NTEXTTYPE] = function( data, pos )
+			local len, coldata
+
+			-- The first len value is the size of the meta data block
+			pos, len = bin.unpack( "<C", data, pos )
+
+			if ( len == 0 ) then
+				return pos, 'Null'
+			end
+
+			-- Skip over the text update time and date values, we don't need them
+			-- We may come back add parsing for this information.
+			pos = pos + len 
+
+			-- skip a label, should be 'dummyTS'
+			pos = pos + 8
+
+			-- extract the actual data
+			pos, len = bin.unpack( "<I", data, pos )
+			pos, coldata = bin.unpack( "A"..len, data, pos )
+
+			return pos, Util.FromWideChar(coldata)
+		end,
+   
+		[DataTypes.BITNTYPE] = function( data, pos )
+			return ColumnData.Parse[DataTypes.SYBINTN](data, pos)
+		end,
+
+		[DataTypes.DECIMALNTYPE] = function( precision, scale, data, pos )
+			local len, sign, format_string, coldata
+
+			pos, len = bin.unpack("<C", data, pos)
+
+			if ( len == 0 ) then
+				return pos, 'Null'
+			end
+
+			pos, sign = bin.unpack("<C", data, pos)
+
+			-- subtract 1 from data len to account for sign byte
+			len = len - 1
+
+			if ( len == 2 ) then
+				pos, coldata = bin.unpack("<S", data, pos)
+			elseif ( len == 4 ) then
+				pos, coldata =	bin.unpack("<I", data, pos)
+			elseif ( len == 8 ) then
+				pos, coldata =	bin.unpack("<L", data, pos)
+			else
+				stdnse.print_debug("Unhandled length (%d) for DECIMALNTYPE", len)
+				return pos + len, 'Unsupported Data'
+			end
+
+			if ( sign == 0 ) then
+				coldata = coldata * -1
+			end
 			
-			return pos, num
+			coldata = coldata * (10^-scale)
+			-- format the return information to reduce truncation by lua
+			format_string = string.format("%%.%if", scale)
+			coldata = string.format(format_string,coldata)
+			
+			return pos, coldata
 		end,
 		
-		[DataTypes.SYBINTN] = function( data, pos )
-			local len, num
+		[DataTypes.NUMERICNTYPE] = function( precision, scale, data, pos )
+			return ColumnData.Parse[DataTypes.DECIMALNTYPE]( precision, scale, data, pos )
+		end,
+ 
+		[DataTypes.SYBDATETIME] = function( data, pos )
+			local hi, lo, result_seconds, result
+			local tds_epoch, system_epoch, tds_offset_seconds
+
+			pos, hi, lo = bin.unpack("<iI", data, pos)
+
+			tds_epoch = os.time( {year = 1900, month = 1, day = 1, hour = 00, min = 00, sec = 00, isdst = nil} )
+			-- determine the offset between the tds_epoch and the local system epoch
+			system_epoch       = os.time( os.date("*t", 0))
+			tds_offset_seconds = os.difftime(tds_epoch,system_epoch)
+ 
+			result_seconds = (hi*24*60*60) + (lo/300)
+
+			result = os.date("!%b %d, %Y %H:%M:%S", tds_offset_seconds + result_seconds )
+			return pos, result
+		end,
+ 
+		[DataTypes.BITNTYPE] = function( data, pos )
+			return ColumnData.Parse[DataTypes.SYBINTN](data, pos)
+		end,
+
+		[DataTypes.NTEXTTYPE] = function( data, pos )
+		local len, coldata
+
+			-- The first len value is the size of the meta data block
+			pos, len = bin.unpack( "<C", data, pos )
+
+			if ( len == 0 ) then
+				return pos, 'Null'
+			end
+
+			-- Skip over the text update time and date values, we don't need them
+			-- We may come back add parsing for this information.
+			pos = pos + len 
+
+			-- skip a label, should be 'dummyTS'
+			pos = pos + 8
+
+			-- extract the actual data
+			pos, len = bin.unpack( "<I", data, pos )
+			pos, coldata = bin.unpack( "A"..len, data, pos )
+
+			return pos, Util.FromWideChar(coldata)
+		end,
+
+		[DataTypes.FLTNTYPE] = function( data, pos )
+			local len, coldata
+			pos, len = bin.unpack("<C", data, pos)
+
+			if ( len == 0 ) then
+				return pos, 'Null'
+			elseif ( len == 4 ) then
+				pos, coldata = bin.unpack("f", data, pos)
+			elseif ( len == 8 ) then
+				pos, coldata = bin.unpack("<d", data, pos)
+			end
+
+			return pos, coldata
+		end,
+
+		[DataTypes.MONEYNTYPE] = function( data, pos )
+			local len, value, coldata, hi, lo
 			pos, len = bin.unpack("C", data, pos)
 
-			if ( len == 1 ) then
-				return bin.unpack("C", data, pos)
-			elseif ( len == 2 ) then
-				return bin.unpack("<S", data, pos)
-			elseif ( len == 4 ) then
-				return bin.unpack("<I", data, pos)
+			if ( len == 0 ) then
+				return pos, 'Null'
+			elseif (	len == 4 ) then
+				--type smallmoney
+				pos, value =	bin.unpack("<i", data, pos)
 			elseif ( len == 8 ) then
-				return bin.unpack("<L", data, pos)
+				-- type money
+				pos, hi,lo = bin.unpack("<II", data, pos)
+				value = ( hi * 4294967296 ) + lo
 			else
-				return -1, ("Unhandled length (%d) for SYBINTN"):format(len)
+				return -1, ("Unhandled length (%d) for MONEYNTYPE"):format(len)
+			end
+
+			-- the datatype allows for 4 decimal places after the period to support various currency types.
+			-- forcing to string to avoid truncation
+			coldata = string.format("%.4f",value/10000)
+
+			return pos, coldata
+		end,
+
+		[DataTypes.SYBDATETIMN] = function( data, pos )
+			local len, coldata
+
+			pos, len = bin.unpack( "<C", data, pos )
+
+			if ( len == 0 ) then
+				return pos, 'Null'
+			elseif ( len == 4 ) then
+				-- format is smalldatetime
+				local days, mins
+				pos, days, mins = bin.unpack("<SS", data, pos)
+				
+				local tds_epoch = os.time( {year = 1900, month = 1, day = 1, hour = 00, min = 00, sec = 00, isdst = nil} )
+				-- determine the offset between the tds_epoch and the local system epoch
+				local system_epoch			 = os.time( os.date("*t", 0))
+				local tds_offset_seconds = os.difftime(tds_epoch,system_epoch)
+
+				local result_seconds = (days*24*60*60) + (mins*60)
+				coldata = os.date("!%b %d, %Y %H:%M:%S", tds_offset_seconds + result_seconds )
+				
+				return pos,coldata
+				
+			elseif ( len == 8 ) then
+				-- format is datetime
+				return ColumnData.Parse[DataTypes.SYBDATETIME](data, pos)
+			else
+				return -1, ("Unhandled length (%d) for SYBDATETIMN"):format(len)
+			end
+		 
+		end,
+
+		[DataTypes.XSYBVARBINARY] = function( data, pos )
+			local len, coldata
+
+			pos, len = bin.unpack( "<S", data, pos )
+
+			if ( len == 65535 ) then
+				return pos, 'Null'
+			else
+				pos, coldata = bin.unpack( "A"..len, data, pos )
+				return pos, "0x" .. select(2, bin.unpack("H"..coldata:len(), coldata ) )
 			end
 
 			return -1, "Error"
 		end,
-		
-		[DataTypes.SYBDATETIME] = function( data, pos )
-			local hi, lo, dt, result
-			pos, hi, lo = bin.unpack("<II", data, pos)
+  
+		[DataTypes.XSYBVARCHAR] = function( data, pos )
+			local len, coldata
 
-			-- CET 01/01/1900
-			dt = -2208996000
-			result = os.date("%x %X", dt + (hi*24*60*60) + (lo/300) )
-			
-			return pos, result
+			pos, len = bin.unpack( "<S", data, pos )
+			if ( len == 65535 ) then
+				return pos, 'Null'
+			end
+
+			pos, coldata = bin.unpack( "A"..len, data, pos )
+
+			return pos, coldata
 		end,
 
-		[DataTypes.SYBDATETIMN] = function( data, pos )
-			return ColumnData.Parse[DataTypes.SYBINTN]( data, pos )
+		[DataTypes.BIGBINARYTYPE] = function( data, pos )
+			return ColumnData.Parse[DataTypes.XSYBVARBINARY](data, pos)
+		end,
+
+		[DataTypes.BIGCHARTYPE] = function( data, pos )
+			return ColumnData.Parse[DataTypes.XSYBVARCHAR](data, pos)
+		end,
+
+		[DataTypes.XSYBNVARCHAR] = function( data, pos )
+			local len, coldata
+
+			pos, len = bin.unpack( "<S", data, pos )
+			if ( len == 65535 ) then
+				return pos, 'Null'
+			end
+			pos, coldata = bin.unpack( "A"..len, data, pos )
+
+			return pos, Util.FromWideChar(coldata)
+		end,
+
+		[DataTypes.SQLNCHAR] = function( data, pos )
+			return ColumnData.Parse[DataTypes.XSYBNVARCHAR](data, pos)
 		end,
 
 	}
@@ -961,6 +1325,21 @@ Token =
 			
 			return pos, token
 		end,
+
+		--- Parses a DoneProc token recieved after executing a SP
+		--
+		-- @param data string containing "raw" data
+		-- @param pos number containing offset into data
+		-- @return pos number containing new offset after parse
+		-- @return token table containing token specific fields				
+		[TokenType.DoneProc] = function( data, pos )
+			local token
+			pos, token = Token.Parse[TokenType.Done]( data, pos )
+			token.type = TokenType.DoneProc
+			
+			return pos, token
+		end,
+
 		
 		--- Parses a DoneInProc token recieved after executing a SP
 		--
@@ -1014,22 +1393,21 @@ Token =
 		[TokenType.TDS7Results] = function( data, pos )
 			local token = {}
 			local _
-			
+
 			token.type = TokenType.TDS7Results
 			pos, token.count = bin.unpack( "<S", data, pos )
 			token.colinfo = {}
-			
+
 			for i=1, token.count do
 				local colinfo = {}
 				local usertype, flags, ttype
-				
+
 				pos, usertype, flags, ttype = bin.unpack("<SSC", data, pos )
 				if ( not(ColumnInfo.Parse[ttype]) ) then
 					return -1, ("Unhandled data type: 0x%X"):format(ttype)
 				end
-								
+
 				pos, colinfo = ColumnInfo.Parse[ttype]( data, pos )
-				
 				colinfo.usertype = usertype
 				colinfo.flags = flags
 				colinfo.type = ttype
@@ -1819,7 +2197,7 @@ TDSStream = {
 			pos, spid, self._packetId, window = bin.unpack(">SCC", readBuffer, pos )
 			
 			-- TDS packet validity check: packet type is Response (0x4)
-			if ( packetType ~= mssql.PacketType.Response ) then
+			if ( packetType ~= PacketType.Response ) then
 				stdnse.print_debug( 2, "%s: Receiving (%s): Expected type 0x4 (response), but received type 0x%x",
 					"MSSQL", self._name, packetType )
 				return false, "Server returned invalid packet"
@@ -2005,7 +2383,7 @@ Helper =
 		  				-- Give some version info back to Nmap
 		  				if ( instance.port and instance.version ) then
 							instance.version:PopulateNmapPortVersion( instance.port )
-							--nmap.set_port_version( instance.host, instance.port, "hardmatched" )
+							--nmap.set_port_version( instance.host, instance.port)
 						end
 		  			end
 	  			end
@@ -2023,7 +2401,7 @@ Helper =
 	  				-- Give some version info back to Nmap
 	  				if ( instance.port and instance.version ) then
 						instance.version:PopulateNmapPortVersion( instance.port )
-						nmap.set_port_version( host, instance.port, "hardmatched" )
+						nmap.set_port_version( host, instance.port)
 					end
 	  			end
 	  			
@@ -2046,15 +2424,15 @@ Helper =
 	DiscoverByTcp = function( host, port )
 		local version, instance, status
 		-- Check to see if we've already discovered an instance on this port
-		instance = mssql.Helper.GetDiscoveredInstances( host, port )
+		instance = Helper.GetDiscoveredInstances( host, port )
 		if ( not instance ) then
-			instance =  mssql.SqlServerInstanceInfo:new()
+			instance =  SqlServerInstanceInfo:new()
 			instance.host = host
 			instance.port = port
 			
-			status, version = mssql.Helper.GetInstanceVersion( instance )
+			status, version = Helper.GetInstanceVersion( instance )
 			if ( status ) then
-				mssql.Helper.AddOrMergeInstance( instance )
+				Helper.AddOrMergeInstance( instance )
 				-- The point of this wasn't to get the version, just to use the
 				-- pre-login packet to determine whether there was a SQL Server on
 				-- the port. However, since we have the version now, we'll store it.
@@ -2062,7 +2440,7 @@ Helper =
 				-- Give some version info back to Nmap
 				if ( instance.port and instance.version ) then
 					instance.version:PopulateNmapPortVersion( instance.port )
-					nmap.set_port_version( host, instance.port, "hardmatched" )
+					nmap.set_port_version( host, instance.port)
 				end
 			end
 		end
@@ -2417,7 +2795,13 @@ Helper =
 					local val
 				
 					if ( ColumnData.Parse[colinfo[i].type] ) then
-						pos, val = ColumnData.Parse[colinfo[i].type](data, pos)
+						if not ( colinfo[i].type == 106 or colinfo[i].type == 108) then
+							pos, val = ColumnData.Parse[colinfo[i].type](data, pos)
+						else
+							-- decimal / numeric types need precision and scale passed.
+							pos, val = ColumnData.Parse[colinfo[i].type]( colinfo[i].precision,  colinfo[i].scale, data, pos)
+						end
+
 						if ( -1 == pos ) then
 							return false, val
 						end
@@ -2582,6 +2966,39 @@ Helper =
 		end
 	end,
 	
+	--- Queries the SQL Browser service for the DAC port of the specified instance
+	--  The DAC (Dedicated Admin Connection) port allows DBA's to connect to
+	--  the database when normal connection attempts fail, for example, when
+	--  the server is hanging, out of memory or other bad states.
+	--
+	--	@param host Host table as received by the script action function
+	--  @param instanceName the instance name to probe for a DAC port
+	--  @return number containing the DAC port on success or nil on failure
+	DiscoverDACPort = function(host, instanceName)
+		local socket = nmap.new_socket()
+		socket:set_timeout(5000)
+
+		if ( not(socket:connect(host, 1434, "udp")) ) then
+			return false, "Failed to connect to sqlbrowser service"
+		end
+		
+		if ( not(socket:send(bin.pack("Hz", "0F01", instanceName))) ) then
+			socket:close()
+			return false, "Failed to send request to sqlbrowser service"
+		end
+		
+		local status, data = socket:receive_buf(match.numbytes(6), true)
+		if ( not(status) ) then
+			socket:close()
+			return nil
+		end
+		socket:close()
+
+		if ( #data < 6 ) then
+			return nil
+		end
+		return select(2, bin.unpack("<S", data, 5))
+	end,
 	
 	---	Returns a hostrule for standard SQL Server scripts, which will return
 	--	true if one or more instances have been targeted with the <code>mssql.instance</code>
@@ -2736,7 +3153,9 @@ Util =
 		
 		if ( with_headers and tbl.rows and #tbl.rows > 0 ) then
 			local headers
-			table.foreach( tbl.colinfo, function( k, v ) table.insert( col_names, v.text) end)
+			for k, v in pairs( tbl.colinfo ) do
+				table.insert( col_names, v.text)
+			end
 			headers = stdnse.strjoin("\t", col_names)
 			table.insert( new_tbl, headers)
 			headers = headers:gsub("[^%s]", "=")
@@ -2750,3 +3169,5 @@ Util =
 		return new_tbl
 	end,
 }
+
+return _ENV;

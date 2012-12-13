@@ -1,3 +1,11 @@
+local _G = require "_G"
+local bin = require "bin"
+local coroutine = require "coroutine"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[ 
 Sniffs the network for incoming broadcast communication and
 attempts to decode the received packets. It supports protocols like CDP, HSRP,
@@ -75,9 +83,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 
-require('packet')
-require('tab')
-require('nmap')
 
 
 prerule = function()
@@ -103,16 +108,16 @@ loadDecoders = function(fname)
 		return false, ("ERROR: Failed to load decoder definition (%s)"):format(fname)
 	end
 
-	local file = loadfile(abs_fname)
+	local env = setmetatable({Decoders = {}}, {__index = _G});
+	local file = loadfile(abs_fname, "t", env)
 	if(not(file)) then
 		stdnse.print_debug("%s: Couldn't load decoder file: %s", SCRIPT_NAME, fname)
 		return false, "ERROR: Couldn't load decoder file: " .. fname
 	end
 	
-	setfenv(file, setmetatable({Decoders = {}; }, {__index = _G}))
 	file()
 
-	local d = getfenv(file)["Decoders"]
+	local d = env.Decoders
 
 	if ( d ) then return true, d end
 	return false, "ERROR: Failed to load decoders"
@@ -200,7 +205,7 @@ end
 getInterfaces = function(link, up)
 	if( not(nmap.list_interfaces) ) then return end
 	local interfaces, err = nmap.list_interfaces()
-	local result
+	local result = {}
 	if ( not(err) ) then
 		for _, iface in ipairs(interfaces) do
 			if ( iface.link == link and 
@@ -209,7 +214,6 @@ getInterfaces = function(link, up)
 				
 				-- exclude ipv6 addresses for now
 				if ( not(iface.address:match(":")) ) then
-					result = result or {}
 					table.insert(result, { name = iface.device, 
 										address = iface.address } )
 				end
@@ -261,11 +265,13 @@ action = function()
 	
 	-- wait for all threads to finish sniffing
     repeat
-		condvar "wait"
 		for thread in pairs(threads) do
 			if coroutine.status(thread) == "dead" then
 				threads[thread] = nil
 			end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until next(threads) == nil
 

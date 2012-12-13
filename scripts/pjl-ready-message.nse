@@ -1,3 +1,6 @@
+local nmap = require "nmap"
+local shortport = require "shortport"
+
 description = [[
 Retrieves or sets the ready message on printers that support the Printer
 Job Language. This includes most PostScript printers that listen on port
@@ -21,8 +24,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"intrusive"}
 
-require "nmap"
-require "shortport"
 portrule = shortport.port_or_service(9100, "jetdirect")
 
 local function parse_response(response)
@@ -51,9 +52,10 @@ action = function(host, port)
 
 	local socket = nmap.new_socket()
 	socket:set_timeout(15000)
-	try = nmap.new_try(function() socket:close() end)
+	local try = nmap.new_try(function() socket:close() end)
 	try(socket:connect(host, port))
 	try(socket:send(statusmsg))		--this block gets the current display status
+	local data
 	response,data=socket:receive()  
 	if not response then			--send an initial probe. If no response, send nothing further. 
 		socket:close()

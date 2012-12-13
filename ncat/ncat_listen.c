@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.c 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: ncat_listen.c 30322 2012-11-29 19:38:48Z david $ */
 
 #include "ncat.h"
 
@@ -110,9 +110,21 @@
 #include <fcntl.h>
 #endif
 
+#if HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
+
 #ifdef HAVE_OPENSSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#endif
+
+#ifdef WIN32
+/* Define missing constant for shutdown(2).
+ * See:
+ * http://msdn.microsoft.com/en-us/library/windows/desktop/ms740481%28v=vs.85%29.aspx
+ */
+#define SHUT_WR SD_SEND
 #endif
 
 /* read_fds is the clients we are accepting data from. broadcast_fds is the
@@ -142,6 +154,7 @@ static int read_stdin(void);
 static int read_socket(int recv_fd);
 static void post_handle_connection(struct fdinfo sinfo);
 static void read_and_broadcast(int recv_socket);
+static void shutdown_sockets(int how);
 static int chat_announce_connect(int fd, const union sockaddr_u *su);
 static int chat_announce_disconnect(int fd);
 static char *chat_filter(char *buf, size_t size, int fd, int *nwritten);
@@ -155,7 +168,8 @@ static unsigned int conn_inc = 0;
 static volatile unsigned int conn_dec = 0;
 static volatile sig_atomic_t conn_dec_changed;
 
-static void decrease_conn_count(void) {
+static void decrease_conn_count(void)
+{
     conn_dec_changed = 1;
     conn_dec++;
 }
@@ -279,7 +293,7 @@ static int ncat_listen_stream(int proto)
                 FD_CLR(i, &master_readfds);
                 FD_CLR(i, &master_writefds);
                 fdi = get_fdinfo(&client_fdlist, i);
-                switch(ssl_handshake(fdi)){
+                switch (ssl_handshake(fdi)) {
                 case NCAT_SSL_HANDSHAKE_COMPLETED:
                     /* Clear from sslpending_fds once ssl is established */
                     FD_CLR(i, &sslpending_fds);
@@ -312,22 +326,26 @@ static int ncat_listen_stream(int proto)
                 /* we have a new connection request */
                 handle_connection(i);
             } else if (i == STDIN_FILENO) {
-                if(o.broker) {
+                if (o.broker) {
                     read_and_broadcast(i);
-                }else {
+                } else {
                     /* Read from stdin and write to all clients. */
                     rc = read_stdin();
-                    if (rc == 0 && o.sendonly)
-                        /* There will be nothing more to send. If we're not
-                           receiving anything, we can quit here. */
-                        return 0;
+                    if (rc == 0) {
+                        if (o.sendonly) {
+                            /* There will be nothing more to send. If we're not
+                               receiving anything, we can quit here. */
+                            return 0;
+                        }
+                        shutdown_sockets(SHUT_WR);
+                    }
                     if (rc < 0)
                         return 1;
                 }
             } else if (!o.sendonly) {
-                if(o.broker) {
+                if (o.broker) {
                     read_and_broadcast(i);
-                }else {
+                } else {
                     /* Read from a client and write to stdout. */
                     rc = read_socket(i);
                     if (rc <= 0 && !o.keepopen)
@@ -353,8 +371,10 @@ static void handle_connection(int socket_accept)
     int conn_count;
 
     zmem(&s, sizeof(s));
+    zmem(&remoteaddr, sizeof(remoteaddr.storage));
 
     ss_len = sizeof(remoteaddr.storage);
+
     errno = 0;
     s.fd = accept(socket_accept, &remoteaddr.sockaddr, &ss_len);
 
@@ -367,13 +387,18 @@ static void handle_connection(int socket_accept)
     }
 
     if (o.verbose) {
+#if HAVE_SYS_UN_H
+        if (remoteaddr.sockaddr.sa_family == AF_UNIX)
+            loguser("Connection from a client on Unix domain socket.\n");
+        else
+#endif
         if (o.chat)
             loguser("Connection from %s on file descriptor %d.\n", inet_socktop(&remoteaddr), s.fd);
         else
             loguser("Connection from %s.\n", inet_socktop(&remoteaddr));
     }
 
-    if (!o.keepopen && !o.broker)  {
+    if (!o.keepopen && !o.broker) {
         int i;
         for (i = 0; i < num_listenaddrs; i++) {
             Close(listen_socket[i]);
@@ -382,8 +407,14 @@ static void handle_connection(int socket_accept)
         }
     }
 
-    if (o.verbose)
-        loguser("Connection from %s:%hu.\n", inet_socktop(&remoteaddr), inet_port(&remoteaddr));
+    if (o.verbose) {
+#if HAVE_SYS_UN_H
+        if (remoteaddr.sockaddr.sa_family == AF_UNIX)
+            loguser("Connection from %s.\n", remoteaddr.un.sun_path);
+        else
+#endif
+            loguser("Connection from %s:%hu.\n", inet_socktop(&remoteaddr), inet_port(&remoteaddr));
+    }
 
     /* Check conditions that might cause us to deny the connection. */
     conn_count = get_conn_count();
@@ -406,7 +437,7 @@ static void handle_connection(int socket_accept)
 
     unblock_socket(s.fd);
 
- #ifdef HAVE_OPENSSL
+#ifdef HAVE_OPENSSL
     if (o.ssl) {
         /* Add the socket to the necessary descriptor lists. */
         FD_SET(s.fd, &sslpending_fds);
@@ -416,7 +447,7 @@ static void handle_connection(int socket_accept)
         if (add_fdinfo(&client_fdlist, &s) < 0)
             bye("add_fdinfo() failed.");
     } else
- #endif
+#endif
         post_handle_connection(s);
 }
 
@@ -442,11 +473,11 @@ static void post_handle_connection(struct fdinfo sinfo)
             FD_SET(sinfo.fd, &master_readfds);
             /* add it to our list of fds for maintaining maxfd */
             if (add_fdinfo(&client_fdlist, &sinfo) < 0)
-                 bye("add_fdinfo() failed.");
+                bye("add_fdinfo() failed.");
         }
         FD_SET(sinfo.fd, &master_broadcastfds);
         if (add_fdinfo(&broadcast_fdlist, &sinfo) < 0)
-             bye("add_fdinfo() failed.");
+            bye("add_fdinfo() failed.");
 
         if (o.chat)
             chat_announce_connect(sinfo.fd, &sinfo.remoteaddr);
@@ -548,8 +579,8 @@ static int ncat_listen_dgram(int proto)
 {
     int sockfd[NUM_LISTEN_ADDRS];
     int i, fdn = -1;
-    int fdmax, nbytes, fds_ready;
-    char buf[DEFAULT_UDP_BUF_LEN] = {0};
+    int fdmax, nbytes, n, fds_ready;
+    char buf[DEFAULT_UDP_BUF_LEN] = { 0 };
     char *tempbuf = NULL;
     fd_set read_fds;
     union sockaddr_u remotess;
@@ -584,7 +615,7 @@ static int ncat_listen_dgram(int proto)
     for (i = 0; i < num_listenaddrs; i++) {
         /* create the UDP listen sockets */
         sockfd[i] = do_listen(SOCK_DGRAM, proto, &listenaddrs[i]);
-        FD_SET(sockfd[i],&listen_fds);
+        FD_SET(sockfd[i], &listen_fds);
         add_fd(&listen_fdlist, sockfd[i]);
     }
 
@@ -598,14 +629,14 @@ static int ncat_listen_dgram(int proto)
 
             /* Rebuild the udp socket which got burnt */
             sockfd[fdn] = do_listen(SOCK_DGRAM, proto, &listenaddrs[fdn]);
-            FD_SET(sockfd[fdn],&listen_fds);
+            FD_SET(sockfd[fdn], &listen_fds);
             add_fd(&listen_fdlist, sockfd[fdn]);
 
         }
         fdn = -1;
         socket_n = -1;
-            fd_set fds;
-            FD_ZERO(&fds);
+        fd_set fds;
+        FD_ZERO(&fds);
         while (1) {
             /*
              * We just select to get a list of sockets which we can talk to
@@ -624,7 +655,7 @@ static int ncat_listen_dgram(int proto)
              * really call a function for each ready socket instead of breaking on
              * the first one.
              */
-            for (i = 0; i <= listen_fdlist.fdmax && fds_ready >0; i++) {
+            for (i = 0; i <= listen_fdlist.fdmax && fds_ready > 0; i++) {
                 /* Loop through descriptors until there is something ready */
                 if (!FD_ISSET(i, &fds))
                     continue;
@@ -632,7 +663,7 @@ static int ncat_listen_dgram(int proto)
                 /* Check each listening socket */
                 for (j = 0; j < num_listenaddrs; j++) {
                     if (i == sockfd[j]) {
-                        if (o.debug >1)
+                        if (o.debug > 1)
                             logdebug("Valid descriptor %d \n", i);
                         fdn = j;
                         socket_n = i;
@@ -655,8 +686,13 @@ static int ncat_listen_dgram(int proto)
              * We just peek so we can get the client connection details without
              * removing anything from the queue. Sigh.
              */
-            nbytes = Recvfrom(socket_n, buf, sizeof(buf), MSG_PEEK,
+            nbytes = recvfrom(socket_n, buf, sizeof(buf), MSG_PEEK,
                               &remotess.sockaddr, &sslen);
+            if (nbytes < 0) {
+                loguser("%s.\n", socket_strerror(socket_errno()));
+                close(socket_n);
+                return 1;
+            }
 
             /* Check conditions that might cause us to deny the connection. */
             conn_count = get_conn_count();
@@ -672,7 +708,13 @@ static int ncat_listen_dgram(int proto)
             }
 
             /* Dump the current datagram */
-            Recv(socket_n, buf, sizeof(buf), 0);
+            nbytes = recv(socket_n, buf, sizeof(buf), 0);
+            if (nbytes < 0) {
+                loguser("%s.\n", socket_strerror(socket_errno()));
+                close(socket_n);
+                return 1;
+            }
+            ncat_log_recv(buf, nbytes);
         }
 
         if (o.debug > 1)
@@ -728,9 +770,15 @@ static int ncat_listen_dgram(int proto)
                     fix_line_endings((char *) buf, &nbytes, &tempbuf, &crlf_state);
                 if (!o.recvonly) {
                     if (tempbuf != NULL)
-                        send(socket_n, tempbuf, nbytes, 0);
+                        n = send(socket_n, tempbuf, nbytes, 0);
                     else
-                        send(socket_n, buf, nbytes, 0);
+                        n = send(socket_n, buf, nbytes, 0);
+                    if (n < nbytes) {
+                        loguser("%s.\n", socket_strerror(socket_errno()));
+                        close(socket_n);
+                        return 1;
+                    }
+                    ncat_log_send(buf, nbytes);
                 }
                 if (tempbuf != NULL) {
                     free(tempbuf);
@@ -744,6 +792,7 @@ static int ncat_listen_dgram(int proto)
                     close(socket_n);
                     return 1;
                 }
+                ncat_log_recv(buf, nbytes);
                 if (!o.sendonly)
                     Write(STDOUT_FILENO, buf, nbytes);
             }
@@ -757,6 +806,14 @@ static int ncat_listen_dgram(int proto)
 
 int ncat_listen()
 {
+#if HAVE_SYS_UN_H
+    if (o.af == AF_UNIX)
+        if (o.udp)
+            return ncat_listen_dgram(0);
+        else
+            return ncat_listen_stream(0);
+    else
+#endif
     if (o.httpserver)
         return ncat_http_server();
     else if (o.udp)
@@ -876,6 +933,20 @@ static void read_and_broadcast(int recv_fd)
     } while (pending);
 }
 
+static void shutdown_sockets(int how)
+{
+    struct fdinfo *fdn;
+    int i;
+
+    for (i = 0; i <= broadcast_fdlist.fdmax; i++) {
+        if (!FD_ISSET(i, &master_broadcastfds))
+            continue;
+
+        fdn = get_fdinfo(&broadcast_fdlist, i);
+        shutdown(fdn->fd, how);
+    }
+}
+
 /* Announce the new connection and who is already connected. */
 static int chat_announce_connect(int fd, const union sockaddr_u *su)
 {
@@ -896,7 +967,7 @@ static int chat_announce_connect(int fd, const union sockaddr_u *su)
             continue;
 
         if (getpeername(i, &su.sockaddr, &len) == -1)
-            bye("getpeername for sd %d failed: %s.", strerror(errno));
+            bye("getpeername for sd %d failed: %s.", i, strerror(errno));
 
         if (count > 0)
             strbuf_sprintf(&buf, &size, &offset, ", ");

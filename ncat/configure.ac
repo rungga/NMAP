@@ -4,7 +4,9 @@
 AC_PREREQ(2.59)
 AC_INIT(ncat_main.c)
 
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADER(config.h)
+
+m4_include([../acinclude.m4])
 
 AC_CANONICAL_HOST
 
@@ -37,7 +39,7 @@ AC_PATH_TOOL([STRIP], [strip], [/bin/true])
 # Checks for header files.
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/param.h sys/socket.h sys/time.h sys/timeb.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/param.h sys/socket.h sys/time.h sys/timeb.h unistd.h sys/un.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STAT

@@ -1,3 +1,7 @@
+local ndmp = require "ndmp"
+local nmap = require "nmap"
+local shortport = require "shortport"
+
 description = [[
 Retrieves version information from the remote Network Data Management Protocol
 (ndmp) service. NDMP is a protocol intended to transport data between a NAS
@@ -19,8 +23,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"version"}
 
-require 'shortport'
-require 'ndmp'
 
 portrule = shortport.port_or_service(10000, "ndmp", "tcp")
 
@@ -57,5 +59,5 @@ action = function(host, port)
 	if ( major and minor and build and smajor and sminor ) then
 		port.version.extrainfo = port.version.extrainfo .. ("OS ver: %d.%d; OS Build: %d; OS Service Pack: %d"):format(major, minor, build, smajor)
 	end
-	nmap.set_port_version(host, port, "hardmatched")	
+	nmap.set_port_version(host, port)	
 end

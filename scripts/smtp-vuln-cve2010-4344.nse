@@ -1,3 +1,10 @@
+local math = require "math"
+local shortport = require "shortport"
+local smtp = require "smtp"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Checks for and/or exploits a heap overflow within versions of Exim
 prior to version 4.69 (CVE-2010-4344) and a privilege escalation
@@ -66,9 +73,6 @@ author = "Djalal Harouni"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"exploit", "intrusive", "vuln"}
 
-require "shortport"
-require "smtp"
-require "stdnse"
 
 portrule = shortport.port_or_service({25, 465, 587},
                 {"smtp", "smtps", "submission"})
@@ -307,7 +311,7 @@ local function check_exim(smtp_opts)
   local heap_cve, priv_cve = 'CVE-2010-4344', 'CVE-2010-4345'
   local heap_str = "Exim heap overflow vulnerability ("..heap_cve.."):"
   local priv_str = "Exim privileges escalation vulnerability ("..priv_cve.."):"
-  local exip_heap_result, exip_priv_result = "", ""
+  local exim_heap_result, exim_priv_result = "", ""
 
   local socket, ret = smtp.connect(smtp_opts.host,
                           smtp_opts.port,

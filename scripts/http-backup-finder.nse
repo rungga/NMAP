@@ -1,3 +1,11 @@
+local coroutine = require "coroutine"
+local http = require "http"
+local httpspider = require "httpspider"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+local url = require "url"
+
 description = [[
 Spiders a website and attempts to identify backup copies of discovered files.
 It does so by requesting a number of different combinations of the filename (eg. index.bak, index.html~, copy of index.html).
@@ -35,9 +43,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'httpspider'
-require 'shortport'
-require 'url'
 
 portrule = shortport.http
 
@@ -56,6 +61,7 @@ local function backupNames(filename)
 			table.insert(backup_names, "Copy of {basename}.{suffix}") -- windows copy
 			table.insert(backup_names, "Copy (2) of {basename}.{suffix}") -- windows second copy
 			table.insert(backup_names, "{basename}.{suffix}.1") -- generic backup
+			table.insert(backup_names, "{basename}.{suffix}.~1~") -- bzr --revert residue
 		
 		end
 
@@ -78,8 +84,14 @@ end
 
 action = function(host, port)
 
-	local crawler = httpspider.Crawler:new(host, port, '/', { scriptname = SCRIPT_NAME } )
+	local crawler = httpspider.Crawler:new(host, port, nil, { scriptname = SCRIPT_NAME } )
 	crawler:set_timeout(10000)
+
+	local res, res404, known404 = http.identify_404(host, port)
+	if not res then
+		stdnse.print_debug("%s: Can't identify 404 pages", SCRIPT_NAME)
+		return nil
+	end
 
 	local backups = {}
 	while(true) do
@@ -96,6 +108,11 @@ action = function(host, port)
 
 		-- parse the returned url
 		local parsed = url.parse(tostring(r.url))
+    
+		-- handle case where only hostname was provided
+		if ( parsed.path == nil ) then
+			parsed.path = '/'
+		end
 		
 		-- only pursue links that have something looking as a file
 		if ( parsed.path:match(".*%.*.$") ) then
@@ -116,7 +133,7 @@ action = function(host, port)
 
 				-- attempt a HEAD-request against each of the backup files
 				local response = http.head(host, port, escaped_link)
-				if ( response.status == 200 ) then
+				if http.page_exists(response, res404, known404, escaped_link, true) then
 					if ( not(parsed.port) ) then
 						table.insert(backups, 
 							("%s://%s%s"):format(parsed.scheme, host, link))

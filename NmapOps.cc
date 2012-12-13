@@ -91,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOps.cc 28544 2012-05-08 05:49:51Z david $ */
+/* $Id: NmapOps.cc 29958 2012-10-06 20:48:32Z david $ */
 #include "nmap.h"
 #include "nbase.h"
 #include "NmapOps.h"
@@ -263,7 +263,7 @@ void NmapOps::Initialize() {
   generate_random_ips = 0;
   reference_FPs = NULL;
   magic_port = 33000 + (get_random_uint() % 31000);
-  magic_port_set = 0;
+  magic_port_set = false;
   timing_level = 3;
   max_parallelism = 0;
   min_parallelism = 0;
@@ -316,10 +316,10 @@ void NmapOps::Initialize() {
   xsl_stylesheet = NULL;
   spoof_mac_set = false;
   mass_dns = true;
-  log_errors = false;
   deprecated_xml_osclass = false;
   resolve_all = 0;
   dns_servers = NULL;
+  implicitARPPing = true;
   numhosts_scanned = 0;
   numhosts_up = 0;
   numhosts_scanning = 0;
@@ -401,7 +401,7 @@ dialog where you can start NPF if you have administrator privileges.";
   }
 
   if (pingtype != PINGTYPE_NONE && spoofsource) {
-    error("WARNING:  If -S is being used to fake your source address, you may also have to use -e <interface> and -Pn .  If you are using it to specify your real source address, you can ignore this warning.");
+    error("WARNING: If -S is being used to fake your source address, you may also have to use -e <interface> and -Pn .  If you are using it to specify your real source address, you can ignore this warning.");
   }
 
   if (pingtype != PINGTYPE_NONE && idlescan) {
@@ -414,19 +414,19 @@ dialog where you can start NPF if you have administrator privileges.";
   }
 
  if (connectscan && spoofsource) {
-    error("WARNING:  -S will only affect the source address used in a connect() scan if you specify one of your own addresses.  Use -sS or another raw scan if you want to completely spoof your source address, but then you need to know what you're doing to obtain meaningful results.");
+    error("WARNING: -S will only affect the source address used in a connect() scan if you specify one of your own addresses.  Use -sS or another raw scan if you want to completely spoof your source address, but then you need to know what you're doing to obtain meaningful results.");
   }
 
  if ((pingtype & PINGTYPE_UDP) && (!isr00t)) {
    fatal("Sorry, UDP Ping (-PU) only works if you are root (because we need to read raw responses off the wire)");
  }
 
- if ((pingtype & PINGTYPE_SCTP_INIT) && (!isr00t || af() != AF_INET)) {
-   fatal("Sorry, SCTP INIT Ping (-PY) only works if you are root (because we need to read raw responses off the wire) and only for IPv4 (cause fyodor is too lazy right now to add IPv6 support and nobody has sent a patch)");
+ if ((pingtype & PINGTYPE_SCTP_INIT) && (!isr00t)) {
+   fatal("Sorry, SCTP INIT Ping (-PY) only works if you are root (because we need to read raw responses off the wire)");
   }
 
- if ((pingtype & PINGTYPE_PROTO) && (!isr00t || af() != AF_INET)) {
-   fatal("Sorry, IPProto Ping (-PO) only works if you are root (because we need to read raw responses off the wire) and only for IPv4");
+ if ((pingtype & PINGTYPE_PROTO) && (!isr00t)) {
+   fatal("Sorry, IPProto Ping (-PO) only works if you are root (because we need to read raw responses off the wire)");
  }
 
  if (ipprotscan && (TCPScan() || UDPScan() || SCTPScan())) {
@@ -495,7 +495,7 @@ dialog where you can start NPF if you have administrator privileges.";
 #endif
   
   if (osscan && noportscan) {
-    fatal("WARNING:  OS Scan is unreliable without a port scan.  You need to use a scan type along with it, such as -sS, -sT, -sF, etc instead of -sn");
+    fatal("WARNING: OS Scan is unreliable without a port scan.  You need to use a scan type along with it, such as -sS, -sT, -sF, etc instead of -sn");
   }
 
   if (osscan && ipprotscan) {
@@ -519,7 +519,7 @@ dialog where you can start NPF if you have administrator privileges.";
     resume_ip.s_addr = 0;
   
   if (magic_port_set && connectscan) {
-    error("WARNING:  -g is incompatible with the default connect() scan (-sT).  Use a raw scan such as -sS if you want to set the source port.");
+    error("WARNING: -g is incompatible with the default connect() scan (-sT).  Use a raw scan such as -sS if you want to set the source port.");
   }
 
   if (max_parallelism && min_parallelism && (min_parallelism > max_parallelism)) {

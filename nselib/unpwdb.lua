@@ -65,7 +65,11 @@
 -- @author Kris Katterjohn 06/2008
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
-module(... or "unpwdb", package.seeall)
+local io = require "io"
+local nmap = require "nmap"
+local os = require "os"
+local stdnse = require "stdnse"
+_ENV = stdnse.module("unpwdb", stdnse.seeall)
 
 local usertable = {}
 local passtable = {}
@@ -116,7 +120,7 @@ local filltable = function(filename, table)
 	return true
 end
 
-local closure = function(table)
+table_iterator = function(table)
 	local i = 1
 
 	return function(cmd)
@@ -183,7 +187,7 @@ local usernames_raw = function()
 		return false, "Error parsing username list"
 	end
 
-	return true, closure(usertable)
+	return true, table_iterator(usertable)
 end
 
 --- Returns a function closure which returns a new password with every call
@@ -202,7 +206,7 @@ local passwords_raw = function()
 		return false, "Error parsing password list"
 	end
 
-	return true, closure(passtable)
+	return true, table_iterator(passtable)
 end
 
 --- Wraps time and count limits around an iterator. When either limit expires,
@@ -281,3 +285,45 @@ passwords = function(time_limit, count_limit)
 
 	return true, limited_iterator(iterator, time_limit, count_limit)
 end
+
+--- Returns a new iterator that iterates trough it's consecutive iterators,
+-- basically concatenating them. 
+-- @param iter1 First iterator to concatenate.
+-- @param iter2 Second iterator to concatenate.
+-- @return function The concatenated iterators.
+function concat_iterators (iter1, iter2)
+  local function helper (next_iterator, command, first, ...)
+    if first ~= nil then
+      return first, ...
+    elseif next_iterator ~= nil then
+      return helper(nil, command, next_iterator(command))
+    end
+  end
+  local function iterator (command)
+    if command == "reset" then
+      iter1 "reset"
+      iter2 "reset"
+    else
+      return helper(iter2, command, iter1(command))
+    end
+  end
+  return iterator
+ end
+
+--- Returns a new iterator that filters it's results based on the filter.
+-- @param iterator Iterator that needs to be filtered
+-- @param filter Function that returns bool, which serves as a filter
+-- @return function The filtered iterator.
+function filter_iterator (iterator, filter)
+  local function helper (...)
+    if filter(...) then
+      return ...
+    end
+  end
+  local function filter (command)
+    return helper(iterator(command))
+  end
+  return filter
+ end
+
+return _ENV;

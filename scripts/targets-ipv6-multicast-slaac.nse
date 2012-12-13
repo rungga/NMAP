@@ -1,3 +1,15 @@
+local coroutine = require "coroutine"
+local ipOps = require "ipOps"
+local math = require "math"
+local nmap = require "nmap"
+local os = require "os"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local string = require "string"
+local tab = require "tab"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Performs IPv6 host discovery by triggering stateless address auto-configuration
 (SLAAC).
@@ -34,23 +46,10 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"discovery","broadcast"}
 
-require 'ipOps'
-require 'nmap'
-require 'tab'
-require 'target'
-require 'packet'
-require "os"
-require "math"
 
 prerule = function()
 	return nmap.is_privileged()
 end
-
-catch = function()
-	dnet:ethernet_close()
-	pcap:pcap_close()
-end
-try = nmap.new_try(catch)
 
 local function get_identifier(ip6_addr)
 	return string.sub(ip6_addr, 9, 16)
@@ -146,6 +145,12 @@ local function single_interface_broadcast(if_nfo, results)
 
 	local dnet = nmap.new_dnet()
 	local pcap = nmap.new_socket()
+
+    local function catch ()
+	  dnet:ethernet_close()
+	  pcap:pcap_close()
+    end
+    local try = nmap.new_try(catch)
 
 	try(dnet:ethernet_open(if_nfo.device))
 	pcap:pcap_open(if_nfo.device, 128, true, "src ::0/128 and dst net ff02::1:0:0/96 and icmp6 and ip6[6:1] = 58 and ip6[40:1] = 135")
@@ -246,9 +251,11 @@ action = function()
 	end
 
 	repeat
-		condvar "wait"
 		for thread in pairs(threads) do
 			if coroutine.status(thread) == "dead" then threads[thread] = nil end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until next(threads) == nil
 

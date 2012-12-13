@@ -91,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: global_structures.h 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: global_structures.h 30032 2012-10-13 20:37:23Z david $ */
 
 
 #ifndef GLOBAL_STRUCTURES_H
@@ -192,8 +192,6 @@ struct FingerMatch {
 struct FingerTest {
   const char *name;
   std::vector<struct AVal> results;
-  const struct AVal *getattrbyname(const char *name) const;
-
   bool operator<(const FingerTest& other) const {
     return strcmp(name, other.name) < 0;
   }
@@ -202,7 +200,6 @@ struct FingerTest {
 struct FingerPrint {
   FingerMatch match;
   std::vector<FingerTest> tests;
-  const FingerTest *gettestbyname(const char *name) const;
   FingerPrint();
   void sort();
 };
@@ -320,6 +317,6 @@ struct scan_lists {
 	int prot_count;
 };
 
-typedef enum { STYPE_UNKNOWN, HOST_DISCOVERY, ACK_SCAN, SYN_SCAN, FIN_SCAN, XMAS_SCAN, UDP_SCAN, CONNECT_SCAN, NULL_SCAN, WINDOW_SCAN, SCTP_INIT_SCAN, SCTP_COOKIE_ECHO_SCAN, RPC_SCAN, MAIMON_SCAN, IPPROT_SCAN, PING_SCAN, PING_SCAN_ARP, IDLE_SCAN, BOUNCE_SCAN, SERVICE_SCAN, OS_SCAN, SCRIPT_PRE_SCAN, SCRIPT_SCAN, SCRIPT_POST_SCAN, TRACEROUTE, PING_SCAN_ND }stype;
+typedef enum { STYPE_UNKNOWN, HOST_DISCOVERY, ACK_SCAN, SYN_SCAN, FIN_SCAN, XMAS_SCAN, UDP_SCAN, CONNECT_SCAN, NULL_SCAN, WINDOW_SCAN, SCTP_INIT_SCAN, SCTP_COOKIE_ECHO_SCAN, MAIMON_SCAN, IPPROT_SCAN, PING_SCAN, PING_SCAN_ARP, IDLE_SCAN, BOUNCE_SCAN, SERVICE_SCAN, OS_SCAN, SCRIPT_PRE_SCAN, SCRIPT_SCAN, SCRIPT_POST_SCAN, TRACEROUTE, PING_SCAN_ND }stype;
 
 #endif /*GLOBAL_STRUCTURES_H */

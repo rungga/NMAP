@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: netutils.h 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: netutils.h 30237 2012-11-12 20:44:49Z david $ */
 
 #ifndef NETUTILS_H
 #define NETUTILS_H
@@ -63,10 +63,20 @@
 #include "nbase_config.h"
 #endif
 
+#if HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#include "nsock_internal.h"
+
 #ifdef WIN32
 #include "nbase_winconfig.h"
 /* nbase_winunix.h somehow reason.h to get included */
 #include "nbase_winunix.h"
+#endif
+
+#if HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 
 /* Maximize the number of file descriptors (including sockets) allowed for this
@@ -74,6 +84,14 @@
  * this many -- stdin, stdout, other files opened by libraries you use, etc. all
  * count toward this limit.  Leave a little slack */
 int maximize_fdlimit(void);
+
+/* Get the UNIX domain socket path or empty string if the address family != AF_UNIX. */
+const char *get_unixsock_path(const struct sockaddr_storage *addr);
+
+/* Get the peer address string. In case of a Unix domain socket, returns the
+ * path to UNIX socket, otherwise it returns string containing
+ * "<address>:<port>". */
+char *get_peeraddr_string(const msiod *iod);
 
 #endif /* NETUTILS_H */
 

@@ -1,3 +1,10 @@
+local mysql = require "mysql"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
+local openssl = stdnse.silent_require "openssl"
+
 description = [[
 Attempts to list all users on a MySQL server.
 ]]
@@ -27,10 +34,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"auth", "intrusive"}
 
-require 'shortport'
-require 'stdnse'
-require 'mysql'
-stdnse.silent_require 'openssl'
 
 dependencies = {"mysql-brute", "mysql-empty-password"}
 
@@ -83,10 +86,7 @@ action = function( host, port )
 		if status and response.errorcode == 0 then
 			status, rows = mysql.sqlQuery( socket, "SELECT DISTINCT user FROM mysql.user" )
 			if status then
-				for i=1, #rows do
-					table.insert(result, rows[i]['user'])
-				end		
-				break
+				result = mysql.formatResultset(rows, { noheaders = true })
 			end
 		end
 		socket:close()

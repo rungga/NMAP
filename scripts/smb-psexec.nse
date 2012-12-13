@@ -1,3 +1,14 @@
+local _G = require "_G"
+local bit = require "bit"
+local io = require "io"
+local math = require "math"
+local msrpc = require "msrpc"
+local nmap = require "nmap"
+local smb = require "smb"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Implements remote process execution similar to the Sysinternals' psexec tool, 
 allowing a user to run a series of programs on a remote machine and read the output. This
@@ -407,10 +418,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive"}
 dependencies = {"smb-brute"}
 
-require 'bit'
-require 'msrpc'
-require 'smb'
-require 'stdnse'
 
 
 -- Where we tell the user to get nmap_service.exe if it's not installed.
@@ -661,7 +668,6 @@ end
 --@param config A table to fill with configuration values.
 --@return status true or false
 --@return config The configuration table or an error message. 
---require 'nsedebug'
 local function get_config(host, config)
 	local status
 	local filename = nmap.registry.args.config
@@ -675,17 +681,17 @@ local function get_config(host, config)
 	end
 
 	-- Load the config file
+	local env = setmetatable({modules = {}; overrides = {}; module = function() stdnse.print_debug(1, "WARNING: Selected config file contains an unnecessary call to module()") end}, {__index = _G})
 	stdnse.print_debug(1, "smb-psexec: Attempting to load config file: %s", filename)
-	local file = loadfile(filename)
+	local file = loadfile(filename, "t", env)
 	if(not(file)) then
 		return false, "Couldn't load module file:\n" .. filename
 	end
 
 	-- Run the config file
-	setfenv(file, setmetatable({modules = {}; overrides = {}; module = function() stdnse.print_debug(1, "WARNING: Selected config file contains an unnecessary call to module()") end}, {__index = _G}))
 	file()
-	local modules = getfenv(file)["modules"]
-	local overrides = getfenv(file)["overrides"]
+	local modules = env.modules
+	local overrides = env.overrides
 
 	-- Generate a cipher key
 	if(stdnse.get_script_args( "nocipher" )) then
@@ -713,13 +719,13 @@ local function get_config(host, config)
 	-- Get information about the socket; it's a bit out of place here, but it should go before the mod loop
 	status, config.lhost, config.lport, config.rhost, config.rport, config.lmac = smb.get_socket_info(host)
 	if(status == false) then
-		return false, "Couldn't get socket information: " .. lhost
+		return false, "Couldn't get socket information: " .. config.lhost
 	end
 
 	-- Get the names of the files we're going to need
 	status, config.service_name, config.service_file, config.temp_output_file, config.output_file = get_service_files(host)
 	if(not(status)) then
-		return false, service_name
+		return false, config.service_name
 	end
 
 	-- Make sure the modules loaded properly
@@ -995,6 +1001,7 @@ local function upload_everything(host, config)
 
 	-- Upload the service file
 	stdnse.print_debug(1, "smb-psexec: Uploading: %s => \\\\%s\\%s", config.local_service_file, config.share, config.service_file)
+	local status, err
 	status, err = smb.file_upload(host, config.local_service_file, config.share, "\\" .. config.service_file, overrides, is_xor_encoded)
 	if(status == false) then
 		cleanup(host, config)
@@ -1046,7 +1053,7 @@ end
 --@return status true or false
 --@return err    An error message if status is false. 
 local function create_service(host, config)
-	status, err = msrpc.service_create(host, config.service_name, config.path .. "\\" .. config.service_file)
+	local status, err = msrpc.service_create(host, config.service_name, config.path .. "\\" .. config.service_file)
 	if(status == false) then
 		stdnse.print_debug(1, "smb-psexec: Couldn't create the service: %s", err)
 		cleanup(host, config)
@@ -1103,7 +1110,7 @@ end
 --@return status true or false
 --@return err    An error message if status is false. 
 local function start_service(host, config, params)
-	status, err = msrpc.service_start(host, config.service_name, params)
+	local status, err = msrpc.service_start(host, config.service_name, params)
 	if(status == false) then
 		stdnse.print_debug(1, "smb-psexec: Couldn't start the service: %s", err)
 		return false, string.format("Couldn't start the service on the remote machine: %s", err)
@@ -1428,9 +1435,10 @@ and place it in nselib/data/psexec/ under the Nmap DATADIR.
 	end
 
 	-- Build the output into a nice table
+	local response
 	status, response = parse_output(config, result)
 	if(status == false) then
-		return stdnse.format_output(false, "Couldn't parse output: " .. results)
+		return stdnse.format_output(false, "Couldn't parse output: " .. response)
 	end
 
 	-- Add a warning if nothing was enabled

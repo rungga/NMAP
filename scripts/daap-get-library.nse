@@ -1,3 +1,11 @@
+local bin = require "bin"
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Retrieves a list of music from a DAAP server. The list includes artist
 names and album and song titles.
@@ -36,9 +44,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'shortport'
-require 'stdnse'
-require 'http'
 
 -- Version 0.2
 -- Created 01/14/2010 - v0.1 - created by Patrik Karlsson
@@ -63,6 +68,7 @@ function getLibraryName( host, port )
 	pos = string.find(response.body, "minm")
 
 	if pos > 0 then
+	  local len
 		pos = pos + 4
 		pos, len = bin.unpack( ">I", response.body, pos )
 		pos, libname = bin.unpack( "A" .. len, response.body, pos )
@@ -83,6 +89,7 @@ local function getAttributeAsInt( data, name )
 	
 	if pos and pos > 0 then
 		pos = pos + 4
+		local len
 		pos, len = bin.unpack( ">I", data, pos )
 		
 		if ( len ~= 4 ) then

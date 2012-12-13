@@ -158,6 +158,7 @@ void FPNetworkControl::init(const char *ifname, devtype iftype) {
   /* Create a new nsock pool */
   if ((this->nsp = nsp_new(NULL)) == NULL)
     fatal("Unable to obtain an Nsock pool");
+  nsp_setdevice(nsp, o.device);
 
   /* Set Trace level */
   if (o.packetTrace()) {
@@ -188,12 +189,9 @@ void FPNetworkControl::init(const char *ifname, devtype iftype) {
 #endif
     if (this->rawsd >= 0)
       close(this->rawsd);
-    if ((this->rawsd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+    rawsd = nmap_raw_socket();
+    if (rawsd < 0)
       pfatal("Couldn't obtain raw socket in %s", __func__);
-    broadcast_socket(this->rawsd);
-#ifndef WIN32
-    sethdrinclude(this->rawsd);
-#endif
   }
 
   /* De-register existing callers */

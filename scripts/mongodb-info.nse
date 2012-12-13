@@ -1,3 +1,10 @@
+local creds = require "creds"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
+local mongodb = stdnse.silent_require "mongodb"
+
 description = [[
 Attempts to get build info and server status from a MongoDB database.
 ]]
@@ -52,10 +59,6 @@ categories = {"default", "discovery", "safe"}
 
 dependencies = {"mongodb-brute"}
 
-require "creds"
-require "shortport"
-require 'stdnse'
-stdnse.silent_require('mongodb')
 
 local arg_db = stdnse.get_script_args(SCRIPT_NAME .. ".db") or "admin"
 
@@ -93,7 +96,8 @@ function action(host,port)
 	
 	local status, packet = mongodb.serverStatusQuery()
 	if not status then return packet end
-	
+
+	local statQResult, buildQResult
 	status,statQResult = mongodb.query(socket, packet)
 	
 	if not status then return statQResult end
@@ -101,7 +105,7 @@ function action(host,port)
 	port.version.name ='mongodb'
 	port.version.product='MongoDB'
 	port.version.name_confidence = 100
-	nmap.set_port_version(host,port,'hardmatched')
+	nmap.set_port_version(host,port)
 
 	status, packet = mongodb.buildInfoQuery()
 	if not status then return packet end
@@ -115,7 +119,7 @@ function action(host,port)
 
 	local versionNumber = buildQResult['version']
 	port.version.product='MongoDB '..versionNumber
-	nmap.set_port_version(host,port,'hardmatched')
+	nmap.set_port_version(host,port)
 
 	local stat_out = mongodb.queryResultToTable(statQResult)
 	local build_out = mongodb.queryResultToTable(buildQResult)

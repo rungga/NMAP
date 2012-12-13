@@ -834,7 +834,7 @@ char errstr[256];
         if ( o.issetPayloadFilename() ) {
             outFatal(QT_3,"Only one payload input filename allowed");
         }else {
-            int tmp = fileexistsandisreadable(optarg);
+            int tmp = file_is_readable(optarg);
             if ( tmp == 1 )
                 o.setPayloadFilename(optarg);
             else if ( tmp==2)
@@ -956,8 +956,8 @@ char errstr[256];
         if( o.issetDisablePacketCapture() && o.disablePacketCapture()==true )
             outError(QT_2, "Warning: There is no point on specifying a BPF filter if you disable packet capture. BPF filter will be ignored.");
     } else if (optcmp(long_options[option_index].name, "nsock-engine") == 0){
-        nsock_set_default_engine(optarg);
-
+        if (nsock_set_default_engine(optarg) < 0)
+          outFatal(QT_3, "Unknown or non-available engine: %s", optarg);
     /* Output Options */
     } else if (optcmp(long_options[option_index].name, "quiet") == 0 ){
             o.setVerbosity(-4);
@@ -1031,8 +1031,9 @@ char errstr[256];
             /* Set user supplied address (if we manage to resolve it) */
             else if ( atoIP(optarg, &sourceaddr, PF_INET6) != OP_SUCCESS){
                 outFatal(QT_3, "Could not resolve source IPv6 address.");
-            }      
-            ipv6addr = source6->sin6_addr;            
+            }else{  
+              ipv6addr = source6->sin6_addr;
+            }
             o.setIPv6SourceAddress(ipv6addr);
             o.setSpoofSource();           
         }

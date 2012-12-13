@@ -1,3 +1,8 @@
+local comm = require "comm"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local string = require "string"
+
 description = [[
 Detects the UDP IAX2 service.
 
@@ -15,8 +20,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"version"}
 
-require "comm"
-require "shortport"
 
 portrule = shortport.version_port_or_service(4569, nil, "udp")
 
@@ -43,7 +46,7 @@ action = function(host, port)
 		then
 		    nmap.set_port_state(host, port, "open")
 		    port.version.name = "iax2"
-		    nmap.set_port_version(host, port, "hardmatched")
+		    nmap.set_port_version(host, port)
 		end
 
 	end

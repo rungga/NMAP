@@ -1,14 +1,21 @@
 ---
--- A library that implements the basics of the STUN protocol per RFC3489
--- and RFC5389.
+-- A library that implements the basics of the STUN protocol (Session
+-- Traversal Utilities for NAT) per RFC3489 and RFC5389. A protocol
+-- overview is available at http://en.wikipedia.org/wiki/STUN.
 --
 -- @author "Patrik Karlsson <patrik@cqure.net>"
 --
 
-module(... or "stun", package.seeall)
-
-require 'ipOps'
-require 'match'
+local bin = require "bin"
+local ipOps = require "ipOps"
+local match = require "match"
+local math = require "math"
+local nmap = require "nmap"
+local package = require "package"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("stun", stdnse.seeall)
 
 -- The supported request types
 MessageType = {
@@ -125,7 +132,9 @@ Attribute = {
 		local function parseAddress(data, pos)
 			local _, addr = nil, {}
 			pos, _, addr.family, addr.port, addr.ip = bin.unpack("<CCSI", data, pos)
-			addr.ip = ipOps.fromdword(addr.ip)
+			if ( addr.ip ) then
+				addr.ip = ipOps.fromdword(addr.ip)
+			end
 			return addr
 		end
 		
@@ -230,7 +239,7 @@ Comm = {
 	-- @return response containing a response instance
 	--         err string containing an error message, if status is false
 	recv = function(self)	
-		local status, hdr_data = self.socket:receive_buf(match.numbytes(Header.size))
+		local status, hdr_data = self.socket:receive_buf(match.numbytes(Header.size), false)
 		if ( not(status) ) then
 			return false, "Failed to receive response from server"
 		end
@@ -240,7 +249,7 @@ Comm = {
 			return false, "Failed to parse response header"
 		end
 		
-		local status, data = self.socket:receive_buf(match.numbytes(header.length))
+		local status, data = self.socket:receive_buf(match.numbytes(header.length), false)
 		if ( header.type == MessageType.BINDING_RESPONSE ) then
 			local resp = Response.Bind.parse(hdr_data .. data)
 			return true, resp
@@ -343,6 +352,10 @@ Helper = {
 			end
 		end
 		
+		if ( not(result) and not(self.cache) ) then
+			return false, "Server returned no response"
+		end
+		
 		return status, result
 	end,
 	
@@ -350,9 +363,14 @@ Helper = {
 	-- @return status true on success, false on failure
 	-- @return version string containing the server product and version
 	getVersion = function(self)
+		local status, response = false, nil
 		-- check if the server version was cached
 		if ( not(self.cache) or not(self.cache.version) ) then
-			self:getExternalAddress()
+			local status, response = self:getExternalAddress()
+			if ( status ) then
+				return true, (self.cache and self.cache.server or "")
+			end
+			return false, response
 		end
 		return true, (self.cache and self.cache.server or "")
 	end,
@@ -366,3 +384,4 @@ Helper = {
 	
 }
 
+return _ENV;

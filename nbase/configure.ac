@@ -2,7 +2,7 @@ dnl # -*- mode: fundamental; -*-
 dnl # Autoconf configuration file for Nbase
 dnl #
 dnl # Process this file with autoconf to produce a configure script.
-dnl # $Id: configure.ac 26709 2011-09-26 22:26:55Z david $
+dnl # $Id: configure.ac 29833 2012-09-19 16:41:31Z david $
 
 # Because nbase is usually distributed with Nmap, the necessary files
 # config.guess, config.guess, and install-sh are not distributed with
@@ -12,7 +12,7 @@ dnl # $Id: configure.ac 26709 2011-09-26 22:26:55Z david $
 AC_PREREQ(2.13)
 
 # Include my own macros
-sinclude(configlocal.m4)
+m4_include([acinclude.m4])
 
 AC_INIT(nbase.h)
 
@@ -70,7 +70,7 @@ esac
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS( string.h getopt.h strings.h sys/param.h sys/time.h unistd.h errno.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h sys/stat.h netdb.h sys/wait.h fcntl.h sys/resource.h inttypes.h mach-o/dyld.h)
+AC_CHECK_HEADERS( string.h getopt.h strings.h sys/param.h sys/time.h unistd.h errno.h sys/select.h sys/types.h sys/socket.h netinet/in.h arpa/inet.h sys/stat.h netdb.h sys/wait.h fcntl.h sys/resource.h inttypes.h mach-o/dyld.h)
 AC_HEADER_TIME
 dnl A special check required for <net/if.h> on Darwin. See
 dnl http://www.gnu.org/software/autoconf/manual/html_node/Header-Portability.html.

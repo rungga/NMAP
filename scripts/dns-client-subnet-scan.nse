@@ -1,10 +1,17 @@
+local dns = require "dns"
+local ipOps = require "ipOps"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
-Performs a domain lookup using the edns-client-subnet option that adds
-support for adding subnet information to the query describing where the
-query is originating. The script uses this option to supply a number of
-geographically distributed locations in an attempt to enumerate as many
-different address records as possible. The script also supports requests using
-a given subnet.
+Performs a domain lookup using the edns-client-subnet option which
+allows clients to specify the subnet that queries supposedly originate
+from.  The script uses this option to supply a number of
+geographically distributed locations in an attempt to enumerate as
+many different address records as possible. The script also supports
+requests using a given subnet.
 
 * http://tools.ietf.org/html/draft-vandergaast-edns-client-subnet-00
 ]]
@@ -44,9 +51,6 @@ author = "John Bond"
 license = "Simplified (2-clause) BSD license--See http://nmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"discovery", "safe"}
 
-require "stdnse"
-require "shortport"
-require "dns"
 
 local argNS = stdnse.get_script_args(SCRIPT_NAME .. '.nameserver')
 local argDomain = stdnse.get_script_args(SCRIPT_NAME .. '.domain')
@@ -60,11 +64,11 @@ prerule = function()
 	return true
 end
 
-portrule = function()
+portrule = function(host, port)
 	if ( nmap.address_family() ~= "inet" ) then
 		return false
 	else
-		return shortport.port_or_service(53, "domain", {"tcp", "udp"})
+		return shortport.port_or_service(53, "domain", {"tcp", "udp"})(host, port)
 	end
 end
 

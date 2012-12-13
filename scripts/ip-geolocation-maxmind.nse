@@ -1,3 +1,10 @@
+local bit = require "bit"
+local io = require "io"
+local ipOps = require "ipOps"
+local math = require "math"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Tries to identify the physical location of an IP address using a
 Geolocation Maxmind database file (available from
@@ -23,9 +30,6 @@ author = "Gorjan Petrovski"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery","external","safe"}
 
-require "stdnse"
-require "ipOps"
-require "bit"
 
 hostrule = function(host)
 	local is_private, err = ipOps.isPrivate( host.ip )
@@ -406,7 +410,7 @@ local GeoIP = {
 		o._filehandle:seek("end",-3)
 		
 		for i=1,MaxmindDef.STRUCTURE_INFO_MAX_SIZE do
-			delim = o._filehandle:read(3)
+			local delim = o._filehandle:read(3)
 			
 			if delim == '\255\255\255' then
 				o._databaseType = o._filehandle:read(1):byte()
@@ -501,20 +505,20 @@ local GeoIP = {
 		start_pos = start_pos + 1
 		local end_pos = 0
 		
-		end_pos = record_buf:find("%z",start_pos)
+		end_pos = record_buf:find("\0",start_pos)
 		if start_pos ~= end_pos then 
 			record.region_name = record_buf:sub(start_pos, end_pos-1)
 		end
 		start_pos = end_pos + 1
 		
-		end_pos = record_buf:find("%z",start_pos)
+		end_pos = record_buf:find("\0",start_pos)
 		if start_pos ~= end_pos then 
 			record.city = record_buf:sub(start_pos, end_pos-1)
 		end
 		start_pos = end_pos + 1
 		
 		
-		end_pos = record_buf:find("%z",start_pos)
+		end_pos = record_buf:find("\0",start_pos)
 		if start_pos ~= end_pos then 
 			record.postal_code = record_buf:sub(start_pos, end_pos-1)
 		end

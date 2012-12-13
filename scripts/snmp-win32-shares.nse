@@ -1,3 +1,9 @@
+local nmap = require "nmap"
+local shortport = require "shortport"
+local snmp = require "snmp"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Attempts to enumerate Windows Shares through SNMP.
 ]]
@@ -22,8 +28,6 @@ dependencies = {"snmp-brute"}
 -- Revised 01/19/2010 - v0.2 - fixed loop that would occure if a mib did not exist
 -- Revised 04/11/2010 - v0.3 - moved snmp_walk to snmp library <patrik@cqure.net>
 
-require "shortport"
-require "snmp"
 
 portrule = shortport.portnumber(161, "udp", {"open", "open|filtered"})
 
@@ -79,6 +83,7 @@ action = function(host, port)
 	local try = nmap.new_try(catch)	
 	local data, snmpoid = nil, "1.3.6.1.4.1.77.1.2.27"
 	local shares = {}
+	local status
 
 	socket:set_timeout(5000)
 	try(socket:connect(host, port))

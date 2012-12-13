@@ -1,3 +1,9 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+
 description = [[
 Connects to the IBM DB2 Administration Server (DAS) on TCP or UDP port 523 and
 exports the server profile.  No authentication is required for this request.
@@ -61,8 +67,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery", "version"}
 
-require "stdnse"
-require "shortport"
 
 --- Research Notes:
 --
@@ -163,7 +167,6 @@ function read_db2_packet(socket)
 	local header_len = 41
 	local total_len = 0
 	local buf
-	local endian
 
 	local DATA_LENGTH_OFFSET = 38
 	local ENDIANESS_OFFSET = 23
@@ -184,7 +187,7 @@ function read_db2_packet(socket)
 	
 		stdnse.print_debug("db2-das-info: Got DB2DAS packet")
 
-		_, endian = bin.unpack( "A2", packet.header.raw, ENDIANESS_OFFSET )		
+		local _, endian = bin.unpack( "A2", packet.header.raw, ENDIANESS_OFFSET )		
 
 		if endian == "9z" then
 			_, packet.header.data_len = bin.unpack("I", packet.header.raw, DATA_LENGTH_OFFSET )
@@ -377,6 +380,7 @@ action = function(host, port)
 	socket:close()
 	
 	-- The next block of code is essentially the version extraction code from db2-info.nse
+	local server_version
 	if string.sub(db2response.version,1,3) == "SQL" then
 		local major_version = string.sub(db2response.version,4,5)
 
@@ -395,12 +399,12 @@ action = function(host, port)
 	local _
 	local current_count = 0
 	if port.version.version ~= nil then
-		_, current_count = string.gsub(port.version.version, "%.", "%.")
+		_, current_count = string.gsub(port.version.version, "%.", ".")
 	end	
 
 	local new_count = 0
 	if server_version ~= nil then
-		_, new_count = string.gsub(server_version, "%.", "%.")
+		_, new_count = string.gsub(server_version, "%.", ".")
 	end
 	
 	if current_count < new_count then
@@ -419,7 +423,7 @@ action = function(host, port)
 		port.version.name = "ibm-db2"
 		port.version.product = "IBM DB2 Database Server"
 		port.version.name_confidence = 100
-		nmap.set_port_version(host, port, "hardmatched")
+		nmap.set_port_version(host, port)
 		nmap.set_port_state(host, port, "open")
 	end
 	

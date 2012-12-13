@@ -1,3 +1,8 @@
+local http = require "http"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+
 description = [[
 Displays the contents of the "generator" meta tag of a web page (default: /) if there is one.
 ]]
@@ -41,9 +46,6 @@ categories = {"default", "discovery", "safe"}
 -- TODO:
 -- more generic generator pattern
 
-require('http')
-require('shortport')
-require('stdnse')
 
 -- helper function
 local follow_redirects = function(host, port, path, n)
@@ -52,7 +54,7 @@ local follow_redirects = function(host, port, path, n)
 
    while (response['status-line'] or ""):match(pattern) and n > 0 do
       n = n - 1
-      loc = response.header['location']
+      local loc = response.header['location']
       response = http.get_url(loc)
    end
 
@@ -76,6 +78,7 @@ action = function(host, port)
              end)
 
    response = follow_redirects(host, port, path, redirects)
-   return response.body:match(pattern)
-
+   if ( response and response.body ) then
+     return response.body:match(pattern)
+   end
 end

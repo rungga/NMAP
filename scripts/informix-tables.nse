@@ -1,3 +1,9 @@
+local informix = require "informix"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Retrieves a list of tables and column definitions for each database on an Informix server.
 ]]
@@ -48,8 +54,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "auth"}
 dependencies = { "informix-brute" }
 
-require 'shortport'
-require 'informix'
 
 portrule = shortport.port_or_service( { 1526, 9088, 9090, 9092 }, "informix", "tcp", "open") 
 
@@ -87,6 +91,7 @@ action = function( host, port )
 	status, data = helper:Login(user, pass)
 	if ( not(status) ) then	return stdnse.format_output(status, data) end
 
+  local databases
 	status, databases = helper:GetDatabases()
 	if ( not(status) ) then
 		return "  \n  ERROR: Failed to retrieve a list of databases"

@@ -1,8 +1,15 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local pppoe = require "pppoe"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
-Discovers PPPoE servers using the PPPoE Discovery protocol (PPPoED).
-PPPoE is an ethernet based protocol so the script has to know what ethernet
-interface to use for discovery. If no interface is specified, requests are sent
-out on all available interfaces.
+Discovers PPPoE (Point-to-Point Protocol over Ethernet) servers using
+the PPPoE Discovery protocol (PPPoED).  PPPoE is an ethernet based
+protocol so the script has to know what ethernet interface to use for
+discovery. If no interface is specified, requests are sent out on all
+available interfaces.
 
 As the script send raw ethernet frames it requires Nmap to be run in privileged
 mode to operate.
@@ -27,8 +34,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
-require 'pppoe'
-require 'nmap'
 
 prerule = function()
 	if not nmap.is_privileged() then

@@ -20,10 +20,9 @@
 -- @author Kris Katterjohn 04/2008
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
-module(... or "comm", package.seeall)
-
-require 'nsedebug'
-require 'datafiles'
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+_ENV = stdnse.module("comm", stdnse.seeall)
 
 -- Makes sure that opts exists and the default proto is there
 local initopts = function(opts)
@@ -155,7 +154,7 @@ local function is_ssl(port_number)
 end
 
 --- This function returns best protocol order for trying  to open a 
--- conenction based on port and service information
+-- connection based on port and service information
 --
 -- The first value is the best option, the second is the worst
 -- @param port The port table
@@ -178,8 +177,8 @@ end
 --
 -- Possible options:
 -- timeout: generic timeout value
--- connect_timeout: especific timeout for connection
--- request_timeout: especific timeout for requests
+-- connect_timeout: specific timeout for connection
+-- request_timeout: specific timeout for requests
 -- recv_before: receive data before sending first payload
 --
 -- Default timeout is set to 8000.
@@ -188,7 +187,7 @@ end
 -- @param port The destination host port
 -- @param protocol The protocol for the connection
 -- @param data The first data payload of the connection
--- @return sd The socket descriptor, nil if no connection is estabilished
+-- @return sd The socket descriptor, nil if no connection is established
 -- @return response The response received for the payload
 -- @return early_resp If opt recv_before is true, returns the value
 -- of the first receive (before sending data)
@@ -269,3 +268,5 @@ function tryssl(host, port, data, opts)
     if not sd then best = "none" end
     return sd, response, best, early_resp
 end
+
+return _ENV;

@@ -1,3 +1,10 @@
+local brute = require "brute"
+local creds = require "creds"
+local math = require "math"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
 description=[[
 Performs brute force password auditing against the classic UNIX rlogin (remote login) service.  This script must be run in privileged mode on UNIX because it must bind to a low source port number.
 ]]
@@ -20,8 +27,6 @@ Performs brute force password auditing against the classic UNIX rlogin (remote l
 -- Version 0.1
 -- Created 11/02/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
-require 'brute'
-require 'shortport'
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -58,6 +63,7 @@ Driver = {
 		local srcport = math.random(513, 1024)
 		self.socket:bind(nil, srcport)
 		self.socket:set_timeout(self.timeout)
+		local err
 		status, err = self.socket:connect(self.host, self.port)
 
 		if ( status ) then
@@ -148,6 +154,6 @@ action = function(host, port)
 
 	local engine = brute.Engine:new(Driver, host, port, options)
 	engine.options.script_name = SCRIPT_NAME
-	status, result = engine:start()
+	local status, result = engine:start()
 	return result
 end

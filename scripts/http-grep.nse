@@ -1,3 +1,8 @@
+local httpspider = require "httpspider"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Spiders a website and attempts to match all pages and urls against a given
 string. Matches are counted and grouped per url under which they were
@@ -42,9 +47,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'httpspider'
-require 'shortport'
-require 'url'
 
 portrule = shortport.http
 
@@ -68,7 +70,7 @@ action = function(host, port)
 		return stdnse.format_output(true, "ERROR: Argument http-grep.match was not set")
 	end
 	
-	local crawler = httpspider.Crawler:new(host, port, '/', { scriptname = SCRIPT_NAME } )
+	local crawler = httpspider.Crawler:new(host, port, nil, { scriptname = SCRIPT_NAME } )
 	local results = {}
 
 	-- set timeout to 10 seconds
@@ -89,7 +91,7 @@ action = function(host, port)
 		local matches = {}
 		local body = r.response.body
 		-- try to match the url and body
-		if ( body:match( match ) or tostring(r.url):match(match) ) then
+		if body and ( body:match( match ) or tostring(r.url):match(match) ) then
 			local count = select(2, body:gsub(match, match))
 			for match in body:gmatch(match) do
 				table.insert(matches, "+ " .. shortenMatch(match))

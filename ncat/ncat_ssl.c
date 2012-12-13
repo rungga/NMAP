@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_ssl.c 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: ncat_ssl.c 28984 2012-06-19 00:21:27Z david $ */
 
 #include "nbase.h"
 #include "ncat_config.h"
@@ -200,7 +200,8 @@ SSL *new_ssl(int fd)
    must be the entire leftmost component, and there must be at least two
    components following it. len is the length of pattern; pattern may contain
    null bytes so that len != strlen(pattern). */
-static int wildcard_match(const char *pattern, const char *hostname, size_t len) {
+static int wildcard_match(const char *pattern, const char *hostname, size_t len)
+{
     if (pattern[0] == '*' && pattern[1] == '.') {
         /* A wildcard pattern. */
         const char *p, *h, *dot;
@@ -313,7 +314,7 @@ static int cert_match_dnsname(X509 *cert, const char *hostname,
             if (num_checked != NULL)
                 (*num_checked)++;
             if (wildcard_match((char *) ASN1_STRING_data(gen_name->d.dNSName), hostname, ASN1_STRING_length(gen_name->d.dNSName)))
-               return 1;
+                return 1;
         }
     }
 
@@ -576,31 +577,31 @@ int ssl_handshake(struct fdinfo *sinfo)
     int ret = 0;
     int sslerr = 0;
 
-    if(sinfo == NULL) {
+    if (sinfo == NULL) {
         if (o.debug)
            logdebug("ncat_ssl.c: Invoking ssl_handshake() with a NULL parameter "
                     "is a serious bug. Please fix it.\n");
         return -1;
     }
 
-    if(!o.ssl)
+    if (!o.ssl)
         return -1;
 
     /* Initialize the socket too if it isn't.  */
-    if(!sinfo->ssl)
+    if (!sinfo->ssl)
         sinfo->ssl = new_ssl(sinfo->fd);
 
     ret = SSL_accept(sinfo->ssl);
 
-    if(ret == 1)
+    if (ret == 1)
         return NCAT_SSL_HANDSHAKE_COMPLETED;
 
     sslerr = SSL_get_error(sinfo->ssl, ret);
 
-    if(ret == -1) {
-        if(sslerr == SSL_ERROR_WANT_READ)
+    if (ret == -1) {
+        if (sslerr == SSL_ERROR_WANT_READ)
             return NCAT_SSL_HANDSHAKE_PENDING_READ;
-        if(sslerr == SSL_ERROR_WANT_WRITE)
+        if (sslerr == SSL_ERROR_WANT_WRITE)
             return NCAT_SSL_HANDSHAKE_PENDING_WRITE;
     }
 
@@ -613,5 +614,3 @@ int ssl_handshake(struct fdinfo *sinfo)
 }
 
 #endif
-
-

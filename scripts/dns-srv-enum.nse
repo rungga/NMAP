@@ -1,3 +1,11 @@
+local coroutine = require "coroutine"
+local dns = require "dns"
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local tab = require "tab"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Enumerates various common service (SRV) records for a given domain name.
 The service records contain the hostname, port and priority of servers for a given service.
@@ -54,9 +62,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'dns'
-require 'tab'
-require 'target'
 
 local arg_domain = stdnse.get_script_args(SCRIPT_NAME .. ".domain")
 local arg_filter = stdnse.get_script_args(SCRIPT_NAME .. ".filter")
@@ -162,9 +167,11 @@ action = function(host)
 	
 	local condvar = nmap.condvar(result)
 	repeat
-		condvar "wait"
 		for t in pairs(threads) do
 			if ( coroutine.status(t) == "dead" ) then threads[t] = nil end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until( next(threads) == nil )
 	

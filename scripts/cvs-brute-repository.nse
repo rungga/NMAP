@@ -1,3 +1,13 @@
+local brute = require "brute"
+local coroutine = require "coroutine"
+local cvs = require "cvs"
+local io = require "io"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+local unpwdb = require "unpwdb"
+
 description = [[
 Attempts to guess the name of the CVS repositories hosted on the remote server.
 With knowledge of the correct repository name, usernames and passwords can be guessed.
@@ -22,17 +32,15 @@ With knowledge of the correct repository name, usernames and passwords can be gu
 -- @args cvs-brute-repository.repofile a file containing a list of repositories
 --       to guess
 
--- Version 0.1
+-- Version 0.2
 -- Created 07/13/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
+-- Revised 08/07/2012 - v0.2 - revised to suit the changes in brute
+-- 							   library [Aleksandar Nikolic]
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
-require 'cvs'
-require 'brute'
-require 'creds'
-require 'shortport'
 
 portrule = shortport.port_or_service(2401, "cvspserver")
 
@@ -58,10 +66,8 @@ Driver =
 		if ( not(status) and err:match("I HATE YOU") ) then
 			-- let's store the repositories in the registry so the brute
 			-- script can use them later.
-			nmap.registry.cvs = nmap.registry.cvs or {}
-			nmap.registry.cvs[self.host.ip] = nmap.registry.cvs[self.host.ip] or {}
-			nmap.registry.cvs[self.host.ip].repos = nmap.registry.cvs[self.host.ip].repos or {}
-			table.insert(nmap.registry.cvs[self.host.ip].repos, password)
+			self.host.registry.cvs_repos = self.host.registry.cvs_repos or {}
+			table.insert(self.host.registry.cvs_repos, password)
 			return true, brute.Account:new(username, password, 0)
 		end
 		return false, brute.Error:new( "Incorrect password" )
@@ -97,7 +103,7 @@ action = function(host, port)
 		end
 	end
 
-	repository_iterator = function()
+	local function repository_iterator()
 		local function next_repo()
 			for line in f:lines() do
 				if ( not(line:match("#!comment")) ) then
@@ -114,8 +120,8 @@ action = function(host, port)
 	engine.options.passonly = true
 	engine.options.firstonly = false
 	engine.options.nostore = true
-	engine:addIterator(brute.Iterators.account_iterator({""}, repos, "user"))
-	if ( repofile ) then engine:addIterator(repository_iterator()) end
+	engine.iterator = brute.Iterators.account_iterator({""}, repos, "user")
+	if ( repofile ) then engine.iterator = unpwdb.concat_iterators(engine.iterator,repository_iterator()) end
 	status, result = engine:start()
 
 	return result

@@ -1,3 +1,15 @@
+local bin = require "bin"
+local coroutine = require "coroutine"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local string = require "string"
+local tab = require "tab"
+local table = require "table"
+local target = require "target"
+
+local openssl = stdnse.silent_require "openssl"
+
 description = [[
 Sends broadcast pings on a selected interface using raw ethernet packets and 
 outputs the responding hosts' IP and MAC addresses or (if requested) adds them as targets.  Root privileges on UNIX are required to run this script since it uses raw sockets.  Most operating systems don't respond to broadcast-ping probes, 
@@ -46,13 +58,6 @@ author = "Gorjan Petrovski"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery","safe","broadcast"}
 
-require "nmap"
-require "stdnse"
-require "packet"
-require "bin"
-require "tab"
-require "target"
-stdnse.silent_require("openssl")
 
 prerule = function()
 	if not nmap.is_privileged() then
@@ -121,7 +126,7 @@ local icmp_packet = function(srcIP, dstIP, ttl, data_length, mtu, seqNo, icmp_id
 	local icmp_bin = bin.pack(">AA",ip_bin, icmp_msg)
 	
 	--Packet
-	icmp = packet.Packet:new(icmp_bin,#icmp_bin)
+	local icmp = packet.Packet:new(icmp_bin,#icmp_bin)
 	assert(icmp,"Mistake during ICMP packet parsing")
 	
 	icmp:ip_set_bin_src(packet.iptobin(srcIP))
@@ -148,7 +153,7 @@ local broadcast_if = function(if_table,icmp_responders)
 
 	-- raw IPv4 socket 
 	local dnet = nmap.new_dnet()
-	try = nmap.new_try()
+	local try = nmap.new_try()
 	try = nmap.new_try(function() dnet:ethernet_close() end)
 	
 	-- raw sniffing socket (icmp echoreply style)
@@ -250,9 +255,11 @@ action = function()
 	end
 
 	repeat
-		condvar "wait"
 		for thread in pairs(threads) do
 			if coroutine.status(thread) == "dead" then threads[thread] = nil end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until next(threads) == nil
 	

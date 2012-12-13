@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_internal.h 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: nsock_internal.h 30231 2012-11-12 20:44:37Z david $ */
 
 #ifndef NSOCK_INTERNAL_H
 #define NSOCK_INTERNAL_H
@@ -96,6 +96,9 @@
 #endif
 #if HAVE_STRINGS_H
 #include <strings.h>
+#endif
+#if HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 
 #ifndef IPPROTO_SCTP
@@ -205,6 +208,9 @@ typedef struct {
   /* If true, new sockets will have SO_BROADCAST set */
   int broadcast;
 
+  /* Interface to bind to; only supported on Linux with SO_BINDTODEVICE sockopt. */
+  const char *device;
+
   /* If true, exit the next iteration of nsock_loop with a status of
    * NSOCK_LOOP_QUIT. */
   int quit;
@@ -252,7 +258,8 @@ typedef struct {
   struct sockaddr_storage local;
 
   /* The length of peer/local actually used (sizeof(sockaddr_in) or
-   * sizeof(sockaddr_in6), or 0 if peer/local has not been filled in */
+   * sizeof(sockaddr_in6), SUN_LEN(sockaddr_un), or 0 if peer/local
+   * has not been filled in */
   size_t locallen;
   size_t peerlen;
 
@@ -265,6 +272,7 @@ typedef struct {
   gh_list_elem *entry_in_nsp_active_iods;
 
 #define IOD_REGISTERED  0x01
+#define IOD_PROCESSED   0x02    /* internally used by engine_kqueue.c */
 
 #define IOD_PROPSET(iod, flag)  ((iod)->_flags |= (flag))
 #define IOD_PROPCLR(iod, flag)  ((iod)->_flags &= ~(flag))
@@ -420,7 +428,7 @@ void msevent_delete(mspool *nsp, msevent *nse);
  * etc. */
 void nsp_add_event(mspool *nsp, msevent *nse);
 
-void nsock_connect_internal(mspool *ms, msevent *nse, int proto, struct sockaddr_storage *ss, size_t sslen, unsigned short port);
+void nsock_connect_internal(mspool *ms, msevent *nse, int type, int proto, struct sockaddr_storage *ss, size_t sslen, unsigned short port);
 
 /* Comments on using the following handle_*_result functions are available in nsock_core.c */
 

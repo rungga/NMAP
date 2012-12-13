@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: util.h 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: util.h 30232 2012-11-12 20:44:40Z david $ */
 
 #ifndef UTIL_H_
 #define UTIL_H_
@@ -99,6 +99,10 @@
 #ifndef WIN32
 #include <sys/types.h>
 #include <netinet/in.h>
+#endif
+
+#if HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 
 #ifdef HAVE_OPENSSL
@@ -115,14 +119,19 @@ void windows_init();
 
 #include "sockaddr_u.h"
 
-void loguser(const char *fmt, ...);
-void loguser_noprefix(const char *fmt, ...);
-void logdebug(const char *fmt, ...);
+void loguser(const char *fmt, ...)
+     __attribute__ ((format (printf, 1, 2)));
+void loguser_noprefix(const char *fmt, ...)
+     __attribute__ ((format (printf, 1, 2)));
+void logdebug(const char *fmt, ...)
+     __attribute__ ((format (printf, 1, 2)));
 
 /* handle errors */
 void die(char *);
 
-void bye(const char *, ...);
+void bye(const char *, ...)
+     __attribute__ ((noreturn))
+     __attribute__ ((format (printf, 1, 2)));
 
 /* zero out some memory, bzero() is deprecated */
 void zmem(void *, size_t);
@@ -131,7 +140,8 @@ int strbuf_append(char **buf, size_t *size, size_t *offset, const char *s, size_
 
 int strbuf_append_str(char **buf, size_t *size, size_t *offset, const char *s);
 
-int strbuf_sprintf(char **buf, size_t *size, size_t *offset, const char *fmt, ...);
+int strbuf_sprintf(char **buf, size_t *size, size_t *offset, const char *fmt, ...)
+     __attribute__ ((format (printf, 4, 5)));
 
 char *mkstr(const char *start, const char *end);
 

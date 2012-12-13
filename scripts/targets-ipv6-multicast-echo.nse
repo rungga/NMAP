@@ -1,3 +1,12 @@
+local coroutine = require "coroutine"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local string = require "string"
+local tab = require "tab"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Sends an ICMPv6 echo request packet to the all-nodes link-local
 multicast address (<code>ff02::1</code>) to discover responsive hosts
@@ -21,21 +30,10 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"discovery","broadcast"}
 
-require 'nmap'
-require 'tab'
-require 'target'
-require 'packet'
-local bit = require 'bit'
 
 prerule = function()
 	return nmap.is_privileged()
 end
-
-catch = function()
-	dnet:ethernet_close()
-	pcap:pcap_close()
-end
-try = nmap.new_try(catch)
 
 local function get_interfaces()
 	local interface_name = stdnse.get_script_args(SCRIPT_NAME .. ".interface")
@@ -87,6 +85,12 @@ local function single_interface_broadcast(if_nfo, results)
 
 	local dnet = nmap.new_dnet()
 	local pcap = nmap.new_socket()
+
+    local function catch ()
+	  dnet:ethernet_close()
+	  pcap:pcap_close()
+    end
+    local try = nmap.new_try(catch)
 
 	try(dnet:ethernet_open(if_nfo.device))
 	pcap:pcap_open(if_nfo.device, 128, false, "icmp6 and ip6[6:1] = 58 and ip6[40:1] = 129")
@@ -165,9 +169,11 @@ action = function()
 	end
 
 	repeat
-		condvar "wait"
 		for thread in pairs(threads) do
 			if coroutine.status(thread) == "dead" then threads[thread] = nil end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until next(threads) == nil
 

@@ -23,6 +23,8 @@
  *  DEALINGS IN THE SOFTWARE.
  */
 
+/* $Id: getopt.c 29744 2012-09-10 20:53:09Z henri $ */
+
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>

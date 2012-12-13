@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_core.c 28415 2012-04-07 08:16:08Z david $ */
+/* $Id: nsock_core.c 30306 2012-11-29 03:19:52Z david $ */
 
 #include "nsock_internal.h"
 #include "gh_list.h"
@@ -349,6 +349,7 @@ void handle_connect_result(mspool *ms, msevent *nse, enum nse_status status) {
       case EHOSTDOWN:
       case ECONNRESET:
 #ifdef WIN32
+      case WSAEADDRINUSE:
       case WSAEADDRNOTAVAIL:
 #endif
 #ifndef WIN32
@@ -423,7 +424,7 @@ void handle_connect_result(mspool *ms, msevent *nse, enum nse_status status) {
     if (iod->ssl_session) {
       rc = SSL_set_session(iod->ssl, iod->ssl_session);
       if (rc == 0)
-        printf("Uh-oh: SSL_set_session() failed - please tell Fyodor\n");
+        fprintf(stderr, "Uh-oh: SSL_set_session() failed - please tell Fyodor\n");
       iod->ssl_session = NULL; /* No need for this any more */
     }
 
@@ -462,6 +463,8 @@ void handle_connect_result(mspool *ms, msevent *nse, enum nse_status status) {
         socket_count_write_inc(iod);
         update_events(iod, ms, EV_WRITE, EV_NONE);
       } else if (!(options & SSL_OP_NO_SSLv2)) {
+        int saved_ev;
+
         /* SSLv3-only and TLSv1-only servers can't be connected to when the
          * SSL_OP_NO_SSLv2 option is not set, which is the case when the pool
          * was initialized with nsp_ssl_init_max_speed. Try reconnecting with
@@ -469,8 +472,13 @@ void handle_connect_result(mspool *ms, msevent *nse, enum nse_status status) {
          * might use SSLv2. */
         if (ms->tracelevel > 0)
           nsock_trace(ms, "EID %li reconnecting with SSL_OP_NO_SSLv2", nse->id);
+
+        saved_ev = iod->watched_events;
+        ms->engine->iod_unregister(ms, iod);
         close(iod->sd);
-        nsock_connect_internal(ms, nse, iod->lastproto, &iod->peer, iod->peerlen, nsi_peerport(iod));
+        nsock_connect_internal(ms, nse, SOCK_STREAM, iod->lastproto, &iod->peer, iod->peerlen, nsi_peerport(iod));
+        ms->engine->iod_register(ms, iod, saved_ev);
+
         SSL_clear(iod->ssl);
         if(!SSL_clear(iod->ssl))
            fatal("SSL_clear failed: %s", ERR_error_string(ERR_get_error(), NULL));
@@ -562,7 +570,8 @@ void handle_write_result(mspool *ms, msevent *nse, enum nse_status status) {
       }
     }
 
-    nse->iod->write_count+= res;
+    if (res >= 0)
+      nse->iod->write_count += res;
   }
 
   if (nse->event_done && nse->iod->sd != -1) {
@@ -1256,7 +1265,7 @@ void nsock_trace_handler_callback(mspool *ms, msevent *nse) {
   nsi = nse->iod;
 
   if (nse->status == NSE_STATUS_ERROR)
-    Snprintf(errstr, sizeof(errstr), "[%s (%d)] ", strerror(nse->errnum), nse->errnum);
+    Snprintf(errstr, sizeof(errstr), "[%s (%d)] ", socket_strerror(nse->errnum), nse->errnum);
   else
     errstr[0] = '\0';
 
@@ -1264,18 +1273,17 @@ void nsock_trace_handler_callback(mspool *ms, msevent *nse) {
   switch(nse->type) {
     case NSE_TYPE_CONNECT:
     case NSE_TYPE_CONNECT_SSL:
-      nsock_trace(ms, "Callback: %s %s %sfor EID %li [%s:%d]",
-                  nse_type2str(nse->type), nse_status2str(nse->status), errstr,
-                  nse->id, inet_ntop_ez(&nsi->peer, nsi->peerlen), nsi_peerport(nsi));
+      nsock_trace(ms, "Callback: %s %s %sfor EID %li [%s]",
+                  nse_type2str(nse->type), nse_status2str(nse->status),
+                  errstr, nse->id, get_peeraddr_string(nsi));
       break;
 
     case NSE_TYPE_READ:
       if (nse->status != NSE_STATUS_SUCCESS) {
         if (nsi->peerlen > 0) {
-           nsock_trace(ms, "Callback: %s %s %sfor EID %li [%s:%d]",
-                       nse_type2str(nse->type), nse_status2str(nse->status),
-                       errstr, nse->id, inet_ntop_ez(&nsi->peer, nsi->peerlen),
-                       nsi_peerport(nsi));
+          nsock_trace(ms, "Callback: %s %s %sfor EID %li [%s]",
+                      nse_type2str(nse->type), nse_status2str(nse->status),
+                      errstr, nse->id, get_peeraddr_string(nsi));
         } else {
           nsock_trace(ms, "Callback: %s %s %sfor EID %li (peer unspecified)",
                       nse_type2str(nse->type), nse_status2str(nse->status),
@@ -1293,11 +1301,10 @@ void nsock_trace_handler_callback(mspool *ms, msevent *nse) {
         }
 
         if (nsi->peerlen > 0) {
-          nsock_trace(ms, "Callback: %s %s for EID %li [%s:%d] %s(%d bytes)%s",
+          nsock_trace(ms, "Callback: %s %s for EID %li [%s] %s(%d bytes)%s",
                       nse_type2str(nse->type), nse_status2str(nse->status),
-                      nse->id, inet_ntop_ez(&nsi->peer, nsi->peerlen),
-                      nsi_peerport(nsi), nse_eof(nse)? "[EOF]" : "", strlength,
-                      displaystr);
+                      nse->id, get_peeraddr_string(nsi),
+                      nse_eof(nse)? "[EOF]" : "", strlength, displaystr);
         } else {
           nsock_trace(ms, "Callback %s %s for EID %li (peer unspecified) %s(%d bytes)%s",
                       nse_type2str(nse->type), nse_status2str(nse->status),
@@ -1307,10 +1314,9 @@ void nsock_trace_handler_callback(mspool *ms, msevent *nse) {
       break;
 
     case NSE_TYPE_WRITE:
-      nsock_trace(ms, "Callback: %s %s %sfor EID %li [%s:%d]",
+      nsock_trace(ms, "Callback: %s %s %sfor EID %li [%s]",
                   nse_type2str(nse->type), nse_status2str(nse->status), errstr,
-                  nse->id, inet_ntop_ez(&nsi->peer, nsi->peerlen),
-                  nsi_peerport(nsi));
+                  nse->id, get_peeraddr_string(nsi));
       break;
 
     case NSE_TYPE_TIMER:

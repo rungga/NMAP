@@ -1,3 +1,11 @@
+local bin = require "bin"
+local bit = require "bit"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local tab = require "tab"
+
 -- -*- mode: lua -*-
 -- vim: set filetype=lua :
 
@@ -29,10 +37,6 @@ author = "Mak Kolybabi"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive"}
 
-require("bit")
-require("shortport")
-require("stdnse")
-require("tab")
 
 local NRPE_PROTOCOLS = {
 	"ssl",
@@ -238,7 +242,7 @@ action = function(host, port)
 	-- Record service description.
 	port.version.name = "nrpe"
 	port.version.product = "Nagios Remote Plugin Executor"
-	nmap.set_port_version(host, port, "hardmatched")
+	nmap.set_port_version(host, port)
 
 	-- Format table, without trailing newline.
 	results = tab.dump(results)

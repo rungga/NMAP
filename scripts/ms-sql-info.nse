@@ -1,3 +1,10 @@
+local mssql = require "mssql"
+local nmap = require "nmap"
+local smb = require "smb"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 -- -*- mode: lua -*-
 -- vim: set filetype=lua :
 
@@ -106,8 +113,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"default", "discovery", "safe"}
 
-require("shortport")
-require("mssql")
 
 hostrule = function(host)
 	if ( mssql.Helper.WasDiscoveryPerformed( host ) ) then
@@ -217,7 +222,7 @@ local function process_instance( instance )
 	-- Give some version info back to Nmap
 	if ( instance.port and instance.version ) then
 		instance.version:PopulateNmapPortVersion( instance.port )
-		nmap.set_port_version( instance.host, instance.port, "hardmatched" )
+		nmap.set_port_version( instance.host, instance.port)
 	end
 
 end

@@ -1,3 +1,10 @@
+local comm = require "comm"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Retrieves information from a listening acarsd daemon. Acarsd decodes
 ACARS (Aircraft Communication Addressing and Reporting System) data in
@@ -37,9 +44,6 @@ author = "Brendan Coles"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"safe","discovery"}
 
-require("stdnse")
-require("comm")
-require("shortport")
 
 portrule = shortport.port_or_service (2202, "acarsd", {"tcp"})
 
@@ -103,7 +107,7 @@ action = function(host, port)
 	end
 	port.version.name = "acarsd"
 	port.version.product = "ACARS Decoder"
-	nmap.set_port_version(host, port, "hardmatched")        
+	nmap.set_port_version(host, port)        
 
 	-- Return results
 	return stdnse.format_output(true, result)

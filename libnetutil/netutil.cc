@@ -374,19 +374,14 @@ after:
   return(d - data);
 }
 
-/* Tries to resolve the given name (or literal IP) into a sockaddr structure.
-   - Parameter "hostname" is the name to be resolved.
-   - Parameter "port" sets the port in each returned address structure
-     (you can safely pass 0 for the port if you don't care)
-   - Parameter "nodns": If set, it means that the supplied hostname is actually a
-     numeric IP address. The flag prevents any type of name resolution service
-     from being called. In 99% of the cases this should be 0.
-   Returns 1 on success or 0 if hostname could not be resolved. */
-int resolve(const char *hostname, u16 port, int nodns, struct sockaddr_storage *ss, size_t *sslen, int af){
+/* Internal helper for resolve and resolve_numeric. addl_flags is ored into
+   hints.ai_flags, so you can add AI_NUMERICHOST. */
+static int resolve_internal(const char *hostname, unsigned short port,
+  struct sockaddr_storage *ss, size_t *sslen, int af, int addl_flags) {
   struct addrinfo hints;
   struct addrinfo *result;
   char portbuf[16];
-  size_t rc=0;
+  int rc;
 
   assert(hostname);
   assert(ss);
@@ -395,21 +390,42 @@ int resolve(const char *hostname, u16 port, int nodns, struct sockaddr_storage *
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = af;
   hints.ai_socktype = SOCK_DGRAM;
-  if (nodns)
-     hints.ai_flags |= AI_NUMERICHOST;
+  hints.ai_flags |= addl_flags;
 
   /* Make the port number a string to give to getaddrinfo. */
   rc = Snprintf(portbuf, sizeof(portbuf), "%hu", port);
-  assert(rc >= 0 && rc < sizeof(portbuf));
+  assert(rc >= 0 && (size_t) rc < sizeof(portbuf));
 
   rc = getaddrinfo(hostname, portbuf, &hints, &result);
-  if (rc != 0 || result == NULL)
-      return 0;
+  if (rc != 0)
+    return rc;
+  if (result == NULL)
+    return EAI_NONAME;
   assert(result->ai_addrlen > 0 && result->ai_addrlen <= (int) sizeof(struct sockaddr_storage));
   *sslen = result->ai_addrlen;
   memcpy(ss, result->ai_addr, *sslen);
   freeaddrinfo(result);
-  return 1;
+
+  return 0;
+}
+
+/* Resolves the given hostname or IP address with getaddrinfo, and stores the
+   first result (if any) in *ss and *sslen. The value of port will be set in the
+   appropriate place in *ss; set to 0 if you don't care. af may be AF_UNSPEC, in
+   which case getaddrinfo may return e.g. both IPv4 and IPv6 results; which one
+   is first depends on the system configuration. Returns 0 on success, or a
+   getaddrinfo return code (suitable for passing to gai_strerror) on failure.
+   *ss and *sslen are always defined when this function returns 0. */
+int resolve(const char *hostname, unsigned short port,
+  struct sockaddr_storage *ss, size_t *sslen, int af) {
+  return resolve_internal(hostname, port, ss, sslen, af, 0);
+}
+
+/* As resolve, but do not do DNS resolution of hostnames; the first argument
+   must be the string representation of a numeric IP address. */
+int resolve_numeric(const char *ip, unsigned short port,
+  struct sockaddr_storage *ss, size_t *sslen, int af) {
+  return resolve_internal(ip, port, ss, sslen, af, AI_NUMERICHOST);
 }
 
 /*
@@ -1520,10 +1536,24 @@ static struct dnet_collector_route_nfo *sysroutes_dnet_find_interfaces(struct dn
   if( (ifaces=getinterfaces(&numifaces, NULL, 0))==NULL )
     return NULL;
   for (i = 0; i < dcrn->numroutes; i++) {
-    /* First we match up routes whose gateway address directly matches the
-       address of an interface. */
+    if (dcrn->routes[i].device != NULL)
+      continue;
+
+    /* First we match up routes whose gateway or destination address
+       directly matches the address of an interface. */
+    struct sys_route *route = &dcrn->routes[i];
+    struct sockaddr_storage *routeaddr;
+
+    /* First see if the gateway was set */
+    if (sockaddr_equal_zero(&route->gw))
+      routeaddr = &dcrn->routes[i].dest;
+    else
+      routeaddr = &dcrn->routes[i].gw;
+
     for (j = 0; j < numifaces; j++) {
-      if (sockaddr_equal_netmask(&ifaces[j].addr, &dcrn->routes[i].gw, ifaces[j].netmask_bits)) {
+      if (!ifaces[j].device_up)
+        continue;
+      if (sockaddr_equal_netmask(&ifaces[j].addr, routeaddr, ifaces[j].netmask_bits)) {
         dcrn->routes[i].device = &ifaces[j];
         break;
       }
@@ -1590,10 +1620,10 @@ static int collect_dnet_routes(const struct route_entry *entry, void *arg) {
   }
 
   /* Now for the important business */
-  dcrn->routes[dcrn->numroutes].device = NULL;
   addr_ntos(&entry->route_dst, (struct sockaddr *) &dcrn->routes[dcrn->numroutes].dest);
   dcrn->routes[dcrn->numroutes].netmask_bits = entry->route_dst.addr_bits;
   addr_ntos(&entry->route_gw, (struct sockaddr *) &dcrn->routes[dcrn->numroutes].gw);
+  dcrn->routes[dcrn->numroutes].device = getInterfaceByName(entry->intf_name, dcrn->routes[dcrn->numroutes].dest.ss_family);
   dcrn->numroutes++;
 
   return 0;
@@ -2990,6 +3020,66 @@ static int set_sockaddr(struct sockaddr_storage *ss, int af, void *data) {
   return 0;
 }
 
+/* Add rtattrs to a netlink message specifying a source or destination address.
+   rta_type must be RTA_SRC or RTA_DST. This function adds either 1 or 2
+   rtattrs: it always adds either an RTA_SRC or RTA_DST, depending on rta_type.
+   It also adds either RTA_IIF or RTA_OIF if the address family is AF_INET6 and
+   the sockaddr_in6 has a non-zero sin6_scope_id. */
+static void add_rtattr_addr(struct nlmsghdr *nlmsg,
+                            struct rtattr **rtattr, unsigned int *len,
+                            unsigned char rta_type,
+                            const struct sockaddr_storage *ss) {
+  struct rtmsg *rtmsg;
+  const void *addr;
+  size_t addrlen;
+  int ifindex;
+
+  assert(rta_type == RTA_SRC || rta_type == RTA_DST);
+
+  ifindex = 0;
+
+  if (ss->ss_family == AF_INET) {
+    addr = &((struct sockaddr_in *) ss)->sin_addr.s_addr;
+    addrlen = IP_ADDR_LEN;
+  } else if (ss->ss_family == AF_INET6) {
+    const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) ss;
+
+    addr = sin6->sin6_addr.s6_addr;
+    addrlen = IP6_ADDR_LEN;
+    ifindex = sin6->sin6_scope_id;
+  } else {
+    netutil_fatal("%s: unknown address family %d", __func__, ss->ss_family);
+  }
+
+  rtmsg = (struct rtmsg *) (nlmsg + 1);
+  if (rta_type == RTA_SRC)
+    rtmsg->rtm_src_len = addrlen * 8;
+  else
+    rtmsg->rtm_dst_len = addrlen * 8;
+
+  /* Add an rtattr for the address. */
+  (*rtattr)->rta_type = rta_type;
+  (*rtattr)->rta_len = RTA_LENGTH(addrlen);
+  assert(RTA_OK(*rtattr, *len));
+  memcpy(RTA_DATA(*rtattr), addr, addrlen);
+  nlmsg->nlmsg_len = NLMSG_ALIGN(nlmsg->nlmsg_len) + (*rtattr)->rta_len;
+  *rtattr = RTA_NEXT(*rtattr, *len);
+
+  /* Specific interface (sin6_scope_id) requested? */
+  if (ifindex > 0) {
+    /* Add an rtattr for the interface. */
+    if (rta_type == RTA_SRC)
+      (*rtattr)->rta_type = RTA_IIF;
+    else
+      (*rtattr)->rta_type = RTA_OIF;
+    (*rtattr)->rta_len = RTA_LENGTH(sizeof(uint32_t));
+    assert(RTA_OK(*rtattr, *len));
+    *(uint32_t *) RTA_DATA(*rtattr) = ifindex;
+    nlmsg->nlmsg_len = NLMSG_ALIGN(nlmsg->nlmsg_len) + (*rtattr)->rta_len;
+    *rtattr = RTA_NEXT(*rtattr, *len);
+  }
+}
+
 /* Does route_dst using the Linux-specific rtnetlink interface. See rtnetlink(3)
    and rtnetlink(7). */
 static int route_dst_netlink(const struct sockaddr_storage *dst,
@@ -3002,25 +3092,8 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
   struct rtmsg *rtmsg;
   struct rtattr *rtattr;
   unsigned char buf[512];
-  const void *addr;
-  size_t addrlen;
-  int ifindex;
-  int fd, rc, len;
-
-  ifindex = 0;
-
-  if (dst->ss_family == AF_INET) {
-    addr = &((struct sockaddr_in *) dst)->sin_addr.s_addr;
-    addrlen = IP_ADDR_LEN;
-  } else if (dst->ss_family == AF_INET6) {
-    const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) dst;
-
-    addr = sin6->sin6_addr.s6_addr;
-    addrlen = IP6_ADDR_LEN;
-    ifindex = sin6->sin6_scope_id;
-  } else {
-    netutil_fatal("%s: unknown address family %d", __func__, dst->ss_family);
-  }
+  unsigned int len;
+  int fd, rc;
 
   fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   if (fd == -1)
@@ -3044,27 +3117,15 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
 
   rtmsg = (struct rtmsg *) (nlmsg + 1);
   rtmsg->rtm_family = dst->ss_family;
-  rtmsg->rtm_dst_len = addrlen * 8;
 
   rtattr = RTM_RTA(rtmsg);
-  len = sizeof(buf) - ((unsigned char *) rtattr - buf);
+  len = sizeof(buf) - ((unsigned char *) RTM_RTA(rtmsg) - buf);
 
-  /* Add an rtattr for destination address. */
-  rtattr->rta_type = RTA_DST;
-  rtattr->rta_len = RTA_LENGTH(addrlen);
-  assert(RTA_OK(rtattr, len));
-  memcpy(RTA_DATA(rtattr), addr, addrlen);
-  nlmsg->nlmsg_len = NLMSG_ALIGN(nlmsg->nlmsg_len) + rtattr->rta_len;
-
-  /* Specific interface (sin6_scope_id) requested? */
-  if (ifindex > 0) {
-    /* Add an rtattr for outgoing interface. */
-    rtattr = RTA_NEXT(rtattr, len);
-    rtattr->rta_type = RTA_OIF;
-    rtattr->rta_len = RTA_LENGTH(sizeof(uint32_t));
-    assert(RTA_OK(rtattr, len));
-    *(uint32_t *) RTA_DATA(rtattr) = ifindex;
-    nlmsg->nlmsg_len = NLMSG_ALIGN(nlmsg->nlmsg_len) + rtattr->rta_len;
+  /* Add rtattrs for destination address and interface. */
+  add_rtattr_addr(nlmsg, &rtattr, &len, RTA_DST, dst);
+  if (spoofss != NULL) {
+    /* Add rtattrs for source address and interface. */
+    add_rtattr_addr(nlmsg, &rtattr, &len, RTA_SRC, spoofss);
   }
 
   iov.iov_base = nlmsg;
@@ -3093,6 +3154,10 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
     netutil_fatal("%s: wrong size reply in recvmsg", __func__);
   len -= NLMSG_LENGTH(sizeof(*nlmsg));
 
+  /* See rtnetlink(7). Anything matching this route is actually unroutable. */
+  if (rtmsg->rtm_type == RTN_UNREACHABLE)
+    return 0;
+
   /* Default values to be possibly overridden. */
   rnfo->direct_connect = 1;
   rnfo->nexthop.ss_family = AF_UNSPEC;
@@ -3103,16 +3168,16 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
   struct interface_info *ii;
   ii = NULL;
   if (device != NULL && device[0] != '\0') {
-    ii = getInterfaceByName(device, rtmsg->rtm_family);
+    ii = getInterfaceByName(device, dst->ss_family);
     if (ii == NULL)
       netutil_fatal("Could not find interface %s which was specified by -e", device);
   }
 
   for (rtattr = RTM_RTA(rtmsg); RTA_OK(rtattr, len); rtattr = RTA_NEXT(rtattr, len)) {
     if (rtattr->rta_type == RTA_GATEWAY) {
-      rc = set_sockaddr(&rnfo->nexthop, rtmsg->rtm_family, RTA_DATA(rtattr));
+      rc = set_sockaddr(&rnfo->nexthop, dst->ss_family, RTA_DATA(rtattr));
       assert(rc != -1);
-      /* Don't consider it directly connected if nexthop == dst. */
+      /* Don't consider it directly connected if nexthop != dst. */
       if (!sockaddr_storage_equal(dst, &rnfo->nexthop))
         rnfo->direct_connect = 0;
     } else if (rtattr->rta_type == RTA_OIF && ii == NULL) {
@@ -3123,11 +3188,13 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
       intf_index = *(int *) RTA_DATA(rtattr);
       p = if_indextoname(intf_index, namebuf);
       assert(p != NULL);
-      ii = getInterfaceByName(namebuf, rtmsg->rtm_family);
+      ii = getInterfaceByName(namebuf, dst->ss_family);
+      if (ii == NULL)
+        ii = getInterfaceByName(namebuf, AF_UNSPEC);
       if (ii == NULL)
         netutil_fatal("%s: can't find interface \"%s\"", __func__, namebuf);
     } else if (rtattr->rta_type == RTA_PREFSRC && rnfo->srcaddr.ss_family == AF_UNSPEC) {
-      rc = set_sockaddr(&rnfo->srcaddr, rtmsg->rtm_family, RTA_DATA(rtattr));
+      rc = set_sockaddr(&rnfo->srcaddr, dst->ss_family, RTA_DATA(rtattr));
       assert(rc != -1);
     }
   }
@@ -3293,7 +3360,7 @@ static int route_dst_generic(const struct sockaddr_storage *dst,
     /* But the source address we want to use is the target address. */
     if (!spoofss) {
       if (get_srcaddr(dst, &rnfo->srcaddr) == -1)
-        return 0;
+        rnfo->srcaddr = rnfo->ii.addr;
     }
 
     return 1;
@@ -3318,7 +3385,7 @@ static int route_dst_generic(const struct sockaddr_storage *dst,
       sockaddr_equal(&routes[i].gw, dst));
     if (!spoofss) {
       if (get_srcaddr(dst, &rnfo->srcaddr) == -1)
-        return 0;
+        rnfo->srcaddr = rnfo->ii.addr;
     }
     rnfo->nexthop = routes[i].gw;
 
@@ -3336,7 +3403,7 @@ static int route_dst_generic(const struct sockaddr_storage *dst,
     rnfo->direct_connect = 1;
     if (!spoofss) {
       if (get_srcaddr(dst, &rnfo->srcaddr) == -1)
-        return 0;
+        rnfo->srcaddr = rnfo->ii.addr;
     }
 
     return 1;

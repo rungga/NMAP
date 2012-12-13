@@ -1,3 +1,8 @@
+local http = require "http"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local vulns = require "vulns"
+
 description = [[
 Detects a denial of service vulnerability in the way the Apache web server
 handles requests for multiple overlapping/simple ranges of a page.
@@ -47,9 +52,6 @@ author = "Duarte Silva <duarte.silva@serializing.me>"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
-require "shortport"
-require "http"
-require "vulns"
 
 portrule =  shortport.http
 
@@ -105,7 +107,7 @@ overlapping byte ranges are requested.]],
         -- than allowed).
         -- Vulnerable servers will reply with another code 206 response. Patched
         -- ones will return a code 200.
-        request_opts.header.Range = "bytes=0-0,1-1,2-2,3-3,4-4,5-5,6-6,7-7,8-8,9-9,10-10"
+        request_opts.header.Range = "bytes=1-0,0-0,1-1,2-2,3-3,4-4,5-5,6-6,7-7,8-8,9-9,10-10"
 
         response = http.head(host, port, path, request_opts)
 

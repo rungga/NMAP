@@ -1,3 +1,10 @@
+local msrpc = require "msrpc"
+local nmap = require "nmap"
+local smb = require "smb"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Checks for vulnerabilities:
 * MS08-067, a Windows RPC vulnerability
@@ -110,9 +117,6 @@ dependencies = {
   "smb-psexec",
 };
 
-require 'msrpc'
-require 'smb'
-require 'stdnse'
 
 hostrule = function(host)
 	return smb.get_port(host) ~= nil
@@ -125,7 +129,7 @@ local NOTRUN     = 4
 local INFECTED   = 5
 local INFECTED2  = 6
 local CLEAN      = 7
-local NOTUP		 = 8
+local NOTUP      = 8
 
 ---Check if the server is patched for MS08-067. This is done by calling NetPathCompare with an 
 -- illegal string. If the string is accepted, then the server is vulnerable; if it's rejected, then
@@ -146,6 +150,9 @@ local NOTUP		 = 8
 --        if this check was disabled, and <code>INFECTED</code> if it was patched by Conficker. 
 function check_ms08_067(host)
 	if(nmap.registry.args.safe ~= nil) then
+		return true, NOTRUN
+	end
+	if(nmap.registry.args.unsafe == nil) then
 		return true, NOTRUN
 	end
 	local status, smbstate
@@ -175,7 +182,7 @@ function check_ms08_067(host)
 	msrpc.stop_smb(smbstate)
 
 	if(status == false) then
-		if(string.find(netpathcompare_result, "UNKNOWN_57") ~= nil) then
+		if(string.find(netpathcompare_result, "WERR_INVALID_PARAMETER") ~= nil) then
 			return true, INFECTED
 		elseif(string.find(netpathcompare_result, "INVALID_NAME") ~= nil) then
 			return true, PATCHED
@@ -255,6 +262,7 @@ function check_conficker(host)
 	end
 
 	-- Try checking a valid string to find Conficker.D
+	local netpathcanonicalize_result, error_result
 	status, netpathcanonicalize_result, error_result = msrpc.srvsvc_netpathcanonicalize(smbstate, host.ip, "\\")
 	if(status == true and netpathcanonicalize_result['can_path'] == 0x5c45005c) then
 		msrpc.stop_smb(smbstate)
@@ -262,14 +270,13 @@ function check_conficker(host)
 	end
 
 	-- Try checking an illegal string ("\..\") to find Conficker.C and earlier
-	local error_result
 	status, netpathcanonicalize_result, error_result = msrpc.srvsvc_netpathcanonicalize(smbstate, host.ip, "\\..\\")
 
 	if(status == false) then
 		if(string.find(netpathcanonicalize_result, "INVALID_NAME")) then
 			msrpc.stop_smb(smbstate)
 			return true, CLEAN
-		elseif(string.find(netpathcanonicalize_result, "UNKNOWN_57") ~= nil) then
+		elseif(string.find(netpathcanonicalize_result, "WERR_INVALID_PARAMETER") ~= nil) then
 			msrpc.stop_smb(smbstate)
 			return true, INFECTED
 		else
@@ -305,6 +312,7 @@ function check_winreg_Enum_crash(host)
 
 	local i, j
 	local elements = {}
+	local status, bind_result, smbstate
 
 	-- Create the SMB session
 	status, smbstate = msrpc.start_smb(host, msrpc.WINREG_PATH)
@@ -319,6 +327,7 @@ function check_winreg_Enum_crash(host)
 		return false, bind_result
 	end
 
+  local openhku_result
 	status, openhku_result = msrpc.winreg_openhku(smbstate)
 	if(status == false) then
 		msrpc.stop_smb(smbstate)
@@ -326,6 +335,7 @@ function check_winreg_Enum_crash(host)
 	end
 
 	-- Loop through the keys under HKEY_USERS and grab the names
+	local enumkey_result
 	status, enumkey_result = msrpc.winreg_enumkey(smbstate, openhku_result['handle'], 0, nil)
 	msrpc.stop_smb(smbstate)
 
@@ -363,7 +373,7 @@ local function check_smbv2_dos(host)
 	            string.char(0x4d, 0x20, 0x30, 0x2e, 0x31, 0x32, 0x00, 0x02, 0x53, 0x4d, 0x42, 0x20, 0x32, 0x2e) ..
 	            string.char(0x30, 0x30, 0x32, 0x00)
 
-	local socket = nmap:new_socket()
+	local socket = nmap.new_socket()
 	if(socket == nil) then
 		return false, "Couldn't create socket"
 	end
@@ -388,7 +398,7 @@ local function check_smbv2_dos(host)
 	stdnse.sleep(5)
 
 	-- Create a new socket
-	socket = nmap:new_socket()
+	socket = nmap.new_socket()
 	if(socket == nil) then
 		return false, "Couldn't create socket"
 	end
@@ -578,7 +588,7 @@ action = function(host)
 		elseif(result == UNKNOWN) then
 			table.insert(response, get_response("MS08-067", "LIKELY VULNERABLE", "host stopped responding",         1)) -- TODO: this isn't very accurate
 		elseif(result == NOTRUN) then
-			table.insert(response, get_response("MS08-067", "CHECK DISABLED",    "remove 'safe=1' argument to run", 1))
+			table.insert(response, get_response("MS08-067", "CHECK DISABLED",    "add '--script-args=unsafe=1' to run", 1))
 		elseif(result == INFECTED) then
 			table.insert(response, get_response("MS08-067", "NOT VULNERABLE",    "likely by Conficker",             0))
 		else
@@ -643,7 +653,7 @@ action = function(host)
         if(result == VULNERABLE) then
 			table.insert(response, get_response("MS06-025", "VULNERABLE", nil, 0))
         elseif(result == NOTRUN) then
-			table.insert(response, get_response("MS06-025", "CHECK DISABLED", "remove 'safe=1' argument to run", 1))
+			table.insert(response, get_response("MS06-025", "CHECK DISABLED", "add '--script-args=unsafe=1' to run", 1))
         elseif(result == NOTUP) then
 			table.insert(response, get_response("MS06-025", "NO SERVICE", "the Ras RPC service is inactive", 1))
         else
@@ -663,7 +673,7 @@ action = function(host)
         if(result == VULNERABLE) then
 			table.insert(response, get_response("MS07-029", "VULNERABLE", nil, 0))
         elseif(result == NOTRUN) then
-			table.insert(response, get_response("MS07-029", "CHECK DISABLED", "remove 'safe=1' argument to run", 1))
+			table.insert(response, get_response("MS07-029", "CHECK DISABLED", "add '--script-args=unsafe=1' to run", 1))
         else
 			table.insert(response, get_response("MS07-029", "NOT VULNERABLE", nil, 1))
         end

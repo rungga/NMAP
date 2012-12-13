@@ -4,10 +4,12 @@
 -- @author Marek Majkowski <majek04+nse@gmail.com>
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
-module(... or "packet" ,package.seeall)
-
 local bit = require "bit"
+local nmap = require "nmap"
 local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("packet", stdnse.seeall)
 
 
 ----------------------------------------------------------------------------------------------------------------
@@ -141,6 +143,9 @@ IPPROTO_COMP    = 108        	--  Compression Header protocol
 IPPROTO_SCTP    = 132         	--  Stream Control Transport Protocol
 IPPROTO_UDPLITE = 136        	--  UDP-Lite (RFC 3828)
 
+
+ICMP_ECHO_REQUEST   = 8
+ICMP_ECHO_REPLY     = 0
 
 ICMP6_ECHO_REQUEST	= 128
 ICMP6_ECHO_REPLY	= 129
@@ -386,6 +391,91 @@ end
 function Packet:set_icmpv6_option(opt_type,msg)
 	return string.char(opt_type, (#msg+2)/8) .. msg
 end
+
+--- Build an IPv4 packet.
+-- @param src 4-byte string of the source IP address.
+-- @param dst 4-byte string of the destination IP address.
+-- @param payload string containing the IP payload
+-- @param dsf byte that represents the differentiated services field
+-- @param id integer that represents the IP identification
+-- @param flags integer that represents the IP flags
+-- @param off integer that represents the IP offset
+-- @param ttl integer that represent the IP time to live
+-- @param proto integer that represents the IP protocol
+function Packet:build_ip_packet(src, dst, payload, dsf, id, flags, off, ttl, proto)
+	self.ether_type = ETHER_TYPE_IPV4
+	self.ip_v = 4
+	self.ip_bin_src = src or self.ip_bin_src
+	self.ip_bin_dst = dst or self.ip_bin_dst
+	self.l3_packet = payload or self.l3_packet
+	self.ip_dsf = dsf or self.ip_dsf or 0
+	self.ip_p = proto or self.ip_p
+	self.flags = flags or self.flags or 0 -- should be split into ip_rd, ip_df, ip_mv
+	self.ip_id = id or self.ip_id or 0xbeef
+	self.ip_off = off or self.ip_off or 0
+	self.ip_ttl = ttl or self.ip_ttl or 255
+	self.buf =
+		numtostr8(bit.lshift(self.ip_v,4) + 20 / 4) .. -- version and header length
+		numtostr8(self.ip_dsf) ..
+		numtostr16(#self.l3_packet + 20) ..
+		numtostr16(self.ip_id) ..
+		numtostr8(self.flags) ..
+		numtostr8(self.ip_off) ..
+		numtostr8(self.ip_ttl) ..
+		numtostr8(self.ip_p) ..
+		numtostr16(0) .. -- checksum
+		self.ip_bin_src ..  --Source
+		self.ip_bin_dst --dest
+
+	self.buf = set_u16(self.buf, 10, in_cksum(self.buf))
+	self.buf = self.buf .. self.l3_packet
+end
+--- Build an ICMP header.
+-- @param icmp_type integer that represent ICMPv6 type.
+-- @param icmp_code integer that represent ICMPv6 code.
+-- @param icmp_payload string of the payload
+-- @param ip_bin_src 16-byte string of the source IPv6 address.
+-- @param ip_bin_dst 16-byte string of the destination IPv6 address.
+function Packet:build_icmp_header(icmp_type, icmp_code, icmp_payload, ip_bin_src, ip_bin_dst)
+	self.icmp_type = icmp_type or self.icmp_type
+	self.icmp_code = icmp_code or self.icmp_code
+	self.icmp_payload = icmp_payload or self.icmp_payload
+	self.ip_bin_src = ip_bin_src or self.ip_bin_src
+	self.ip_bin_dst = ip_bin_dst or self.ip_bin_dst
+
+	self.l3_packet =
+		string.char(self.icmp_type,self.icmp_code) ..
+		string.char(0x00,0x00) .. --checksum
+		(self.icmp_payload or "")
+	self.l3_packet = set_u16(self.l3_packet, 2, in_cksum(self.l3_packet))
+end
+--- Build an ICMP Echo Request frame.
+-- @param mac_src six-byte string of source MAC address.
+-- @param mac_dst sis-byte string of destination MAC address.
+-- @param ip_bin_src 16-byte string of source IPv6 address.
+-- @param ip_bin_dst 16-byte string of destinatiion IPv6 address.
+-- @param id integer that represents Echo ID.
+-- @param seq integer that represents Echo sequence.
+-- @param data string of Echo data.
+-- @param dsf integer that represents differentiated services field.
+function Packet:build_icmp_echo_request(id, seq, data, mac_src, mac_dst, ip_bin_src, ip_bin_dst)
+	self.mac_src = mac_src or self.mac_src
+	self.mac_dst = mac_dst or self.mac_dst
+
+	self.ip_p = IPPROTO_ICMP
+	self.ip_bin_src = ip_bin_src or self.ip_bin_src
+	self.ip_bin_dst = ip_bin_dst or self.ip_bin_dst
+
+	self.icmp_type = ICMP_ECHO_REQUEST
+	self.icmp_code = 0
+
+	self.echo_id = id or self.echo_id or 0xdead
+	self.echo_seq = seq or self.echo_seq or 0xbeef
+	self.echo_data = data or self.echo_data or ""
+
+	self.icmp_payload = numtostr16(self.echo_id) .. numtostr16(self.echo_seq) .. self.echo_data
+end
+
 
 -- Helpers
 
@@ -641,6 +731,12 @@ function Packet:ipv6_ext_header_parse(force_continue)
 	self.ip6_data_offset = self.ip6_data_offset + ext_hdr_len
 	self.ip6_nhdr = self:u8(self.ip6_data_offset)
 end
+--- Set the payload length field.
+-- @param plen Payload length.
+function Packet:ip6_set_plen(plen)
+	self:set_u16(self.ip6_offset + 4, plen)
+	self.ip6_plen = plen
+end
 --- Set the header length field.
 function Packet:ip_set_hl(len)
 	self:set_u8(self.ip_offset + 0, bit.bor(bit.lshift(self.ip_v, 4), bit.band(len, 0x0F)))
@@ -652,6 +748,12 @@ end
 function Packet:ip_set_len(len)
 	self:set_u16(self.ip_offset + 2, len)
 	self.ip_len = len
+end
+--- Set the packet identification field.
+-- @param id packet ID.
+function Packet:ip_set_id(id)
+	self:set_u16(self.ip_offset + 4, id)
+	self.ip_id = id 
 end
 --- Set the TTL.
 -- @param ttl TTL.
@@ -850,8 +952,11 @@ function Packet:tcp_parse(force_continue)
 	self.tcp_options	= self:parse_options(self.tcp_opt_offset, ((self.tcp_hl*4)-20))
 	self.tcp_data_offset	= self.tcp_offset + self.tcp_hl*4
 
-	local plen = self.ip_len or self.ip6_plen
-	self.tcp_data_length	= plen - self.tcp_offset - self.tcp_hl*4
+	if self.ip_len then
+	    self.tcp_data_length = self.ip_len - self.tcp_offset - self.tcp_hl*4
+	else
+	    self.tcp_data_length = self.ip6_plen - self.tcp_hl*4
+	end
 	self:tcp_parse_options()
 	return true
 end
@@ -1078,3 +1183,5 @@ function Packet:udp_count_checksum()
 	self:udp_set_checksum(in_cksum(b))
 end
 
+
+return _ENV;

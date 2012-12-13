@@ -1,3 +1,7 @@
+local nmap = require "nmap"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Creates a reverse index at the end of scan output showing which hosts run a particular service.  This is in addition to Nmap's normal output listing the services on each host.
 ]]
@@ -132,6 +136,10 @@ end
 
 postaction = function()
 	local db = nmap.registry[SCRIPT_NAME]
+	if ( db == nil ) then
+		return false
+	end
+  
 	local results
 	local mode = stdnse.get_script_args("reverse-index.mode") or "horizontal"
 	

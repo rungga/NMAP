@@ -56,7 +56,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_event.c 28387 2012-04-03 00:21:44Z david $ */
+/* $Id: nsock_event.c 29414 2012-07-30 19:54:11Z henri $ */
 
 #include "nsock_internal.h"
 #include "gh_list.h"
@@ -258,7 +258,7 @@ int msevent_cancel(mspool *nsp, msevent *nse, gh_list *event_list, gh_list_elem 
   }
 
   if (nsp->tracelevel > 0)
-    nsock_trace(nsp, "msevent_cancel() on event #%li (type %s)", nse->id, nse_type2str(nse->type));
+    nsock_trace(nsp, "msevent_cancel on event #%li (type %s)", nse->id, nse_type2str(nse->type));
 
   /* Now that we found the event... we go through the motions of cleanly
    * cancelling it */
@@ -475,7 +475,7 @@ void msevent_delete(mspool *nsp, msevent *nse) {
   if (nse->type == NSE_TYPE_PCAP_READ) {
     fs_free(&nse->iobuf);
     if (nsp->tracelevel > 5)
-      nsock_trace(nsp, "PCAP removed %lu\n",nse->id);
+      nsock_trace(nsp, "PCAP removed %lu",nse->id);
   }
   #endif
 

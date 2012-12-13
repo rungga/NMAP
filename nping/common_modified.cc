@@ -701,25 +701,25 @@ void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int *portwarning)
     while(rangestart <= rangeend) {
       if (porttbl[rangestart]) {
         if (!(*portwarning)) {
-	        error("WARNING:  Duplicate port number(s) specified.  Are you alert enough to be using Nping?  Have some coffee or grab a RedBull(tm).");
+	        error("WARNING: Duplicate port number(s) specified.  Are you alert enough to be using Nping?  Have some coffee or grab a RedBull(tm).");
             (*portwarning)++;
 	    }
       } else {
         //if (nested) {
           //if ((range_type & SCAN_TCP_PORT) &&
-              //nmap_getservbyport(htons(rangestart), "tcp")) {
+              //nmap_getservbyport(rangestart, "tcp")) {
             //porttbl[rangestart] |= SCAN_TCP_PORT;
           //}
           //if ((range_type & SCAN_UDP_PORT) &&
-              //nmap_getservbyport(htons(rangestart), "udp")) {
+              //nmap_getservbyport(rangestart, "udp")) {
             //porttbl[rangestart] |= SCAN_UDP_PORT;
           //}
           //if ((range_type & SCAN_SCTP_PORT) &&
-              //nmap_getservbyport(htons(rangestart), "sctp")) {
+              //nmap_getservbyport(rangestart, "sctp")) {
             //porttbl[rangestart] |= SCAN_SCTP_PORT;
           //}
           //if ((range_type & SCAN_PROTOCOLS) &&
-              //nmap_getprotbynum(htons(rangestart))) {
+              //nmap_getprotbynum(rangestart)) {
             //porttbl[rangestart] |= SCAN_PROTOCOLS;
           //}
         //} else {

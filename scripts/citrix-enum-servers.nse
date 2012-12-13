@@ -1,3 +1,10 @@
+local bin = require "bin"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[ 
 Extracts a list of Citrix servers from the ICA Browser service.
 ]]
@@ -23,8 +30,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require "comm"
-require "shortport"
 
 portrule = shortport.portnumber(1604, "udp")
 
@@ -44,7 +49,7 @@ function process_server_response(response)
     end
 
     -- the list of published applications starts at offset 40
-    offset = 41
+    local offset = 41
 
     while offset < packet_len do
         pos, server_name = bin.unpack("z", response:sub(offset))
@@ -103,7 +108,7 @@ action = function(host, port)
 	socket = nmap.new_socket()
 	socket:set_timeout(5000)
 
-	try = nmap.new_try(function() socket:close() end)
+	local try = nmap.new_try(function() socket:close() end)
 	try(socket:connect(host, port))
 
 	-- send the two first packets and never look back

@@ -1,3 +1,11 @@
+local bin = require "bin"
+local bit = require "bit"
+local nmap = require "nmap"
+local rpc = require "rpc"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Detects vulnerabilities and gathers information (such as version
 numbers and hardware support) from VxWorks Wind DeBug agents.
@@ -28,9 +36,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 -- may also be "safe", but need testing to determine
 categories = {"default", "version", "discovery", "vuln"}
 
-require 'shortport'
-require 'rpc'
-require 'stdnse'
 
 -- WDB protocol information
 -- http://www-kryo.desy.de/documents/vxWorks/V5.5/tornado-api/wdbpcl/wdb.html
@@ -48,6 +53,7 @@ local WDB_Procedure = {
 local function checksum(data)
 	local sum = 0
 	local p = 0
+	local _
 	p, _ = bin.unpack(">I", data)
 	while p < data:len() do
 		local c
@@ -75,6 +81,7 @@ local function decode_reply(data, pos)
 	local wdberr, len
 	local done = data:len()
 	local info = {}
+	local _
 	pos, _ = rpc.Util.unmarshall_uint32(data, pos)
 	pos, _ = rpc.Util.unmarshall_uint32(data, pos)
 	pos, wdberr = rpc.Util.unmarshall_uint32(data, pos)
@@ -180,7 +187,7 @@ action = function(host, port)
 	if (port.version.ostype ~= nil) then
 		port.version.ostype = "VxWorks " .. info["rt_vers"]
 	end
-	nmap.set_port_version(host, port, "hardmatched")
+	nmap.set_port_version(host, port)
 	local o = {}
 	table.insert(o, "VULNERABLE: Wind River Systems VxWorks debug service enabled. See http://www.kb.cert.org/vuls/id/362332")
 	if (info.agent_ver) then

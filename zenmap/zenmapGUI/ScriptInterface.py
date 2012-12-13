@@ -200,7 +200,6 @@ class ScriptInterface:
         self.current_arguments = []
         self.set_help_texts()
         self.prev_script_spec = None
-        self.script_expr = re.compile(r"^NSE: Loaded '(.*)'")
         self.focussedentry = None
 
         self.liststore = gtk.ListStore(str, "gboolean", object)
@@ -252,7 +251,12 @@ There was an error getting the list of scripts from Nmap. Try upgrading Nmap.\
         stderr = tempfile.TemporaryFile(mode = "rb", prefix = APP_NAME + "-script-help-stderr-")
         log.debug("Script interface: running %s" % repr(command_string))
         nmap_process = NmapCommand(command_string)
-        nmap_process.run_scan(stderr = stderr)
+        try:
+            nmap_process.run_scan(stderr = stderr)
+        except Exception, e:
+            callback(False, None)
+            stderr.close()
+            return
         stderr.close()
 
         self.script_list_widget.set_sensitive(False)

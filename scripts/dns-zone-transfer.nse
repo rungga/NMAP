@@ -1,3 +1,18 @@
+local bin = require "bin"
+local bit = require "bit"
+local dns = require "dns"
+local ipOps = require "ipOps"
+local listop = require "listop"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local strbuf = require "strbuf"
+local string = require "string"
+local tab = require "tab"
+local table = require "table"
+local target = require "target"
+local packet = require "packet"
+
 description = [[
 Requests a zone transfer (AXFR) from a DNS server.
 
@@ -68,15 +83,6 @@ Useful resources
 -- nmap --script dns-zone-transfer.nse \
 --      --script-args dns-zone-transfer.domain=<domain>
 
-require('shortport')
-require('strbuf')
-require('stdnse')
-require('listop')
-require('bit')
-require('tab')
-require('dns')
-require('target')
-require('ipOps')
 
 author = "Eddie Bell"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -146,8 +152,12 @@ local typetab = { 'A', 'NS', 'MD', 'MF', 'CNAME', 'SOA', 'MB', 'MG', 'MR',
  'NULL', 'WKS', 'PTR', 'HINFO', 'MINFO', 'MX', 'TXT', 'RP', 'AFSDB', 'X25',
  'ISDN', 'RT', 'NSAP', 'NSAP-PTR', 'SIG', 'KEY', 'PX', 'GPOS', 'AAAA', 'LOC',
  'NXT', 'EID', 'NIMLOC', 'SRV', 'ATMA', 'NAPTR', 'KX', 'CERT', 'A6', 'DNAME',
- 'SINK', 'OPT', [250]='TSIG', [251]='IXFR', [252]='AXFR', [253]='MAILB',
- [254]='MAILA', [255]='ANY', [256]='ZXFR'
+ 'SINK', 'OPT', 'APL', 'DS', 'SSHFP', 'IPSECKEY', 'RRSIG', 'NSEC', 'DNSKEY',
+ 'DHCID', 'NSEC3', 'NSEC3PARAM', 'TLSA', [55]='HIP', [56]='NINFO', [57]='RKEY',
+ [58]='TALINK', [59]='CDS', [99]='SPF', [100]='UINFO', [101]='UID', [102]='GID',
+ [103]='UNSPEC', [249]='TKEY', [250]='TSIG', [251]='IXFR', [252]='AXFR',
+ [253]='MAILB', [254]='MAILA', [255]='ANY', [256]='ZXFR', [257]='CAA',
+ [32768]='TA', [32769]='DLV',
 }
 
 --- Whitelist of TLDs. Only way to reliably determine the root of a domain
@@ -201,7 +211,7 @@ end
 function parse_domain(data, offset)
     local offset, domain = dns.decStr(data, offset)
     domain = domain or "<parse error>"
-    return offset, domain
+    return offset, string.format("%s.", domain)
 end
 
 --- Build RFC 1035 root domain name from the name of the DNS server
@@ -236,49 +246,222 @@ function build_domain(host)
     return strbuf.dump(buf)
 end
 
+local function parse_num_domain(data, offset)
+  local number, domain
+  number = bto16(data, offset)
+  offset, domain = parse_domain(data, offset+2)
+  return offset, string.format("%d %s", number, domain)
+end
+
+local function parse_txt(data, offset)
+  local field, len
+  len = string.byte(data, offset)
+  offset = offset + 1
+  offset, field = bin.unpack("A" .. len, data, offset)
+  return offset, string.format('"%s"', field)
+end
+
 --- Retrieve type specific data (rdata) from dns packets
+local RD = {
+  A = function(data, offset)
+      return offset+4, packet.toip(data:sub(offset, offset+3))
+  end,
+  NS = parse_domain,
+  MD = parse_domain, -- obsolete per rfc1035, use MX
+  MF = parse_domain, -- obsolete per rfc1035, use MX
+  CNAME = parse_domain,
+  SOA = function(data, offset)
+      local field, info
+      info = strbuf.new()
+      -- name server
+      offset, field = parse_domain(data, offset)
+      info = info .. field;
+      -- mail box
+      offset, field = parse_domain(data, offset)
+      info = info .. field;
+      -- ignore other values
+      offset = offset + 20
+      return offset, strbuf.dump(info, ' ')
+    end,
+  MB = parse_domain, -- experimental per RFC 1035
+  MG = parse_domain, -- experimental per RFC 1035
+  MR = parse_domain, -- experimental per RFC 1035
+  --NULL -- RFC 1035 says anything can go in this field. Hex dump is good.
+  WKS = function(data, offset)
+    local len, ip, proto, svcs
+    len = bto16(data, offset-2) - 5 -- length of bit field
+    ip = packet.toip(data:sub(offset, offset+3))
+    proto = string.byte(data, offset+4)
+    offset = offset + 5
+    svcs = {}
+    local p = 0
+    local bits = {128, 64, 32, 16, 8, 4, 2, 1}
+    for i=0, len-1 do
+      local n = string.byte(data, offset + i)
+      for _, v in ipairs(bits) do
+        if bit.band(v, n) > 0 then table.insert(svcs, p) end
+        p = p + 1
+      end
+    end
+    if proto == 6 then
+      proto = "TCP"
+    elseif proto == 17 then
+      proto = "UDP"
+    end
+    return offset + len, string.format("%s %s %s", ip, proto, table.concat(svcs, " "))
+  end,
+  PTR = parse_domain,
+  HINFO = function(data, offset)
+    local cpu, os -- See RFC 1010 for standard values for these
+    offset, cpu = parse_txt(data, offset)
+    offset, os = parse_txt(data, offset)
+    return offset, string.format("%s %s", cpu, os)
+  end,
+  MINFO = function(data, offset)
+    local rmailbx, emailbx
+    offset, rmailbx = parse_domain(data, offset)
+    offset, emailbx = parse_domain(data, offset)
+    return offset, string.format("%s %s", rmailbx, emailbx)
+  end,
+  MX = parse_num_domain,
+  TXT = parse_txt,
+  RP = function(data, offset)
+    local mbox_dname, txt_dname
+    offset, mbox_dname = parse_domain(data, offset)
+    offset, txt_dname = parse_domain(data, offset)
+    return offset, string.format("%s %s", mbox_dname, txt_dname)
+  end,
+  AFSDB = parse_num_domain,
+  X25 = parse_txt,
+  ISDN = function(data, offset)
+    local addr, sa
+    offset, addr = parse_txt(data, offset)
+    offset, sa = parse_txt(data, offset)
+    return offset, string.format("%s %s", addr, sa)
+  end,
+  RT = parse_num_domain,
+  NSAP = function(data, offset)
+    local field
+    offset, field = bin.unpack("A" .. bto16(data, offset-2), data, offset)
+    return offset, ("0x%s"):format(stdnse.tohex(field))
+  end,
+  ["NSAP-PTR"] = parse_domain,
+  --SIG KEY --obsolete RRs relating to DNSSEC
+  PX = function(data, offset)
+    local preference, map822, mapx400
+    preference = bto16(data, offset)
+    offset, map822 = parse_domain(data, offset+2)
+    offset, mapx400 = parse_domain(data, offset)
+    return offset, string.format("%d %s %s", preference, map822, mapx400)
+  end,
+  GPOS = function(data, offset)
+    local lat, long, alt
+    offset, lat = parse_txt(data, offset)
+    offset, long = parse_txt(data, offset)
+    offset, alt = parse_txt(data, offset)
+    return offset, string.format("%s %s %s", lat, long, alt)
+  end,
+  AAAA = function(data, offset)
+    return offset+16, packet.toipv6(data:sub(offset, offset+15))
+  end,
+  LOC = function(data, offset)
+    local version, siz, hp, vp, lat, lon, alt
+    version = string.byte(data, offset)
+    if version ~= 0 then
+      stdnse.print_debug(2, "Unknown LOC RR version: %d", version)
+      return offset, ''
+    end
+    siz = string.byte(data, offset+1)
+    siz = bit.rshift(siz,4) * 10 ^ bit.band(siz, 0x0f) / 100
+    hp = string.byte(data, offset+2)
+    hp = bit.rshift(hp,4) * 10 ^ bit.band(hp, 0x0f) / 100
+    vp = string.byte(data, offset+3)
+    vp = bit.rshift(vp,4) * 10 ^ bit.band(vp, 0x0f) / 100
+    offset = offset + 4
+    offset, lat, lon, alt = bin.unpack(">III", data, offset)
+    lat = (lat-2^31)/3600000 --degrees
+    local latd = 'N'
+    if lat < 0 then
+      latd = 'S'
+      lat = 0-lat
+    end
+    lon = (lon-2^31)/3600000 --degrees
+    local lond = 'E'
+    if lon < 0 then
+      lond = 'W'
+      lon = 0-lon
+    end
+    return offset, string.format("%f %s %f %s %dm %0.1fm %0.1fm %0.1fm",
+        lat, latd, lon, lond, alt/100 - 100000, siz, hp, vp)
+  end,
+  --NXT --obsolete RR relating to DNSSEC
+  --EID NIMLOC --related to Nimrod DARPA project (Patton1995)
+  SRV = function(data, offset)
+    local priority, weight, port, info
+    offset, priority, weight, port = bin.unpack(">SSS", data, offset)
+    offset, info = parse_domain(data, offset)
+    return offset, string.format("%d %d %d %s", priority, weight, port, info)
+  end,
+  ATMA = function(data, offset) --http://www.broadband-forum.org/ftp/pub/approved-specs/af-saa-0069.000.pdf
+    local format, address
+    format = string.byte(data, offset) -- 0 or 1
+    offset, address = parse_txt(data, offset+1)
+    return offset, string.format("%d %s", format, address)
+  end,
+  NAPTR = function(data, offset)
+    local order, preference, flags, service, regexp, replacement
+    order = bto16(data, offset)
+    preference = bto16(data, offset+2)
+    offset, flags = parse_txt(data, offset+4)
+    offset, service = parse_txt(data, offset)
+    offset, regexp = parse_txt(data, offset)
+    offset, replacement = parse_domain(data, offset)
+    return offset, string.format('%d %d %s %s %s %s',
+      order, preference, flags, service, regexp, replacement)
+  end,
+  KX = parse_num_domain,
+  --CERT
+  A6 = function(data, offset) -- obsoleted by AAAA
+    local prefix, addr, name
+    prefix = string.byte(data, offset)
+    local pbytes = bit.rshift(prefix,3)
+    addr = packet.toipv6(string.rep("\000", pbytes) .. data:sub(offset+1, 16-pbytes))
+    offset, name = parse_domain(data, offset + 17 - pbytes)
+    return offset, string.format("%d %s %s", prefix, addr, name)
+  end,
+  DNAME = parse_domain,
+  SINK = function(data, offset) -- http://bgp.potaroo.net/ietf/all-ids/draft-eastlake-kitchen-sink-02.txt
+    local coding, subcoding, field
+    coding = string.byte(data, offset)
+    subcoding = string.byte(data, offset+1)
+    offset, field = bin.unpack("A" .. (bto16(data, offset-2)-2), data, offset+2)
+    return offset, string.format("%d %d %s", coding, subcoding, stdnse.tohex(field))
+  end,
+  --OPT APL DS 
+  SSHFP = function(data, offset)
+    local algorithm, fptype, fplen, fingerprint
+    algorithm = string.byte(data, offset)
+    fptype = string.byte(data, offset+1)
+    fplen = bto16(data, offset-2) - 2
+    offset = offset + 2
+    fingerprint = stdnse.tohex(data:sub(offset, offset+fplen-1))
+    return offset + fplen, string.format("%d %d %s", algorithm, fptype, fingerprint)
+  end,
+  --IPSECKEY RRSIG NSEC DNSKEY DHCID NSEC3 NSEC3PARAM TLSA HIP NINFO RKEY TALINK CDS
+  SPF = parse_txt,
+  --UINFO UID GID UNSPEC TKEY TSIG IXFR AXFR
+}
+
 function get_rdata(data, offset, ttype)
-    local field, info, i
-
-    info = strbuf.new()
-    info = info .. ''
-
     if typetab[ttype] == nil then
         return offset, ''
-
-    elseif typetab[ttype] == 'SOA' then
-        -- name server
-        offset, field = parse_domain(data, offset)
-        info = info .. field;
-        -- mail box
-        offset, field = parse_domain(data, offset)
-        info = info .. field;
-        -- ignore other values
-        offset = offset + 20
-
-    elseif typetab[ttype] == 'MX' then
-        -- mail server
-        offset = offset + 2
-        offset, field = parse_domain(data, offset)
-        info = info .. field
-
-    elseif typetab[ttype] == 'A' then
-        -- ip address
-        info = info ..
-        string.byte(data, offset) .. '.' ..
-        string.byte(data, offset+1) .. '.' ..
-        string.byte(data, offset+2) .. '.' ..
-        string.byte(data, offset+3)
-        offset = offset + 4
-
-    elseif typetab[ttype] == 'PTR' or typetab[ttype] == 'NS' or
-            typetab[ttype] == 'CNAME' then
-        -- domain/domain server name
-        offset, field = parse_domain(data, offset)
-        info = info .. field;
+    elseif RD[typetab[ttype]] then
+      return RD[typetab[ttype]](data, offset)
+    else
+	  local field
+      offset, field = bin.unpack("A" .. bto16(data, offset-2), data, offset)
+      return offset, ("hex: %s"):format(stdnse.tohex(field))
     end
-
-    return offset, strbuf.dump(info, ' ')
 end
 
 --- Get a single answer record from the current offset

@@ -90,7 +90,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: portlist.cc 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: portlist.cc 30008 2012-10-11 04:45:50Z david $ */
 
 
 #include "nmap.h"
@@ -99,11 +99,8 @@
 #include "NmapOps.h"
 #include "services.h"
 #include "protocols.h"
-#include "nmap_rpc.h"
 #include "tcpip.h"
 #include "libnetutil/netutil.h"
-
-using namespace std;
 
 #if HAVE_STRINGS_H
 #include <strings.h>
@@ -147,11 +144,19 @@ void Port::freeService(bool del_service) {
   }
 }
 
+void Port::freeScriptResults(void)
+{
+    while (!scriptResults.empty()) {
+        scriptResults.front().clear();
+        scriptResults.pop_front();
+    }
+}
+
 /* Fills in namebuf (as long as there is space in buflen) with the
    Name nmap normal output will use to describe the port.  This takes
    into account to confidence level, any SSL tunneling, etc.  Truncates
    namebuf to 0 length if there is no room.*/
-void Port::getNmapServiceName(char *namebuf, int buflen, const char *rpcinfo) const {
+void Port::getNmapServiceName(char *namebuf, int buflen) const {
   const char *tunnel_prefix;
   const char *service_name;
   int len;
@@ -166,7 +171,7 @@ void Port::getNmapServiceName(char *namebuf, int buflen, const char *rpcinfo) co
   } else {
     struct servent *service;
 
-    service = nmap_getservbyport(htons(portno), IPPROTO2STR(proto));
+    service = nmap_getservbyport(portno, IPPROTO2STR(proto));
     if (service != NULL)
       service_name = service->s_name;
     else
@@ -187,15 +192,6 @@ void Port::getNmapServiceName(char *namebuf, int buflen, const char *rpcinfo) co
     return;
   }
 
-  if (rpcinfo != NULL && rpcinfo[0] != '\0') {
-    namebuf += len;
-    buflen -= len;
-    len = Snprintf(namebuf, buflen, " %s", rpcinfo);
-    if (len >= buflen || len < 0) {
-      namebuf[0] = '\0';
-      return;
-    }
-  }
 }
 
 serviceDeductions::serviceDeductions() {
@@ -210,10 +206,6 @@ serviceDeductions::serviceDeductions() {
   service_tunnel = SERVICE_TUNNEL_NONE;
   service_fp = NULL;
   dtype = SERVICE_DETECTION_TABLE;
-  rpc_status = RPC_STATUS_UNTESTED;
-  rpc_program = 0;
-  rpc_lowver = 0;
-  rpc_highver = 0;
 }
 
 // Uses the sd->{product,version,extrainfo} if available to fill
@@ -299,7 +291,7 @@ void PortList::getServiceDeductions(u16 portno, int protocol, struct serviceDedu
 
     /* Look up the service name. */
     *sd = serviceDeductions();
-    service = nmap_getservbyport(htons(portno), IPPROTO2STR(protocol));
+    service = nmap_getservbyport(portno, IPPROTO2STR(protocol));
     if (service != NULL)
       sd->name = service->s_name;
     else
@@ -366,7 +358,7 @@ void PortList::setServiceProbeResults(u16 portno, int protocol,
        Just look up the service name if none is provided. */
     if (sname == NULL) {
       struct servent *service;
-      service = nmap_getservbyport(htons(portno), IPPROTO2STR(protocol));
+      service = nmap_getservbyport(portno, IPPROTO2STR(protocol));
       if (service != NULL)
         sname = service->s_name;
     }
@@ -404,50 +396,6 @@ void PortList::setServiceProbeResults(u16 portno, int protocol,
       if (p != NULL)
         port->service->cpe.push_back(p);
     }
-  }
-}
-
-/* Sets the results of an RPC scan.  if rpc_status is not
-   RPC_STATUS_GOOD_PROGRAM, pass 0 for the other args.  This function
-   takes care of setting the port's service and version appropriately. */
-void PortList::setRPCProbeResults(u16 portno, int proto, int rpcs, unsigned long rpcp,
-			unsigned int rpcl, unsigned int rpch) {
-  Port *port;
-  const char *newsvc;
-  char verbuf[128];
-
-  port = createPort(portno, proto);
-  if (port->service == NULL)
-    port->service = new serviceDeductions;
-
-  port->service->rpc_status = rpcs;
-  if (port->service->rpc_status == RPC_STATUS_GOOD_PROG) {
-    port->service->rpc_program = rpcp;
-    port->service->rpc_lowver = rpcl;
-    port->service->rpc_highver = rpch;
-
-    // Now set the service/version info
-    newsvc = nmap_getrpcnamebynum(rpcp);
-    if (!newsvc) newsvc = "rpc.unknownprog"; // should never happen
-    if (port->service->name)
-      free(port->service->name);
-    port->service->name = strdup(newsvc);
-    if (port->service->rpc_lowver == port->service->rpc_highver)
-      Snprintf(verbuf, sizeof(verbuf), "%i", port->service->rpc_lowver);
-    else
-      Snprintf(verbuf, sizeof(verbuf), "%i-%i", port->service->rpc_lowver, port->service->rpc_highver);
-    port->service->version = strdup(verbuf);
-    Snprintf(verbuf, sizeof(verbuf), "rpc #%li", port->service->rpc_program);
-    port->service->extrainfo = strdup(verbuf);
-    port->service->name_confidence = 10;
-    port->service->dtype = SERVICE_DETECTION_PROBED;
-  } else if (port->service->rpc_status == RPC_STATUS_UNKNOWN) {
-    if (port->service->name)
-      free(port->service->name);
-
-    port->service->name = strdup("rpc.unknown");
-    port->service->name_confidence = 8;
-    port->service->dtype = SERVICE_DETECTION_PROBED;
   }
 }
 
@@ -508,6 +456,9 @@ PortList::~PortList() {
       for(i=0; i < port_list_count[proto]; i++) { // free every Port
         if(port_list[proto][i]) {
           port_list[proto][i]->freeService(true);
+#ifndef NOLUA
+          port_list[proto][i]->freeScriptResults();
+#endif
           delete port_list[proto][i];
         }
       }
@@ -928,9 +879,9 @@ int PortList::setStateReason(u16 portno, u8 proto, reason_t reason, u8 ttl,
     /* set new reason and increment its count */
     answer->reason.reason_id = reason;
     if (ip_addr == NULL)
-      answer->reason.ip_addr.ss_family = AF_UNSPEC;
+      answer->reason.ip_addr.sockaddr.sa_family = AF_UNSPEC;
     else
-      answer->reason.ip_addr = *ip_addr;
+      answer->reason.set_ip_addr(ip_addr);
 	answer->reason.ttl = ttl;
     return 0;
 }

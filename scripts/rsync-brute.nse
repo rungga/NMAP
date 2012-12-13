@@ -1,3 +1,10 @@
+local brute = require "brute"
+local creds = require "creds"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
+local rsync = stdnse.silent_require "rsync"
+
 description = [[
 Performs brute force password auditing against the rsync remote file syncing protocol.
 ]]
@@ -19,10 +26,6 @@ Performs brute force password auditing against the rsync remote file syncing pro
 -- @args rsync-brute.module - the module against which brute forcing should be performed
 
 
-require 'shortport'
-require 'brute'
-require 'stdnse'
-stdnse.silent_require('rsync')
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -99,6 +102,7 @@ action = function(host, port)
 	
 	local engine = brute.Engine:new(Driver, host, port, { module = mod })
 	engine.options.script_name = SCRIPT_NAME
+	local result
 	status, result = engine:start()
 	return result
 end

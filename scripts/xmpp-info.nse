@@ -1,3 +1,10 @@
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local xmpp = require "xmpp"
+
 description = [[
 Connects to XMPP server (port 5222) and collects server information such as:
 supported auth mechanisms, compression methods, whether TLS is supported
@@ -41,10 +48,6 @@ author = "Vasiliy Kulikov"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "safe", "discovery", "version"}
 
-require 'shortport'
-require 'stdnse'
-require 'dns'
-require 'xmpp'
 
 local known_features = {
     ['starttls'] = true,
@@ -383,7 +386,7 @@ local scan = function(host, port, server_name, tls, n)
                     port.state = "open"
                     port.version.product = hint
                     port.version.name_confidence = 100
-                    nmap.set_port_version(host, port, "hardmatched")
+                    nmap.set_port_version(host, port)
                 end
 
                 -- Funny situation: we have a hash of server capabilities list,
@@ -440,7 +443,7 @@ local server_info = function(host, port, id1, id2)
                 port.version.product = v.name
                 stdnse.print_debug("  " .. v.name)
                 port.version.name_confidence = 60
-                nmap.set_port_version(host, port, "hardmatched")
+                nmap.set_port_version(host, port)
                 break
             end
         end
@@ -515,7 +518,7 @@ end
 
 portrule = shortport.port_or_service({5222, 5269}, {"jabber", "xmpp-client", "xmpp-server"})
 action = function(host, port)
-    local server_name = stdnse.get_script_args("xmpp-info.server_name") or host.targetname
+    local server_name = stdnse.get_script_args("xmpp-info.server_name") or host.targetname or host.name
     local alt_server_name = stdnse.get_script_args("xmpp-info.alt_server_name") or "."
     local err_tmp = { {}, {} }
     local id_tls
@@ -539,7 +542,7 @@ action = function(host, port)
 
     local r = {}
 
-    format_block = format_block_12
+    local format_block = format_block_12
     if not id_tls then
         format_block = format_block_1
         if starttls_failed then table.insert(r, "STARTTLS Failed") end

@@ -166,23 +166,6 @@ struct Hop;
 class HostState;
 class Probe;
 
-/* A global random token used to distinguish this traceroute's probes from
-   those of other traceroutes possibly running on the same machine. */
-static u16 global_id;
-/* A global cache of known hops, indexed by TTL and address. */
-static std::map<struct HopIdent, Hop *> hop_cache;
-/* A list of timedout hops, which are not kept in hop_cache, so we can delete
-   all hops on occasion. */
-static std::list<Hop *> timedout_hops;
-/* The TTL at which we start sending probes if we don't have a distance
-   estimate. This is updated after each host group on the assumption that hosts
-   across groups will not differ much in distance. Having this closer to the
-   true distance makes the trace faster but is not needed for accuracy. */
-static u8 initial_ttl = 10;
-
-static struct timeval get_now(struct timeval *now = NULL);
-static const char *ss_to_string(const struct sockaddr_storage *ss);
-
 /* An object of this class is a (TTL, address) pair that uniquely identifies a
    hop. Hops in the hop_cache are indexed by this type. */
 struct HopIdent {
@@ -203,6 +186,23 @@ struct HopIdent {
       return sockaddr_storage_cmp(&addr, &other.addr) < 0;
   }
 };
+
+/* A global random token used to distinguish this traceroute's probes from
+   those of other traceroutes possibly running on the same machine. */
+static u16 global_id;
+/* A global cache of known hops, indexed by TTL and address. */
+static std::map<struct HopIdent, Hop *> hop_cache;
+/* A list of timedout hops, which are not kept in hop_cache, so we can delete
+   all hops on occasion. */
+static std::list<Hop *> timedout_hops;
+/* The TTL at which we start sending probes if we don't have a distance
+   estimate. This is updated after each host group on the assumption that hosts
+   across groups will not differ much in distance. Having this closer to the
+   true distance makes the trace faster but is not needed for accuracy. */
+static u8 initial_ttl = 10;
+
+static struct timeval get_now(struct timeval *now = NULL);
+static const char *ss_to_string(const struct sockaddr_storage *ss);
 
 struct Hop {
   Hop *parent;
@@ -273,7 +273,7 @@ private:
   /* This is incremented with each instantiated probe. */
   static u16 token_counter;
 
-  int num_resends;
+  unsigned int num_resends;
 
 public:
   HostState *host;
@@ -555,8 +555,11 @@ struct probespec HostState::get_probe(const Target *target) {
   struct probespec probe;
 
   probe = target->pingprobe;
-  if (probe.type == PS_TCP || probe.type == PS_UDP || probe.type == PS_ICMP ||
-      probe.type == PS_SCTP || probe.type == PS_ICMPV6) {
+  if (target->af() == AF_INET &&
+      (probe.type == PS_TCP || probe.type == PS_UDP || probe.type == PS_SCTP || probe.type == PS_ICMP)) {
+    /* Nothing needed. */
+  } else if (target->af() == AF_INET6 &&
+      (probe.type == PS_TCP || probe.type == PS_UDP || probe.type == PS_SCTP || probe.type == PS_ICMPV6)) {
     /* Nothing needed. */
   } else if (probe.type == PS_PROTO) {
     /* If this is an IP protocol probe, fill in some fields for some common
@@ -571,6 +574,10 @@ struct probespec HostState::get_probe(const Target *target) {
       probe.pd.sctp.dport = get_random_u16();
     } else if (probe.proto == IPPROTO_ICMP) {
       probe.pd.icmp.type = ICMP_ECHO;
+    } else if (probe.proto == IPPROTO_ICMPV6) {
+      probe.pd.icmp.type = ICMPV6_ECHO;
+    } else {
+      fatal("Unknown protocol %d", probe.proto);
     }
   } else {
     /* No responsive probe known? The user probably skipped both ping and
@@ -729,9 +736,6 @@ public:
     } else {
       fatal("Unknown address family %u in %s.", source->ss_family, __func__);
     }
-
-    /* This should not be reached. Just in case. */
-    assert(0);
   }
 };
 
@@ -744,18 +748,25 @@ public:
   unsigned char *build_packet(const struct sockaddr_storage *source, u32 *len) const {
     const char *payload;
     size_t payload_length;
-    const struct sockaddr_in *sin;
-
-    assert(source->ss_family == AF_INET);
-    sin = (struct sockaddr_in *) source;
 
     payload = get_udp_payload(pspec.pd.udp.dport, &payload_length);
 
     /* For UDP we encode the token in the source port. */
-    return build_udp_raw(&sin->sin_addr, host->target->v4hostip(), ttl,
-      get_random_u16(), get_random_u8(), false, NULL, 0,
-      token ^ global_id, pspec.pd.udp.dport,
-      payload, payload_length, len);
+    if (source->ss_family == AF_INET) {
+      const struct sockaddr_in *sin = (struct sockaddr_in *) source;
+      return build_udp_raw(&sin->sin_addr, host->target->v4hostip(), ttl,
+        get_random_u16(), get_random_u8(), false, NULL, 0,
+        token ^ global_id, pspec.pd.udp.dport,
+        payload, payload_length, len);
+    } else if (source->ss_family == AF_INET6) {
+      const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) source;
+      return build_udp_raw_ipv6(&sin6->sin6_addr, host->target->v6hostip(),
+        0, 0, ttl,
+        token ^ global_id, pspec.pd.udp.dport,
+        payload, payload_length, len);
+    } else {
+      fatal("Unknown address family %u in %s.", source->ss_family, __func__);
+    }
   }
 };
 
@@ -767,18 +778,27 @@ public:
   }
   unsigned char *build_packet(const struct sockaddr_storage *source, u32 *len) const {
     struct sctp_chunkhdr_init chunk;
-    const struct sockaddr_in *sin;
-
-    assert(source->ss_family == AF_INET);
-    sin = (struct sockaddr_in *) source;
 
     sctp_pack_chunkhdr_init(&chunk, SCTP_INIT, 0, sizeof(chunk),
       get_random_u32() /*itag*/, 32768, 10, 2048, get_random_u32() /*itsn*/);
-    return build_sctp_raw(&sin->sin_addr, host->target->v4hostip(), ttl,
-      get_random_u16(), get_random_u8(), false, NULL, 0,
-      token ^ global_id, pspec.pd.sctp.dport, 0UL,
-      (char *) &chunk, sizeof(chunk),
-      o.extra_payload, o.extra_payload_length, len);
+
+    if (source->ss_family == AF_INET) {
+      const struct sockaddr_in *sin = (struct sockaddr_in *) source;
+      return build_sctp_raw(&sin->sin_addr, host->target->v4hostip(), ttl,
+        get_random_u16(), get_random_u8(), false, NULL, 0,
+        token ^ global_id, pspec.pd.sctp.dport, 0UL,
+        (char *) &chunk, sizeof(chunk),
+        o.extra_payload, o.extra_payload_length, len);
+    } else if (source->ss_family == AF_INET6) {
+      const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) source;
+      return build_sctp_raw_ipv6(&sin6->sin6_addr, host->target->v6hostip(),
+        0, 0, ttl,
+        token ^ global_id, pspec.pd.sctp.dport, 0UL,
+        (char *) &chunk, sizeof(chunk),
+        o.extra_payload, o.extra_payload_length, len);
+    } else {
+      fatal("Unknown address family %u in %s.", source->ss_family, __func__);
+    }
   }
 };
 
@@ -789,13 +809,20 @@ public:
   : Probe(host, pspec, ttl) {
   }
   unsigned char *build_packet(const struct sockaddr_storage *source, u32 *len) const {
-    const struct sockaddr_in *sin;
-    assert(source->ss_family == AF_INET);
-    sin = (struct sockaddr_in *) source;
-    /* For IP proto scan the token is put in the IP ID. */
-    return build_ip_raw(&sin->sin_addr, host->target->v4hostip(), pspec.proto, ttl,
-      token ^ global_id, get_random_u8(), false, NULL, 0,
-      o.extra_payload, o.extra_payload_length, len);
+    /* For IP proto scan the token is put in the IP ID or flow label. */
+    if (source->ss_family == AF_INET) {
+      const struct sockaddr_in *sin = (struct sockaddr_in *) source;
+      return build_ip_raw(&sin->sin_addr, host->target->v4hostip(), pspec.proto, ttl,
+        token ^ global_id, get_random_u8(), false, NULL, 0,
+        o.extra_payload, o.extra_payload_length, len);
+    } else if (source->ss_family == AF_INET6) {
+      const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) source;
+      return build_ipv6_raw(&sin6->sin6_addr, host->target->v6hostip(),
+        0, token ^ global_id, pspec.proto, ttl,
+        o.extra_payload, o.extra_payload_length, len);
+    } else {
+      fatal("Unknown address family %u in %s.", source->ss_family, __func__);
+    }
   }
 };
 
@@ -854,13 +881,9 @@ TracerouteState::TracerouteState(std::vector<Target *> &targets) {
 #ifdef WIN32
     win32_fatal_raw_sockets(targets[0]->deviceName());
 #endif
-    rawsd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-    if (rawsd == -1)
+    rawsd = nmap_raw_socket();
+    if (rawsd < 0)
       pfatal("traceroute: socket troubles");
-    broadcast_socket(rawsd);
-#ifndef WIN32
-    sethdrinclude(rawsd);
-#endif
     ethsd = NULL;
   }
 
@@ -981,7 +1004,7 @@ void traceroute_hop_cache_clear() {
    and that differences aren't meaningful. (This has the same effect as if we
    were to send probes strictly serially, because then there would be no parent
    hops to potentially conflict, even if in fact they would if traced to
-   completion. */
+   completion.) */
 static Hop *merge_hops(const struct sockaddr_storage *tag, Hop *a, Hop *b) {
   Hop head, *p;
 
@@ -1203,7 +1226,7 @@ static bool decode_reply(const void *ip, unsigned int len, Reply *reply) {
       const struct icmpv6_msg_echo *echo;
 
       if (len < sizeof(*icmpv6) + 4)
-	return false;
+        return false;
       echo = (struct icmpv6_msg_echo *) ((char *) icmpv6 + sizeof(*icmpv6));
       if (ntohs(echo->icmpv6_id) != global_id)
         return false;

@@ -1,3 +1,11 @@
+local comm = require "comm"
+local ldap = require "ldap"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Attempts to perform an LDAP search and returns all matches.
 
@@ -88,9 +96,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require "ldap"
-require 'shortport'
-require 'comm'
 
 dependencies = {"ldap-brute"}
 
@@ -116,6 +121,7 @@ function action(host,port)
 	-- In order to discover what protocol to use (SSL/TCP) we need to send a few bytes to the server
 	-- An anonymous bind should do it
 	local ldap_anonymous_bind = string.char( 0x30, 0x0c, 0x02, 0x01, 0x01, 0x60, 0x07, 0x02, 0x01, 0x03, 0x04, 0x00, 0x80, 0x00 )
+	local _
 	socket, _, opt = comm.tryssl( host, port, ldap_anonymous_bind, nil )
 	
 	if not socket then

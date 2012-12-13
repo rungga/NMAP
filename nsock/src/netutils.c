@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: netutils.c 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: netutils.c 30237 2012-11-12 20:44:49Z david $ */
 
 #include "netutils.h"
 #include "error.h"
@@ -82,6 +82,9 @@
 #endif
 #if HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#if HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 
 static int netutils_debugging = 0;
@@ -134,3 +137,39 @@ int maximize_fdlimit(void) {
   return 0;
 }
 
+#if HAVE_SYS_UN_H
+  #define PEER_STR_LEN sizeof(((struct sockaddr_un *) 0)->sun_path)
+#else
+  #define PEER_STR_LEN sizeof("[ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255]:xxxxx")
+#endif
+
+#if HAVE_SYS_UN_H
+/* Get the UNIX domain socket path or empty string if the address family != AF_UNIX. */
+const char *get_unixsock_path(const struct sockaddr_storage *addr)
+{
+  if (!addr || addr->ss_family != AF_UNIX)
+    return "";
+
+  struct sockaddr_un *su = (struct sockaddr_un *)addr;
+  return (const char *)su->sun_path;
+}
+#endif
+
+/* Get the peer/host address string.
+ * In case we have support for UNIX domain sockets, function returns
+ * string containing path to UNIX socket if the address family is AF_UNIX,
+ * otherwise it returns string containing "<address>:<port>". */
+char *get_peeraddr_string(const msiod *iod)
+{
+  static char buffer[PEER_STR_LEN];
+
+#if HAVE_SYS_UN_H
+  if (iod->peer.ss_family == AF_UNIX) {
+    sprintf(buffer, "%s", get_unixsock_path(&iod->peer));
+    return buffer;
+  }
+#endif
+
+  sprintf(buffer, "%s:%d", inet_ntop_ez(&iod->peer, iod->peerlen), nsi_peerport((msiod *) iod));
+  return buffer;
+}

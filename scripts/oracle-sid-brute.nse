@@ -1,3 +1,10 @@
+local bin = require "bin"
+local io = require "io"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Guesses Oracle instance/SID names against the TNS-listener.
 
@@ -32,9 +39,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
-require 'comm'
-require 'datafiles'
-require 'shortport'
 
 portrule = shortport.port_or_service(1521, 'oracle-tns')
 
@@ -112,6 +116,7 @@ local function process_tns_packet( packet )
 	local tnspacket = {}
 	
 	-- just pull out the bare minimum to be able to match
+	local _
 	_, tnspacket.Length, tnspacket.Checksum, tnspacket.Type = bin.unpack(">SSC", packet)
 	
 	return tnspacket
@@ -130,7 +135,7 @@ action = function(host, port)
 	socket:set_timeout(5000)
 
 	-- open the sid file specified by the user or fallback to the default oracle-sids file
-	sidfilename = nmap.registry.args.oraclesids or nmap.fetchfile("nselib/data/oracle-sids")
+	local sidfilename = nmap.registry.args.oraclesids or nmap.fetchfile("nselib/data/oracle-sids")
 	
 	sidfile = io.open(sidfilename)
 	

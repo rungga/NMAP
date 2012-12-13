@@ -1,3 +1,8 @@
+local brute = require "brute"
+local creds = require "creds"
+local redis = require "redis"
+local shortport = require "shortport"
+
 description = [[
 Performs brute force passwords auditing against a Redis key-value store.
 ]]
@@ -21,9 +26,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
-require 'brute'
-require 'redis'
-require 'shortport'
 
 portrule = shortport.port_or_service(6379, "redis-server")
 
@@ -54,7 +56,7 @@ Driver = {
 			"+OK" ) then
 			return true, brute.Account:new( "", password, creds.State.VALID)
 		else 
-			local err = brute.Error:new( err )
+			local err = brute.Error:new( response.data )
 			err:setRetry( true )
 			return false, err
 		end
@@ -102,7 +104,8 @@ action = function(host, port)
 	engine.options.script_name = SCRIPT_NAME
 	engine.options.firstonly = true
 	engine.options:setOption( "passonly", true )
-	
+
+	local result
 	status, result = engine:start()
 	return result
 end

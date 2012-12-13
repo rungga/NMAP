@@ -41,7 +41,15 @@
 -- Version 0.1
 -- Created 2011/03/30 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
-module(... or "sip", package.seeall)
+local bin = require "bin"
+local math = require "math"
+local nmap = require "nmap"
+local os = require "os"
+local stdnse = require "stdnse"
+local openssl = stdnse.silent_require "openssl"
+local string = require "string"
+local table = require "table"
+_ENV = stdnse.module("sip", stdnse.seeall)
 
 -- Method constants
 Method = {
@@ -55,9 +63,13 @@ Method = {
 Error = {
 	TRYING = 100,
 	RING = 180,
+	TIMEOUT = 408,
+	BUSY = 486,
+	DECLINE = 603,
 	OK = 200,
 	UNAUTHORIZED = 401,
 	FORBIDDEN = 403,
+	NOTFOUND = 404,
 	PROXY_AUTH_REQUIRED = 407,
 }
 
@@ -70,6 +82,7 @@ SessionData = {
 		local o = o or {}
 		setmetatable(o, self)
         self.__index = self
+		o.user = "user"
 		return o
 	end,
 	
@@ -141,13 +154,14 @@ Session = {
 		local o = {}
 		setmetatable(o, self)
         self.__index = self
+		o.protocol = port.protocol:upper()
 		o.expires = (options and options.expires) or 300
 		o.conn = Connection:new(host,port)
 		o.cseq = (options and options.cseq) or 1234
 		local timeout = ( ( options and options.timeout ) and 
 							options.timeout * 1000 ) or 5000
 		o.conn.socket:set_timeout( timeout )
-		o.sessdata = sessdata or sip.SessionData:new()
+		o.sessdata = sessdata or SessionData:new()
 		return o
 	end,
 			
@@ -176,8 +190,7 @@ Session = {
 	--- Sends and SIP invite
 	-- @param uri
 	invite = function(self, uri)
-		local request = Request:new(Method.INVITE)
-		local callid = Util.get_random_string(20)
+		local request = Request:new(Method.INVITE, self.protocol)
 
 		local lhost, _ = self.sessdata:getClient()
 		local tm = os.time()
@@ -187,7 +200,6 @@ Session = {
 		
 		request:setUri(uri)
 		request:setSessionData(self.sessdata)
-		request:setCallId(callid)
 
 		local data = {}
 		table.insert(data, "v=0")
@@ -286,16 +298,11 @@ Session = {
 	-- @return status true on success, false on failure
 	-- @return msg string containing the error message (if status is false)
 	register = function(self)
-		local request = Request:new(Method.REGISTER)
-		local callid = Util.get_random_string(20)
+		local request = Request:new(Method.REGISTER, self.protocol)
 		
 		request:setUri("sip:" .. self.sessdata:getServer())
 		request:setSessionData(self.sessdata)
-		request:setCallId(callid)
 		request:setExpires(self.expires)
-		request:setAllow({"PRACK","INVITE","ACK","BYE","CANCEL","UPDATE",
-							"SUBSCRIBE","NOTIFY","REFER","MESSAGE","OPTIONS"})
-		request:setContentLength(0)
 				
 		local status, response = self:exch(request)
 		if (not(status)) then return false, response end
@@ -323,26 +330,18 @@ Session = {
 	
 	--- Sends an option request to the server and handles the response
 	-- @return status true on success, false on failure
-	-- @return msg string containing the error message (if status is false)
+	-- @return response if status is true, nil else.
 	options = function(self)
-		local req = Request:new(Method.OPTIONS)
-		local callid = Util.get_random_string(20)
+		local req = Request:new(Method.OPTIONS, self.protocol)
 		req:setUri("sip:" .. self.sessdata:getServer())
 		req:setSessionData(self.sessdata)
-		req:setCallId(callid)
 		req:setExpires(self.expires)
-		req:setAllow({"PRACK","INVITE","ACK","BYE","CANCEL","UPDATE",
-			"SUBSCRIBE","NOTIFY","REFER","MESSAGE","OPTIONS"})
 		req:addHeader("Accept", "application/sdp")
-		req:setContentLength(0)
 
 		local status, response = self:exch(req)
-		if (not(status)) then return false, response end
+		if status then return true, response end
 
-		local errcode = response:getErrorCode()
-		local errmsg = response:getErrorMessage()
-		local msg = ( errcode and ( errcode .. " " .. errmsg ) )
-		return ( not(errcode) or errcode == 200), msg 
+		return false, nil
 	end,
 
 }
@@ -430,7 +429,9 @@ Response = {
 	getHeader = function(self,name)
 		for _, line in ipairs(self.tbl) do
 			local header, value = line:match("^(.-): (.*)$")
-			if ( header == name ) then return value end
+			if ( header and header:lower() == name:lower() ) then
+			    return value 
+			end
 		end
 	end,
 	
@@ -478,16 +479,23 @@ Request = {
 	
 	--- Creates a new Request instance
 	-- @param method string containing the request method to use
+	-- @param proto Used protocol, could be "UDP" or "TCP"
 	-- @return o containing a new Request instance
-	new = function(self, method)
+	new = function(self, method, proto)
 		local o = {}
 		setmetatable(o, self)
         self.__index = self
       	
 		o.ua = "Nmap NSE"
-		o.protocol = "UDP"
+		o.protocol = proto or "UDP"
+		o.expires = 0
+		o.allow = "PRACK, INVITE ,ACK, BYE, CANCEL, UPDATE, SUBSCRIBE"
+			  .. ",NOTIFY, REFER, MESSAGE, OPTIONS"
+
 		o.maxfwd = 70
 		o.method = method
+		o.length = 0
+		o.cid = Util.get_random_string(60)
 		return o
 	end,
 	
@@ -521,7 +529,7 @@ Request = {
 	setCseq = function(self, seq) self.cseq = seq end,
 	
 	--- Sets the allow header
-	-- @param allow string containing all of the allowed SIP methods
+	-- @param allow table containing all of the allowed SIP methods
 	setAllow = function(self, allow) self.allow = stdnse.strjoin(", ", allow) end,
 	
 	--- Sets the request content data
@@ -824,3 +832,5 @@ Helper = {
 	end,
 	
 }
+
+return _ENV;

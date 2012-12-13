@@ -1,3 +1,11 @@
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+local target = require "target"
+
 description = [[
 Retrieves information from an Apache Hadoop NameNode HTTP status page.
 
@@ -43,9 +51,6 @@ author = "John R. Bond (john.r.bond@gmail.com)"
 license = "Simplified (2-clause) BSD license--See http://nmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
-require ("shortport")
-require ("target")
-require ("http")
 
 portrule = function(host, port)
 	-- Run for the special port number, or for any HTTP-like service that is
@@ -58,7 +63,7 @@ get_datanodes = function( host, port, Status )
 	local result = {}
 	local uri = "/dfsnodelist.jsp?whatNodes=" .. Status
 	stdnse.print_debug(1, ("%s:HTTP GET %s:%s%s"):format(SCRIPT_NAME, host.targetname or host.ip, port.number, uri))
-	local response = http.get( host.targetname or host.ip, port.number, uri )
+	local response = http.get( host, port, uri )
 	stdnse.print_debug(1, ("%s: Status %s"):format(SCRIPT_NAME,response['status-line'] or "No Response" ))
 	if response['status-line'] and response['status-line']:match("200%s+OK") and response['body']  then
 		local body = response['body']:gsub("%%","%%%%")
@@ -84,7 +89,7 @@ action = function( host, port )
 	local result = {}
 	local uri = "/dfshealth.jsp"
 	stdnse.print_debug(1, ("%s:HTTP GET %s:%s%s"):format(SCRIPT_NAME, host.targetname or host.ip, port.number, uri))
-	local response = http.get( host.targetname or host.ip, port.number, uri )
+	local response = http.get( host, port, uri )
 	stdnse.print_debug(1, ("%s: Status %s"):format(SCRIPT_NAME,response['status-line'] or "No Response"))
 	if response['status-line'] and response['status-line']:match("200%s+OK") and response['body']  then
 		local body = response['body']:gsub("%%","%%%%")
@@ -134,7 +139,7 @@ action = function( host, port )
 			table.insert(result,"Total\tUsed (DFS)\tUsed (Non DFS)\tRemaining")
 			table.insert(result, ("%s\t%s\t%s\t%s"):format(capacity[3],capacity[4],capacity[5],capacity[6]))
 		end
-		nmap.set_port_version(host, port, "hardmatched")
+		nmap.set_port_version(host, port)
 		local datanodes_live = get_datanodes(host,port, "LIVE")
 		if next(datanodes_live) then
 			table.insert(result, "Datanodes (Live): ")

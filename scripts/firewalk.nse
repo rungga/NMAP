@@ -1,3 +1,11 @@
+local bin = require "bin"
+local math = require "math"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local tab = require "tab"
+local table = require "table"
+
 description = [[
 Tries to discover firewall rules using an IP TTL expiration technique known
 as firewalking.
@@ -38,11 +46,11 @@ firewalk tool.
 -- nmap --script=firewalk --traceroute --script-args=firewalk.max-probed-ports=7 <host>
 --
 --
--- @args firewalk.max-retries the maximum number of allowed retransmissions
--- @args firewalk.recv-timeout the duration of the packets capture loop (in milliseconds)
--- @args firewalk.probe-timeout validity period of a probe (in milliseconds)
--- @args firewalk.max-active-probes maximum number of parallel active probes
--- @args firewalk.max-probed-ports maximum number of ports to probe per protocol. Set to -1 to scan every filtered ports
+-- @args firewalk.max-retries the maximum number of allowed retransmissions.
+-- @args firewalk.recv-timeout the duration of the packets capture loop (in milliseconds).
+-- @args firewalk.probe-timeout validity period of a probe (in milliseconds).
+-- @args firewalk.max-active-probes maximum number of parallel active probes.
+-- @args firewalk.max-probed-ports maximum number of ports to probe per protocol. Set to -1 to scan every filtered port.
 --
 --
 -- @output
@@ -73,10 +81,6 @@ categories = {"safe", "discovery"}
 --  o remove traceroute dependency
 
 
-require('bin')
-require('stdnse')
-require('packet')
-require('tab')
 
 
 -----=  scan parameters defaults  =-----
@@ -912,7 +916,7 @@ local function send_probe(scanner, probe)
   -- craft the raw packet
   local pkt = proto_vtable[probe.proto].getprobe(scanner.target, probe.portno, probe.ttl)
 
-  try(scanner.sock:ip_send(pkt.buf))
+  try(scanner.sock:ip_send(pkt.buf, scanner.target))
 
   -- update probe informations
   probe.retry = probe.retry + 1
@@ -927,6 +931,7 @@ local function send_next_probes(scanner)
   -- this prevents sending too much probes at the same time
   while #scanner.active_probes < MaxActiveProbes do
 
+    local probe
     -- perform resends
     if #scanner.pending_resends > 0 then
 

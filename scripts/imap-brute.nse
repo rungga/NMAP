@@ -1,3 +1,10 @@
+local brute = require "brute"
+local coroutine = require "coroutine"
+local creds = require "creds"
+local imap = require "imap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+
 description = [[
 Performs brute force password auditing against IMAP servers using either LOGIN, PLAIN, CRAM-MD5, DIGEST-MD5 or NTLM authentication.
 ]]
@@ -23,14 +30,10 @@ Performs brute force password auditing against IMAP servers using either LOGIN, 
 -- Version 0.1
 -- Created 07/15/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
-require 'creds'
-require 'brute'
-require 'shortport'
-require 'imap'
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = {"auth", "intrusive"}
+categories = {"brute", "intrusive"}
 
 portrule = shortport.port_or_service({143,993}, {"imap","imaps"})
 
@@ -130,7 +133,8 @@ action = function(host, port)
 	end
 		
 	local engine = brute.Engine:new(Driver, host, port)
-	engine.options.script_name = SCRIPT_NAME	
+	engine.options.script_name = SCRIPT_NAME
+	local result
 	status, result = engine:start()
 	
 	for _, helper in pairs(ConnectionPool) do helper:close() end

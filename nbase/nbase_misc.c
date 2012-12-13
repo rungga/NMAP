@@ -91,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_misc.c 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: nbase_misc.c 30265 2012-11-16 21:12:33Z david $ */
 
 #include "nbase.h"
 
@@ -276,6 +276,35 @@ int block_socket(int sd) {
   int options;
   options = (~O_NONBLOCK) & fcntl(sd, F_GETFL);
   fcntl(sd, F_SETFL, options);
+#endif
+
+  return 1;
+}
+
+/* Use the SO_BINDTODEVICE sockopt to bind with a specific interface (Linux
+   only). Pass NULL or an empty string to remove device binding. */
+int socket_bindtodevice(int sd, const char *device) {
+  char padded[sizeof(int)];
+  size_t len;
+
+  len = strlen(device) + 1;
+  /* In Linux 2.6.20 and earlier, there is a bug in SO_BINDTODEVICE that causes
+     EINVAL to be returned if the optlen < sizeof(int); this happens for example
+     with the interface names "" and "lo". Pad the string with null characters
+     so it is above this limit if necessary.
+     http://article.gmane.org/gmane.linux.network/71887
+     http://article.gmane.org/gmane.linux.network/72216 */
+  if (len < sizeof(padded)) {
+    /* We rely on strncpy padding with nulls here. */
+    strncpy(padded, device, sizeof(padded));
+    device = padded;
+    len = sizeof(padded);
+  }
+
+#ifdef SO_BINDTODEVICE
+  /* Linux-specific sockopt asking to use a specific interface. See socket(7). */
+  if (setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, device, len) < 0)
+    return 0;
 #endif
 
   return 1;
@@ -729,7 +758,7 @@ int optcmp(const char *a, const char *b) {
 /* Returns one if the file pathname given exists, is not a directory and
  * is readable by the executing process.  Returns two if it is readable
  * and is a directory.  Otherwise returns 0. */
-int fileexistsandisreadable(const char *pathname) {
+int file_is_readable(const char *pathname) {
 	char *pathname_buf = strdup(pathname);
 	int status = 0;
 	struct stat st;

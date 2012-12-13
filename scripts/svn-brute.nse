@@ -1,3 +1,10 @@
+local brute = require "brute"
+local creds = require "creds"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local openssl = stdnse.silent_require "openssl"
+
 description = [[
 Performs brute force password auditing against Subversion source code control servers.
 ]]
@@ -30,9 +37,6 @@ Performs brute force password auditing against Subversion source code control se
 -- Created 07/12/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 --
 
-require 'shortport'
-require 'brute'
-require 'creds'
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -64,7 +68,8 @@ svn =
 		local status, msg
 		
 		self.socket = nmap.new_socket()
-								
+
+		local result
 		status, result = self.socket:connect(self.host.ip, self.port.number, "tcp")
 		if( not(status) ) then
 			return false, result

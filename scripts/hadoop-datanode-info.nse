@@ -1,3 +1,9 @@
+local http = require "http"
+local nmap = require "nmap"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
 Discovers information such as log directories from an Apache Hadoop DataNode HTTP status page.
 
@@ -26,8 +32,6 @@ author = "John R. Bond"
 license = "Simplified (2-clause) BSD license--See http://nmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
-require ("shortport")
-require ("http")
 
 portrule = function(host, port)
 	-- Run for the special port number, or for any HTTP-like service that is
@@ -41,12 +45,12 @@ action = function( host, port )
 	local result = {}
 	local uri = "/browseDirectory.jsp"
 	stdnse.print_debug(1, ("%s:HTTP GET %s:%s%s"):format(SCRIPT_NAME, host.targetname or host.ip, port.number, uri))
-	local response = http.get( host.targetname or host.ip, port.number, uri )
+	local response = http.get( host, port, uri )
 	stdnse.print_debug(1, ("%s: Status %s"):format(SCRIPT_NAME,response['status-line'] or "No Response"))
 	if response['status-line'] and response['status-line']:match("200%s+OK") and response['body']  then
 		port.version.name = "hadoop-datanode"
 		port.version.product = "Apache Hadoop"
-		nmap.set_port_version(host, port, "hardmatched")
+		nmap.set_port_version(host, port)
 		local body = response['body']:gsub("%%","%%%%")
 		stdnse.print_debug(2, ("%s: Body %s\n"):format(SCRIPT_NAME,body))
 		 if body:match("([^][\"]+)\">Log") then

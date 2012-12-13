@@ -1,3 +1,12 @@
+local bin = require "bin"
+local math = require "math"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local string = require "string"
+local tab = require "tab"
+local table = require "table"
+
 description = [[
 	Repeatedly probe open and/or closed ports on a host to obtain a series
 	of round-trip time values for each port.  These values are used to
@@ -49,11 +58,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 
-require 'stdnse'
-require 'bin'
-require 'packet'
-require 'tab'
-require 'nmap'
 
 -- defaults
 local DELAY = 0.200
@@ -244,7 +248,7 @@ local report = function(stats)
 	tab.add(outtab, 4, "STDDEV")
 	tab.add(outtab, 5, "LOSS (%)")
 	tab.nextrow(outtab)
-
+  local port, fam, mean, stddev, loss
 	for _, j in pairs(stats) do
 		port = tostring(j.port)
 		fam = tostring(j.fam)
@@ -440,7 +444,7 @@ action = function(host)
 
 			start = stdnse.clock_us()
 
-			try(sock:ip_send(tcp.buf))
+			try(sock:ip_send(tcp.buf, host))
 
 			stats[j].sent = stats[j].sent + 1
 

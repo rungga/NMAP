@@ -480,7 +480,7 @@ or type the nmap command you would like to execute."),
             command_execution.run_scan()
         except Exception, e:
             text = str(e)
-            if type(e) == OSError:
+            if isinstance(e, OSError):
                 # Handle ENOENT specially.
                 if e.errno == errno.ENOENT:
                     # nmap_command_path comes from zenmapCore.NmapCommand.
@@ -578,7 +578,17 @@ There was an error while parsing the XML file generated from the scan:
             parsed.unsaved = True
 
             self.scan_result.refresh_nmap_output()
-            self.inventory.add_scan(parsed)
+            try:
+                self.inventory.add_scan(parsed)
+            except Exception, e:
+                warn_dialog = HIGAlertDialog(message_format = _("Cannot merge scan"),
+                    secondary_text = _(u"""\
+There was an error while merging the new scan's XML:
+
+%s\
+""") % str(e), type = gtk.MESSAGE_ERROR)
+                warn_dialog.run()
+                warn_dialog.destroy()
         parsed.set_xml_is_temp(command.xml_is_temp)
         self.collect_umit_info(command, parsed)
         parsed.nmap_output = command.get_output()

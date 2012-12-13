@@ -95,7 +95,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.h 28192 2012-03-01 06:53:35Z fyodor $ */
+/* $Id: output.h 29570 2012-08-14 16:36:25Z david $ */
 
 #ifndef OUTPUT_H
 #define OUTPUT_H
@@ -220,6 +220,8 @@ void printosscanoutput(Target *currenths);
 void printserviceinfooutput(Target *currenths);
 
 #ifndef NOLUA
+std::string protect_xml(const std::string s);
+
 /* Use this function to report NSE_PRE_SCAN and NSE_POST_SCAN results */
 void printscriptresults(ScriptResults *scriptResults, stype scantype);
 
@@ -250,5 +252,9 @@ void printfinaloutput();
 /* Prints the names of data files that were loaded and the paths at which they
    were found. */
 void printdatafilepaths();
+
+/*This is a helper function to determine the ordering of the script results
+  based on their id */
+bool comparescriptids(ScriptResult first, ScriptResult second);
 
 #endif /* OUTPUT_H */

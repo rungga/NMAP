@@ -1,3 +1,7 @@
+local http = require "http"
+local table = require "table"
+local url = require "url"
+
 ---
 -- http-default-accounts-fingerprints.lua
 -- This file contains fingerprint data for http-default-accounts.nse
@@ -81,7 +85,11 @@ table.insert(fingerprints, {
   },
   login_combos = {
     {username = "tomcat", password = "tomcat"},
-    {username = "admin", password = "admin"}
+    {username = "admin", password = "admin"},
+	-- http://cve.mitre.org/cgi-bin/cvename.cgi?name=2009-4189
+	{username = "ovwebusr", password = "OvW*busr1"},
+	-- http://cve.mitre.org/cgi-bin/cvename.cgi?name=2009-4188
+	{username = "j2deployer", password = "j2deployer"}
   },
   login_check = function (host, port, path, user, pass)
     return try_http_basic_login(host, port, path, user, pass)

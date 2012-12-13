@@ -1,6 +1,10 @@
+local nmap = require "nmap"
+local rpc = require "rpc"
+local stdnse = require "stdnse"
+local table = require "table"
+
 description = [[
-Discovers the EMC Networker backup software server on a LAN by
-using network broadcasts.
+Discovers EMC Networker backup software servers on a LAN by sending a network broadcast query.
 ]]
 
 ---
@@ -17,7 +21,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
-require 'rpc'
 
 prerule = function() return true end
 

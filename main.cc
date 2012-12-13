@@ -91,7 +91,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: main.cc 28637 2012-05-19 21:04:58Z fyodor $ */
+/* $Id: main.cc 28793 2012-06-02 18:08:39Z fyodor $ */
 
 #include <signal.h>
 
@@ -132,20 +132,6 @@ extern NmapOps o;  /* option structure */
 
 extern void set_program_name(const char *name);
 
-#ifdef WIN32
-static void check_setugid(void) {
-}
-#else
-/* Show a warning when running setuid or setgid, as this allows code execution
-   (for example NSE scripts) as the owner/group. */
-static void check_setugid(void) {
-  if (getuid() != geteuid())
-    log_write(LOG_PLAIN, "WARNING: Running Nmap setuid, as you are doing, is a major security risk.\n");
-  if (getgid() != getegid())
-    log_write(LOG_PLAIN, "WARNING: Running Nmap setgid, as you are doing, is a major security risk.\n");
-}
-#endif
-
 int main(int argc, char *argv[]) {
   /* The "real" main is nmap_main().  This function hijacks control at the
      beginning to do the following:
@@ -161,9 +147,6 @@ int main(int argc, char *argv[]) {
   int i;
 
   set_program_name(argv[0]);
-
-  /* Warn if setuid/setgid. */
-  check_setugid();
 
 #ifdef __amigaos__
 	if(!OpenLibs()) {

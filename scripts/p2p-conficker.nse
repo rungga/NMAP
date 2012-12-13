@@ -1,3 +1,14 @@
+local bin = require "bin"
+local bit = require "bit"
+local ipOps = require "ipOps"
+local math = require "math"
+local nmap = require "nmap"
+local os = require "os"
+local smb = require "smb"
+local stdnse = require "stdnse"
+local string = require "string"
+local table = require "table"
+
 description = [[
 Checks if a host is infected with Conficker.C or higher, based on Conficker's peer to peer communication. 
 
@@ -71,9 +82,6 @@ copyright = "Ron Bowes"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default","safe"}
 
-require 'smb'
-require 'stdnse'
-require 'ipOps'
 
 -- Max packet size
 local MAX_PACKET = 0x2000
@@ -94,6 +102,9 @@ local mode_flags =
 
 ---For a hostrule, simply use the 'smb' ports as an indicator, unless the user overrides it
 hostrule = function(host)
+	if ( nmap.address_family() ~= 'inet' ) then
+		return false
+	end
 	if(smb.get_port(host) ~= nil) then
 		return true
 	elseif(nmap.registry.args.checkall == "true" or nmap.registry.args.checkall == "1") then
@@ -490,8 +501,7 @@ local function conficker_check(ip, port, protocol)
 
 	-- If it's TCP, get the length and make sure we have the full packet
 	if(protocol == "tcp") then
-		local length
-		_, length = bin.unpack("<S", response, 1)
+		local _, length = bin.unpack("<S", response, 1)
 
 		while length > (#response - 2) do
 			local response2
@@ -569,6 +579,7 @@ action = function(host)
 	-- Reverse the IP's endianness
 	ip = ipOps.todword(ip)
 	ip = bin.pack(">I", ip)
+	local _
 	_, ip = bin.unpack("<I", ip)
 
 	-- Generate the ports

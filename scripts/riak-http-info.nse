@@ -1,3 +1,9 @@
+local http = require "http"
+local json = require "json"
+local shortport = require "shortport"
+local stdnse = require "stdnse"
+local tab = require "tab"
+
 description = [[
 Retrieves information (such as node name and architecture) from a Basho Riak distributed database using the HTTP protocol.
 ]]
@@ -47,10 +53,6 @@ author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe"}
 
-require 'http'
-require 'json'
-require 'shortport'
-require 'tab'
 
 portrule = shortport.port_or_service(8098, "http")
 
@@ -111,6 +113,13 @@ action = function(host, port)
 		return
 	end
 	
+	-- Identify servers that answer 200 to invalid HTTP requests and exit as these would invalidate the tests
+	local _, http_status, _ = http.identify_404(host,port)
+	if ( http_status == 200 ) then
+		stdnse.print_debug(1, "%s: Exiting due to ambiguous response from web server on %s:%s. All URIs return status 200.", SCRIPT_NAME, host.ip, port.number)
+		return false
+	end
+  
 	-- Silently abort if the server responds as anything different than
 	-- MochiWeb
 	if ( response.header['server'] and

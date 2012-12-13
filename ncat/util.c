@@ -88,7 +88,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: util.c 28442 2012-04-10 03:37:22Z david $ */
+/* $Id: util.c 30232 2012-11-12 20:44:40Z david $ */
 
 #include "sys_wrap.h"
 #include "util.h"
@@ -118,22 +118,22 @@
 /* safely add 2 size_t */
 size_t sadd(size_t l, size_t r)
 {
-    size_t  t;
+    size_t t;
 
     t = l + r;
     if (t < l)
-        bye("integer overflow %lu + %lu.", (u_long)l, (u_long)r);
+        bye("integer overflow %lu + %lu.", (u_long) l, (u_long) r);
     return t;
 }
 
 /* safely multiply 2 size_t */
 size_t smul(size_t l, size_t r)
 {
-    size_t  t;
+    size_t t;
 
     t = l * r;
     if (l && t / l != r)
-        bye("integer overflow %lu * %lu.", (u_long)l, (u_long)r);
+        bye("integer overflow %lu * %lu.", (u_long) l, (u_long) r);
     return t;
 }
 
@@ -143,8 +143,8 @@ void windows_init()
     WORD werd;
     WSADATA data;
 
-    werd = MAKEWORD( 2, 2 );
-    if ( (WSAStartup(werd, &data)) !=0 )
+    werd = MAKEWORD(2, 2);
+    if ((WSAStartup(werd, &data)) != 0)
         bye("Failed to start WinSock.");
 }
 #endif
@@ -217,7 +217,7 @@ int strbuf_append(char **buf, size_t *size, size_t *offset, const char *s, size_
 
     if (n >= *size - *offset) {
         *size += n + 1;
-        *buf = (char*) safe_realloc(*buf, *size);
+        *buf = (char *) safe_realloc(*buf, *size);
     }
 
     memcpy(*buf + *offset, s, n);
@@ -244,7 +244,7 @@ int strbuf_sprintf(char **buf, size_t *size, size_t *offset, const char *fmt, ..
 
     if (*buf == NULL) {
         *size = 1;
-        *buf = (char*) safe_malloc(*size);
+        *buf = (char *) safe_malloc(*size);
     }
 
     for (;;) {
@@ -257,7 +257,7 @@ int strbuf_sprintf(char **buf, size_t *size, size_t *offset, const char *fmt, ..
             *size += n + 1;
         else
             break;
-        *buf = (char*) safe_realloc(*buf, *size);
+        *buf = (char *) safe_realloc(*buf, *size);
     }
     *offset += n;
 
@@ -310,8 +310,8 @@ int addr_is_local(const union sockaddr_u *su)
         if (addr->ai_family != su->storage.ss_family)
             continue;
         if (addr->ai_addrlen > sizeof(addr_su)) {
-            bye("getaddrinfo returned oversized address (%u > %u)",
-                addr->ai_addrlen, sizeof(addr_su));
+            bye("getaddrinfo returned oversized address (%lu > %lu)",
+                (unsigned long) addr->ai_addrlen, (unsigned long) sizeof(addr_su));
         }
         memcpy(&addr_su, addr->ai_addr, addr->ai_addrlen);
         if (su->storage.ss_family == AF_INET) {
@@ -334,7 +334,8 @@ int addr_is_local(const union sockaddr_u *su)
    IPv6 IP address string.  Since a static buffer is returned, this is
    not thread-safe and can only be used once in calls like printf()
 */
-const char *inet_socktop(const union sockaddr_u *su) {
+const char *inet_socktop(const union sockaddr_u *su)
+{
     static char buf[INET6_ADDRSTRLEN + 1];
     void *addr;
 
@@ -381,6 +382,8 @@ int do_listen(int type, int proto, const union sockaddr_u *srcaddr_u)
        ncat_exec_win.c, for --exec and --sh-exec. inheritable_socket is from
        nbase. */
     sock = inheritable_socket(srcaddr_u->storage.ss_family, type, proto);
+    if (sock < 0)
+      bye("socket: %s", socket_strerror(socket_errno()));
 
     Setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &option_on, sizeof(int));
 
@@ -403,21 +406,39 @@ int do_listen(int type, int proto, const union sockaddr_u *srcaddr_u)
 #endif
 #endif
 
-#ifdef HAVE_SOCKADDR_SA_LEN
-    sa_len = srcaddr_u->sockaddr.sa_len;
-#else
-    sa_len = sizeof(*srcaddr_u);
+#ifdef HAVE_SYS_UN_H
+    if (srcaddr_u->storage.ss_family == AF_UNIX)
+        sa_len = SUN_LEN(&srcaddr_u->un);
+    else
 #endif
+#ifdef HAVE_SOCKADDR_SA_LEN
+        sa_len = srcaddr_u->sockaddr.sa_len;
+#else
+        sa_len = sizeof(*srcaddr_u);
+#endif
+
     if (bind(sock, &srcaddr_u->sockaddr, sa_len) < 0) {
-        bye("bind to %s:%hu: %s.", inet_socktop(srcaddr_u),
-            inet_port(srcaddr_u), socket_strerror(socket_errno()));
+#ifdef HAVE_SYS_UN_H
+        if (srcaddr_u->storage.ss_family == AF_UNIX)
+            bye("bind to %s: %s.", srcaddr_u->un.sun_path,
+                socket_strerror(socket_errno()));
+        else
+#endif
+            bye("bind to %s:%hu: %s.", inet_socktop(srcaddr_u),
+                inet_port(srcaddr_u), socket_strerror(socket_errno()));
     }
 
     if (type == SOCK_STREAM)
         Listen(sock, BACKLOG);
 
-    if (o.verbose)
-        loguser("Listening on %s:%hu\n", inet_socktop(srcaddr_u), inet_port(srcaddr_u));
+    if (o.verbose) {
+#ifdef HAVE_SYS_UN_H
+        if (srcaddr_u->storage.ss_family == AF_UNIX)
+            loguser("Listening on %s\n", srcaddr_u->un.sun_path);
+        else
+#endif
+            loguser("Listening on %s:%hu\n", inet_socktop(srcaddr_u), inet_port(srcaddr_u));
+    }
 
     return sock;
 }
@@ -449,12 +470,12 @@ int do_connect(int type)
     }
 
     if (sock != -1) {
-       if (connect(sock, &targetss.sockaddr, (int) targetsslen)!= -1)
-          return sock;
-       else if (socket_errno()==EINPROGRESS||socket_errno()==EAGAIN)
-          return sock;
+        if (connect(sock, &targetss.sockaddr, (int) targetsslen) != -1)
+            return sock;
+        else if (socket_errno() == EINPROGRESS || socket_errno() == EAGAIN)
+            return sock;
     }
-    return -1 ;
+    return -1;
 }
 
 unsigned char *buildsrcrte(struct in_addr dstaddr, struct in_addr routes[],
@@ -574,7 +595,7 @@ int rm_fd(fd_list_t *fdl, int fd)
 /* find the max descriptor in our list */
 int get_maxfd(fd_list_t *fdl)
 {
-    int x = 0,  max = -1,   nfds = fdl->nfds;
+    int x = 0, max = -1, nfds = fdl->nfds;
 
     for (x = 0; x < nfds; x++)
         if (fdl->fds[x].fd > max)
@@ -627,7 +648,7 @@ void free_fdlist(fd_list_t *fdl)
 int fix_line_endings(char *src, int *len, char **dst, int *state)
 {
     int fix_count;
-    int i,j;
+    int i, j;
     int num_bytes = *len;
     int prev_state = *state;
 
@@ -638,17 +659,18 @@ int fix_line_endings(char *src, int *len, char **dst, int *state)
     /* get count of \n without matching \r */
     fix_count = 0;
     for (i = 0; i < num_bytes; i++) {
-        if (src[i] == '\n' && ((i == 0) ? !prev_state : src[i-1] != '\r'))
+        if (src[i] == '\n' && ((i == 0) ? !prev_state : src[i - 1] != '\r'))
             fix_count++;
     }
-    if (fix_count <= 0 ) return 0;
+    if (fix_count <= 0)
+        return 0;
 
     /* now insert matching \r */
     *dst = (char *) safe_malloc(num_bytes + fix_count);
     j = 0;
 
     for (i = 0; i < num_bytes; i++) {
-        if (src[i] == '\n' && ((i == 0) ? !prev_state : src[i-1] != '\r')) {
+        if (src[i] == '\n' && ((i == 0) ? !prev_state : src[i - 1] != '\r')) {
             memcpy(*dst + j, "\r\n", 2);
             j += 2;
         } else {

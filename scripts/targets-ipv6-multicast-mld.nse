@@ -1,9 +1,14 @@
+local bin = require "bin"
+local coroutine = require "coroutine"
+local nmap = require "nmap"
+local packet = require "packet"
+local stdnse = require "stdnse"
+local tab = require "tab"
+local table = require "table"
+local target = require "target"
+
 description = [[
-Sends an MLD query with maximum response delay 0 to the
-to discover available hosts on the LAN. This works because 
-hosts will respond to this probe with an MLD report packet and 
-as maximum response delay is 0 nobody gets time to wait for others`
-report even in the same multicast group.
+Attempts to discover available IPv6 hosts on the LAN by sending an MLD (multicast listener discovery) query to the link-local multicast address (ff02::1) and listening for any responses.  The query's maximum response delay set to 0 to provoke hosts to respond immediately rather than waiting for other responses from their multicast group.
 ]]
 
 ---
@@ -25,12 +30,6 @@ author = "niteesh"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery","broadcast"}
 
-local nmap		= require 'nmap'
-local tab 		= require 'tab'
-local target 	= require 'target'
-local packet	= require 'packet'
-local bit		= require 'bit'
-local bin		= require 'bin'
 
 local arg_timeout = tonumber(stdnse.get_script_args(SCRIPT_NAME .. '.timeout'))
 
@@ -167,9 +166,11 @@ action = function()
 	end
 
 	repeat
-		condvar "wait"
 		for thread in pairs(threads) do
 			if coroutine.status(thread) == "dead" then threads[thread] = nil end
+		end
+		if ( next(threads) ) then
+			condvar "wait"
 		end
 	until next(threads) == nil
 

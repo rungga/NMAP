@@ -1,3 +1,14 @@
+local coroutine = require "coroutine"
+local creds = require "creds"
+local io = require "io"
+local nmap = require "nmap"
+local packet = require "packet"
+local shortport = require "shortport"
+local snmp = require "snmp"
+local stdnse = require "stdnse"
+local string = require "string"
+local unpwdb = require "unpwdb"
+
 description = [[
 Attempts to find an SNMP community string by brute force guessing.
 
@@ -43,12 +54,6 @@ license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"intrusive", "brute"}
 
-require "shortport"
-require "snmp"
-require "creds"
-require "unpwdb"
-require "nmap"
-require "packet"
 
 portrule = shortport.portnumber(161, "udp", {"open", "open|filtered"})
 
@@ -138,7 +143,7 @@ local send_snmp_queries = function(socket, result, nextcommunity)
 
 	local request = snmp.buildGetRequest({}, "1.3.6.1.2.1.1.3.0")
 
-	local payload, status, response
+	local payload, status, response, err
 	local community = nextcommunity()
 
 	while community do
@@ -271,7 +276,11 @@ action = function(host, port)
 		if creds_iter then
 			local account = creds_iter()
 			if account then
-				nmap.registry.snmpcommunity = account.pass
+				if account.pass == "<empty>" then
+					nmap.registry.snmpcommunity = ""
+				else
+					nmap.registry.snmpcommunity = account.pass
+				end
 			end
 		end
 

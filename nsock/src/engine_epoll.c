@@ -52,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: engine_epoll.c 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: engine_epoll.c 30099 2012-10-22 04:26:19Z henri $ */
 
 #ifdef HAVE_CONFIG_H
 #include "nsock_config.h"
@@ -109,7 +109,9 @@ static void iterate_through_event_lists(mspool *nsp, int evcount);
 void process_iod_events(mspool *nsp, msiod *nsi, int ev);
 void process_event(mspool *nsp, gh_list *evlist, msevent *nse, int ev);
 #if HAVE_PCAP
+#ifndef PCAP_CAN_DO_SELECT
 int pcap_read_on_nonselect(mspool *nsp);
+#endif
 #endif
 
 /* defined in nsock_event.c */
@@ -207,6 +209,7 @@ int epoll_iod_modify(mspool *nsp, msiod *iod, int ev_set, int ev_clr) {
   struct epoll_engine_info *einfo = (struct epoll_engine_info *)nsp->engine_data;
 
   assert((ev_set & ev_clr) == 0);
+  assert(IOD_PROPGET(iod, IOD_REGISTERED));
 
   memset(&epev, 0x00, sizeof(struct epoll_event));
   epev.events = EPOLLET;
@@ -230,12 +233,15 @@ int epoll_iod_modify(mspool *nsp, msiod *iod, int ev_set, int ev_clr) {
     epev.events |= EPOLL_X_FLAGS;
 
   sd = nsi_getsd(iod);
-  epoll_ctl(einfo->epfd, EPOLL_CTL_MOD, sd, &epev);
+
+  if (epoll_ctl(einfo->epfd, EPOLL_CTL_MOD, sd, &epev) < 0)
+    fatal("Unable to update events for IOD #%lu: %s", iod->id, strerror(errno));
+
   return 1;
 }
 
 int epoll_loop(mspool *nsp, int msec_timeout) {
-  int results_left;
+  int results_left = 0;
   int event_msecs; /* msecs before an event goes off */
   int combined_msecs;
   int sock_err = 0;
@@ -276,11 +282,13 @@ int epoll_loop(mspool *nsp, int msec_timeout) {
     combined_msecs = MIN((unsigned)event_msecs, (unsigned)msec_timeout);
 
 #if HAVE_PCAP
+#ifndef PCAP_CAN_DO_SELECT
     /* do non-blocking read on pcap devices that doesn't support select()
      * If there is anything read, just leave this loop. */
     if (pcap_read_on_nonselect(nsp)) {
       /* okay, something was read. */
     } else
+#endif
 #endif
     {
       if (einfo->evlen)
@@ -308,6 +316,18 @@ int epoll_loop(mspool *nsp, int msec_timeout) {
 
 
 /* ---- INTERNAL FUNCTIONS ---- */
+static inline int get_evmask(struct epoll_engine_info *einfo, int n) {
+  int evmask = EV_NONE;
+
+  if (einfo->events[n].events & EPOLL_R_FLAGS)
+    evmask |= EV_READ;
+  if (einfo->events[n].events & EPOLL_W_FLAGS)
+    evmask |= EV_WRITE;
+  if (einfo->events[n].events & EPOLL_X_FLAGS)
+    evmask |= (EV_READ | EV_WRITE | EV_EXCEPT);
+
+  return evmask;
+}
 
 /* Iterate through all the event lists (such as connect_events, read_events,
  * timer_events, etc) and take action for those that have completed (due to
@@ -328,24 +348,14 @@ void iterate_through_event_lists(mspool *nsp, int evcount) {
   initial_iod_count = GH_LIST_COUNT(&nsp->active_iods);
 
   for (n = 0; n < evcount; n++) {
-    int evmask = EV_NONE;
-
     nsi = (msiod *)einfo->events[n].data.ptr;
     assert(nsi);
 
     if (nsi->entry_in_nsp_active_iods == last)
       last = GH_LIST_ELEM_PREV(nsi->entry_in_nsp_active_iods);
 
-    /* generate the corresponding event mask with nsock event flags */
-    if (einfo->events[n].events & EPOLL_R_FLAGS)
-      evmask |= EV_READ;
-    if (einfo->events[n].events & EPOLL_W_FLAGS)
-      evmask |= EV_WRITE;
-    if (einfo->events[n].events & EPOLL_X_FLAGS)
-      evmask |= (EV_READ | EV_WRITE | EV_EXCEPT);
-
     /* process all the pending events for this IOD */
-    process_iod_events(nsp, nsi, evmask);
+    process_iod_events(nsp, nsi, get_evmask(einfo, n));
 
     if (nsi->state != NSIOD_STATE_DELETED) {
       gh_list_move_front(&nsp->active_iods, nsi->entry_in_nsp_active_iods);
@@ -372,7 +382,7 @@ void iterate_through_event_lists(mspool *nsp, int evcount) {
 
   /* cull timeouts amongst the non active IODs */
   while (current != NULL && GH_LIST_ELEM_PREV(current) != last) {
-    msiod *nsi = (msiod *)GH_LIST_ELEM_DATA(current);
+    nsi = (msiod *)GH_LIST_ELEM_DATA(current);
 
     if (nsi->state != NSIOD_STATE_DELETED && nsi->events_pending)
       process_iod_events(nsp, nsi, EV_NONE);
