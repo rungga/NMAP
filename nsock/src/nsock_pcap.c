@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -33,17 +33,18 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -53,10 +54,11 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_pcap.c 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: nsock_pcap.c 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
+#include "nsock_log.h"
 
 #include <limits.h>
 #if HAVE_SYS_IOCTL_H
@@ -102,10 +104,7 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device, 
   int failed, datalink;
   char *e;
 
-  gettimeofday(&nsock_tod, NULL);
-
 #ifdef PCAP_CAN_DO_SELECT
-
 #if PCAP_BSD_SELECT_HACK
   /* MacOsX reports error if to_ms is too big (like INT_MAX) with error
    *  FAILED. Reported error: BIOCSRTIMEOUT: Invalid argument
@@ -118,6 +117,8 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device, 
 #else
   int to_ms = 1;
 #endif
+
+  gettimeofday(&nsock_tod, NULL);
 
   if (mp)
     return "nsock-pcap: this nsi already has pcap device opened";
@@ -132,14 +133,13 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device, 
   }
   va_end(ap);
 
-  if (ms->tracelevel > 0)
-      nsock_trace(ms,
-                  "PCAP requested on device '%s' with berkeley filter '%s' (promisc=%i snaplen=%i to_ms=%i) (IOD #%li)",
-                  pcap_device,bpf, promisc, snaplen, to_ms, nsi->id);
+  nsock_log_info(ms,
+                 "PCAP requested on device '%s' with berkeley filter '%s' (promisc=%i snaplen=%i to_ms=%i) (IOD #%li)",
+                 pcap_device,bpf, promisc, snaplen, to_ms, nsi->id);
 
   failed = 0;
   do {
-    mp->pt = pcap_open_live((char* )pcap_device, snaplen, promisc, to_ms, err0r);
+    mp->pt = pcap_open_live((char *)pcap_device, snaplen, promisc, to_ms, err0r);
     if (mp->pt)  /* okay, opened!*/
       break;
 
@@ -220,22 +220,28 @@ char* nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device, 
             pcap_device, err0r);
   }
 
-  if (ms->tracelevel > 0)
-      nsock_trace(ms, "PCAP created successfully on device '%s' (pcap_desc=%i bsd_hack=%i to_valid=%i l3_offset=%i) (IOD #%li)",
-      pcap_device,
-      mp->pcap_desc,
-#if PCAP_BSD_SELECT_HACK
-      1,
-#else
-      0,
-#endif
-#if PCAP_RECV_TIMEVAL_VALID
-      1,
-#else
-      0,
-#endif
-      mp->l3_offset,
-      nsi->id);
+  if (ms->loglevel <= NSOCK_LOG_INFO) {
+    #if PCAP_BSD_SELECT_HACK
+      int bsd_select_hack = 1;
+    #else
+      int bsd_select_hack = 0;
+    #endif
+
+    #if PCAP_RECV_TIMEVAL_VALID
+      int recv_timeval_valid = 1;
+    #else
+      int recv_timeval_valid = 0;
+    #endif
+
+    nsock_log_info(ms, "PCAP created successfully on device '%s'"
+                   " (pcap_desc=%i bsd_hack=%i to_valid=%i l3_offset=%i) (IOD #%li)",
+                   pcap_device,
+                   mp->pcap_desc,
+                   bsd_select_hack,
+                   recv_timeval_valid,
+                   mp->l3_offset,
+                   nsi->id);
+  }
 
   return NULL;
 }
@@ -270,7 +276,7 @@ int nsock_pcap_get_l3_offset(pcap_t *pt, int *dl) {
 
   /* XXX NOTE:
    * if a new offset ever exceeds the current max (24), adjust MAX_LINK_HEADERSZ in libnetutil/netutil.h */
-  switch(datalink) {
+  switch (datalink) {
     case DLT_EN10MB: offset = 14; break;
     case DLT_IEEE802: offset = 22; break;
     #ifdef __amigaos__
@@ -342,9 +348,7 @@ nsock_event_id nsock_pcap_read_packet(nsock_pool nsp, nsock_iod nsiod,
   nse = msevent_new(ms, NSE_TYPE_PCAP_READ, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "Pcap read request from IOD #%li  EID %li",
-                nsi->id, nse->id);
+  nsock_log_info(ms, "Pcap read request from IOD #%li  EID %li", nsi->id, nse->id);
 
   nsp_add_event(ms, nse);
 
@@ -362,14 +366,13 @@ int do_actual_pcap_read(msevent *nse) {
 
   memset(&npp, 0, sizeof(nsock_pcap));
 
-  if (nse->iod->nsp->tracelevel > 2)
-    nsock_trace(nse->iod->nsp, "PCAP do_actual_pcap_read TEST (IOD #%li) (EID #%li)",
-                nse->iod->id, nse->id);
+  nsock_log_debug_all(nse->iod->nsp, "PCAP %s TEST (IOD #%li) (EID #%li)",
+                      __func__, nse->iod->id, nse->id);
 
-  assert( FILESPACE_LENGTH(&(nse->iobuf)) == 0 );
+  assert(fs_length(&(nse->iobuf)) == 0);
 
   rc = pcap_next_ex(mp->pt, &pkt_header, &pkt_data);
-  switch(rc) {
+  switch (rc) {
     case 1: /* read good packet  */
       #ifdef PCAP_RECV_TIMEVAL_VALID
       npp.ts     = pkt_header->ts;
@@ -381,14 +384,13 @@ int do_actual_pcap_read(msevent *nse) {
       npp.caplen = pkt_header->caplen;
       npp.packet = pkt_data;
 
-      fscat(&(nse->iobuf), (char *)&npp, sizeof(npp));
-      fscat(&(nse->iobuf), (char *)pkt_data, npp.caplen);
-      n = (nsock_pcap *)FILESPACE_STR(&(nse->iobuf));
-      n->packet = (unsigned char *)FILESPACE_STR(&(nse->iobuf)) + sizeof(npp);
+      fs_cat(&(nse->iobuf), (char *)&npp, sizeof(npp));
+      fs_cat(&(nse->iobuf), (char *)pkt_data, npp.caplen);
+      n = (nsock_pcap *)fs_str(&(nse->iobuf));
+      n->packet = (unsigned char *)fs_str(&(nse->iobuf)) + sizeof(npp);
 
-      if (nse->iod->nsp->tracelevel > 2)
-        nsock_trace(nse->iod->nsp, "PCAP do_actual_pcap_read READ (IOD #%li) (EID #%li) size=%i",
-                    nse->iod->id, nse->id, pkt_header->caplen);
+      nsock_log_debug_all(nse->iod->nsp, "PCAP %s READ (IOD #%li) (EID #%li) size=%i",
+                          __func__, nse->iod->id, nse->id, pkt_header->caplen);
       return(1);
 
     case 0: /* timeout */
@@ -413,8 +415,8 @@ void nse_readpcap(nsock_event nsee, const unsigned char **l2_data, size_t *l2_le
   size_t l2l;
   size_t l3l;
 
-  nsock_pcap *n = (nsock_pcap *)FILESPACE_STR(&(nse->iobuf));
-  if (FILESPACE_LENGTH(&(nse->iobuf)) < sizeof(nsock_pcap)) {
+  nsock_pcap *n = (nsock_pcap *)fs_str(&(nse->iobuf));
+  if (fs_length(&(nse->iobuf)) < sizeof(nsock_pcap)) {
     if (l2_data)
       *l2_data = NULL;
     if (l2_len)

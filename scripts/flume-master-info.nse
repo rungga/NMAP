@@ -149,8 +149,6 @@ action = function( host, port )
 		local body = response['body']:gsub("%%","%%%%")
 		local capacity = {}
 		stdnse.print_debug(2, ("%s: Body %s\n"):format(SCRIPT_NAME,body))
-		port.version.name = "flume-master"
-		port.version.product = "Apache Flume"
 		if body:match("Version:%s*</b>([^][,]+)") then
 			local version = body:match("Version:%s*</b>([^][,]+)")
 			stdnse.print_debug(1, ("%s: Version %s"):format(SCRIPT_NAME,version))
@@ -167,7 +165,6 @@ action = function( host, port )
 			stdnse.print_debug(1, ("%s: ServerID %s"):format(SCRIPT_NAME,upgrades))
 			result[#result] = ("ServerID: %s"):format(upgrades)
 		end
-		table.insert(result, "Flume nodes:")
 		for logical,physical,hostname in string.gmatch(body,"<tr><td>([%w%.-_:]+)</td><td>([%w%.]+)</td><td>([%w%.]+)</td>") do
 			stdnse.print_debug(2, ("%s:  %s (%s) %s"):format(SCRIPT_NAME,physical,logical,hostname))
 			if (table_count(nodes, hostname) == 0) then
@@ -176,9 +173,9 @@ action = function( host, port )
 			end
 		end
 		if next(nodes) ~= nil then 
+			table.insert(result, "Flume nodes:")
 			result[#result+1] = nodes
 		end
-		result[#result+1] = "Zookeeper Master:"
 		for zookeeper in string.gmatch(body,"Dhbase.zookeeper.quorum=([^][\"]+)") do
 			if (table_count(zookeepers, zookeeper) == 0) then
 				zookeepers[#zookeepers+1] = zookeeper
@@ -186,9 +183,9 @@ action = function( host, port )
 			end
 		end
 		if next(zookeepers) ~= nil then 
+			result[#result+1] = "Zookeeper Master:"
 			result[#result+1] = zookeepers
 		end
-		result[#result+1] = "Hbase Master Master:"
 		for hbasemaster in string.gmatch(body,"Dhbase.rootdir=([^][\"]+)") do
 			if (table_count(hbasemasters, hbasemaster) == 0) then
 				hbasemasters[#hbasemasters+1] = hbasemaster
@@ -196,12 +193,24 @@ action = function( host, port )
 			end
 		end
 		if next(hbasemasters) ~= nil then 
+			result[#result+1] = "Hbase Master Master:"
 			result[#result+1] = hbasemasters
 		end
-		result[#result+1] = "Enviroment: "
-		result[#result+1] = parse_page(host, port, env_uri, env_keys )
-		result[#result+1] = "Config: "
-		result[#result+1] = parse_page(host, port, config_uri, config_keys )
+		local vars = parse_page(host, port, env_uri, env_keys )
+		if next(vars) ~= nil then
+			result[#result+1] = "Enviroment: "
+			result[#result+1] = vars
+		end
+		local vars = parse_page(host, port, config_uri, config_keys )
+		if next(vars) ~= nil then
+			result[#result+1] = "Config: "
+			result[#result+1] = vars
+		end
+		if #result > 0 then
+			port.version.name = "flume-master"
+			port.version.product = "Apache Flume"
+			nmap.set_port_version(host, port)
+		end
 		return stdnse.format_output(true, result)
 	end
 end

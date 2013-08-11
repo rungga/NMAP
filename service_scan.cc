@@ -6,58 +6,90 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
+ *                                                                         *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
+ * permission to link the code of this program with any version of the     *
+ * OpenSSL library which is distributed under a license identical to that  *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two.                                  *
+ *                                                                         *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the special and conditions of the license text as well.       *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
  * continued development of Nmap.  Please email sales@insecure.com for     *
  * further information.                                                    *
- *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
  *                                                                         *
  * If you received these files with a written license agreement or         *
  * contract stating terms other than the terms above, then that            *
@@ -70,8 +102,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -85,14 +117,13 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: service_scan.cc 30103 2012-10-22 15:33:57Z david $ */
+/* $Id: service_scan.cc 31563 2013-07-28 22:08:48Z fyodor $ */
 
 
 #include "service_scan.h"
@@ -191,7 +222,7 @@ public:
   // Number of milliseconds left to complete the present probe, or 0 if
   // the probe is already expired.  Timeval can omitted, it is just there 
   // as an optimization in case you have it handy.
-  int currentprobe_timemsleft(const struct timeval *now = NULL);
+  int probe_timemsleft(const ServiceProbe *probe, const struct timeval *now = NULL);
   enum serviceprobestate probe_state; // defined in portlist.h
   nsock_iod niod; // The IO Descriptor being used in this probe (or NULL)
   u16 portno; // in host byte order
@@ -289,19 +320,6 @@ ServiceProbeMatch::~ServiceProbeMatch() {
   if (regex_extra) pcre_free(regex_extra);
   isInitialized = false;
   matchops_anchor = -1;
-}
-
-/* Make a new allocated null-terminated string from the bytes [start, end). */
-static char *mkstr(const char *start, const char *end)
-{
-    char *s;
-
-    assert(end >= start);
-    s = (char *) safe_malloc(end - start + 1);
-    memcpy(s, start, end - start);
-    s[end - start] = '\0';
-
-    return s;
 }
 
 /* Realloc a malloc-allocated string and put a given prefix at the front. */
@@ -1584,8 +1602,8 @@ void ServiceNFO::addServiceString(const char *s, int wrapat) {
     addServiceChar(*s++, wrapat);
 }
 
-// If a service response to a given probeName, this function adds the
-// resonse the the fingerprint for that service.  The fingerprint can
+// If a service responds to a given probeName, this function adds the
+// response to the fingerprint for that service.  The fingerprint can
 // be printed when nothing matches the service.  You can obtain the
 // fingerprint (if any) via getServiceFingerprint();
 void ServiceNFO::addToServiceFingerprint(const char *probeName, const u8 *resp, 
@@ -1799,7 +1817,7 @@ void ServiceNFO::resetProbes(bool freefp) {
 }
 
 
-int ServiceNFO::currentprobe_timemsleft(const struct timeval *now) {
+int ServiceNFO::probe_timemsleft(const ServiceProbe *probe, const struct timeval *now) {
   int timeused, timeleft;
 
   if (now)
@@ -1810,7 +1828,11 @@ int ServiceNFO::currentprobe_timemsleft(const struct timeval *now) {
     timeused = TIMEVAL_MSEC_SUBTRACT(tv, currentprobe_exec_time);
   }
 
-  timeleft = currentProbe()->totalwaitms - timeused;
+  // Historically this function was always called with the assumption that
+  // probe == currentProbe(). Check that this remains the case.
+  assert(probe == currentProbe());
+
+  timeleft = probe->totalwaitms - timeused;
   return (timeleft < 0)? 0 : timeleft;
 }
 
@@ -1941,7 +1963,7 @@ static void adjustPortStateIfNecessary(ServiceNFO *svc) {
     probestring = probe->getProbeString(&probestringlen);
     assert(probestringlen > 0);
     // Now we write the string to the IOD
-    nsock_write(nsp, nsi, servicescan_write_handler, svc->currentprobe_timemsleft(), svc,
+    nsock_write(nsp, nsi, servicescan_write_handler, svc->probe_timemsleft(probe), svc,
 		(const char *) probestring, probestringlen);
     return 0;
   }
@@ -1967,7 +1989,7 @@ static void startNextProbe(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
       svc->currentprobe_exec_time = *nsock_gettimeofday();
       send_probe_text(nsp, nsi, svc, probe);
       nsock_read(nsp, nsi, servicescan_read_handler, 
-		 svc->currentprobe_timemsleft(nsock_gettimeofday()), svc);
+		 svc->probe_timemsleft(probe, nsock_gettimeofday()), svc);
     } else {
       // Should only happen if someone has a highly perverse nmap-service-probes
       // file.  Null scan should generally never be the only probe.
@@ -2016,7 +2038,7 @@ static void startNextProbe(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
 	send_probe_text(nsp, nsi, svc, probe);
 	// Now let us read any results
 	nsock_read(nsp, nsi, servicescan_read_handler, 
-		   svc->currentprobe_timemsleft(nsock_gettimeofday()), svc);
+		   svc->probe_timemsleft(probe, nsock_gettimeofday()), svc);
       }
     } else {
       // No more probes remaining!  Failed to match
@@ -2078,9 +2100,10 @@ static int scanThroughTunnel(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
 }
 
 /* Prints completion estimates and the like when appropriate */
-static void considerPrintingStats(ServiceGroup *SG) {
+static void considerPrintingStats(nsock_pool nsp, ServiceGroup *SG) {
    /* Check for status requests */
    if (keyWasPressed()) {
+      nmap_adjust_loglevel(nsp, o.versionTrace());
       SG->SPM->printStats(SG->services_finished.size() /
                           ((double)SG->services_remaining.size() + SG->services_in_progress.size() + 
                            SG->services_finished.size()), nsock_gettimeofday());
@@ -2149,7 +2172,7 @@ static void end_svcprobe(nsock_pool nsp, enum serviceprobestate probe_state, Ser
 
   SG->services_finished.push_back(svc);
 
-  considerPrintingStats(SG);
+  considerPrintingStats(nsp, SG);
 
   if (nsi) {
     nsi_delete(nsi, NSOCK_PENDING_SILENT);
@@ -2261,24 +2284,32 @@ static void servicescan_connect_handler(nsock_pool nsp, nsock_event nse, void *m
     svc->currentprobe_exec_time = *nsock_gettimeofday();
     send_probe_text(nsp, nsi, svc, probe);
     // Now let us read any results
-    nsock_read(nsp, nsi, servicescan_read_handler, svc->currentprobe_timemsleft(nsock_gettimeofday()), svc);
-  } else if (status == NSE_STATUS_TIMEOUT || status == NSE_STATUS_ERROR) {
-      // This is not good.  The connect() really shouldn't generally
-      // be timing out like that.  We'll mark this svc as incomplete
-      // and move it to the finished bin.
-    if (o.debugging)
-      error("Got nsock CONNECT response with status %s - aborting this service", nse_status2str(status));
-    end_svcprobe(nsp, PROBESTATE_INCOMPLETE, SG, svc, nsi);
-  } else if (status == NSE_STATUS_KILL) {
-    /* User probablby specified host_timeout and so the service scan is
-       shutting down */
-    end_svcprobe(nsp, PROBESTATE_INCOMPLETE, SG, svc, nsi);
-    return;
-  } else fatal("Unexpected nsock status (%d) returned for connection attempt", (int) status);
+    nsock_read(nsp, nsi, servicescan_read_handler, svc->probe_timemsleft(probe, nsock_gettimeofday()), svc);
+  } else {
+    switch(status) {
+      case NSE_STATUS_TIMEOUT:
+      case NSE_STATUS_ERROR:
+      case NSE_STATUS_PROXYERROR:
+        // This is not good.  The connect() really shouldn't generally
+        // be timing out like that.  We'll mark this svc as incomplete
+        // and move it to the finished bin.
+        if (o.debugging)
+          error("Got nsock CONNECT response with status %s - aborting this service", nse_status2str(status));
+        end_svcprobe(nsp, PROBESTATE_INCOMPLETE, SG, svc, nsi);
+        break;
+    
+      case NSE_STATUS_KILL:
+        /* User probablby specified host_timeout and so the service scan is
+         * shutting down */
+        end_svcprobe(nsp, PROBESTATE_INCOMPLETE, SG, svc, nsi);
+        return;
 
+      default:
+        fatal("Unexpected nsock status (%d) returned for connection attempt", (int)status);
+    }
+  }
   // We may have room for more pr0bes!
   launchSomeServiceProbes(nsp, SG);
-
   return;
 }
 
@@ -2315,7 +2346,7 @@ static void servicescan_write_handler(nsock_pool nsp, nsock_event nse, void *myd
     return;
   }
 
-  if (status == NSE_STATUS_ERROR) {
+  if (status == NSE_STATUS_ERROR || status == NSE_STATUS_PROXYERROR) {
 	err = nse_errorcode(nse);
 	error("Got nsock WRITE error #%d (%s)", err, strerror(err));
   }
@@ -2421,13 +2452,12 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
       // to timeout.  For now I'll limit it to 4096 bytes just to
       // avoid reading megs from services like chargen.  But better
       // approach is needed.
-      if (svc->currentprobe_timemsleft() > 0 && readstrlen < 4096) { 
-	nsock_read(nsp, nsi, servicescan_read_handler, svc->currentprobe_timemsleft(), svc);
+      if (svc->probe_timemsleft(probe) > 0 && readstrlen < 4096) { 
+	nsock_read(nsp, nsi, servicescan_read_handler, svc->probe_timemsleft(probe), svc);
       } else {
 	// Failed -- lets go to the next probe.
 	if (readstrlen > 0)
-	  svc->addToServiceFingerprint(svc->currentProbe()->getName(), readstr, 
-				       readstrlen);
+	  svc->addToServiceFingerprint(probe->getName(), readstr, readstrlen);
 	startNextProbe(nsp, nsi, SG, svc, false);
       }
     }
@@ -2678,10 +2708,13 @@ int service_scan(std::vector<Target *> &Targets) {
   if ((nsp = nsp_new(SG)) == NULL) {
     fatal("%s() failed to create new nsock pool.", __func__);
   }
+  nsock_set_log_function(nsp, nmap_nsock_stderr_logger);
+  nmap_adjust_loglevel(nsp, o.versionTrace());
+
   nsp_setdevice(nsp, o.device);
 
-  if (o.versionTrace()) {
-    nsp_settrace(nsp, NULL, NSOCK_TRACE_LEVEL, o.getStartTime());
+  if (o.proxy_chain) {
+    nsp_set_proxychain(nsp, o.proxy_chain);
   }
 
 #if HAVE_OPENSSL

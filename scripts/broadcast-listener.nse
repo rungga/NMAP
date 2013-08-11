@@ -134,10 +134,10 @@ end
 sniffInterface = function(iface, Decoders, decodertab)
 	local condvar = nmap.condvar(decodertab)
 	local sock = nmap.new_socket()
-	local timeout = tonumber(stdnse.get_script_args("broadcast-listener.timeout"))
+	local timeout = stdnse.parse_timespec(stdnse.get_script_args("broadcast-listener.timeout"))
 
 	-- default to 30 seconds, if nothing else was set
-	timeout = timeout and (timeout * 1000) or (30 * 1000)
+	timeout = (timeout or 30) * 1000
 
 	-- We want all packets that aren't explicitly for us
  	sock:pcap_open(iface.name, 1500, true, ("!host %s"):format(iface.address))
@@ -184,7 +184,7 @@ sniffInterface = function(iface, Decoders, decodertab)
 				end
 				-- no decoder was found for this layer2 packet
 				if ( not(decoded) and #data > 10 ) then
-					stdnse.print_debug(2, "No decoder for packet hex: %s", select(2, bin.unpack("H10", data) ) )
+					stdnse.print_debug(1, "No decoder for packet hex: %s", select(2, bin.unpack("H10", data) ) )
 				end
 			end
 		end
@@ -287,7 +287,8 @@ action = function()
 			table.insert( out_outer, { name = proto, out_inner } )
 		end
 	end
-	
+
+	table.sort(out_outer, function(a, b) return a.name < b.name end)
 	return stdnse.format_output(true, out_outer)
 
 end

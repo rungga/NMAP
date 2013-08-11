@@ -28,7 +28,7 @@ to be on the LAN.
 -- | ip-forwarding: 
 -- |_  The host has ip forwarding enabled, tried ping against (www.example.com)
 --
--- @param ip-forwarding.target a LAN or routed target responding to ICMP echo
+-- @args ip-forwarding.target a LAN or routed target responding to ICMP echo
 --        requests (ping).
 --
 

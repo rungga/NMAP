@@ -4,58 +4,90 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
+ *                                                                         *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
+ * permission to link the code of this program with any version of the     *
+ * OpenSSL library which is distributed under a license identical to that  *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two.                                  *
+ *                                                                         *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the special and conditions of the license text as well.       *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
  * continued development of Nmap.  Please email sales@insecure.com for     *
  * further information.                                                    *
- *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
  *                                                                         *
  * If you received these files with a written license agreement or         *
  * contract stating terms other than the terms above, then that            *
@@ -68,8 +100,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -83,10 +115,9 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
@@ -616,6 +647,7 @@ static int ipv6_is_extension_header(u8 type)
 static int ipv6_is_upperlayer(u8 type)
 {
   switch (type) {
+  case IP_PROTO_NONE:
   case IP_PROTO_TCP:
   case IP_PROTO_UDP:
   case IP_PROTO_ICMP:
@@ -1200,8 +1232,8 @@ void tcppacketoptinfo(u8 *optp, int len, char *result, int bufsize) {
 
 
 
-/* A trivial function used with qsort to sort the routes by netmask */
-static int nmaskcmp(const void *a, const void *b) {
+/* A trivial function used with qsort to sort the routes by netmask and metric */
+static int routecmp(const void *a, const void *b) {
   struct sys_route *r1 = (struct sys_route *) a;
   struct sys_route *r2 = (struct sys_route *) b;
   if (r1->dest.ss_family < r2->dest.ss_family)
@@ -1213,6 +1245,11 @@ static int nmaskcmp(const void *a, const void *b) {
     return 1;
   else if (r1->netmask_bits > r2->netmask_bits)
     return -1;
+
+  if (r1->metric < r2->metric)
+    return -1;
+  else if (r1->metric > r2->metric)
+    return 1;
 
   /* Compare addresses of equal elements to make the sort stable, as suggested
      by the Glibc manual. */
@@ -1308,7 +1345,7 @@ static int collect_dnet_interfaces(const struct intf_entry *entry, void *arg) {
       sizeof(dcrn->ifaces[dcrn->numifaces].devfullname));
 
     /* Interface type */
-    if (entry->intf_type == INTF_TYPE_ETH) {
+    if (entry->intf_type == INTF_TYPE_ETH && (entry->intf_flags & INTF_FLAG_NOARP) == 0) {
       dcrn->ifaces[dcrn->numifaces].device_type = devt_ethernet;
       /* Collect the MAC address since this is ethernet */
       memcpy(dcrn->ifaces[dcrn->numifaces].mac, &entry->intf_link_addr.addr_eth.data, 6);
@@ -1551,8 +1588,6 @@ static struct dnet_collector_route_nfo *sysroutes_dnet_find_interfaces(struct dn
       routeaddr = &dcrn->routes[i].gw;
 
     for (j = 0; j < numifaces; j++) {
-      if (!ifaces[j].device_up)
-        continue;
       if (sockaddr_equal_netmask(&ifaces[j].addr, routeaddr, ifaces[j].netmask_bits)) {
         dcrn->routes[i].device = &ifaces[j];
         break;
@@ -1623,6 +1658,7 @@ static int collect_dnet_routes(const struct route_entry *entry, void *arg) {
   addr_ntos(&entry->route_dst, (struct sockaddr *) &dcrn->routes[dcrn->numroutes].dest);
   dcrn->routes[dcrn->numroutes].netmask_bits = entry->route_dst.addr_bits;
   addr_ntos(&entry->route_gw, (struct sockaddr *) &dcrn->routes[dcrn->numroutes].gw);
+  dcrn->routes[dcrn->numroutes].metric = entry->metric;
   dcrn->routes[dcrn->numroutes].device = getInterfaceByName(entry->intf_name, dcrn->routes[dcrn->numroutes].dest.ss_family);
   dcrn->numroutes++;
 
@@ -1692,8 +1728,8 @@ struct sys_route *getsysroutes(int *howmany, char *errstr, size_t errstrlen) {
     return NULL;
   }else{
     numroutes = *howmany;
-    /* Ensure that the route array is sorted by netmask */
-    qsort(routes, numroutes, sizeof(routes[0]), nmaskcmp);
+    /* Ensure that the route array is sorted by netmask and metric */
+    qsort(routes, numroutes, sizeof(routes[0]), routecmp);
   }
   return routes;
 }
@@ -2966,13 +3002,8 @@ icmpbad:
       else
         strncpy(icmpinfo,"type=?/code=?", sizeof(icmpinfo));
 
-      if (detail == LOW_DETAIL) {
-        Snprintf(protoinfo, sizeof(protoinfo), "ICMP %s > %s %s (%s) %s",
-          srchost, dsthost, icmptype, icmpinfo, ipinfo);
-      } else {
-        Snprintf(protoinfo, sizeof(protoinfo), "ICMP [%s > %s %s (%s) %s] IP [%s]",
-          srchost, dsthost, icmptype, icmpinfo, icmpfields, ipinfo);
-      }
+      Snprintf(protoinfo, sizeof(protoinfo), "ICMP [%s > %s %s (%s) %s] IP [%s]",
+        srchost, dsthost, icmptype, icmpinfo, icmpfields, ipinfo);
     }
 
     /* UNKNOWN PROTOCOL **********************************************************/
@@ -3023,20 +3054,25 @@ static int set_sockaddr(struct sockaddr_storage *ss, int af, void *data) {
 /* Add rtattrs to a netlink message specifying a source or destination address.
    rta_type must be RTA_SRC or RTA_DST. This function adds either 1 or 2
    rtattrs: it always adds either an RTA_SRC or RTA_DST, depending on rta_type.
-   It also adds either RTA_IIF or RTA_OIF if the address family is AF_INET6 and
-   the sockaddr_in6 has a non-zero sin6_scope_id. */
+   If ifindex is not 0, it is the index of the interface to use. The function
+   adds either RTA_OIF if rta_type is RTA_DST, and either of ifindex and
+   sin6_scope_id is nonzero. */
 static void add_rtattr_addr(struct nlmsghdr *nlmsg,
                             struct rtattr **rtattr, unsigned int *len,
                             unsigned char rta_type,
-                            const struct sockaddr_storage *ss) {
+                            const struct sockaddr_storage *ss,
+                            int ifindex) {
   struct rtmsg *rtmsg;
   const void *addr;
   size_t addrlen;
-  int ifindex;
 
   assert(rta_type == RTA_SRC || rta_type == RTA_DST);
 
-  ifindex = 0;
+  if (rta_type == RTA_SRC) {
+    /* Ignore the interface specification if we are setting an RTA_SRC attribute
+       (it may still get set by the scope_id below). */
+    ifindex = 0;
+  }
 
   if (ss->ss_family == AF_INET) {
     addr = &((struct sockaddr_in *) ss)->sin_addr.s_addr;
@@ -3046,7 +3082,8 @@ static void add_rtattr_addr(struct nlmsghdr *nlmsg,
 
     addr = sin6->sin6_addr.s6_addr;
     addrlen = IP6_ADDR_LEN;
-    ifindex = sin6->sin6_scope_id;
+    if (ifindex == 0)
+      ifindex = sin6->sin6_scope_id;
   } else {
     netutil_fatal("%s: unknown address family %d", __func__, ss->ss_family);
   }
@@ -3091,6 +3128,7 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
   struct nlmsghdr *nlmsg;
   struct rtmsg *rtmsg;
   struct rtattr *rtattr;
+  int intf_index;
   unsigned char buf[512];
   unsigned int len;
   int fd, rc;
@@ -3105,6 +3143,16 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
   rc = bind(fd, (struct sockaddr *) &snl, sizeof(snl));
   if (rc == -1)
     netutil_fatal("%s: cannot bind AF_NETLINK socket: %s", __func__, strerror(errno));
+
+  struct interface_info *ii;
+  ii = NULL;
+  intf_index = 0;
+  if (device != NULL && device[0] != '\0') {
+    ii = getInterfaceByName(device, dst->ss_family);
+    if (ii == NULL)
+      netutil_fatal("Could not find interface %s which was specified by -e", device);
+    intf_index = ii->ifindex;
+  }
 
   memset(buf, 0, sizeof(buf));
 
@@ -3122,10 +3170,10 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
   len = sizeof(buf) - ((unsigned char *) RTM_RTA(rtmsg) - buf);
 
   /* Add rtattrs for destination address and interface. */
-  add_rtattr_addr(nlmsg, &rtattr, &len, RTA_DST, dst);
+  add_rtattr_addr(nlmsg, &rtattr, &len, RTA_DST, dst, intf_index);
   if (spoofss != NULL) {
     /* Add rtattrs for source address and interface. */
-    add_rtattr_addr(nlmsg, &rtattr, &len, RTA_SRC, spoofss);
+    add_rtattr_addr(nlmsg, &rtattr, &len, RTA_SRC, spoofss, intf_index);
   }
 
   iov.iov_base = nlmsg;
@@ -3164,14 +3212,6 @@ static int route_dst_netlink(const struct sockaddr_storage *dst,
   rnfo->srcaddr.ss_family = AF_UNSPEC;
   if (spoofss != NULL)
     rnfo->srcaddr = *spoofss;
-
-  struct interface_info *ii;
-  ii = NULL;
-  if (device != NULL && device[0] != '\0') {
-    ii = getInterfaceByName(device, dst->ss_family);
-    if (ii == NULL)
-      netutil_fatal("Could not find interface %s which was specified by -e", device);
-  }
 
   for (rtattr = RTM_RTA(rtmsg); RTA_OK(rtattr, len); rtattr = RTA_NEXT(rtattr, len)) {
     if (rtattr->rta_type == RTA_GATEWAY) {
@@ -3246,7 +3286,7 @@ static int get_srcaddr(const struct sockaddr_storage *dst,
     sin6->sin6_port = htons(DUMMY_PORT);
     dst_dummy_len = sizeof(*sin6);
   } else {
-    return -1;
+    goto bail;
   }
 
   rc = connect(fd, (struct sockaddr *) &dst_dummy, dst_dummy_len);
@@ -3257,7 +3297,7 @@ static int get_srcaddr(const struct sockaddr_storage *dst,
       if (sin6->sin6_scope_id == 0)
         netutil_error("Do you need an IPv6 zone ID suffix (e.g. %%eth0 or %%1)?");
     }
-    return -1;
+    goto bail;
   }
 
   len = sizeof(*src);
@@ -3266,8 +3306,11 @@ static int get_srcaddr(const struct sockaddr_storage *dst,
     netutil_fatal("%s: can't getsockname: %s", __func__, socket_strerror(socket_errno()));
 
   close(fd);
-
   return 0;
+
+bail:
+  close(fd);
+  return -1;
 }
 
 static char *lookup_ifindex(unsigned int index, int af, char *namebuf, size_t len) {
@@ -3344,8 +3387,6 @@ static int route_dst_generic(const struct sockaddr_storage *dst,
 
     if (!sockaddr_equal(dst, &ifaces[i].addr))
       continue;
-    if (iface != NULL && strcmp(ifaces[i].devname, iface->devname) != 0)
-      continue;
 
     if (ifaces[i].device_type == devt_loopback)
       loopback = &ifaces[i];
@@ -3354,6 +3395,12 @@ static int route_dst_generic(const struct sockaddr_storage *dst,
     if (loopback == NULL)
       /* Hmmm ... no localhost -- move on to the routing table. */
       break;
+
+    if (iface != NULL && strcmp(loopback->devname, iface->devname) != 0)
+      continue;
+
+    if (iface == NULL && !loopback->device_up)
+      continue;
 
     rnfo->ii = *loopback;
     rnfo->direct_connect = 1;
@@ -3373,6 +3420,9 @@ static int route_dst_generic(const struct sockaddr_storage *dst,
       continue;
     /* Ignore routes that aren't on the device we specified. */
     if (iface != NULL && strcmp(routes[i].device->devname, iface->devname) != 0)
+      continue;
+
+    if (iface == NULL && !routes[i].device->device_up)
       continue;
 
     rnfo->ii = *routes[i].device;
@@ -3397,6 +3447,9 @@ static int route_dst_generic(const struct sockaddr_storage *dst,
     if (!sockaddr_equal_netmask(dst, &ifaces[i].addr, ifaces[i].netmask_bits))
       continue;
     if (iface != NULL && strcmp(ifaces[i].devname, iface->devname) != 0)
+      continue;
+
+    if (iface == NULL && !ifaces[i].device_up)
       continue;
 
     rnfo->ii = ifaces[i];
@@ -4515,7 +4568,7 @@ size_t read_host_from_file(FILE *fp, char *buf, size_t n)
 /* Return next target host specification from the supplied stream.
  * if parameter "random" is set to true, then the function will
  * return a random, non-reserved, IP address in decimal-dot notation */
-char *grab_next_host_spec(FILE *inputfd, bool random, int argc, char **fakeargv) {
+const char *grab_next_host_spec(FILE *inputfd, bool random, int argc, const char **argv) {
   static char host_spec[1024];
   struct in_addr ip;
   size_t n;
@@ -4526,7 +4579,7 @@ char *grab_next_host_spec(FILE *inputfd, bool random, int argc, char **fakeargv)
     } while (ip_is_reserved(&ip));
     Strncpy(host_spec, inet_ntoa(ip), sizeof(host_spec));
   } else if (!inputfd) {
-    return( (optind < argc)?  fakeargv[optind++] : NULL);
+    return( (optind < argc)?  argv[optind++] : NULL);
   } else { 
     n = read_host_from_file(inputfd, host_spec, sizeof(host_spec));
     if (n == 0)

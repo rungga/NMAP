@@ -94,7 +94,7 @@
       <ExceptionHandling>
       </ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -112,7 +112,6 @@
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>
       </ExceptionHandling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -151,7 +150,7 @@
       <ExceptionHandling>
       </ExceptionHandling>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -170,7 +169,6 @@
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ExceptionHandling>
       </ExceptionHandling>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
@@ -195,12 +193,16 @@
     <ClCompile Include="src\nsock_engines.c" />
     <ClCompile Include="src\nsock_event.c" />
     <ClCompile Include="src\nsock_iod.c" />
+    <ClCompile Include="src\nsock_log.c" />
     <ClCompile Include="src\nsock_pcap.c" />
     <ClCompile Include="src\nsock_pool.c" />
+    <ClCompile Include="src\nsock_proxy.c" />
     <ClCompile Include="src\nsock_read.c" />
     <ClCompile Include="src\nsock_ssl.c" />
     <ClCompile Include="src\nsock_timers.c" />
     <ClCompile Include="src\nsock_write.c" />
+    <ClCompile Include="src\proxy_http.c" />
+    <ClCompile Include="src\proxy_socks4.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\error.h" />
@@ -209,7 +211,9 @@
     <ClInclude Include="src\netutils.h" />
     <ClInclude Include="include\nsock.h" />
     <ClInclude Include="src\nsock_internal.h" />
+    <ClInclude Include="src\nsock_log.h" />
     <ClInclude Include="src\nsock_pcap.h" />
+    <ClInclude Include="src\nsock_proxy.h" />
     <ClInclude Include="src\nsock_ssl.h" />
     <ClInclude Include="include\nsock_winconfig.h" />
   </ItemGroup>

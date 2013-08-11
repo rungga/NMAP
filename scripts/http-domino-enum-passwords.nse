@@ -77,6 +77,8 @@ also download any Domino ID Files attached to the Person document.
 --       If a negative value is given, all hashes and id files are retrieved (default: 10)
 -- @args domino-enum-passwords.idpath the path where downloaded ID files should be saved
 --       If not given, the script will only indicate if the ID file is donwloadable or not
+-- @args domino-enum-passwords.username Username for HTTP auth, if required
+-- @args domino-enum-passwords.password Password for HTTP auth, if required
 
 --
 -- Version 0.2
@@ -313,9 +315,10 @@ action = function(host, port)
 				http_response = http.get( vhost or host, port, u_details.idfile, { auth = { username = user, password = pass }, no_cache = true })	
 
 				if ( http_response.status == 200 ) then
-					local status, err = saveIDFile( ("%s/%s.id"):format(download_path, u_details.fullname), http_response.body )
+					local filename = download_path .. "/" .. stdnse.filename_escape(u_details.fullname .. ".id")
+					local status, err = saveIDFile( filename, http_response.body )
 					if ( status ) then
-						table.insert( id_files, ("%s ID File has been downloaded (%s/%s.id)"):format(u_details.fullname, download_path, u_details.fullname) )
+						table.insert( id_files, ("%s ID File has been downloaded (%s)"):format(u_details.fullname, filename) )
 					else
 						table.insert( id_files, ("%s ID File was not saved (error: %s)"):format(u_details.fullname, err ) )
 					end

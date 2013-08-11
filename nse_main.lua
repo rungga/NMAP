@@ -224,7 +224,8 @@ local function loadscript (filename)
   local function ld ()
     -- header for scripts to allow setting the environment
     yield [[return function (_ENV) return function (...)]];
-    for line in lines(filename, "*L") do
+    -- actual script
+    for line in lines(filename, 2^15) do
       yield(line);
     end
     -- footer...
@@ -266,6 +267,36 @@ rawset(stdnse, "silent_require", function (...)
   end
 end);
 
+-- Gets a string containing as much of a host's name, IP, and port as are
+-- available.
+local function against_name(host, port)
+  local targetname, ip, portno, ipport, against;
+  if host then
+    targetname = host.targetname;
+    ip = host.ip;
+  end
+  if port then
+    portno = port.number;
+  end
+  if ip and portno then
+    ipport = ip..":"..portno;
+  elseif ip then
+    ipport = ip;
+  end
+  if targetname and ipport then
+    against = targetname.." ("..ipport..")";
+  elseif targetname then
+    against = targetname;
+  elseif ipport then
+    against = ipport;
+  end
+  if against then
+    return " against "..against
+  else
+    return ""
+  end
+end
+
 -- The Script Class, its constructor is Script.new.
 local Script = {};
 -- The Thread Class, its constructor is Script:new_thread.
@@ -283,14 +314,7 @@ do
   -- Outputs debug information at level 1 or higher.
   -- Changes "%THREAD" with an appropriate identifier for the debug level
   function Thread:d (fmt, ...)
-    local against;
-    if self.host and self.port then
-      against = " against "..self.host.ip..":"..self.port.number;
-    elseif self.host then
-      against = " against "..self.host.ip;
-    else
-      against = "";
-    end
+    local against = against_name(self.host, self.port);
     if debugging() > 1 then
       fmt = gsub(fmt, "%%THREAD_AGAINST", self.info..against);
       fmt = gsub(fmt, "%%THREAD", self.info);
@@ -648,6 +672,8 @@ local function get_chosen_scripts (rules)
     local forced, rule = is_forced_set(rule);
     used_rules[rule] = false; -- has not been used yet
     forced_rules[rule] = forced;
+    -- Here we escape backslashes which might appear in Windows filenames.
+    rule = gsub(rule, "\\([^\\])", "\\\\%1");
     -- Globalize all `names`, all visible characters not ',', '(', ')', and ';'
     local globalized_rule =
         gsub(rule, "[\033-\039\042-\043\045-\058\060-\126]+", globalize);
@@ -760,9 +786,9 @@ local function get_chosen_scripts (rules)
       elseif t == "directory" then
         for f in lfs.dir(path) do
           local file = path .."/".. f
-          if find(f, "%.nse$") and not files_loaded[file] then
+          if find(file, "%.nse$") and not files_loaded[file] then
             script_params.selection = "directory";
-            local script = Script.new(path, script_params);
+            local script = Script.new(file, script_params);
             chosen_scripts[#chosen_scripts+1] = script;
             files_loaded[file] = true;
           end
@@ -1126,6 +1152,7 @@ end
 
 do -- Load script arguments (--script-args)
   local args = cnse.scriptargs or "";
+  print_debug(1, "Script Arguments seen from CLI: %s", args);
 
   -- Parse a string in 'str' at 'start'.
   local function parse_string (str, start)
@@ -1197,6 +1224,11 @@ do -- Load script arguments (--script-args)
       tmpargs[k] = v
     end
     nmap.registry.args = tmpargs
+  end
+  if debugging() >= 2 then
+    local out = {}
+    rawget(stdnse, "pretty_printer")(nmap.registry.args, function (s) out[#out+1] = s end)
+    print_debug(2, concat(out))
   end
 end
 

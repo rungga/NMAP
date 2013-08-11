@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -34,17 +34,18 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -54,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_internal.h 30231 2012-11-12 20:44:37Z david $ */
+/* $Id: nsock_internal.h 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #ifndef NSOCK_INTERNAL_H
 #define NSOCK_INTERNAL_H
@@ -75,6 +76,7 @@
 #include "filespace.h"
 #include "nsock.h" /* The public interface -- I need it for some enum defs */
 #include "nsock_ssl.h"
+#include "nsock_proxy.h"
 
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -198,12 +200,9 @@ typedef struct {
    * error (errnum fashion) */
   int errnum;
 
-  /* Trace/debug level - set by nsp_settrace. If positive, trace logs are
-   * printted to tracefile. */
-  int tracelevel;
-  FILE *tracefile;
-  /* This time is subtracted from the current time for trace reports */
-  struct timeval tracebasetime;
+  /* Logging information. */
+  nsock_logger_t logger;
+  nsock_loglevel_t loglevel;
 
   /* If true, new sockets will have SO_BROADCAST set */
   int broadcast;
@@ -219,6 +218,11 @@ typedef struct {
   /* The SSL Context (options and such) */
   SSL_CTX *sslctx;
 #endif
+
+  /* Optional proxy chain (NULL is not set). Can only be set once per NSP (using
+   * nsock_proxychain_new() or nsp_set_proxychain(). */
+  struct proxy_chain *px_chain;
+
 } mspool;
 
 
@@ -308,13 +312,15 @@ typedef struct {
 
   /* Pointer to mspcap struct (used only if pcap support is included) */
   void *pcap;
+
+  struct proxy_chain_context *px_ctx;
+
 } msiod;
 
 
 /* nsock_event_t handles a single event.  Its ID is generally returned when the
  * event is created, and the event is included in callbacks */
 typedef struct {
-
   /* Every event has an ID which is unique for a given nsock unless you blow
    * through more than 500,000,000 events */
   nsock_event_id id;
@@ -342,8 +348,6 @@ typedef struct {
   /* If we return a status of NSE_STATUS_ERROR, this must be set */
   int errnum;
 
-  int eof;
-
   /* The nsock I/O descriptor related to event (if applicable) */
   msiod *iod;
 
@@ -357,9 +361,8 @@ typedef struct {
    * event_done is nonzero.  Used when event is finished at unexpected time and
    * we want to dispatch it later to avoid duplicating stat update code and all
    * that other crap */
-  int event_done;
-
-  struct timeval time_created;
+  unsigned int event_done: 1;
+  unsigned int eof: 1;
 } msevent;
 
 
@@ -388,8 +391,35 @@ struct io_engine {
   int (*loop)(mspool *nsp, int msec_timeout);
 };
 
+/* ----------- NSOCK I/O ENGINE CONVENIENCE WRAPPERS ------------ */
+static inline int nsock_engine_init(mspool *nsp) {
+  return nsp->engine->init(nsp);
+}
+
+static inline void nsock_engine_destroy(mspool *nsp) {
+  nsp->engine->destroy(nsp);
+  return;
+}
+
+static inline int nsock_engine_iod_register(mspool *nsp, msiod *iod, int ev) {
+  return nsp->engine->iod_register(nsp, iod, ev);
+}
+
+static inline int nsock_engine_iod_unregister(mspool *nsp, msiod *iod) {
+  return nsp->engine->iod_unregister(nsp, iod);
+}
+
+static inline int nsock_engine_iod_modify(mspool *nsp, msiod *iod, int ev_set, int ev_clr) {
+  return nsp->engine->iod_modify(nsp, iod, ev_set, ev_clr);
+}
+
+static inline int nsock_engine_loop(mspool *nsp, int msec_timeout) {
+  return nsp->engine->loop(nsp, msec_timeout);
+}
 
 /* ------------------- PROTOTYPES ------------------- */
+
+int msevent_timedout(msevent *nse);
 
 /* Get a new nsock_event_id, given a type */
 nsock_event_id get_new_event_id(mspool *nsp, enum nse_type type);
@@ -445,8 +475,6 @@ void handle_timer_result(mspool *ms, msevent *nse, enum nse_status status);
 #if HAVE_PCAP
 void handle_pcap_read_result(mspool *ms, msevent *nse, enum nse_status status);
 #endif
-
-void nsock_trace(mspool *ms, char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
 
 /* An event has been completed and the handler is about to be called.  This
  * function writes out tracing data about the event if necessary */

@@ -1,7 +1,7 @@
 /* Note -- this file was obtained from tcpdump-2000-9-17 CVS snapshot *
  * ( www.tcpdump.org).  It has been modified slightly for             *
- * compatability with libnbase.  Modification etails may be in the    *
- * nbase CHANGELOG - fyodor@insecure.org                              */
+ * compatability with libnbase.  Modification details may be in the    *
+ * nbase CHANGELOG - fyodor@nmap.org                              */
 
 
 /*
@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: snprintf.c 14748 2009-08-04 04:19:50Z josh $ */
+/* $Id: snprintf.c 31130 2013-06-28 15:37:20Z d33tah $ */
 
 #if HAVE_CONFIG_H
 #include "nbase_config.h"

@@ -2,7 +2,7 @@ dnl # -*- mode: fundamental; -*-
 dnl # Autoconf configuration file for Nbase
 dnl #
 dnl # Process this file with autoconf to produce a configure script.
-dnl # $Id: configure.ac 29833 2012-09-19 16:41:31Z david $
+dnl # $Id: configure.ac 30889 2013-05-13 04:21:11Z david $
 
 # Because nbase is usually distributed with Nmap, the necessary files
 # config.guess, config.guess, and install-sh are not distributed with
@@ -50,9 +50,6 @@ AC_PROG_CC
 AC_PROG_RANLIB
 dnl AC_PROG_INSTALL
 dnl AC_PATH_PROG(MAKEDEPEND, makedepend)
-
-AC_SUBST(COMPAT_OBJS)
-AC_SUBST(COMPAT_SRCS)
 
 dnl Host specific hacks
 AC_CANONICAL_HOST

@@ -1,61 +1,95 @@
 
 /***************************************************************************
- * ProbeMode.cc --                                                         *
+ * ProbeMode.cc -- Probe Mode is nping's default working mode. Basically,  *
+ * it involves sending the packets that the user requested at regular      *
+ * intervals and capturing responses from the wire.                        *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
+ *                                                                         *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
+ * permission to link the code of this program with any version of the     *
+ * OpenSSL library which is distributed under a license identical to that  *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two.                                  *
+ *                                                                         *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the special and conditions of the license text as well.       *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
  * continued development of Nmap.  Please email sales@insecure.com for     *
  * further information.                                                    *
- *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
  *                                                                         *
  * If you received these files with a written license agreement or         *
  * contract stating terms other than the terms above, then that            *
@@ -68,8 +102,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -83,10 +117,9 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
@@ -121,7 +154,7 @@ int ProbeMode::init_nsock(){
   if( nsock_init==false ){
       /* Create a new nsock pool */
       if ((nsp = nsp_new(NULL)) == NULL)
-        outFatal(QT_3, "Failed to create new pool.  QUITTING.\n");
+        nping_fatal(QT_3, "Failed to create new pool.  QUITTING.\n");
       nsp_setdevice(nsp, o.getDevice());
 
       /* Allow broadcast addresses */
@@ -130,10 +163,10 @@ int ProbeMode::init_nsock(){
       /* Set nsock trace level */
       gettimeofday(&now, NULL);
       if( o.getDebugging() == DBG_5)
-        nsp_settrace(nsp, NULL, 1 , &now);
+        nsock_set_loglevel(nsp, NSOCK_LOG_INFO);
       else if( o.getDebugging() > DBG_5 )
-        nsp_settrace(nsp, NULL, 10 , &now);
-      /* Flag it as already inited so we don't do it again */
+        nsock_set_loglevel(nsp, NSOCK_LOG_DBG_ALL);
+      /* Flag it as already initialized so we don't do it again */
       nsock_init=true;
   }
   return OP_SUCCESS;
@@ -153,7 +186,7 @@ int ProbeMode::cleanup(){
   * calling this method; otherwise, it will fatal() */
 nsock_pool ProbeMode::getNsockPool(){
   if( this->nsock_init==false)
-    outFatal(QT_3, "getNsockPool() called before init_nsock(). Please report a bug.");
+    nping_fatal(QT_3, "getNsockPool() called before init_nsock(). Please report a bug.");
   return this->nsp;
 } /* End of getNsockPool() */
 
@@ -237,22 +270,22 @@ int ProbeMode::start(){
                     first_time=false;
                     loopret=nsock_loop(nsp, 2);
                     if (loopret == NSOCK_LOOP_ERROR)
-                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                        nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                 }else{
                     nsock_timer_create(nsp, tcpconnect_event_handler, o.getDelay()+1, &pkts2send[pc]);
                     loopret=nsock_loop(nsp, o.getDelay()+1);
                     if (loopret == NSOCK_LOOP_ERROR)
-                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                        nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                 }
             }
         }
     }
     o.stats.stopTxClock();
     /* If there are some events pending, we'll wait for DEFAULT_WAIT_AFTER_PROBES ms,
-     * otherwise nsock_loop() will return inmediatly */
+     * otherwise nsock_loop() will return immediately */
     loopret=nsock_loop(nsp, DEFAULT_WAIT_AFTER_PROBES);
     if (loopret == NSOCK_LOOP_ERROR)
-        outFatal(QT_3, "Unexpected nsock_loop error.\n");
+        nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
     o.stats.stopRxClock();
     return OP_SUCCESS;
   break; /* case TCP_CONNECT */
@@ -291,23 +324,23 @@ int ProbeMode::start(){
                     first_time=false;
                     loopret=nsock_loop(nsp, 2);
                     if (loopret == NSOCK_LOOP_ERROR)
-                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                        nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                 }else{
                     nsock_timer_create(nsp, udpunpriv_event_handler, o.getDelay(), &pkts2send[pc]);
                     loopret=nsock_loop(nsp, o.getDelay());
                     if (loopret == NSOCK_LOOP_ERROR)
-                        outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                        nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                 }
             }
         }
     }
     o.stats.stopTxClock();
     /* If there are some events pending, we'll wait for DEFAULT_WAIT_AFTER_PROBES ms,
-     * otherwise nsock_loop() will return inmediatly */
+     * otherwise nsock_loop() will return immediately */
     if(!o.disablePacketCapture()){
         loopret=nsock_loop(nsp, DEFAULT_WAIT_AFTER_PROBES);
         if (loopret == NSOCK_LOOP_ERROR)
-            outFatal(QT_3, "Unexpected nsock_loop error.\n");
+            nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
     }
     o.stats.stopRxClock();
     return OP_SUCCESS;
@@ -326,22 +359,22 @@ int ProbeMode::start(){
     if( o.getMode()!=ARP && o.sendEth()==false ){
         /* Get socket descriptor. No need for it in ARP since we send at eth level */
         if ((rawipsd = obtainRawSocket()) < 0 )
-            outFatal(QT_3,"Couldn't acquire raw socket. Are you root?");
+            nping_fatal(QT_3,"Couldn't acquire raw socket. Are you root?");
     }
 
     /* Check if we have enough information to get the party started */
     if((o.getMode()==TCP || o.getMode()==UDP) && targetPorts==NULL)
-        outFatal(QT_3, "normalProbeMode(): NpingOps does not contain correct target ports\n");
+        nping_fatal(QT_3, "normalProbeMode(): NpingOps does not contain correct target ports\n");
 
     /* Set up libpcap */
     if(!o.disablePacketCapture()){
         /* Create new IOD for pcap */
         if ((pcap_nsi = nsi_new(nsp, NULL)) == NULL)
-            outFatal(QT_3, "Failed to create new nsock_iod.  QUITTING.\n");
+            nping_fatal(QT_3, "Failed to create new nsock_iod.  QUITTING.\n");
 
         /* Open pcap */
         filterstring=getBPFFilterString();
-        outPrint(DBG_2,"Opening pcap device %s", o.getDevice() );
+        nping_print(DBG_2,"Opening pcap device %s", o.getDevice() );
         #ifdef WIN32
         /* Nping normally uses device names obtained through dnet for interfaces, but Pcap has its own
         naming system.  So the conversion is done here */
@@ -353,8 +386,8 @@ int ProbeMode::start(){
           Strncpy(pcapdev, o.getDevice(), sizeof(pcapdev));
         #endif
         if( (auxpnt=nsock_pcap_open(nsp, pcap_nsi, pcapdev, 8192, (o.spoofSource())? 1 : 0, filterstring )) != NULL )
-            outFatal(QT_3, "Error opening capture device %s --> %s\n", o.getDevice(), auxpnt);
-        outPrint(DBG_2,"Pcap device %s open successfully", o.getDevice() );
+            nping_fatal(QT_3, "Error opening capture device %s --> %s\n", o.getDevice(), auxpnt);
+        nping_print(DBG_2,"Pcap device %s open successfully", o.getDevice() );
     }
 
     /* Ready? Go! */
@@ -372,17 +405,17 @@ int ProbeMode::start(){
                 /* Iterate through all destination ports */
                 for (p=0; p < numTargetPorts; p++){
                     o.targets.rewind();
-                    /* Iterate trough all target IP adresses */
+                    /* Iterate trough all target IP addresses */
                     while( (target=o.targets.getNextTarget()) != NULL ){
 
                         currentPort=targetPorts[p];
 
                         if ( fillPacket( target, currentPort, pkt, MAX_IP_PACKET_LEN, &pktLen, rawipsd ) != OP_SUCCESS ){
-                            outFatal(QT_3, "normalProbeMode(): Error in packet creation");
+                            nping_fatal(QT_3, "normalProbeMode(): Error in packet creation");
                         }
                         /* Safe checks */
                         if (pkt == NULL || pktLen <=0)
-                            outFatal(QT_3, "normalProbeMode(): Invalid packet returned by fillPacket() ");
+                            nping_fatal(QT_3, "normalProbeMode(): Invalid packet returned by fillPacket() ");
 
                         /* Store relevant info so we can pass it to the handler */
                         pc=(pc+1)%MX_PKT;
@@ -407,12 +440,12 @@ int ProbeMode::start(){
                             first_time=false;
                             loopret=nsock_loop(nsp, 2);
                             if (loopret == NSOCK_LOOP_ERROR)
-                                outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                                nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                         }else{
                             nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
                             loopret=nsock_loop(nsp, o.getDelay()+1);
                             if (loopret == NSOCK_LOOP_ERROR)
-                                outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                                nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                         }
                     }
                 }
@@ -427,13 +460,13 @@ int ProbeMode::start(){
             for( c=0; c < o.getPacketCount(); c++){
                 o.targets.rewind();
                 o.setCurrentRound( o.issetTTL() ?  ((c%(256-o.getTTL()))+o.getTTL()) : ((c%255)+1 ) ); /* Used in traceroute mode */
-                /* Iterate trough all target IP adresses */
+                /* Iterate trough all target IP addresses */
                 while( (target=o.targets.getNextTarget()) != NULL ){
 
                     if ( fillPacket( target, 0, pkt, MAX_IP_PACKET_LEN, &pktLen, rawipsd ) != OP_SUCCESS )
-                        outFatal(QT_3, "normalProbeMode(): Error in packet creation");
+                        nping_fatal(QT_3, "normalProbeMode(): Error in packet creation");
                     if (pkt == NULL || pktLen <=0)
-                        outFatal(QT_3, "normalProbeMode(): Error packet returned by createPacket() ");
+                        nping_fatal(QT_3, "normalProbeMode(): Error packet returned by createPacket() ");
 
                     /* Store relevant info so we can pass it to the handler */
                     pc=(pc+1)%MX_PKT;
@@ -457,12 +490,12 @@ int ProbeMode::start(){
                         first_time=false;
                         loopret=nsock_loop(nsp, 2);
                         if (loopret == NSOCK_LOOP_ERROR)
-                            outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                            nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                     }else{
                         nsock_timer_create(nsp, nping_event_handler, o.getDelay(), &pkts2send[pc]);
                         loopret=nsock_loop(nsp, o.getDelay()+1);
                         if (loopret == NSOCK_LOOP_ERROR)
-                            outFatal(QT_3, "Unexpected nsock_loop error.\n");
+                            nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
                     }
                 }
             }
@@ -475,7 +508,7 @@ int ProbeMode::start(){
         nsock_pcap_read_packet(nsp, pcap_nsi, nping_event_handler, DEFAULT_WAIT_AFTER_PROBES, NULL);
         loopret=nsock_loop(nsp, DEFAULT_WAIT_AFTER_PROBES);
         if (loopret == NSOCK_LOOP_ERROR)
-           outFatal(QT_3, "Unexpected nsock_loop error.\n");
+           nping_fatal(QT_3, "Unexpected nsock_loop error.\n");
         o.stats.stopRxClock();
     }
    /* Close opened descriptors */
@@ -484,7 +517,7 @@ int ProbeMode::start(){
   break; /* case TCP || case UDP || case ICMP || case ARP */
 
   default:
-    outFatal(QT_3, "normalProbeMode(): Wrong mode. Please report this bug.");
+    nping_fatal(QT_3, "normalProbeMode(): Wrong mode. Please report this bug.");
   break;
  } /* End of main switch */
  return OP_SUCCESS;
@@ -513,7 +546,7 @@ int ProbeMode::start(){
  * because some IPv6 options like hop limit are tuned using calls to
  * setsockopt() */
 int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, int *filledlen, int rawfd){
-  EthernetHeader e;   /* Used when sending at raw ethernet level.           */
+  EthernetHeader e;   /* Used when sending at raw Ethernet level.           */
   u8 *pnt=buff;       /* Aux pointer to keep track of user supplied "buff". */
   int pntlen=bufflen; /* Aux counter to store how many bytes we have left.  */
   int final_len=0;
@@ -522,9 +555,9 @@ int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, 
   if(target==NULL || buff==NULL || bufflen<=0 || filledlen==NULL)
     return OP_FAILURE;
   else
-    outPrint(DBG_4, "fillPacket(target=%p, port=%d, buff=%p, bufflen=%d, filledlen=%p rawfd=%d)", target, port, buff, bufflen, filledlen, rawfd);
+    nping_print(DBG_4, "fillPacket(target=%p, port=%d, buff=%p, bufflen=%d, filledlen=%p rawfd=%d)", target, port, buff, bufflen, filledlen, rawfd);
 
-/* If o.sendEth() is true that means we need to send packets at raw ethernet
+/* If o.sendEth() is true that means we need to send packets at raw Ethernet
  * level (we are probably running on windows or user requested that explicitly.
  * Ethernet frames that carry ARP packets have special requirements (e.g. some
  * of them are sent to a FF:FF:FF:FF:FF:FF broadcast address). That's why we
@@ -533,7 +566,7 @@ int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, 
   if(o.sendEth() && o.getMode()!=ARP){
     e.setNextElement( NULL );
     if( buff==NULL || filledlen==NULL)
-        outFatal(QT_3,"fillPacketARP(): NULL pointer supplied.");
+        nping_fatal(QT_3,"fillPacketARP(): NULL pointer supplied.");
     /* Source MAC Address */
     if( o.issetSourceMAC() )
         e.setSrcMAC( o.getSourceMAC() );
@@ -541,7 +574,7 @@ int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, 
         if( target->getSrcMACAddress() )
             e.setSrcMAC( (u8 *)target->getSrcMACAddress() );
         else
-            outFatal(QT_3, "fillPacket(): Cannot determine Source MAC address.");
+            nping_fatal(QT_3, "fillPacket(): Cannot determine Source MAC address.");
     }
 
     /* Destination MAC Address */
@@ -551,7 +584,7 @@ int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, 
         if( target->getNextHopMACAddress() )
             e.setDstMAC( (u8 *)target->getNextHopMACAddress() );
         else
-            outFatal(QT_3, "fillPacket(): Cannot determine Next Hop MAC address.");
+            nping_fatal(QT_3, "fillPacket(): Cannot determine Next Hop MAC address.");
     }
 
     /* Ethertype value */
@@ -563,7 +596,7 @@ int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, 
         else if ( o.getIPVersion() == IP_VERSION_6 )
             e.setEtherType(ETHTYPE_IPV6);
         else
-            outFatal(QT_3, "Bug in fillPacket() and NpingOps::ipversion");
+            nping_fatal(QT_3, "Bug in fillPacket() and NpingOps::ipversion");
     }
 
     /* Write the ethernet header to the beginning of the original buffer */
@@ -590,7 +623,7 @@ int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, 
          fillPacketARP(target, pnt, pntlen, &final_len, rawfd);
     break;
     default:
-        outFatal(QT_3, "Bug in fillPacket() and NpingOps::getMode()");
+        nping_fatal(QT_3, "Bug in fillPacket() and NpingOps::getMode()");
     break;
   }
 
@@ -607,7 +640,7 @@ int ProbeMode::fillPacket(NpingTarget *target, u16 port, u8 *buff, int bufflen, 
  * @return OP_SUCCESS on success and fatal()s in case of failure. */
 int ProbeMode::createIPv4(IPv4Header *i, PacketElement *next_element, const char *next_proto, NpingTarget *target){
   if( i==NULL || next_proto==NULL || target==NULL)
-    outFatal(QT_3,"createIPv4(): NULL pointer supplied.");
+    nping_fatal(QT_3,"createIPv4(): NULL pointer supplied.");
 
   i->setNextElement( next_element );   /* Set datagram payload */
   i->setDestinationAddress( target->getIPv4Address() );   /* Destination IP */
@@ -653,7 +686,7 @@ int ProbeMode::createIPv4(IPv4Header *i, PacketElement *next_element, const char
  * @return OP_SUCCESS on success and fatal()s in case of failure. */
 int ProbeMode::createIPv6(IPv6Header *i, PacketElement *next_element, const char *next_proto, NpingTarget *target){
  if( i==NULL || next_proto==NULL || target==NULL)
-    outFatal(QT_3,"createIPv6(): NULL pointer supplied.");
+    nping_fatal(QT_3,"createIPv6(): NULL pointer supplied.");
 
     /* Set datagram payload */
     i->setNextElement( next_element );
@@ -679,7 +712,7 @@ int ProbeMode::createIPv6(IPv6Header *i, PacketElement *next_element, const char
         if ( target->getIPv6SourceAddress_u8() != NULL )
             i->setSourceAddress( target->getIPv6SourceAddress_u8() );
         else
-            outFatal(QT_3, "createIPv6(): Cannot determine Source IPv6 Address");
+            nping_fatal(QT_3, "createIPv6(): Cannot determine Source IPv6 Address");
     }
     return OP_SUCCESS;
 } /* End of createIPv6() */
@@ -692,7 +725,7 @@ int ProbeMode::createIPv6(IPv6Header *i, PacketElement *next_element, const char
  * header (for source IP spoofing, etc) we have to do things like determine
  * source and dest MAC addresses (this is even more complicated in IPv6 than
  * in IPv4 because we don't have ARP anymore, we have to use something new, the
- * NDP, Neighbour Discovery Protocol.)
+ * NDP, Neighbor Discovery Protocol.)
  * So the thing is that, if the user does not want to play with the IPv6 header,
  * why bother with all that link layer work? So what we do is create raw
  * transport layer packets and then send them through a raw IPv6 socket. The
@@ -702,7 +735,7 @@ int ProbeMode::createIPv6(IPv6Header *i, PacketElement *next_element, const char
  * So this function basically takes a raw IPv6 socket descriptor and then tries
  * to set some basic parameters (like Hop Limit) using setsockopt() calls.
  * It always returns OP_SUCCESS. However, if errors are found, they are printed
- * (QT_2 level) using outError();
+ * (QT_2 level) using nping_warning();
  * */
 int ProbeMode::doIPv6ThroughSocket(int rawfd){
 
@@ -716,15 +749,15 @@ int ProbeMode::doIPv6ThroughSocket(int rawfd){
        hoplimit=DEFAULT_IPv6_TTL;
     }
     if( setsockopt(rawfd, IPPROTO_IPV6, IPV6_UNICAST_HOPS, (char *)&hoplimit, sizeof(hoplimit)) != 0 )
-        outError(QT_2, "doIPv6ThroughSocket(): setsockopt() for Unicast Hop Limit on IPv6 socket failed");
+        nping_warning(QT_2, "doIPv6ThroughSocket(): setsockopt() for Unicast Hop Limit on IPv6 socket failed");
     if( setsockopt(rawfd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, (char *)&hoplimit, sizeof(hoplimit)) != 0 )
-        outError(QT_2, "doIPv6ThroughSocket(): setsockopt() for Multicast Hop Limit on IPv6 socket failed");
+        nping_warning(QT_2, "doIPv6ThroughSocket(): setsockopt() for Multicast Hop Limit on IPv6 socket failed");
 
 #ifdef IPV6_CHECKSUM  /* This is not available in when compiling with MinGW */
     /* Transport layer checksum */
     /* This is totally crazy. We have to tell the kernel EXPLICITLY that we
      * want it to set the TCP/UDP checksum for us. Why the hell is this the
-     * default behaviour if it's so fucking difficult to get the IPv6 source
+     * default behavior if it's so fucking difficult to get the IPv6 source
      * address?
      * Additionally, we have to be very careful not to set this option when
      * dealing with ICMPv6 because in that case the kernel computes the
@@ -735,17 +768,17 @@ int ProbeMode::doIPv6ThroughSocket(int rawfd){
         if( o.getBadsum()==false ){
             int offset = 16;
             if( setsockopt (rawfd, IPPROTO_IPV6, IPV6_CHECKSUM, (char *)&offset, sizeof(offset)) != 0 )
-                outError(QT_2, "doIPv6ThroughSocket(): failed to set IPV6_CHECKSUM option on IPv6 socket. ");
+                nping_warning(QT_2, "doIPv6ThroughSocket(): failed to set IPV6_CHECKSUM option on IPv6 socket. ");
         }
     }
 #endif
 
     /* Bind IPv6 socket to a specific network interface */
     if ( o.issetDevice() )  {
-        /* It seems that SO_BINDTODEVICE only work on linux */
+        /* It seems that SO_BINDTODEVICE only work on Linux */
         #ifdef LINUX
         if (setsockopt(rawfd, SOL_SOCKET, SO_BINDTODEVICE, o.getDevice(), strlen(o.getDevice())+1) == -1) {
-            outError(QT_2, "Error binding IPv6 socket to device %s", o.getDevice() );
+            nping_warning(QT_2, "Error binding IPv6 socket to device %s", o.getDevice() );
         }
         #endif
     }
@@ -773,9 +806,9 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
  struct in_addr tip, sip;
 
   if( buff==NULL || filledlen==NULL || target==NULL)
-    outFatal(QT_3,"fillPacketTCP(): NULL pointer supplied.");
+    nping_fatal(QT_3,"fillPacketTCP(): NULL pointer supplied.");
 
-  /* Add Payload if neccessary */
+  /* Add Payload if necessary */
   if ( o.issetPayloadType() ){
     switch( o.getPayloadType() ){
         case PL_RAND: case PL_HEX: case PL_STRING:
@@ -799,6 +832,7 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
   t.setOffset();
   t.setWindow( o.getTCPWindow() );
   t.setUrgPointer(0);
+  t.setFlags(0);
 
   /* Flags */
   if( o.getFlagTCP(FLAG_CWR) == 1 )  t.setCWR();
@@ -876,7 +910,7 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
     break;
 
     default:
-        outFatal(QT_3, "fillPacketTCP(): Wrong IP version in NpingOps\n");
+        nping_fatal(QT_3, "fillPacketTCP(): Wrong IP version in NpingOps\n");
     break;
 
  }
@@ -905,10 +939,10 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
  struct in_addr tip, sip;
 
   if( buff==NULL || filledlen==NULL || target==NULL)
-    outFatal(QT_3,"fillPacketUDP(): NULL pointer supplied.");
+    nping_fatal(QT_3,"fillPacketUDP(): NULL pointer supplied.");
 
 
-  /* Add Payload if neccessary */
+  /* Add Payload if necessary */
   if ( o.issetPayloadType() ){
     switch( o.getPayloadType() ){
         case PL_RAND: case PL_HEX:  case PL_STRING:
@@ -985,7 +1019,7 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
     break;
 
     default:
-        outFatal(QT_3, "fillPacketUDP(): Wrong IP version in NpingOps\n");
+        nping_fatal(QT_3, "fillPacketUDP(): Wrong IP version in NpingOps\n");
     break;
 
  }
@@ -1009,10 +1043,10 @@ int ProbeMode::fillPacketICMP(NpingTarget *target, u8 *buff, int bufflen, int *f
   RawData p;
 
   if( buff==NULL || filledlen==NULL || target==NULL)
-    outFatal(QT_3,"fillPacketICMP(): NULL pointer supplied.");
-  outPrint(DBG_4, "fillPacketICMP(target=%p, buff=%p, bufflen=%d, filledlen=%p)", target, buff, bufflen, filledlen);
+    nping_fatal(QT_3,"fillPacketICMP(): NULL pointer supplied.");
+  nping_print(DBG_4, "fillPacketICMP(target=%p, buff=%p, bufflen=%d, filledlen=%p)", target, buff, bufflen, filledlen);
 
-  /* Add Payload if neccessary */
+  /* Add Payload if necessary */
   if ( o.issetPayloadType() ){
     switch( o.getPayloadType() ){
         case PL_RAND: case PL_HEX: case PL_STRING:
@@ -1169,9 +1203,9 @@ int ProbeMode::fillPacketARP(NpingTarget *target, u8 *buff, int bufflen, int *fi
     u8 nullmac[6]={0x00,0x00,0x00,0x00,0x00,0x00};
 
     if(target==NULL || buff==NULL || filledlen==NULL)
-        outFatal(QT_3,"fillPacketARP(): NULL pointer supplied.");
+        nping_fatal(QT_3,"fillPacketARP(): NULL pointer supplied.");
 
-    outPrint(DBG_4, "fillPacketARP(target=%p, buff=%p, bufflen=%d, filledlen=%p)", target, buff, bufflen, filledlen);
+    nping_print(DBG_4, "fillPacketARP(target=%p, buff=%p, bufflen=%d, filledlen=%p)", target, buff, bufflen, filledlen);
 
     /* Source MAC Address */
     if( o.issetSourceMAC() )
@@ -1227,7 +1261,7 @@ int ProbeMode::fillPacketARP(NpingTarget *target, u8 *buff, int bufflen, int *fi
     if( o.issetARPSenderHwAddr() )
         a.setSenderMAC( o.getARPSenderHwAddr() );
     else
-        a.setSenderMAC( e.getSrcMAC() );  /* Get ethernet's source MAC */
+        a.setSenderMAC( e.getSrcMAC() );  /* Get Ethernet's source MAC */
 
     /* Sender Protocol Address */
     if( o.issetARPSenderProtoAddr() )
@@ -1247,7 +1281,7 @@ int ProbeMode::fillPacketARP(NpingTarget *target, u8 *buff, int bufflen, int *fi
     if( o.issetARPTargetHwAddr() )
         a.setTargetMAC( o.getARPTargetHwAddr() );
     else
-        a.setTargetMAC( nullmac );  /* Get ethernet's target MAC */
+        a.setTargetMAC( nullmac );  /* Get Ethernet's target MAC */
 
     /* Store result in user supplied buffer */
     *filledlen = e.dumpToBinaryBuffer(buff, bufflen);
@@ -1299,7 +1333,7 @@ char *ProbeMode::getBPFFilterString(){
         strncpy(filterstring, buffer, sizeof(filterstring)-1);
     else
         strncpy(filterstring, "", 2);
-    outPrint(DBG_1, "BPF-filter: %s", filterstring);
+    nping_print(DBG_1, "BPF-filter: %s", filterstring);
     return filterstring;
  }
 
@@ -1307,7 +1341,7 @@ char *ProbeMode::getBPFFilterString(){
  if( o.getRole()==ROLE_SERVER ){
     /* Capture all IP packets but the ones that belong to the side-channel */
     sprintf(filterstring, "ip and ( not (tcp and (dst port %d or src port %d) ) )", o.getEchoPort(), o.getEchoPort() );
-    outPrint(DBG_1, "BPF-filter: %s", filterstring);
+    nping_print(DBG_1, "BPF-filter: %s", filterstring);
     return filterstring;
  }
 
@@ -1326,7 +1360,7 @@ char *ProbeMode::getBPFFilterString(){
         s4->sin_family=AF_INET;
         inet_pton(AF_INET, "127.0.0.1", &s4->sin_addr);
     }
-    outPrint(DBG_2, "Couldn't determine source addrees. Using address %s in BFP filter", IPtoa(&srcss) );
+    nping_print(DBG_2, "Couldn't determine source address. Using address %s in BFP filter", IPtoa(&srcss) );
   }
   o.targets.rewind();
 
@@ -1350,7 +1384,7 @@ char *ProbeMode::getBPFFilterString(){
  }else if( s4->sin_family == AF_INET ) {
     inet_ntop(AF_INET, &s4->sin_addr, ipstring, sizeof(ipstring));
  }else{
-    outError(QT_2, "Warning: Wrong address family (%d) in getBPFFilterString(). Please report a bug", srcss.ss_family);
+    nping_warning(QT_2, "Warning: Wrong address family (%d) in getBPFFilterString(). Please report a bug", srcss.ss_family);
     sprintf(ipstring,"127.0.0.1");
  }
 
@@ -1363,13 +1397,13 @@ char *ProbeMode::getBPFFilterString(){
     buffer=filterstring+strlen(filterstring);
  }
 
- /* Time for protocol specific contraints */
+ /* Time for protocol specific constraints */
  switch( o.getMode() ){
-    case  TCP: /* Restrict to packets targetting our TCP source port */
+    case  TCP: /* Restrict to packets targeting our TCP source port */
         Snprintf(buffer, 1024-strlen(filterstring), "(tcp and dst port %d) ", o.getSourcePort());
     break;
 
-    case  UDP: /* Restrict to packets targetting our UDP source port */
+    case  UDP: /* Restrict to packets targeting our UDP source port */
         Snprintf(buffer, 1024-strlen(filterstring), "(udp and dst port %d) ", o.getSourcePort());
     break;
 
@@ -1414,7 +1448,7 @@ char *ProbeMode::getBPFFilterString(){
                 skip_icmp_matching=true;
             break;
         }
-        /* We have a specifig ICMP type to look for */
+        /* We have an specific ICMP type to look for */
         if(!skip_icmp_matching){
             Snprintf(buffer, 1024-strlen(filterstring), "(icmp and icmp[icmptype] = %d) ", icmp_recv_type);
         }else{
@@ -1479,11 +1513,82 @@ char *ProbeMode::getBPFFilterString(){
     Snprintf(buffer, 1024-strlen(filterstring), "or (icmp and (icmp[icmptype] = %d or icmp[icmptype] = %d or icmp[icmptype] = %d or icmp[icmptype] = %d or icmp[icmptype] = %d)) )" ,
                                  ICMP_UNREACH, ICMP_SOURCEQUENCH, ICMP_REDIRECT, ICMP_TIMXCEED, ICMP_PARAMPROB);
   }
-  outPrint(DBG_1, "BPF-filter: %s", filterstring);
+  nping_print(DBG_1, "BPF-filter: %s", filterstring);
   return filterstring;
 } /* End of getBPFFilterString() */
 
 
+
+/** Helper to check whether a received ICMP-in-IPv4 packet is related to a probe
+  * we might have sent. Returns non-NULL target pointer if found. Otherwise
+  * returns NULL. */
+static NpingTarget *is_response_icmp(const unsigned char *packet, unsigned int packetlen) {
+    const void *data;
+    unsigned int datalen;
+    struct abstract_ip_hdr packethdr;
+    NpingTarget *trg;
+
+    /* Parse the outermost IP header (for its source address). */
+    datalen = packetlen;
+    data = ip_get_data(packet, &datalen, &packethdr);
+    if (data == NULL)
+        return NULL;
+
+    trg = o.targets.findTarget(&packethdr.src);
+    if (trg != NULL) {
+        if (packethdr.proto == IPPROTO_ICMP) {
+            struct icmp_hdr *icmp;
+            struct icmp_msg_echo *echo;
+
+            if (datalen < 4)
+                return NULL;
+            icmp = (struct icmp_hdr *) data;
+            /* In case of echo reply, make sure the ICMP ID is the same as we
+               are sending. */
+            if (icmp->icmp_type == ICMP_ECHOREPLY) {
+                u16 expected_id;
+
+                if (o.issetICMPIdentifier())
+                    expected_id = o.getICMPIdentifier();
+                else
+                    expected_id = trg->getICMPIdentifier();
+
+                if (datalen < 8)
+                    return NULL;
+                echo = (struct icmp_msg_echo *) ((char *) icmp + 4);
+                if (ntohs(echo->icmp_id) != expected_id)
+                    return NULL;
+            }
+        }
+        return trg;
+    }
+
+    /* If that didn't work, check if this is ICMP with an encapsulated IP
+       header. */
+    if (packethdr.proto == IPPROTO_ICMP) {
+        struct ip *ip;
+        unsigned int iplen;
+        struct sockaddr_storage ss;
+        struct sockaddr_in *sin = (struct sockaddr_in *) &ss;
+
+        if (datalen < 8)
+            return NULL;
+        ip = (struct ip *) ((char *) data + 8);
+        iplen = datalen - 8;
+        /* Make sure there is enough header to have a dest address. */
+        if (iplen < 20)
+            return NULL;
+        if (ip->ip_v != 4)
+            return NULL;
+        sin->sin_family = AF_INET;
+        sin->sin_addr = ip->ip_dst;
+        trg = o.targets.findTarget(&ss);
+
+        return trg;
+    }
+
+    return NULL;
+}
 
 
 /** This function handles nsock events related to raw packet modes
@@ -1500,7 +1605,7 @@ char *ProbeMode::getBPFFilterString(){
   *
   * PCAP READS: start() also schedules pcap read operations so,
   * whenever pcap has capture a packet, nsock generates a pcap read event so
-  * we just read the capture data, update the stats and print the packet
+  * we just read the capture data, update the statistics and print the packet
   * to stdout.
   * */
 void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void *mydata) {
@@ -1529,7 +1634,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
  bool ip=false;
  memset(final_output, 0, sizeof(final_output));
 
- outPrint(DBG_4, "nping_event_handler(): Received callback of type %s with status %s",
+ nping_print(DBG_4, "nping_event_handler(): Received callback of type %s with status %s",
                   nse_type2str(type), nse_status2str(status));
 
  if (status == NSE_STATUS_SUCCESS ) {
@@ -1568,7 +1673,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                     mypacket->target->setProbeSentICMP(0,0);
                 }
                 if( o.showSentPackets() ){
-                    outPrint(VB_0,"SENT (%.4fs) %s", o.stats.elapsedRuntime(t), pktinfobuffer );
+                    nping_print(VB_0,"SENT (%.4fs) %s", o.stats.elapsedRuntime(t), pktinfobuffer );
                     if( o.getVerbosity() >= VB_3 )
                         luis_hdump((char*)mypacket->pkt, mypacket->pktLen);
                 }
@@ -1597,7 +1702,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                         ip=false;
                     break;
                     default:
-                        outError(QT_1, "RCVD (%.4fs) Unsupported protocol (Ethernet type %02X)", o.stats.elapsedRuntime(t), *ethtype);
+                        nping_warning(QT_1, "RCVD (%.4fs) Unsupported protocol (Ethernet type %02X)", o.stats.elapsedRuntime(t), *ethtype);
                         print_hexdump(VB_3, packet, packetlen);
                         return;
                     break;
@@ -1609,11 +1714,11 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
             }else{
                 IPv4Header iphdr;
                 if( iphdr.storeRecvData(packet, packetlen)!=OP_SUCCESS )
-                    outError(QT_1, "RCVD (%.4fs) Bogus packet received.", o.stats.elapsedRuntime(t));
+                    nping_warning(QT_1, "RCVD (%.4fs) Bogus packet received.", o.stats.elapsedRuntime(t));
                 if( iphdr.getVersion()==4 || iphdr.getVersion()==6){
                     ip=true;
                 }else{
-                    outError(QT_1, "RCVD (%.4fs) Unsupported protocol.", o.stats.elapsedRuntime(t));
+                    nping_warning(QT_1, "RCVD (%.4fs) Unsupported protocol.", o.stats.elapsedRuntime(t));
                     print_hexdump(VB_3, packet, packetlen);
                     return;
                 }
@@ -1638,7 +1743,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                     /* Statistics */
                     o.stats.addRecvPacket(packetlen);
 
-                    /* Then we check for a target and a port and do the individual stats */
+                    /* Then we check for a target and a port and do the individual statistics */
                     trg=o.targets.findTarget( getSrcSockAddrFromIPPacket((u8*)packet, packetlen) );
 
                     if(trg != NULL){
@@ -1649,12 +1754,9 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                 }else if (proto==IPPROTO_ICMP || proto==IPPROTO_ICMPV6){
                     /* we look for a target based on first src addr and second the dest addr of
                     the packet header which is returned in the ICMP packet */
-                    trg=o.targets.findTarget( getSrcSockAddrFromIPPacket((u8*)packet, packetlen) );
-                    if(trg == NULL){
-                        trg=o.targets.findTarget( getDestAddrFromICMPPacket((u8*)packet, packetlen));
-                    }
+                    trg = is_response_icmp(packet, packetlen);
 
-                    /* In the case of ICMP we only do any printing and stats if we
+                    /* In the case of ICMP we only do any printing and statistics if we
                     found a target - otherwise it could be a packet that is nothing
                     to do with us */
                     if(trg!=NULL){
@@ -1673,7 +1775,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
             /* Packet is ARP */
             }else{
                 getPacketStrInfo("ARP",(const u8*)packet, packetlen, buffer, 512);
-                outPrint(VB_0, "RCVD (%.4fs) %s", o.stats.elapsedRuntime(t), buffer );
+                nping_print(VB_0, "RCVD (%.4fs) %s", o.stats.elapsedRuntime(t), buffer );
                 o.stats.addRecvPacket(packetlen);
                 print_hexdump(VB_3 | NO_NEWLINE, packet, packetlen);
                 /* TODO: find target and call setProbeRecvARP() */
@@ -1685,7 +1787,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                 o.setDelayedRcvd(final_output, ev_id);
             }
             else
-                outPrint(VB_0|NO_NEWLINE, "%s", final_output);
+                nping_print(VB_0|NO_NEWLINE, "%s", final_output);
         break;
 
        /* In theory we should never get these kind of events in this handler
@@ -1694,28 +1796,28 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
        case NSE_TYPE_CONNECT_SSL:
        case NSE_TYPE_READ:
        case NSE_TYPE_WRITE:
-            outFatal(QT_3, "Bug in nping_event_handler(). Received %s event.", nse_type2str(type));
+            nping_fatal(QT_3, "Bug in nping_event_handler(). Received %s event.", nse_type2str(type));
        break;
 
        default:
-         outFatal(QT_3, "nping_event_handler(): Bogus event type.");
+         nping_fatal(QT_3, "nping_event_handler(): Bogus event type.");
        break;
 
    } /* switch(type) */
 
 
  } else if (status == NSE_STATUS_EOF) {
-    outPrint(DBG_4, "nping_event_handler(): Unexpected behaviour: Got EOF. Please report this bug.\n");
+    nping_print(DBG_4, "nping_event_handler(): Unexpected behaviour: Got EOF. Please report this bug.\n");
  } else if (status == NSE_STATUS_ERROR) {
-     outError(QT_2, "nping_event_handler(): %s failed: %s", nse_type2str(type), strerror(socket_errno()));
+     nping_warning(QT_2, "nping_event_handler(): %s failed: %s", nse_type2str(type), strerror(socket_errno()));
  } else if (status == NSE_STATUS_TIMEOUT) {
-    outPrint(DBG_4,"nping_event_handler(): %s timeout: %s\n", nse_type2str(type), strerror(socket_errno()));
+    nping_print(DBG_4,"nping_event_handler(): %s timeout: %s\n", nse_type2str(type), strerror(socket_errno()));
  } else if (status == NSE_STATUS_CANCELLED) {
-    outError(QT_2, "nping_event_handler(): %s canceled: %s", nse_type2str(type), strerror(socket_errno()));
+    nping_warning(QT_2, "nping_event_handler(): %s canceled: %s", nse_type2str(type), strerror(socket_errno()));
  } else if (status == NSE_STATUS_KILL) {
-    outError(QT_2, "nping_event_handler(): %s killed: %s", nse_type2str(type), strerror(socket_errno()));
+    nping_warning(QT_2, "nping_event_handler(): %s killed: %s", nse_type2str(type), strerror(socket_errno()));
  } else{
-    outError(QT_2, "nping_event_handler(): Unknown status code %d\n", status);
+    nping_warning(QT_2, "nping_event_handler(): Unknown status code %d\n", status);
  }
  return;
 
@@ -1765,7 +1867,7 @@ void ProbeMode::probe_delayed_output_handler(nsock_pool nsp, nsock_event nse, vo
   * the info stored there, we schedule a nsock_connect_tcp() event. This means
   * that nsock will initiate a TCP handshake and return. Whenever the handshake
   * is completed, nsock will generate a CONNECT event to indicate it so we
-  * know the othe peer was alive and willing to TCP-handshake with us.
+  * know the other peer was alive and willing to TCP-handshake with us.
   *
   * CONNECTS: These events are scheduled by the code that handles timer events.
   * As described above, nsock generates a connect event when handshakes have
@@ -1824,13 +1926,13 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
         /* If we can't allocate for that many descriptors, reduce our requirements */
         max_iods=DEFAULT_MAX_DESCRIPTORS-RESERVED_DESCRIPTORS;
         if( (fds=(nsock_iod *)calloc(max_iods, sizeof(nsock_iod)))==NULL ){
-            outFatal(QT_3, "ProbeMode::probe_tcpconnect_event_handler(): Not enough memory");
+            nping_fatal(QT_3, "ProbeMode::probe_tcpconnect_event_handler(): Not enough memory");
         }
     }
-    outPrint(DBG_7, "%d descriptors needed, %d available", o.getTotalProbes(), max_iods);
+    nping_print(DBG_7, "%d descriptors needed, %d available", o.getTotalProbes(), max_iods);
   }
 
- outPrint(DBG_4, "tcpconnect_event_handler(): Received callback of type %s with status %s", nse_type2str(type), nse_status2str(status));
+ nping_print(DBG_4, "tcpconnect_event_handler(): Received callback of type %s with status %s", nse_type2str(type), nse_status2str(status));
 
  if (status == NSE_STATUS_SUCCESS ) {
 
@@ -1839,7 +1941,7 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
     /* TCP Handshake was completed successfully */
     case NSE_TYPE_CONNECT:
         if( mypacket==NULL )
-            outFatal(QT_3, "tcpconnect_event_handler(): NULL value supplied.");
+            nping_fatal(QT_3, "tcpconnect_event_handler(): NULL value supplied.");
         /* Determine which target are we dealing with */
         nsi_getlastcommunicationinfo(nsi, NULL, &family, NULL, (struct sockaddr*)&peer, sizeof(struct sockaddr_storage) );
         if(family==AF_INET6){
@@ -1856,13 +1958,13 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
         trg=o.targets.findTarget( &peer );
         if(trg!=NULL){
             if ( trg->getSuppliedHostName() )
-                outPrint(VB_0,"RECV (%.4fs) Handshake with %s:%d (%s:%d) completed",
+                nping_print(VB_0,"RECV (%.4fs) Handshake with %s:%d (%s:%d) completed",
                          o.stats.elapsedRuntime(t), trg->getSuppliedHostName(), peerport, ipstring, peerport );
             else
-                outPrint(VB_0,"RECV (%.4fs) Handshake with %s:%d completed", o.stats.elapsedRuntime(t), ipstring, peerport );
+                nping_print(VB_0,"RECV (%.4fs) Handshake with %s:%d completed", o.stats.elapsedRuntime(t), ipstring, peerport );
             trg->setProbeRecvTCP( peerport , 0);
         }else{
-            outPrint(VB_0,"RECV (%.4fs) Handshake with %s:%d completed", o.stats.elapsedRuntime(t), ipstring, peerport );
+            nping_print(VB_0,"RECV (%.4fs) Handshake with %s:%d completed", o.stats.elapsedRuntime(t), ipstring, peerport );
         }
         o.stats.addRecvPacket(40); /* Estimation Dst>We 1 TCP SYN|ACK */
     break;
@@ -1877,7 +1979,7 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
      * and/or multiple target ports. */
     case NSE_TYPE_TIMER:
         if( mypacket==NULL )
-            outFatal(QT_3, "tcpconnect_event_handler():2: NULL value supplied.");
+            nping_fatal(QT_3, "tcpconnect_event_handler():2: NULL value supplied.");
 
         /* Fill the appropriate sockaddr for the connect() call */
         if( o.getIPVersion() == IP_VERSION_6 ){
@@ -1892,9 +1994,9 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
             sslen=sizeof(struct sockaddr_in);
         }
 
-        /* We need to keep many IODs open in parrallel but we don't allocate
+        /* We need to keep many IODs open in parallel but we don't allocate
          * millions, just as many as the OS let us (max number of open files).
-         * If we run out of them, we just start overwritting the oldest one.
+         * If we run out of them, we just start overwriting the oldest one.
          * If we don't have a response by that time we probably aren't gonna
          * get any, so it shouldn't be a big problem. */
         if( packetno>(u32)max_iods ){
@@ -1902,7 +2004,7 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
         }
         /* Create new IOD for connects */
         if ((fds[packetno%max_iods] = nsi_new(nsp, NULL)) == NULL)
-            outFatal(QT_3, "tcpconnect_event_handler(): Failed to create new nsock_iod.\n");
+            nping_fatal(QT_3, "tcpconnect_event_handler(): Failed to create new nsock_iod.\n");
 
         /* Set socket source address. This allows setting things like custom source port */
         struct sockaddr_storage ss;
@@ -1913,9 +2015,9 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
         nsock_connect_tcp(nsp, fds[packetno%max_iods], tcpconnect_event_handler, 100000, mypacket, (struct sockaddr *)&to, sslen, mypacket->dstport);
         if( o.showSentPackets() ){
             if ( mypacket->target->getSuppliedHostName() )
-                outPrint(VB_0,"SENT (%.4fs) Starting TCP Handshake > %s:%d (%s:%d)", o.stats.elapsedRuntime(NULL), mypacket->target->getSuppliedHostName(), mypacket->dstport ,mypacket->target->getTargetIPstr(), mypacket->dstport);
+                nping_print(VB_0,"SENT (%.4fs) Starting TCP Handshake > %s:%d (%s:%d)", o.stats.elapsedRuntime(NULL), mypacket->target->getSuppliedHostName(), mypacket->dstport ,mypacket->target->getTargetIPstr(), mypacket->dstport);
             else
-                outPrint(VB_0,"SENT (%.4fs) Starting TCP Handshake > %s:%d", o.stats.elapsedRuntime(NULL), mypacket->target->getTargetIPstr(), mypacket->dstport);
+                nping_print(VB_0,"SENT (%.4fs) Starting TCP Handshake > %s:%d", o.stats.elapsedRuntime(NULL), mypacket->target->getTargetIPstr(), mypacket->dstport);
         }
         packetno++;
         o.stats.addSentPacket(80); /* Estimation Src>Dst 1 TCP SYN && TCP ACK */
@@ -1926,22 +2028,22 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
     case NSE_TYPE_READ:
     case NSE_TYPE_PCAP_READ:
     case NSE_TYPE_CONNECT_SSL:
-        outError(QT_2,"tcpconnect_event_handler(): Unexpected behaviour, %s event received . Please report this bug.", nse_type2str(type));
+        nping_warning(QT_2,"tcpconnect_event_handler(): Unexpected behaviour, %s event received . Please report this bug.", nse_type2str(type));
     break;
 
     default:
-        outFatal(QT_3, "tcpconnect_event_handler(): Bogus event type (%d). Please report this bug.", type);
+        nping_fatal(QT_3, "tcpconnect_event_handler(): Bogus event type (%d). Please report this bug.", type);
     break;
 
   } /* switch(type) */
 
 
  } else if (status == NSE_STATUS_EOF) {
-        outPrint(DBG_4, "tcpconnect_event_handler(): Unexpected behaviour: Got EOF. Please report this bug.\n");
+        nping_print(DBG_4, "tcpconnect_event_handler(): Unexpected behaviour: Got EOF. Please report this bug.\n");
  } else if (status == NSE_STATUS_ERROR) {
    /** In my tests with Nping and Wireshark, I've seen that we get NSE_STATUS_ERROR
     * whenever we start a TCP handshake but our peer sends a TCP RST packet back
-    * denying the connection. So in this case, we inform the user (as oppossed
+    * denying the connection. So in this case, we inform the user (as opposed
     * to saying nothing, that's what we do when we don't get responses, e.g:
     * when trying to connect to filtered ports). This is not 100% accurate
     * because there may be other reasons why ge get NSE_STATUS_ERROR so that's
@@ -1955,18 +2057,18 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
             inet_ntop(AF_INET, &peer4->sin_addr, ipstring, sizeof(ipstring));
             peerport=ntohs(peer4->sin_port);
         }
-        outPrint(VB_0,"RECV (%.4fs) Possible TCP RST received from %s:%d --> %s", o.stats.elapsedRuntime(t),ipstring, peerport, strerror(nse_errorcode(nse)) );
+        nping_print(VB_0,"RECV (%.4fs) Possible TCP RST received from %s:%d --> %s", o.stats.elapsedRuntime(t),ipstring, peerport, strerror(nse_errorcode(nse)) );
      }
      else
-        outError(QT_2,"ERR: (%.4fs) %s to %s:%d failed: %s", o.stats.elapsedRuntime(t), nse_type2str(type), ipstring, peerport, strerror(socket_errno()));
+        nping_warning(QT_2,"ERR: (%.4fs) %s to %s:%d failed: %s", o.stats.elapsedRuntime(t), nse_type2str(type), ipstring, peerport, strerror(socket_errno()));
  } else if (status == NSE_STATUS_TIMEOUT) {
-    outPrint(DBG_4, "tcpconnect_event_handler(): %s timeout: %s\n", nse_type2str(type), strerror(socket_errno()));
+    nping_print(DBG_4, "tcpconnect_event_handler(): %s timeout: %s\n", nse_type2str(type), strerror(socket_errno()));
  } else if (status == NSE_STATUS_CANCELLED) {
-    outPrint(DBG_4, "tcpconnect_event_handler(): %s canceled: %s", nse_type2str(type), strerror(socket_errno()));
+    nping_print(DBG_4, "tcpconnect_event_handler(): %s canceled: %s", nse_type2str(type), strerror(socket_errno()));
  } else if (status == NSE_STATUS_KILL) {
-    outPrint(DBG_4, "tcpconnect_event_handler(): %s killed: %s", nse_type2str(type), strerror(socket_errno()));
+    nping_print(DBG_4, "tcpconnect_event_handler(): %s killed: %s", nse_type2str(type), strerror(socket_errno()));
  } else{
-    outError(QT_2, "tcpconnect_event_handler(): Unknown status code %d. Please report this bug.", status);
+    nping_warning(QT_2, "tcpconnect_event_handler(): Unknown status code %d. Please report this bug.", status);
  }
  return;
 
@@ -1992,7 +2094,7 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
   *
   *
   * CONNECTS: These events generated by nsock for consistency with the
-  * behaviour in TCP connects. They are pretty useless. They merely indicate
+  * behavior in TCP connects. They are pretty useless. They merely indicate
   * that nsock successfully obtained a UDP socket ready to allow sending
   * packets to the appropriate target. We basically don't do anything when
   * that event is received, just print a message if we are un debugging mode.
@@ -2004,7 +2106,7 @@ void ProbeMode::probe_tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, 
   *
   * READS: When we get this event it means that the other end actually sent
   * some data back to us. What we do is read that data, tell the user that
-  * we received some bytes and update stats.
+  * we received some bytes and update statistics.
   *
   * */
 void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, void *mydata) {
@@ -2060,13 +2162,13 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
         /* If we can't allocate for that many descriptors, reduce our requirements */
         max_iods=DEFAULT_MAX_DESCRIPTORS-RESERVED_DESCRIPTORS;
         if( (fds=(nsock_iod *)calloc(max_iods, sizeof(nsock_iod)))==NULL ){
-            outFatal(QT_3, "ProbeMode:probe_udpunpriv_event_handler(): Not enough memory");
+            nping_fatal(QT_3, "ProbeMode:probe_udpunpriv_event_handler(): Not enough memory");
         }
     }
-    outPrint(DBG_7, "%d descriptors needed, %d available", o.getTotalProbes(), max_iods);
+    nping_print(DBG_7, "%d descriptors needed, %d available", o.getTotalProbes(), max_iods);
   }
 
- outPrint(DBG_4, "udpunpriv_event_handler(): Received callback of type %s with status %s", nse_type2str(type), nse_status2str(status));
+ nping_print(DBG_4, "udpunpriv_event_handler(): Received callback of type %s with status %s", nse_type2str(type), nse_status2str(status));
 
  if (status == NSE_STATUS_SUCCESS ) {
 
@@ -2078,7 +2180,7 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
      * Basically this just means that nsock successfully obtained a UDP socket
      * ready to allow sending packets to the appropriate target. */
     case NSE_TYPE_CONNECT:
-            outPrint(DBG_3,"Nsock UDP \"connection\" completed successfully.");
+            nping_print(DBG_3,"Nsock UDP \"connection\" completed successfully.");
     break;
 
 
@@ -2086,7 +2188,7 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
     /* We need to start an scheduled UDP packet transmission. */
     case NSE_TYPE_TIMER:
         if( mypacket==NULL )
-            outFatal(QT_3, "udpunpriv_event_handler():: NULL value supplied.");
+            nping_fatal(QT_3, "udpunpriv_event_handler():: NULL value supplied.");
 
         /* Fill the appropriate sockaddr for the connect() call */
         if( o.getIPVersion() == IP_VERSION_6 ){
@@ -2101,9 +2203,9 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
             sslen=sizeof(struct sockaddr_in);
         }
 
-        /* We need to keep many IODs open in parrallel but we don't allocate
+        /* We need to keep many IODs open in parallel but we don't allocate
          * millions, just as many as the OS let us (max number of open files).
-         * If we run out of them, we just start overwritting the oldest one.
+         * If we run out of them, we just start overwriting the oldest one.
          * If we don't have a response by that time we probably aren't gonna
          * get any, so it shouldn't be a big problem. */
         if( packetno>(u32)max_iods ){
@@ -2111,7 +2213,7 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
         }
         /* Create new IOD for connects */
         if ((fds[packetno%max_iods] = nsi_new(nsp, NULL)) == NULL)
-            outFatal(QT_3, "Failed to create new nsock_iod.  QUITTING.\n");
+            nping_fatal(QT_3, "Failed to create new nsock_iod.  QUITTING.\n");
 
         /* Set socket source address. This allows setting things like custom source port */
         struct sockaddr_storage ss;
@@ -2160,12 +2262,12 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
         trg=o.targets.findTarget( &peer );
         if(trg!=NULL){
             if ( trg->getSuppliedHostName() )
-                outPrint(VB_0,"SENT (%.4fs) UDP packet with %lu bytes to %s:%d (%s:%d)", o.stats.elapsedRuntime(NULL),  (unsigned long int)sentbytes, trg->getSuppliedHostName(), peerport, ipstring, peerport );
+                nping_print(VB_0,"SENT (%.4fs) UDP packet with %lu bytes to %s:%d (%s:%d)", o.stats.elapsedRuntime(NULL),  (unsigned long int)sentbytes, trg->getSuppliedHostName(), peerport, ipstring, peerport );
             else
-                outPrint(VB_0,"SENT (%.4fs) UDP packet with %lu bytes to %s:%d", o.stats.elapsedRuntime(NULL),  (unsigned long int)sentbytes, ipstring, peerport );
+                nping_print(VB_0,"SENT (%.4fs) UDP packet with %lu bytes to %s:%d", o.stats.elapsedRuntime(NULL),  (unsigned long int)sentbytes, ipstring, peerport );
             trg->setProbeSentUDP( 0, peerport);
         }else{
-            outPrint(VB_0,"SENT (%.4fs) UDP packet with %lu bytes to %s:%d", o.stats.elapsedRuntime(t), (unsigned long int)sentbytes, ipstring, peerport );
+            nping_print(VB_0,"SENT (%.4fs) UDP packet with %lu bytes to %s:%d", o.stats.elapsedRuntime(t), (unsigned long int)sentbytes, ipstring, peerport );
         }
         o.stats.addSentPacket(sentbytes); /* Here we don't count the headers, just payload bytes */
 
@@ -2184,7 +2286,7 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
         /* Do an actual read() of the recv data */
         readbuff=nse_readbuf(nse, &readbytes);
         if(readbuff==NULL){
-            outFatal(QT_3, "Error: nse_readbuff failed to read in the from the probe");
+            nping_fatal(QT_3, "Error: nse_readbuff failed to read in the from the probe");
         }
         /* Determine which target are we dealing with */
         nsi_getlastcommunicationinfo(nsi, NULL, &family, NULL, (struct sockaddr*)&peer, sizeof(struct sockaddr_storage) );
@@ -2200,12 +2302,12 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
         trg=o.targets.findTarget( &peer );
         if(trg!=NULL){
             if ( trg->getSuppliedHostName() )
-                outPrint(VB_0,"RECV (%.4fs) UDP packet with %d bytes from %s:%d (%s:%d)", o.stats.elapsedRuntime(NULL),  readbytes, trg->getSuppliedHostName(), peerport, ipstring, peerport );
+                nping_print(VB_0,"RECV (%.4fs) UDP packet with %d bytes from %s:%d (%s:%d)", o.stats.elapsedRuntime(NULL),  readbytes, trg->getSuppliedHostName(), peerport, ipstring, peerport );
             else
-                outPrint(VB_0,"RECV (%.4fs) UDP packet with %d bytes from %s:%d", o.stats.elapsedRuntime(NULL),  readbytes, ipstring, peerport );
+                nping_print(VB_0,"RECV (%.4fs) UDP packet with %d bytes from %s:%d", o.stats.elapsedRuntime(NULL),  readbytes, ipstring, peerport );
             trg->setProbeRecvUDP(peerport, 0);
         }else{
-            outPrint(VB_0,"RECV (%.4fs) UDP packet with %d bytes from %s:%d", o.stats.elapsedRuntime(t), readbytes, ipstring, peerport );
+            nping_print(VB_0,"RECV (%.4fs) UDP packet with %d bytes from %s:%d", o.stats.elapsedRuntime(t), readbytes, ipstring, peerport );
         }
         o.stats.addRecvPacket(readbytes);
     break;
@@ -2213,18 +2315,18 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
 
     case NSE_TYPE_PCAP_READ:
     case NSE_TYPE_CONNECT_SSL:
-        outError(QT_2,"udpunpriv_event_handler(): Unexpected behaviour, %s event received . Please report this bug.", nse_type2str(type));
+        nping_warning(QT_2,"udpunpriv_event_handler(): Unexpected behavior, %s event received . Please report this bug.", nse_type2str(type));
     break;
 
     default:
-        outFatal(QT_3, "udpunpriv_event_handler(): Bogus event type (%d). Please report this bug.", type);
+        nping_fatal(QT_3, "udpunpriv_event_handler(): Bogus event type (%d). Please report this bug.", type);
     break;
 
   } /* switch(type) */
 
 
  } else if (status == NSE_STATUS_EOF) {
-    outPrint(DBG_4, "udpunpriv_event_handler(): Unexpected behaviour: Got EOF. Please report this bug.\n");
+    nping_print(DBG_4, "udpunpriv_event_handler(): Unexpected behaviour: Got EOF. Please report this bug.\n");
  } else if (status == NSE_STATUS_ERROR) {
     nsi_getlastcommunicationinfo(nsi, NULL, &family, NULL, (struct sockaddr*)&peer, sizeof(struct sockaddr_storage) );
     if(family==AF_INET6){
@@ -2234,16 +2336,16 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
         inet_ntop(AF_INET, &peer4->sin_addr, ipstring, sizeof(ipstring));
         peerport=ntohs(peer4->sin_port);
     }
-    outError(QT_2,"ERR: (%.4fs) %s to %s:%d failed: %s", o.stats.elapsedRuntime(t), nse_type2str(type), ipstring, peerport, strerror(socket_errno()));
+    nping_warning(QT_2,"ERR: (%.4fs) %s to %s:%d failed: %s", o.stats.elapsedRuntime(t), nse_type2str(type), ipstring, peerport, strerror(socket_errno()));
  } else if (status == NSE_STATUS_TIMEOUT) {
-       outPrint(DBG_4, "udpunpriv_event_handler(): %s timeout: %s\n", nse_type2str(type), strerror(socket_errno()));
+       nping_print(DBG_4, "udpunpriv_event_handler(): %s timeout: %s\n", nse_type2str(type), strerror(socket_errno()));
  } else if (status == NSE_STATUS_CANCELLED) {
-       outPrint(DBG_4, "udpunpriv_event_handler(): %s canceled: %s", nse_type2str(type), strerror(socket_errno()));
+       nping_print(DBG_4, "udpunpriv_event_handler(): %s canceled: %s", nse_type2str(type), strerror(socket_errno()));
  } else if (status == NSE_STATUS_KILL) {
-       outPrint(DBG_4, "udpunpriv_event_handler(): %s killed: %s", nse_type2str(type), strerror(socket_errno()));
+       nping_print(DBG_4, "udpunpriv_event_handler(): %s killed: %s", nse_type2str(type), strerror(socket_errno()));
  }
  else{
-       outError(QT_2, "udpunpriv_event_handler(): Unknown status code %d. Please report this bug.", status);
+       nping_warning(QT_2, "udpunpriv_event_handler(): Unknown status code %d. Please report this bug.", status);
  }
  return;
 
@@ -2255,7 +2357,7 @@ void ProbeMode::probe_udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, v
  * method. We need this because C++ does not allow to use class methods as
  * callback functions for things like signal() or the Nsock lib. */
 void nping_event_handler(nsock_pool nsp, nsock_event nse, void *arg){
-  outPrint(DBG_4, "%s()", __func__);
+  nping_print(DBG_4, "%s()", __func__);
   ProbeMode::probe_nping_event_handler(nsp, nse, arg);
   return;
 } /* End of nping_event_handler() */
@@ -2265,7 +2367,7 @@ void nping_event_handler(nsock_pool nsp, nsock_event nse, void *arg){
  * method. We need this because C++ does not allow to use class methods as
  * callback functions for things like signal() or the Nsock lib. */
 void tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, void *arg){
-  outPrint(DBG_4, "%s()", __func__);
+  nping_print(DBG_4, "%s()", __func__);
   ProbeMode::probe_tcpconnect_event_handler(nsp, nse, arg);
   return;
 } /* End of tcpconnect_event_handler() */
@@ -2275,7 +2377,7 @@ void tcpconnect_event_handler(nsock_pool nsp, nsock_event nse, void *arg){
  * method. We need this because C++ does not allow to use class methods as
  * callback functions for things like signal() or the Nsock lib. */
 void udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, void *arg){
-  outPrint(DBG_4, "%s()", __func__);
+  nping_print(DBG_4, "%s()", __func__);
   ProbeMode::probe_udpunpriv_event_handler(nsp, nse, arg);
   return;
 } /* End of udpunpriv_event_handler() */
@@ -2286,7 +2388,7 @@ void udpunpriv_event_handler(nsock_pool nsp, nsock_event nse, void *arg){
  * method. We need this because C++ does not allow to use class methods as
  * callback functions for things like signal() or the Nsock lib. */
 void delayed_output_handler(nsock_pool nsp, nsock_event nse, void *arg){
-  outPrint(DBG_4, "%s()", __func__);
+  nping_print(DBG_4, "%s()", __func__);
   ProbeMode::probe_delayed_output_handler(nsp, nse, arg);
   return;
 } /* End of udpunpriv_event_handler() */

@@ -80,7 +80,6 @@ local bit = require "bit"
 local datafiles = require "datafiles"
 local math = require "math"
 local nmap = require "nmap"
-local os = require "os"
 local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
@@ -187,11 +186,15 @@ Comm = {
             local resvport = math.random(1, 1024)
             socket = nmap.new_socket("udp")
             status, err = socket:bind(nil, resvport)
-            if status then break end
-            socket:close()
+            if status then
+              status, err = socket:connect(host, port)
+              if status or err == "TIMEOUT" then break end
+              socket:close()
+            end
           end
         else
           socket = nmap.new_socket("udp")
+          status, err = socket:connect(host, port)
         end
       end
       if (not(status)) then
@@ -3204,9 +3207,7 @@ Util =
         -- @param number of seconds since some given start time
         --        (the "epoch")
         -- @return string that represents time.
-        TimeToString = function(time) 
-            return os.date("!%F %H:%M", time)
-        end,
+        TimeToString = stdnse.format_timestamp,
 
         --- Converts the size in bytes to a human readable format
         --

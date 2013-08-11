@@ -125,9 +125,6 @@ AC_PROG_RANLIB
 dnl AC_PROG_INSTALL
 dnl AC_PATH_PROG(MAKEDEPEND, makedepend)
 
-AC_SUBST(COMPAT_OBJS)
-AC_SUBST(COMPAT_SRCS)
-
 dnl Checks for libraries.
 dnl AC_CHECK_LIB(m, pow)
 
@@ -140,7 +137,7 @@ AC_CHECK_FUNC(nanosleep, , AC_CHECK_LIB(posix4, nanosleep))
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(net/bpf.h sys/ioctl.h sys/un.h)
+AC_CHECK_HEADERS(net/bpf.h sys/ioctl.h sys/un.h netdb.h)
 
 # We test whether they specified openssl desires explicitly
 use_openssl="yes"
@@ -226,12 +223,15 @@ AC_ARG_WITH(libnbase,
 NBASEDIR="../../nbase"
 )
 
+NSOCKTESTDIR="../tests"
+
 LDFLAGS="$LDFLAGS -L$NBASEDIR"
 CPPFLAGS="$CPPFLAGS -I$NBASEDIR"
 LIBNBASE_LIBS="$LIBS -lnbase"
 
 AC_SUBST(LIBNBASE_LIBS)
 AC_SUBST(NBASEDIR)
+AC_SUBST(NSOCKTESTDIR)
 
 AC_SUBST(CFLAGS)
 

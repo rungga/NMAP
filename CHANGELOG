@@ -1,4 +1,13 @@
-# Nmap Changelog ($Id: CHANGELOG 30318 2012-11-29 19:13:48Z fyodor $); -*-text-*-
+# Nmap Changelog ($Id: CHANGELOG 31564 2013-07-28 22:16:38Z fyodor $); -*-text-*-
+
+Nmap 6.40 [2013-07-28]
+
+o For logistical reasons, we had to do the 6.40 builds before we
+  finished writing the change log.  Rather than include something
+  incomplete here, we have removed it.  Please view it instead at
+  http://nmap.org/changelog.html.  For just the changes in this
+  release, search for the "Nmap 6.40" line and read down from there
+  to the "Nmap 6.25" line.
 
 Nmap 6.25 [2012-11-29]
 
@@ -18,9 +27,6 @@ o [Zenmap] Removed a crashing error that could happen when canceling a
     File "zenmapGUI\Print.pyo", line 156, in run_print_operation
   GError: Error from StartDoc
   This bug was reported by Imre Adácsi. [David Fifield]
-
-o [NSE] Added new fingerprints for http-enum: Sitecore, Moodle, typo3,
-  SquirrelMail, RoundCube. [Jesper Kückelhahn]
 
 o Added some new checks for failed library calls. [Bill Parker]
 
@@ -47,7 +53,8 @@ o Integrated your latest IPv6 OS submissions and corrections. We're
   (if Nmap guesses wrong) are useful.
 
 o Enabled support for IPv6 traceroute using UDP, SCTP, and IPProto
-  (Next Header) probes. [David Fifield]
+  (Next Header) probes.  Previously, only TCP and ICMP were
+  supported.  [David Fifield]
 
 o Scripts can now return a structured name-value table so that results
   are query-able from XML output. Scripts can return a string as
@@ -9236,7 +9243,7 @@ o The write buffer length increased in 4.03 was increased even further
   "log_vwrite: write buffer not large enough -- need to increase"
 
 o Added a note to the Nmap configure dragon that people sick of him
-  can submit their own ASCII art to nmap-dev@insecure.org .  If you
+  can submit their own ASCII art to dev@nmap.org .  If you
   are wondering WTF I am talking about, it is probably because only
   most elite Nmap users -- the ones who compile from source on UNIX --
   get to see the 'l33t ASCII Art.

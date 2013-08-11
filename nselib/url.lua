@@ -152,8 +152,6 @@ function parse(url, default)
     -- initialize default parameters
     local parsed = {}
     for i,v in base.pairs(default or parsed) do parsed[i] = v end
-    -- empty url is parsed to nil
-    if not url or url == "" then return nil, "invalid url" end
     -- remove whitespace
     -- url = string.gsub(url, "%s", "")
     -- get fragment
@@ -161,9 +159,9 @@ function parse(url, default)
         parsed.fragment = f
         return ""
     end)
-    -- get scheme
+    -- get scheme. Lower-case according to RFC 3986 section 3.1.
     url = string.gsub(url, "^([%w][%w%+%-%.]*)%:",
-        function(s) parsed.scheme = s; return "" end)
+        function(s) parsed.scheme = string.lower(s); return "" end)
     -- get authority
     url = string.gsub(url, "^//([^/]*)", function(n)
         parsed.authority = n
@@ -180,13 +178,13 @@ function parse(url, default)
         return ""
     end)
     -- path is whatever was left
-    if url ~= "" then parsed.path = url end
+    parsed.path = url
     local authority = parsed.authority
     if not authority then return parsed end
     authority = string.gsub(authority,"^([^@]*)@",
         function(u) parsed.userinfo = u; return "" end)
-    authority = string.gsub(authority, ":([^:]*)$",
-        function(p) parsed.port = p; return "" end)
+    authority = string.gsub(authority, ":([0-9]*)$",
+        function(p) if p ~= "" then parsed.port = p end; return "" end)
     if authority ~= "" then parsed.host = authority end
     local userinfo = parsed.userinfo
     if not userinfo then return parsed end

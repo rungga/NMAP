@@ -19,7 +19,7 @@ for the filename is given on the command line.
 -- nmap --script stuxnet-detect -p 445 <host>
 --
 -- @args stuxnet-detect.save Path to save Stuxnet executable under, with
---       <code>%h/code> replaced by the host's IP address, and <code>%v</code>
+--       <code>%h</code> replaced by the host's IP address, and <code>%v</code>
 --       replaced by the version of Stuxnet.
 --
 -- @output
@@ -81,7 +81,7 @@ local function check_infected(host, path, save)
 
 		fmt = save:gsub("%%h", host.ip)
 		fmt = fmt:gsub("%%v", version)
-		file = io.open(fmt, "w")
+		file = io.open(stdnse.filename_escape(fmt), "w")
 		if file then
 			stdnse.print_debug(1, "Wrote %d bytes to file %s.", #result.arguments, fmt)
 			file:write(result.arguments)
