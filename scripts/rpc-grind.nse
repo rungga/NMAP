@@ -21,6 +21,7 @@ hasn't exported program) means that we have sent the incorrect program number.
 Any other accept state is an incorrect behaviour.
 ]]
 
+---
 -- @args rpc-grind.threads Number of grinding threads. Defaults to <code>4</code>
 --
 -- @usage
@@ -190,7 +191,7 @@ local rpcGrinder = function(host, port, iterator, result)
 
         status, data = rpcConn:ReceivePacket()
         if not status then
-            stdnse.print_debug("%s ReceivePacket(): %s", SCRIPT_NAME, err)
+            stdnse.print_debug("%s ReceivePacket(): %s", SCRIPT_NAME, data)
             condvar "signal";
             return
         end

@@ -293,7 +293,7 @@ files are deleted.
 
 And that's how it works! 
 
-Please post any questions, or suggestions for better modules, to nmap-dev@insecure.org. 
+Please post any questions, or suggestions for better modules, to dev@nmap.org. 
 
 And, as usual, since this tool can be dangerous and can easily be viewed as a malicious 
 tool -- use this responsibly, and don't break any laws with it. 
@@ -521,24 +521,31 @@ local function locate_file(filename, extension)
 
 	extension = extension or ""
 
-	local filename_full = nmap.fetchfile(filename)
-	if(filename_full == nil) then
-		filename_full = nmap.fetchfile(filename .. "." .. extension)
+	local filename_full = nmap.fetchfile(filename) or nmap.fetchfile(filename .. "." .. extension)
 
-		if(filename_full == nil) then
-			filename = "nselib/data/psexec/" .. filename
-			filename_full = nmap.fetchfile(filename)
+  if(filename_full == nil) then
+    local psexecfile = "nselib/data/psexec/" .. filename
+    filename_full = nmap.fetchfile(psexecfile) or nmap.fetchfile(psexecfile .. "." .. extension)
+  end
 
-			if(filename_full == nil) then
-				filename_full = nmap.fetchfile(filename .. "." .. extension)
-			end
-		end
-	end
-
-	-- Die if we couldn't find the file
-	if(filename_full == nil) then
-		return nil
-	end
+  -- check for absolute path or relative to current directory
+  if(filename_full == nil) then 
+    f, err = io.open(filename, "rb")
+    if f == nil then
+      stdnse.print_debug(1, "%s: Error opening %s: %s", SCRIPT_NAME, filename, err)
+      f, err = io.open(filename .. "." .. extension, "rb")
+      if f == nil then
+        stdnse.print_debug(1, "%s: Error opening %s.%s: %s", SCRIPT_NAME, filename, extension, err)
+        return nil -- unnecessary, but explicit
+      else
+        f:close()
+        return filename .. "." .. extension
+      end
+    else
+      f:close()
+      return filename
+    end
+  end
 
 	return filename_full
 end
@@ -1279,9 +1286,9 @@ local function parse_output(config, data)
 				-- Go to the next module, and make sure it exists
 				mod = config.enabled_modules[module_num + 1]
 				if(mod == nil) then
-					stdnse.print_debug(1, "Server's response wasn't formatted properly (mod %d); if you can reproduce, place report to nmap-dev@insecure.org", module_num)
+					stdnse.print_debug(1, "Server's response wasn't formatted properly (mod %d); if you can reproduce, place report to dev@nmap.org", module_num)
 					stdnse.print_debug(1, "--\n" .. string.gsub("%%", "%%", data) .. "\n--")
-					return false, "Server's response wasn't formatted properly; if you can reproduce, place report to nmap-dev@insecure.org"
+					return false, "Server's response wasn't formatted properly; if you can reproduce, place report to dev@nmap.org"
 				end
 
 				-- Save this result

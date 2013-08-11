@@ -24,8 +24,7 @@ For more information, see:
 ---
 --@args llmnr-resolve.hostname Hostname to resolve.
 --
---@args llmnr-resolve.timeout Max time to wait for a response. Defaults to
--- <code>3</code> seconds.
+--@args llmnr-resolve.timeout Max time to wait for a response. (default 3s)
 --
 --@usage
 -- nmap --script llmnr-resolve --script-args 'llmnr-resolve.hostname=examplename' -e wlan0
@@ -83,9 +82,9 @@ local llmnrSend = function(query, mcast, mport)
 end
 
 -- Listens for llmnr responses
--- @interface Network interface to listen on.
--- @timeout Maximum time to listen. 
--- @result table to put responses into.
+-- @param interface Network interface to listen on.
+-- @param timeout Maximum time to listen. 
+-- @param result table to put responses into.
 local llmnrListen = function(interface, timeout, result)
     local condvar = nmap.condvar(result)
     local start = nmap.clock_ms()
@@ -164,9 +163,9 @@ end
 
 
 action = function()
-    local timeout = tonumber(stdnse.get_script_args(SCRIPT_NAME .. ".timeout")) or 3
+    local timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. ".timeout"))
+    timeout = (timeout or 3) * 1000
     local hostname = stdnse.get_script_args(SCRIPT_NAME .. ".hostname")
-    timeout = timeout * 1000
     local result, output = {}, {}
     local mcast = "224.0.0.252"
     local mport = 5355

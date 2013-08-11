@@ -1,4 +1,4 @@
-$Id: HACKING 29176 2012-07-09 22:53:46Z henri $
+$Id: HACKING 30349 2012-12-06 02:34:28Z david $
 
 Nmap HACKING
 ------------
@@ -12,7 +12,7 @@ it.  This also allows you to audit the software for security holes
 
 Source code also allows you to port Nmap to new platforms, fix bugs,
 and add new features.  You are highly encouraged to send your changes
-to nmap-dev@insecure.org for possible incorporation into the main
+to dev@nmap.org for possible incorporation into the main
 distribution.  By sending these changes to Fyodor or one of the
 Insecure.Org development mailing lists, it is assumed that you are
 offering the Nmap Project (Insecure.Com LLC) unlimited, non-exclusive
@@ -31,11 +31,11 @@ down and patch a problem, bug reports are always welcome.
 
 Hackers interested in something more major, such as a new feature, are
 encouraged to send a mail describing their plans to
-nmap-dev@insecure.org .  This is a good way to solicit feedback on
+dev@nmap.org .  This is a good way to solicit feedback on
 your proposals.  List members are often very willing to help.  You
 might want to subscribe to that mailing list as well -- send a blank
-email to nmap-dev-subscribe@insecure.org .  While you are at it, you
-might also want to subscribe to nmap-hackers via the same mechanism.
+email to dev-subscribe@nmap.org .  While you are at it, you
+might also want to subscribe to announce@nmap.org via the same mechanism.
 Web archives of those lists are at http://seclists.org .
 
 Some ideas of useful contributions/projects
@@ -59,14 +59,14 @@ o Nmap GUI improvements -- Zenmap is the Nmap GUI. If you have
   (http://rubynmap.sourceforge.net).
 
 One of the best ways to help is to join the nmap-dev list
-( http://cgi.insecure.org/mailman/listinfo/nmap-dev ).  Requests for
+( http://nmap.org/mailman/listinfo/dev ).  Requests for
 assistance and new Nmap-related projects are often posted there.
 
 How to make code contributions
 ------------------------------
 
 The preferred mechanism for submitted changes is unified diffs against
-the latest SVN trunk.  Please send them to nmap-dev@insecure.org .
+the latest SVN trunk.  Please send them to dev@nmap.org .
 
 Get a local copy of the SVN trunk:
 

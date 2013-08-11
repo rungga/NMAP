@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -33,17 +33,18 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -53,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: gh_list.c 28190 2012-03-01 06:32:23Z fyodor $ */
+/* $Id: gh_list.c 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #include "nsock.h"
 
@@ -81,125 +82,6 @@
     assert((e)->magic == GH_LIST_MAGIC); \
   } while (0)
 
-
-
-#ifdef GH_LIST_MAIN
-int main(int argc, char *argv[]) {
-  gh_list lists[16];
-  gh_list_elem *current, *next;
-  int num = 0;
-  int ret;
-  int i;
-
-  for(i=0; i < 16; i++)
-    gh_list_init(&lists[i]);
-
-  for(num=25000; num < 50000; num++) {
-    for(i=0; i < 16; i++) {
-      gh_list_append(&lists[i], (void *)num);
-    }
-  }
-
-  for(num=24999; num >= 0; num--) {
-    for(i=0; i < 16; i++) {
-      gh_list_prepend(&lists[i], (void *)num);
-    }
-  }
-
-  for(num=0; num < 50000; num++) {
-    for(i=0; i < 16; i++) {
-      ret = (int) gh_list_pop(&lists[i]);
-      if (ret != num)
-	fatal("prepend_test: Bogus return value %d when expected %d\n", ret, num);
-    }
-  }
-  for(i=0; i < 16; i++) {
-    ret = (int) gh_list_pop(&lists[i]);
-    if (ret != 0)
-      fatal("Ret is bogus for list %d", i);
-  }
-
-  printf("Done with first set\n");
-
-  for(num=24999; num >= 0; num--) {
-    for(i=0; i < 16; i++) {
-      gh_list_prepend(&lists[i], (void *)num);
-    }
-  }
-
-  for(num=25000; num < 50000; num++) {
-    for(i=0; i < 16; i++) {
-      gh_list_append(&lists[i], (void *)num);
-    }
-  }
-
-  for(num=0; num < 50000; num++) {
-    for(i=0; i < 16; i++) {
-      ret = (int) gh_list_pop(&lists[i]);
-      if (ret != num)
-	fatal("prepend_test: Bogus return value %d when expected %d\n", ret, num);
-    }
-  }
-
-  printf("Done with second set\n");
-  for(num=25000; num < 50000; num++) {
-    for(i=0; i < 16; i++) {
-      gh_list_append(&lists[i], (void *)num);
-    }
-  }
-
-  for(num=24999; num >= 0; num--) {
-    for(i=0; i < 16; i++) {
-      gh_list_prepend(&lists[i], (void *)num);
-    }
-  }
-
-  for(num=0; num < 50000; num++) {
-    for(i=0; i < 16; i++) {
-      ret = (int) gh_list_pop(&lists[i]);
-      if (ret != num)
-	fatal("prepend_test: Bogus return value %d when expected %d\n", ret, num);
-    }
-  }
-
-  printf("Done with third set ...\n");
-
-  for(num=24999; num >= 0; num--) {
-    for(i=0; i < 16; i++) {
-      gh_list_prepend(&lists[i], (void *)num);
-    }
-  }
-
-  for(num=25000; num < 50000; num++) {
-    for(i=0; i < 16; i++) {
-      gh_list_append(&lists[i], (void *)num);
-    }
-  }
-
-  for(i=0; i < 16; i++) {
-    num=0;
-    for(current = GH_LIST_FIRST_ELEM(&lists[i]); current;
-	current = next) {
-      next = GH_LIST_ELEM_NEXT(current);
-      if ((int)GH_LIST_ELEM_DATA(current) != num)
-	fatal("Got %d when I expected %d\n", (int)GH_LIST_ELEM_DATA(current), num);
-      gh_list_remove_elem(&lists[i], current);
-      num++;
-    }
-    if (num != 50000)
-      fatal("Number is %d, even though %d was expected", num, 50000);
-
-    if (GH_LIST_COUNT(&lists[i]) != 0) {
-      fatal("List should be empty, but instead it has %d members!\n", GH_LIST_COUNT(&lists[i]));
-    }
-  }
-
-  printf("Done with fourth set, freeing buffers\n");
-  for(i=0; i < 16; i++) {
-    gh_list_free(&lists[i]);
-  }
-}
-#endif /* GH_LIST_MAIN */
 
 static inline struct gh_list_elem *get_free_buffer(struct gh_list *list) {
   struct gh_list_elem *newelem;

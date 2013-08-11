@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -35,17 +35,18 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -55,9 +56,10 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_pool.c 29929 2012-10-03 15:43:16Z david $ */
+/* $Id: nsock_pool.c 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #include "nsock_internal.h"
+#include "nsock_log.h"
 #include "gh_list.h"
 #include "netutils.h"
 
@@ -116,29 +118,6 @@ void *nsp_getud(nsock_pool nsp) {
   return mt->userdata;
 }
 
-/* Sets a trace/debug level and stream.  A level of 0 (the default) turns
- * tracing off, while higher numbers are more verbose.  If the stream given is
- * NULL, it defaults to stdout.  This is generally only used for debugging
- * purposes. A level of 1 or 2 is usually sufficient, but 10 will ensure you get
- * everything.  The basetime can be NULL to print trace lines with the current
- * time, otherwise the difference between the current time and basetime will be
- * used (the time program execution starts would be a good candidate) */
-void nsp_settrace(nsock_pool nsp, FILE *file, int level, const struct timeval *basetime) {
-  mspool *mt = (mspool *)nsp;
-
-  if (file == NULL)
-    mt->tracefile = stdout;
-  else
-    mt->tracefile = file;
-
-  mt->tracelevel = level;
-
-  if (!basetime)
-    memset(&mt->tracebasetime, 0, sizeof(struct timeval));
-  else
-    mt->tracebasetime = *basetime;
-}
-
 /* Turns on or off broadcast support on new sockets. Default is off (0, false)
  * set in nsp_new(). Any non-zero (true) value sets SO_BROADCAST on all new
  * sockets (value of optval will be used directly in the setsockopt() call */
@@ -170,14 +149,16 @@ nsock_pool nsp_new(void *userdata) {
   memset(nsp, 0, sizeof(*nsp));
 
   gettimeofday(&nsock_tod, NULL);
-  nsp_settrace(nsp, NULL, 0, NULL);
+
+  nsp->loglevel = NSOCK_LOG_ERROR;
+  nsp->logger   = (nsock_logger_t)nsock_stderr_logger;
 
   nsp->id = nsp_next_id++;
 
   nsp->userdata = userdata;
 
   nsp->engine = get_io_engine();
-  nsp->engine->init(nsp);
+  nsock_engine_init(nsp);
 
   /* initialize IO events lists */
   gh_list_init(&nsp->connect_events);
@@ -203,6 +184,8 @@ nsock_pool nsp_new(void *userdata) {
 #if HAVE_OPENSSL
   nsp->sslctx = NULL;
 #endif
+
+  nsp->px_chain = NULL;
 
   return (nsock_pool)nsp;
 }
@@ -271,7 +254,7 @@ void nsp_delete(nsock_pool ms_pool) {
   gh_list_free(&nsp->free_iods);
   gh_list_free(&nsp->free_events);
 
-  nsp->engine->destroy(nsp);
+  nsock_engine_destroy(nsp);
 
 #if HAVE_OPENSSL
   if (nsp->sslctx != NULL)

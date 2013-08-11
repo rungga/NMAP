@@ -158,7 +158,7 @@ local SMTP_CMD = {
     },
   },
 }
-
+---
 -- Returns a domain to be used in the SMTP commands that need it. If the
 -- user specified one through the script argument <code>smtp.domain</code>
 -- this function will return it. Otherwise it will try to find the domain
@@ -583,6 +583,17 @@ quit = function(socket)
   socket:send("QUIT\r\n")
   socket:close()
 end
+
+--- Attempts to authenticate with the SMTP server. The supported authentication
+--  mechanisms are: LOGIN, PLAIN, CRAM-MD5, DIGEST-MD5 and NTLM.
+--
+-- @param socket connected to server.
+-- @param username SMTP username.
+-- @param password SMTP password.
+-- @param mech Authentication mechanism.
+-- @return true on success, or false on failures.
+-- @return response returned by the SMTP server on success, or an
+--         error message on failures.
 
 login = function(socket, username, password, mech)
 	assert(mech == "LOGIN" or mech == "PLAIN" or mech == "CRAM-MD5" 

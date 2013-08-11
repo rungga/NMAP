@@ -3,7 +3,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -32,17 +32,18 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -52,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: engine_select.c 30099 2012-10-22 04:26:19Z henri $ */
+/* $Id: engine_select.c 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #ifndef WIN32
 #include <sys/select.h>
@@ -61,39 +62,10 @@
 #include <errno.h>
 
 #include "nsock_internal.h"
+#include "nsock_log.h"
 
 #if HAVE_PCAP
 #include "nsock_pcap.h"
-#endif
-
-#ifdef WIN32
-#define CHECKED_FD_SET FD_SET
-#else
-#define CHECKED_FD_SET(fd, set) \
-  do { \
-    if ((fd) < FD_SETSIZE) { \
-      FD_SET((fd), (set)); \
-    } else { \
-      fatal("%s:%ld: Attempt to FD_SET fd %d, which is not less than" \
-        " FD_SETSIZE (%d). Try using a lower parallelism.", \
-        __FILE__, __LINE__, (fd), FD_SETSIZE); \
-    } \
-  } while (0)
-#endif
-
-#ifdef WIN32
-#define CHECKED_FD_CLR FD_CLR
-#else
-#define CHECKED_FD_CLR(fd, set) \
-  do { \
-    if ((fd) < FD_SETSIZE) { \
-      FD_CLR((fd), (set)); \
-    } else { \
-      fatal("%s:%ld: Attempt to FD_CLR fd %d, which is not less than" \
-        " FD_SETSIZE (%d). Try using a lower parallelism.", \
-        __FILE__, __LINE__, (fd), FD_SETSIZE); \
-    } \
-  } while (0)
 #endif
 
 
@@ -280,8 +252,7 @@ int select_loop(mspool *nsp, int msec_timeout) {
     return 0; /* No need to wait on 0 events ... */
 
   do {
-    if (nsp->tracelevel > 6)
-      nsock_trace(nsp, "wait_for_events");
+    nsock_log_debug_all(nsp, "wait for events");
 
     if (nsp->next_ev.tv_sec == 0)
       event_msecs = -1; /* None of the events specified a timeout */
@@ -342,7 +313,7 @@ int select_loop(mspool *nsp, int msec_timeout) {
   } while (results_left == -1 && sock_err == EINTR); /* repeat only if signal occurred */
 
   if (results_left == -1 && sock_err != EINTR) {
-    nsock_trace(nsp, "nsock_loop error %d: %s", sock_err, socket_strerror(sock_err));
+    nsock_log_error(nsp, "nsock_loop error %d: %s", sock_err, socket_strerror(sock_err));
     nsp->errnum = sock_err;
     return -1;
   }

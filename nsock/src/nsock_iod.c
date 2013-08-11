@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -35,17 +35,18 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -55,10 +56,11 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_iod.c 29169 2012-07-09 16:45:49Z henri $ */
+/* $Id: nsock_iod.c 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
+#include "nsock_log.h"
 #include "gh_list.h"
 #include "netutils.h"
 
@@ -67,6 +69,7 @@
 #endif
 
 #include <string.h>
+    
 
 /* nsock_iod is like a "file descriptor" for the nsock library. You use it to
  * request events. And here is how you create an nsock_iod. nsi_new returns
@@ -135,6 +138,12 @@ nsock_iod nsi_new2(nsock_pool nsockp, int sd, void *userdata) {
   nsi->ssl_session = NULL;
 #endif
 
+  if (nsp->px_chain) {
+    nsi->px_ctx = proxy_chain_context_new(nsp);
+  } else {
+    nsi->px_ctx = NULL;
+  }
+
   nsi->id = nsp->next_iod_serial++;
   if (nsi->id == 0)
     nsi->id = nsp->next_iod_serial++;
@@ -142,8 +151,7 @@ nsock_iod nsi_new2(nsock_pool nsockp, int sd, void *userdata) {
   /* The nsp keeps track of active msiods so it can delete them if it is deleted */
   nsi->entry_in_nsp_active_iods = gh_list_append(&nsp->active_iods, nsi);
 
-  if (nsp->tracelevel > 1)
-    nsock_trace(nsp, "nsi_new (IOD #%lu)", nsi->id);
+  nsock_log_info(nsp, "nsi_new (IOD #%lu)", nsi->id);
 
   return (nsock_iod)nsi;
 }
@@ -174,8 +182,7 @@ void nsi_delete(nsock_iod nsockiod, int pending_response) {
     return;
   }
 
-  if (nsi->nsp->tracelevel > 1)
-    nsock_trace(nsi->nsp, "nsi_delete (IOD #%lu)", nsi->id);
+  nsock_log_info(nsi->nsp, "nsi_delete (IOD #%lu)", nsi->id);
 
   if (nsi->events_pending > 0) {
     /* shit -- they killed the msiod while an event was still pending on it.
@@ -198,8 +205,10 @@ void nsi_delete(nsock_iod nsockiod, int pending_response) {
 
     for (i = 0; i < 3 && nsi->events_pending > 0; i++) {
       for (current = evlist_ar[i]; current != NULL; current = next) {
+        msevent *nse;
+
         next = GH_LIST_ELEM_NEXT(current);
-        msevent *nse = (msevent *)GH_LIST_ELEM_DATA(current);
+        nse = (msevent *)GH_LIST_ELEM_DATA(current);
 
         /* we're done with this list of events for the current IOD */
         if (nse->iod != nsi)
@@ -231,10 +240,8 @@ void nsi_delete(nsock_iod nsockiod, int pending_response) {
 #endif
 
     if (SSL_shutdown(nsi->ssl) == -1) {
-
-      if (nsi->nsp->tracelevel > 1)
-        nsock_trace(nsi->nsp, "nsi_delete: SSL shutdown failed (%s) on NSI %li",
-                    ERR_reason_error_string(SSL_get_error(nsi->ssl, -1)), nsi->id);
+      nsock_log_info(nsi->nsp, "nsi_delete: SSL shutdown failed (%s) on NSI %li",
+                     ERR_reason_error_string(SSL_get_error(nsi->ssl, -1)), nsi->id);
     }
 
     /* I don't really care if the SSL_shutdown() succeeded politely. I could
@@ -276,6 +283,9 @@ void nsi_delete(nsock_iod nsockiod, int pending_response) {
     nsi->pcap = NULL;
   }
 #endif
+
+  if (nsi->px_ctx)
+    proxy_chain_context_delete(nsi->px_ctx);
 }
 
 /* Returns the ID of an nsock_iod . This ID is always unique amongst ids for a

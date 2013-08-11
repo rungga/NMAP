@@ -39,6 +39,7 @@ through all valid ethernet interfaces simultaneously.
 --
 -- @args broadcast-eigrp-discovery.kparams the K metrics. 
 -- Defaults to <code>101000</code>.
+-- @args broadcast-eigrp-discovery.interface Interface to send on (overrides -e)
 --
 --@output
 -- Pre-scan script results:
@@ -196,11 +197,11 @@ action = function()
     -- Get script arguments
     local as = stdnse.get_script_args(SCRIPT_NAME .. ".as")
     local kparams = stdnse.get_script_args(SCRIPT_NAME .. ".kparams") or "101000"
-    local timeout = stdnse.get_script_args(SCRIPT_NAME .. ".timeout") or 10
+    local timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. ".timeout"))
     local interface = stdnse.get_script_args(SCRIPT_NAME .. ".interface")
     local output, responses, interfaces, lthreads = {}, {}, {}, {}
     local result, response, route, eigrp_hello, k
-    local timeout = timeout * 1000
+    local timeout = (timeout or 10) * 1000
 
     -- K params should be of length 6
     -- Cisco routers ignore eigrp packets that don't have matching K parameters

@@ -14,10 +14,10 @@
  * SOFTWARE.
  */
 
-/* Modified by Fyodor (fyodor@insecure.org) for inclusion in the Nmap 
+/* Modified by Fyodor (fyodor@nmap.org) for inclusion in the Nmap 
  * Security Scanner.
  *
- * $Id: inet_ntop.c 5538 2007-08-14 06:46:54Z kris $
+ * $Id: inet_ntop.c 30370 2012-12-10 01:34:21Z fyodor $
  */
 
 #include "nbase.h"

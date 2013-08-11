@@ -9,58 +9,90 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
+ *                                                                         *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
+ * permission to link the code of this program with any version of the     *
+ * OpenSSL library which is distributed under a license identical to that  *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two.                                  *
+ *                                                                         *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the special and conditions of the license text as well.       *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
  * continued development of Nmap.  Please email sales@insecure.com for     *
  * further information.                                                    *
- *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
  *                                                                         *
  * If you received these files with a written license agreement or         *
  * contract stating terms other than the terms above, then that            *
@@ -73,8 +105,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -88,14 +120,13 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.cc 30306 2012-11-29 03:19:52Z david $ */
+/* $Id: output.cc 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #include "nmap.h"
 #include "output.h"
@@ -397,16 +428,18 @@ int print_iflist(void) {
     if (o.debugging)
       log_write(LOG_STDOUT, "Reason: %s\n", errstr);
   } else {
-    int dstcol = 0, devcol = 1, gwcol = 2;
-    Tbl = new NmapOutputTable(numroutes + 1, 3);
+    int dstcol = 0, devcol = 1, metcol = 2, gwcol = 3;
+    Tbl = new NmapOutputTable(numroutes + 1, 4);
     Tbl->addItem(0, dstcol, false, "DST/MASK", 8);
     Tbl->addItem(0, devcol, false, "DEV", 3);
+    Tbl->addItem(0, metcol, false, "METRIC", 6);
     Tbl->addItem(0, gwcol, false, "GATEWAY", 7);
     for (i = 0; i < numroutes; i++) {
       nbits = routes[i].netmask_bits;
       Tbl->addItemFormatted(i + 1, dstcol, false, "%s/%d",
       	inet_ntop_ez(&routes[i].dest, sizeof(routes[i].dest)), nbits);
       Tbl->addItem(i + 1, devcol, false, routes[i].device->devfullname);
+      Tbl->addItemFormatted(i + 1, metcol, false, "%d", routes[i].metric);
       if (!sockaddr_equal_zero(&routes[i].gw))
         Tbl->addItem(i + 1, gwcol, true, inet_ntop_ez(&routes[i].gw, sizeof(routes[i].gw)));
     }
@@ -445,6 +478,12 @@ static std::string escape_for_screen(const std::string s) {
 std::string protect_xml(const std::string s) {
   /* escape_for_screen is good enough. */
   return escape_for_screen(s);
+}
+
+/* This is a helper function to determine the ordering of the script results
+   based on their id. */
+static bool scriptid_lessthan(ScriptResult a, ScriptResult b) {
+  return strcmp(a.get_id(), b.get_id()) < 0;
 }
 
 static char *formatScriptOutput(ScriptResult sr) {
@@ -753,7 +792,7 @@ void printportoutput(Target *currenths, PortList *plist) {
             p++;
           }
         }
-        log_write(LOG_MACHINE, "%d/%s/%s//%s/%s/", current->portno,
+        log_write(LOG_MACHINE, "%d/%s/%s//%s//%s/", current->portno,
                   state, protocol, serviceinfo, grepvers);
 
         xml_open_start_tag("port");
@@ -779,7 +818,7 @@ void printportoutput(Target *currenths, PortList *plist) {
         if (o.script) {
           ScriptResults::const_iterator ssr_iter;
           //Sort the results before outputing them on the screen
-          current->scriptResults.sort(comparescriptids);
+          current->scriptResults.sort(scriptid_lessthan);
           for (ssr_iter = current->scriptResults.begin();
                ssr_iter != current->scriptResults.end(); ssr_iter++) {
             ssr_iter->write_xml();
@@ -1960,7 +1999,7 @@ void printosscanoutput(Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3877 -- please report to fyodor@insecure.org\n");
+        fatal("STRANGE ERROR #3877 -- please report to fyodor@nmap.org\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%X", currenths->seq.seqs[i]);
@@ -1984,7 +2023,7 @@ void printosscanoutput(Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3876 -- please report to fyodor@insecure.org\n");
+        fatal("STRANGE ERROR #3876 -- please report to fyodor@nmap.org\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%hX", currenths->seq.ipids[i]);
@@ -2005,7 +2044,7 @@ void printosscanoutput(Target *currenths) {
     p = numlst;
     for (i = 0; i < currenths->seq.responses; i++) {
       if (p - numlst > (int) (sizeof(numlst) - 15))
-        fatal("STRANGE ERROR #3877 -- please report to fyodor@insecure.org\n");
+        fatal("STRANGE ERROR #3878 -- please report to fyodor@nmap.org\n");
       if (p != numlst)
         *p++ = ',';
       sprintf(p, "%X", currenths->seq.timestamps[i]);
@@ -2170,22 +2209,16 @@ void printscriptresults(ScriptResults *scriptResults, stype scantype) {
   char *script_output;
 
   if (scriptResults->size() > 0) {
-      // No sense sorting if we don't need too
-      scriptResults->sort(comparescriptids);
-      if (scantype == SCRIPT_PRE_SCAN) {
+    scriptResults->sort(scriptid_lessthan);
+    if (scantype == SCRIPT_PRE_SCAN) {
       xml_start_tag("prescript");
       log_write(LOG_PLAIN, "Pre-scan script results:\n");
-    }
-    else {
+    } else {
       xml_start_tag("postscript");
       log_write(LOG_PLAIN, "Post-scan script results:\n");
     }               
-
-    for (iter = scriptResults->begin();
-         iter != scriptResults->end();
-         iter++) {
+    for (iter = scriptResults->begin(); iter != scriptResults->end(); iter++) {
       iter->write_xml();
-
       script_output = formatScriptOutput((*iter));
       if (script_output != NULL) {
         log_write(LOG_PLAIN, "%s\n", script_output);
@@ -2201,8 +2234,7 @@ void printhostscriptresults(Target *currenths) {
   char *script_output;
 
   if (currenths->scriptResults.size() > 0) {
-    //no point sorting an empty list
-    currenths->scriptResults.sort(comparescriptids);
+    currenths->scriptResults.sort(scriptid_lessthan);
     xml_start_tag("hostscript");
     log_write(LOG_PLAIN, "\nHost script results:\n");
     for (iter = currenths->scriptResults.begin();
@@ -2613,17 +2645,42 @@ void printdatafilepaths() {
   }
 }
 
-/*This is a helper function to determine the ordering of the script results
-  based on their id */
-bool comparescriptids(ScriptResult first, ScriptResult second){
-    //Pull the two id fields out for comparison
-    std::string firstid(first.get_id());
-    std::string secondid(second.get_id());
-
-    if (firstid < secondid)
-        return true;
-    else
-        return false;
+static inline const char *nslog2str(nsock_loglevel_t loglevel) {
+  switch(loglevel) {
+    case NSOCK_LOG_DBG_ALL:
+      return "DEBUG FULL";
+    case NSOCK_LOG_DBG:
+      return "DEBUG";
+    case NSOCK_LOG_INFO:
+      return "INFO";
+    case NSOCK_LOG_ERROR:
+      return "ERROR";
+    default:
+      return "???";
+  };
 }
 
+void nmap_adjust_loglevel(nsock_pool nsp, bool trace) {
+  nsock_loglevel_t nsock_loglevel;
+
+  if (o.debugging >= 7)
+    nsock_loglevel = NSOCK_LOG_DBG_ALL;
+  else if (o.debugging >= 4)
+    nsock_loglevel = NSOCK_LOG_DBG;
+  else if (trace || o.debugging >= 2)
+    nsock_loglevel = NSOCK_LOG_INFO;
+  else
+    nsock_loglevel = NSOCK_LOG_ERROR;
+
+  nsock_set_loglevel(nsp, nsock_loglevel);
+}
+
+void nmap_nsock_stderr_logger(nsock_pool nsp, const struct nsock_log_rec *rec) {
+  int elapsed_time;
+
+  elapsed_time = TIMEVAL_MSEC_SUBTRACT(rec->time, *(o.getStartTime()));
+
+  log_write(LOG_STDERR, "NSOCK %s [%.4fs] %s(): %s\n", nslog2str(rec->level),
+            elapsed_time/1000.0, rec->func, rec->msg);
+}
 

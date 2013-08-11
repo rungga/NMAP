@@ -64,9 +64,10 @@ Interesting post about this vuln:
 -- |       http://seclists.org/oss-sec/2012/q2/493
 -- |_      http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-2122
 --
--- @args mysql-cve2012-2122.user MySQL username. Default: root.
--- @args mysql-cve2012-2122.iterations Connection retries. Default: 1500.
--- @args mysql-cve2012-2122.socket_timeout Socket timeout. Default: 5000.
+-- @args mysql-vuln-cve2012-2122.user MySQL username. Default: root.
+-- @args mysql-vuln-cve2012-2122.pass MySQL password. Default: nmapFTW.
+-- @args mysql-vuln-cve2012-2122.iterations Connection retries. Default: 1500.
+-- @args mysql-vuln-cve2012-2122.socket_timeout Socket timeout. Default: 5s.
 ---
 
 local mysql = require "mysql"
@@ -120,7 +121,8 @@ basically account password protection is as good as nonexistent.
   local mysql_user = stdnse.get_script_args(SCRIPT_NAME..".user") or "root"
   local mysql_pwd = stdnse.get_script_args(SCRIPT_NAME..".pass") or "nmapFTW"
   local iterations = stdnse.get_script_args(SCRIPT_NAME..".iterations") or 1500
-  local conn_timeout = stdnse.get_script_args(SCRIPT_NAME..".socket_timeout") or 5000	
+  local conn_timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME..".socket_timeout"))
+  conn_timeout = (conn_timeout or 5) * 1000
 
   socket:set_timeout(conn_timeout)
 

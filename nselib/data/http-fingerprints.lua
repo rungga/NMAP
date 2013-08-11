@@ -64,7 +64,7 @@ local table = require "table"
 -- captures can be used with \1, \2, etc.
 --
 --
--- If you have any questions, feel free to email nmap-dev@insecure.org or contact Ron Bowes!
+-- If you have any questions, feel free to email dev@nmap.org or contact Ron Bowes!
 --
 -- CHANGELOG:
 -- Added 120 new signatures taken from exploit-db.com archives from July 2009 to July 2011 [Paulino Calderon]
@@ -3415,6 +3415,31 @@ table.insert(fingerprints, {
     category = 'general',
     probes = {
       {
+        path = '/appServer/jvmReport.jsf?instanceName=server&pageTitle=JVM%20Report',
+        method = 'HEAD'
+      },
+      {
+        path = '/common/appServer/jvmReport.jsf?pageTitle=JVM%20Report',
+        method = 'HEAD'
+      },
+      {
+        path = '/common/appServer/jvmReport.jsf?reportType=summary&instanceName=server',
+        method = 'HEAD'
+      }
+   },
+    matches = {
+      {
+        match = '',
+        output = 'Oracle GlashFish Server Information'
+      }
+    }
+  });
+
+
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
         path = '/login_img.jpg',
         method = 'HEAD'
       }
@@ -4276,6 +4301,46 @@ table.insert(fingerprints, {
 ------------------------------------------------
 -- These checks will find specific installed software. If possible, it will also
 -- find versions, etc.
+
+table.insert(fingerprints, {
+    category = 'security',
+    probes = {
+    {
+        path = '/CSS/Miniweb.css',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = 'ad_header_form_sprachauswahl',
+        output = 'SCADA Siemens SIMATIC S7'
+      }
+    }
+  });
+
+table.insert(fingerprints, {
+    category = 'security',
+    probes = {
+      {
+        path = '/S7Web.css',
+        method = 'GET'
+      },
+      {
+        path = '/Portal0000.htm',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '<td class="Title_Area_Name">(.-)</td>',
+        output = 'SCADA Siemens PCS7: \\1'
+      },
+      {
+        match = '',
+        output = 'SCADA Siemens PCS7'
+      }
+    }
+  });
 
 table.insert(fingerprints, {
     category = 'security',
@@ -6702,6 +6767,79 @@ table.insert(fingerprints, {
       }
     }
   });
+
+table.insert(fingerprints, {
+    category = 'attacks',
+    probes = {
+      {
+        path = '/index.php?option=com_jce&task=plugin&plugin=imgmanager&file=imgmanager&version=1576&cid=20',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '2.0.11</title',
+        output = 'Joomla JCE Extension 2.0.11 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.12</title',
+        output = 'Joomla JCE Extension 2.0.12 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.13</title',
+        output = 'Joomla JCE Extension 2.0.13 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.14</title',
+        output = 'Joomla JCE Extension 2.0.14 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.15</title',
+        output = 'Joomla JCE Extension 2.0.11 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.10</title',
+        output = 'Joomla JCE Extension 1.5.7.10 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.10</title',
+        output = 'Joomla JCE Extension 1.5.7.10 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.11</title',
+        output = 'Joomla JCE Extension 1.5.7.11 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.12</title',
+        output = 'Joomla JCE Extension 1.5.7.12 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.13</title',
+        output = 'Joomla JCE Extension 1.5.7.13 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.14</title',
+        output = 'Joomla JCE Extension 1.5.7.14 Remote Code Execution vulnerability'
+      }
+   }
+  });
+
+table.insert(fingerprints, {
+    category = 'attacks',
+    probes = {
+      {
+        path = '/d41d8cd98f00b204e9800998ecf8427e.php',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '200',
+        output = 'Seagate BlackArmorNAS 110/220/440 Administrator Password Reset Vulnerability'
+      }
+    }
+  });
+
 ------------------------------------------------
 ----        Open Source CMS checks          ----
 ------------------------------------------------
@@ -7946,6 +8084,165 @@ table.insert(fingerprints, {
     }
   });
 
+-- Moodle
+table.insert(fingerprints, {
+    category = 'cms',
+    probes = {
+      {
+        path = '/pix/moodlelogo.gif',
+        method = 'HEAD'
+      },
+      {
+        path = '/admin/environment.xml',
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = '',
+        output = 'Moodle files'
+      }
+    }
+  });
+
+-- typo3
+table.insert(fingerprints, {
+    category = 'cms',
+    probes = {
+      {
+        path = '/typo3/index.php',
+        method = 'GET'
+      },
+      {
+        path = '/typo3/README.txt',
+        method = 'GET'
+      },
+      {
+        path = '/t3lib/README.txt',
+        method = 'GET'
+      },
+      {
+        path = '/typo3/sysext/t3skin/images/login/typo3logo-white-greyback.gif',
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = 'Login to the TYPO3',
+        output = 'Typo3 login page'
+      },
+      {
+        match = 'TYPO3 Backend Administration',
+        output = 'Typo3 readme file'
+      },
+      {
+        match = 'TYPO3 Library',
+        output = 'Typo3 Library readme'
+      },
+      {
+        match = '',
+        output = 'Typo3 Installation'
+      },
+    }
+  });
+
+------------------------------------------------
+----                 MAIL                   ----
+------------------------------------------------
+
+-- SquirrelMail
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/squirrelmail/src/login.php',  -- Might return login page with version info
+        method = 'GET'
+      },
+      {
+        path = '/webmail/src/login.php',  -- Might return login page with version info
+        method = 'GET'
+      },
+      {
+        path = '/src/login.php',  -- Might return login page with version info
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '<small>([^<]*)<br />',  -- version extraction (squirrelMail)
+        output = '\\1'
+      },
+      {
+        match = 'squirrelmail',
+        output = 'SquirrelMail'
+      }
+    }
+  });
+
+-- SquirrelMail files
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/squirrelmail/images/sm_logo.png',  -- Standard logo file
+        method = 'HEAD'
+      },
+      {
+        path = '/webmail/images/sm_logo.png',   -- Standard logo file
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = '',
+        output = 'SquirrelMail'
+      }
+    }
+  });
+
+-- RoundCube
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/',
+        method = 'GET'
+      },
+      {
+        path = '/program/',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '<title>Index of /program</title>',
+        output = 'RoundCube (Directory listing)'
+      },
+      {
+        match = 'rcube_webmail', -- RoundCube
+        output = 'RoundCube'
+      },
+    }
+  });
+
+-- RoundCube file
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/skins/default/images/roundcube_logo.png',  -- Standard logo file
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = '',
+        output = 'RoundCube'
+      }
+    }
+  });
+
+
 ------------------------------------------------
 ----           UNCATEGORIZED                ----
 ------------------------------------------------
@@ -8030,12 +8327,45 @@ table.insert(fingerprints, {
 ----    MISCELLANEOUS ITEMS OF INTEREST     ----
 ------------------------------------------------
 
+-- Moodle files
+table.insert(fingerprints, {
+    category = 'miscellaneous',
+    probes = {
+      {
+        path = '/lib/db/install.xml'
+      },
+      {
+        path = '/lib/thirdpartylibs.xml'
+      },
+      {
+        path = '/local/readme.txt'
+      }
+    },
+    matches = {
+      {
+        match = 'XMLDB file for core Moodle tables',
+        output = 'Moodle db installation file'
+      },
+      {
+        match = '<libraries>',
+        output = 'Moodle thirdpartylibs.xml'
+      },
+      {
+        match = 'This file is part of Moodle',
+        output = 'Moodle local/readme.txt'
+      }
+    }
+  });
+
 -- interesting README  files
 table.insert(fingerprints, {
     category = 'miscellaneous',
     probes = {
       {
         path = '/README'
+      },
+      {
+        path = '/README.txt'
       },
       {
         path = '/xoda/README'
@@ -11418,8 +11748,9 @@ table.insert(fingerprints, {
     }
   });
 
+-- Sitecore Version
 table.insert(fingerprints, {
-    category = 'general',
+    category = 'cms',
     probes = {
       {
         path = '/sitecore/shell/sitecore.version.xml',
@@ -11442,6 +11773,60 @@ table.insert(fingerprints, {
       {
         match = '<hr/>.*Sitecore version ([^<]*)</div>',
         output = '\\1'
+      },
+      {
+        match = '',
+        output = 'Sitecore.NET login page'
       }
     }
+  });
+
+-- Sitecore
+table.insert(fingerprints, {
+    category = 'cms',
+    probes = {
+      {
+        path = '/sitecore/admin/stats.aspx', -- Removed in version 6.3.1 (rev. 110112)
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/admin/unlock_admin.aspx', -- disabled per default in 6.2.0 (rev.100507) 
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/shell/Applications/shell.xml',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/admin/ShowConfig.aspx',
+        method = 'HEAD'
+      },
+      {
+        path = '/App_Config/Security/Domains.config.xml',
+        method = 'HEAD'
+      },
+      {
+        path = '/App_Config/Security/GlobalRoles.config.xml',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore%20modules/staging/service/api.asmx',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore%20modules/staging/workdir',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/system/Settings/Security/Profiles',
+        method = 'HEAD'
+      },
+
+    },
+    matches = {
+      {
+        match = '',
+        output = 'Sitecore.NET (CMS)'
+      }
+    },
   });

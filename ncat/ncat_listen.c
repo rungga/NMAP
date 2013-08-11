@@ -2,58 +2,90 @@
  * ncat_listen.c -- --listen mode.                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
+ *                                                                         *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
+ * permission to link the code of this program with any version of the     *
+ * OpenSSL library which is distributed under a license identical to that  *
+ * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
+ * linked combinations including the two.                                  *
+ *                                                                         *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the special and conditions of the license text as well.       *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
  * continued development of Nmap.  Please email sales@insecure.com for     *
  * further information.                                                    *
- *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
  *                                                                         *
  * If you received these files with a written license agreement or         *
  * contract stating terms other than the terms above, then that            *
@@ -66,8 +98,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -81,18 +113,16 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.c 30322 2012-11-29 19:38:48Z david $ */
+/* $Id: ncat_listen.c 31563 2013-07-28 22:08:48Z fyodor $ */
 
 #include "ncat.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
@@ -184,7 +214,7 @@ static int get_conn_count(void)
         conn_dec_changed = 0;
         count = conn_inc - conn_dec;
     } while (conn_dec_changed);
-    assert(count <= INT_MAX);
+    ncat_assert(count <= INT_MAX);
 
     return count;
 }
@@ -201,6 +231,8 @@ static int ncat_listen_stream(int proto)
 {
     int rc, i, fds_ready;
     fd_set listen_fds;
+    struct timeval tv;
+    struct timeval *tvp = NULL;
 
     /* clear out structs */
     FD_ZERO(&master_readfds);
@@ -256,6 +288,9 @@ static int ncat_listen_stream(int proto)
 
     init_fdlist(&broadcast_fdlist, o.conn_limit);
 
+    if (o.idletimeout > 0)
+        tvp = &tv;
+
     while (1) {
         /* We pass these temporary descriptor sets to fselect, since fselect
            modifies the sets it receives. */
@@ -268,10 +303,16 @@ static int ncat_listen_stream(int proto)
         if (o.debug > 1 && o.broker)
             logdebug("Broker connection count is %d\n", get_conn_count());
 
-        fds_ready = fselect(client_fdlist.fdmax + 1, &readfds, &writefds, NULL, NULL);
+        if (o.idletimeout > 0)
+            ms_to_timeval(tvp, o.idletimeout);
+
+        fds_ready = fselect(client_fdlist.fdmax + 1, &readfds, &writefds, NULL, tvp);
 
         if (o.debug > 1)
             logdebug("select returned %d fds ready\n", fds_ready);
+
+        if (fds_ready == 0)
+            bye("Idle timeout expired (%d ms).", o.idletimeout);
 
         /*
          * FIXME: optimize this loop to look only at the fds in the fd list,
@@ -293,6 +334,7 @@ static int ncat_listen_stream(int proto)
                 FD_CLR(i, &master_readfds);
                 FD_CLR(i, &master_writefds);
                 fdi = get_fdinfo(&client_fdlist, i);
+                ncat_assert(fdi != NULL);
                 switch (ssl_handshake(fdi)) {
                 case NCAT_SSL_HANDSHAKE_COMPLETED:
                     /* Clear from sslpending_fds once ssl is established */
@@ -332,7 +374,7 @@ static int ncat_listen_stream(int proto)
                     /* Read from stdin and write to all clients. */
                     rc = read_stdin();
                     if (rc == 0) {
-                        if (o.sendonly) {
+                        if (o.proto != IPPROTO_TCP || (o.proto == IPPROTO_TCP && o.sendonly)) {
                             /* There will be nothing more to send. If we're not
                                receiving anything, we can quit here. */
                             return 0;
@@ -535,7 +577,7 @@ int read_socket(int recv_fd)
     int nbytes, pending;
 
     fdn = get_fdinfo(&client_fdlist, recv_fd);
-    assert(fdn != NULL);
+    ncat_assert(fdn != NULL);
 
     nbytes = 0;
     do {
@@ -585,6 +627,8 @@ static int ncat_listen_dgram(int proto)
     fd_set read_fds;
     union sockaddr_u remotess;
     socklen_t sslen = sizeof(remotess.storage);
+    struct timeval tv;
+    struct timeval *tvp = NULL;
 
     for (i = 0; i < NUM_LISTEN_ADDRS; i++) {
         sockfd[i] = -1;
@@ -619,6 +663,9 @@ static int ncat_listen_dgram(int proto)
         add_fd(&listen_fdlist, sockfd[i]);
     }
 
+    if (o.idletimeout > 0)
+        tvp = &tv;
+
     while (1) {
         int i, j, conn_count, socket_n;
 
@@ -644,11 +691,17 @@ static int ncat_listen_dgram(int proto)
             if (o.debug > 1)
                 logdebug("selecting, fdmax %d\n", listen_fdlist.fdmax);
             fds = listen_fds;
-            fds_ready = fselect(listen_fdlist.fdmax + 1, &fds, NULL, NULL, NULL);
+
+            if (o.idletimeout > 0)
+                ms_to_timeval(tvp, o.idletimeout);
+
+            fds_ready = fselect(listen_fdlist.fdmax + 1, &fds, NULL, NULL, tvp);
 
             if (o.debug > 1)
                 logdebug("select returned %d fds ready\n", fds_ready);
 
+            if (fds_ready == 0)
+                bye("Idle timeout expired (%d ms).", o.idletimeout);
 
             /*
              * Figure out which listening socket got a connection. This loop should
@@ -756,7 +809,13 @@ static int ncat_listen_dgram(int proto)
             if (o.debug > 1)
                 logdebug("udp select'ing\n");
 
-            fds_ready = fselect(fdmax + 1, &fds, NULL, NULL, NULL);
+            if (o.idletimeout > 0)
+                ms_to_timeval(tvp, o.idletimeout);
+
+            fds_ready = fselect(fdmax + 1, &fds, NULL, NULL, tvp);
+
+            if (fds_ready == 0)
+                bye("Idle timeout expired (%d ms).", o.idletimeout);
 
             if (FD_ISSET(STDIN_FILENO, &fds)) {
                 nbytes = Read(STDIN_FILENO, buf, sizeof(buf));
@@ -808,7 +867,7 @@ int ncat_listen()
 {
 #if HAVE_SYS_UN_H
     if (o.af == AF_UNIX)
-        if (o.udp)
+        if (o.proto == IPPROTO_UDP)
             return ncat_listen_dgram(0);
         else
             return ncat_listen_stream(0);
@@ -816,12 +875,14 @@ int ncat_listen()
 #endif
     if (o.httpserver)
         return ncat_http_server();
-    else if (o.udp)
-        return ncat_listen_dgram(IPPROTO_UDP);
-    else if (o.sctp)
-        return ncat_listen_stream(IPPROTO_SCTP);
+    else if (o.proto == IPPROTO_UDP)
+        return ncat_listen_dgram(o.proto);
+    else if (o.proto == IPPROTO_SCTP)
+        return ncat_listen_stream(o.proto);
+    else if (o.proto == IPPROTO_TCP)
+        return ncat_listen_stream(o.proto);
     else
-        return ncat_listen_stream(IPPROTO_TCP);
+        bye("Unknown o.proto %d\n", o.proto);
 
     /* unreached */
     return 1;
@@ -838,7 +899,7 @@ static void read_and_broadcast(int recv_fd)
     int pending;
 
     fdn = get_fdinfo(&client_fdlist, recv_fd);
-    assert(fdn);
+    ncat_assert(fdn != NULL);
 
     /* Loop while ncat_recv indicates data is pending. */
     do {
@@ -943,6 +1004,7 @@ static void shutdown_sockets(int how)
             continue;
 
         fdn = get_fdinfo(&broadcast_fdlist, i);
+        ncat_assert(fdn != NULL);
         shutdown(fdn->fd, how);
     }
 }

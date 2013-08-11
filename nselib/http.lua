@@ -147,21 +147,9 @@ local function table_augment(to, from)
 end
 
 --- Get a value suitable for the Host header field.
+-- See RFC 2616 sections 14.23 and 5.2.
 local function get_host_field(host, port)
-  local hostname = stdnse.get_hostname(host)
-  local portno
-  if port == nil then
-    portno = 80
-  elseif type(port) == "table" then
-    portno = port.number
-  else
-    portno = port
-  end
-  if portno == 80 then
-    return hostname
-  else
-    return hostname .. ":" .. tostring(portno)
-  end
+  return stdnse.get_hostname(host)
 end
 
 -- Skip *( SP | HT ) starting at offset. See RFC 2616, section 2.2.
@@ -1400,28 +1388,29 @@ end
 -- @return url table as returned by <code>url.parse</code> or nil if there's no
 --         redirect taking place
 local function parse_redirect(host, port, path, response)
-  if ( not(tostring(response.status):match("^30[127]$")) or 
+  if ( not(tostring(response.status):match("^30[01237]$")) or
        not(response.header) or
        not(response.header.location) ) then
     return nil
   end
   port = ( "number" == type(port) ) and { number = port } or port
   local u = url.parse(response.header.location)
-  if ( not(u.host) and not(u.scheme) ) then
+  if ( not(u.host) ) then
     -- we're dealing with a relative url
-    u.host, u.port = stdnse.get_hostname(host), port.number
+    u.host = stdnse.get_hostname(host)
     u.path = ((u.path:sub(1,1) == "/" and "" ) or "/" ) .. u.path -- ensuring leading slash
+  end
+  -- do port fixup
+  if ( not(u.port) ) then
+    if ( u.scheme == "http" ) then u.port = 80
+    elseif ( u.scheme == "https") then u.port = 443
+    else u.port = port.number end
   end
   if ( not(u.path) ) then
     u.path = "/"
   end
   if ( u.query ) then
     u.path = ("%s?%s"):format( u.path, u.query )
-  end
-  -- do port fixup
-  if ( not(u.port) ) then
-    if ( u.scheme == "http" ) then u.port = 80 end
-    if ( u.scheme == "https") then u.port = 443 end
   end
   return u
 end
@@ -1448,7 +1437,7 @@ end
 ---Fetches a resource with a GET request and returns the result as a table. This is a simple
 -- wraper around <code>generic_request</code>, with the added benefit of having local caching
 -- and support for HTTP redirects. Redirects are followed only if they pass all the
--- validation rules of the redirect_ok function. This function may be overrided by supplying
+-- validation rules of the redirect_ok function. This function may be overridden by supplying
 -- a custom function in the <code>redirect_ok</code> field of the options array. The default
 -- function redirects the request if the destination is:
 -- * Within the same host or domain
@@ -1526,7 +1515,7 @@ end
 -- wrapper around <code>generic_request</code> with response caching. This function
 -- also has support for HTTP redirects. Redirects are followed only if they pass
 -- all the validation rules of the redirect_ok function. This function may be
--- overrided by supplying a custom function in the <code>redirect_ok</code> field
+-- overridden by supplying a custom function in the <code>redirect_ok</code> field
 -- of the options array. The default function redirects the request if the
 -- destination is:
 -- * Within the same host or domain

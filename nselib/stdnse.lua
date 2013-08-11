@@ -18,11 +18,13 @@ local error = error;
 local getmetatable = getmetatable;
 local ipairs = ipairs
 local pairs = pairs
+local next = next
 local rawset = rawset
 local require = require;
 local select = select
 local setmetatable = setmetatable;
 local tonumber = tonumber;
+local tostring = tostring;
 local type = type
 
 local ceil = math.ceil
@@ -341,6 +343,7 @@ end
 -- @return A number of seconds, or <code>nil</code> followed by an error
 -- message.
 function parse_timespec(timespec)
+  if timespec == nil then return nil, "Can't parse nil timespec" end
   local n, unit, t, m
   local multipliers = {[""] = 1, s = 1, m = 60, h = 60 * 60, ms = 0.001}
 
@@ -432,7 +435,7 @@ end
 -- This function should be used for all dates emitted as part of NSE structured
 -- output.
 function format_timestamp(t, offset)
-  local tz_string tz_string = format_tz(offset)
+  local tz_string = format_tz(offset)
   offset = offset or 0
   return os.date("!%Y-%m-%dT%H:%M:%S", t + offset) .. tz_string
 end
@@ -1130,7 +1133,7 @@ function output_table ()
   end
   local mt = {
     __newindex = function (_, k, v)
-      if t[k] == nil then
+      if t[k] == nil and v ~= nil then
         -- New key?
         table.insert(order, k)
       elseif v == nil then
@@ -1150,8 +1153,78 @@ function output_table ()
     __pairs = function (_)
       return coroutine.wrap(iterator)
     end,
+    __call = function (_) -- hack to mean "not_empty?"
+      return not not next(order)
+    end
   }
   return setmetatable({}, mt)
+end
+
+--- A pretty printer for Lua objects.
+--
+-- Takes an object (usually a table) and prints it using the
+-- printer function. The printer function takes a sole string
+-- argument and will be called repeatedly.
+--
+-- @args obj The object to pretty print.
+-- @args printer The printer function.
+function pretty_printer (obj, printer)
+  if printer == nil then printer = print end
+
+  local function aux (obj, spacing)
+    local t = type(obj)
+    if t == "table" then
+      printer "{\n"
+      for k, v in pairs(obj) do
+        local spacing = spacing.."\t"
+        printer(spacing)
+        printer "["
+        aux(k, spacing)
+        printer "] = "
+        aux(v, spacing)
+        printer ",\n"
+      end
+      printer(spacing.."}")
+    elseif t == "string" then
+      printer(format("%q", obj))
+    else
+      printer(tostring(obj))
+    end
+  end
+
+  return aux(obj, "")
+end
+
+-- This pattern must match the percent sign '%' since it is used in
+-- escaping.
+local FILESYSTEM_UNSAFE = "[^a-zA-Z0-9._-]"
+---
+-- Escape a string to remove bytes and strings that may have meaning to
+-- a filesystem, such as slashes. All bytes are escaped, except for:
+-- * alphabetic <code>a</code>-<code>z</code> and <code>A</code>-<code>Z</code>, digits 0-9, <code>.</code> <code>_</code> <code>-</code>
+-- In addition, the strings <code>"."</code> and <code>".."</code> have
+-- their characters escaped.
+--
+-- Bytes are escaped by a percent sign followed by the two-digit
+-- hexadecimal representation of the byte value.
+-- * <code>filename_escape("filename.ext") --> "filename.ext"</code>
+-- * <code>filename_escape("input/output") --> "input%2foutput"</code>
+-- * <code>filename_escape(".") --> "%2e"</code>
+-- * <code>filename_escape("..") --> "%2e%2e"</code>
+-- This escaping is somewhat like that of JavaScript
+-- <code>encodeURIComponent</code>, except that fewer bytes are
+-- whitelisted, and it works on bytes, not Unicode characters or UTF-16
+-- code points.
+function filename_escape(s)
+  if s == "." then
+    return "%2e"
+  elseif s == ".." then
+    return "%2e%2e"
+  else
+    return (string.gsub(s, FILESYSTEM_UNSAFE, function (c)
+      return string.format("%%%02x", string.byte(c))
+    end))
+  end
 end
 
 return _ENV;
