@@ -1,3 +1,9 @@
+nmap (6.40-1kali2) kali; urgency=low
+
+  * Update package to use same .orig.tar.gz than Debian.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Fri, 06 Dec 2013 10:35:07 +0100
+
 nmap (6.40-1kali1) kali; urgency=low
 
   * Upstream nmap import
