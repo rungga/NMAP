@@ -1,3 +1,9 @@
+nmap (6.40-1kali3) kali; urgency=low
+
+  * Bump version, rebuild against newer openssl libs
+
+ -- Mati Aharoni <muts@kali.org>  Fri, 11 Apr 2014 04:56:26 -0400
+
 nmap (6.40-1kali2) kali; urgency=low
 
   * Update package to use same .orig.tar.gz than Debian.
