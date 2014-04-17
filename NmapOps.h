@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOps.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: NmapOps.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #include "nmap.h"
 #include "global_structures.h"
@@ -167,10 +167,10 @@ class NmapOps {
      is not necessarily used. */
   bool RawScan();
   void ValidateOptions(); /* Checks that the options given are
-                             reasonable and consistant.  If they aren't, the
+                             reasonable and consistent.  If they aren't, the
                              function may bail out of Nmap or make small
-		             adjustments (quietly or with a warning to the
-		             user). */
+                             adjustments (quietly or with a warning to the
+                             user). */
   int isr00t;
   /* Whether we have pcap functions (can be false on Windows). */
   bool have_pcap;
@@ -241,7 +241,7 @@ class NmapOps {
 
   /* These functions retrieve and set the Round Trip Time timeouts, in
    milliseconds.  The set versions do extra processing to insure sane
-   values and to adjust each other to insure consistance (e.g. that
+   values and to adjust each other to insure consistence (e.g. that
    max is always at least as high as min) */
   int maxRttTimeout() { return max_rtt_timeout; }
   int minRttTimeout() { return min_rtt_timeout; }
@@ -279,7 +279,7 @@ class NmapOps {
   /* Gets the spoofed MAC address, but returns NULL if it hasn't been set */
   const u8 *spoofMACAddress() { return spoof_mac_set? spoof_mac : NULL; }
 
-  int max_ips_to_scan; // Used for Random input (-iR) to specify how 
+  int max_ips_to_scan; // Used for Random input (-iR) to specify how
                        // many IPs to try before stopping. 0 means unlimited.
   int extra_payload_length; /* These two are for --data-length op */
   char *extra_payload;
@@ -289,19 +289,19 @@ class NmapOps {
   bool open_only;
 
   int scanflags; /* if not -1, this value should dictate the TCP flags
-		    for the core portscaning routine (eg to change a
-		    FIN scan into a PSH scan.  Sort of a hack, but can
-		    be very useful sometimes. */
+                    for the core portscanning routine (eg to change a
+                    FIN scan into a PSH scan.  Sort of a hack, but can
+                    be very useful sometimes. */
 
   int defeat_rst_ratelimit; /* Solaris 9 rate-limits RSTs so scanning is very
             slow against it. If we don't distinguish between closed and filtered ports,
             we can get the list of open ports very fast */
 
-  struct in_addr resume_ip; /* The last IP in the log file if user 
-			       requested --restore .  Otherwise 
-			       restore_ip.s_addr == 0.  Also 
-			       target_struct_get will eventually set it 
-			       to 0. */
+  struct in_addr resume_ip; /* The last IP in the log file if user
+                               requested --restore .  Otherwise
+                               restore_ip.s_addr == 0.  Also
+                               target_struct_get will eventually set it
+                               to 0. */
 
   // Version Detection Options
   int override_excludeports;
@@ -413,7 +413,7 @@ class NmapOps {
   unsigned int min_host_group_sz;
   unsigned int max_host_group_sz;
   void Initialize();
-  int addressfamily; /*  Address family:  AF_INET or AF_INET6 */  
+  int addressfamily; /*  Address family:  AF_INET or AF_INET6 */
   struct sockaddr_storage sourcesock;
   size_t sourcesocklen;
   struct timeval start_time;
@@ -424,4 +424,4 @@ class NmapOps {
   u8 spoof_mac[6];
   bool spoof_mac_set;
 };
-  
+

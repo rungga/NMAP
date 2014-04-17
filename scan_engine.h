@@ -1,7 +1,7 @@
 
 /***************************************************************************
  * scan_engine.h -- Includes much of the "engine" functions for scanning,  *
- * such as ultra_scan.  It also includes dependant functions such as       *
+ * such as ultra_scan.  It also includes dependent functions such as       *
  * those for collecting SYN/connect scan responses.                        *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: scan_engine.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: scan_engine.h 32748 2014-02-21 21:10:51Z dmiller $ */
 
 #ifndef SCAN_ENGINE_H
 #define SCAN_ENGINE_H
@@ -186,14 +186,8 @@ typedef struct probespec {
 } probespec;
 
 /* 3rd generation Nmap scanning function.  Handles most Nmap port scan types */
-void ultra_scan(std::vector<Target *> &Targets, struct scan_lists *ports, 
-		stype scantype, struct timeout_info *to = NULL);
-
-/* FTP bounce attack scan.  This function is rather lame and should be
-   rewritten.  But I don't think it is used much anyway.  If I'm going to
-   allow FTP bounce scan, I should really allow SOCKS proxy scan.  */
-void bounce_scan(Target *target, u16 *portarray, int numports,
-		 struct ftpinfo *ftp);
+void ultra_scan(std::vector<Target *> &Targets, struct scan_lists *ports,
+                stype scantype, struct timeout_info *to = NULL);
 
 /* Determines an ideal number of hosts to be scanned (port scan, os
    scan, version detection, etc.) in parallel after the ping scan is
@@ -203,7 +197,7 @@ void bounce_scan(Target *target, u16 *portarray, int numports,
    results).  Memory consumption usually also increases with the
    number of hosts scanned in parallel, though rarely to significant
    levels. */
-int determineScanGroupSize(int hosts_scanned_so_far, 
-			   struct scan_lists *ports);
+int determineScanGroupSize(int hosts_scanned_so_far,
+                           struct scan_lists *ports);
 
 #endif /* SCAN_ENGINE_H */

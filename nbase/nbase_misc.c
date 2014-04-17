@@ -1,6 +1,6 @@
 
 /***************************************************************************
- * nbase_misc.c -- Some small miscelaneous utility/compatability           *
+ * nbase_misc.c -- Some small miscellaneous utility/compatibility          *
  * functions.                                                              *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_misc.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nbase_misc.c 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #include "nbase.h"
 
@@ -158,9 +158,9 @@ extern int errno;
    equivalents.  So you can use EMSGSIZE or EINTR. */
 int socket_errno() {
 #ifdef WIN32
-	return WSAGetLastError();
+    return WSAGetLastError();
 #else
-	return errno;
+    return errno;
 #endif
 }
 
@@ -171,16 +171,16 @@ int socket_errno() {
 */
 char *socket_strerror(int errnum) {
 #ifdef WIN32
-	static char buffer[128];
+    static char buffer[128];
 
-	FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_IGNORE_INSERTS |
-		FORMAT_MESSAGE_MAX_WIDTH_MASK,
-		0, errnum, 0, buffer, sizeof(buffer), NULL);
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_IGNORE_INSERTS |
+        FORMAT_MESSAGE_MAX_WIDTH_MASK,
+        0, errnum, 0, buffer, sizeof(buffer), NULL);
 
-	return buffer;
+    return buffer;
 #else
-	return strerror(errnum);
+    return strerror(errnum);
 #endif
 }
 
@@ -222,7 +222,7 @@ int sockaddr_storage_equal(const struct sockaddr_storage *a,
 /* This function is an easier version of inet_ntop because you don't
    need to pass a dest buffer.  Instead, it returns a static buffer that
    you can use until the function is called again (by the same or another
-   thread in the process).  If there is a wierd error (like sslen being
+   thread in the process).  If there is a weird error (like sslen being
    too short) then NULL will be returned. */
 const char *inet_ntop_ez(const struct sockaddr_storage *ss, size_t sslen) {
 
@@ -238,13 +238,13 @@ const char *inet_ntop_ez(const struct sockaddr_storage *ss, size_t sslen) {
     if (sslen < sizeof(struct sockaddr_in))
       return NULL;
     return inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str));
-  } 
+  }
 #if HAVE_IPV6
   else if(sin->sin_family == AF_INET6) {
     if (sslen < sizeof(struct sockaddr_in6))
       return NULL;
     return inet_ntop(AF_INET6, &sin6->sin6_addr, str, sizeof(str));
-  } 
+  }
 #endif
   //Some laptops report the ip and address family of disabled wifi cards as null
   //so yes, we will hit this sometimes.
@@ -284,32 +284,43 @@ int dup_socket(int sd) {
 
 int unblock_socket(int sd) {
 #ifdef WIN32
-u_long one = 1;
-if(sd != 501) // Hack related to WinIP Raw Socket support
-  ioctlsocket (sd, FIONBIO, &one);
+  unsigned long one = 1;
+
+  if (sd != 501) /* Hack related to WinIP Raw Socket support */
+    ioctlsocket(sd, FIONBIO, &one);
+
+  return 0;
 #else
-int options;
-/*Unblock our socket to prevent recvfrom from blocking forever
-  on certain target ports. */
-options = O_NONBLOCK | fcntl(sd, F_GETFL);
-fcntl(sd, F_SETFL, options);
-#endif //WIN32
-return 1;
+  int options;
+
+  /* Unblock our socket to prevent recvfrom from blocking forever on certain
+   * target ports. */
+  options = fcntl(sd, F_GETFL);
+  if (options == -1)
+    return -1;
+
+  return fcntl(sd, F_SETFL, O_NONBLOCK | options);
+#endif /* WIN32 */
 }
 
 /* Convert a socket to blocking mode */
 int block_socket(int sd) {
 #ifdef WIN32
-  unsigned long options=0;
-  if(sd == 501) return 1;
-  ioctlsocket(sd, FIONBIO, &options);
+  unsigned long options = 0;
+
+  if (sd != 501)
+    ioctlsocket(sd, FIONBIO, &options);
+
+  return 0;
 #else
   int options;
-  options = (~O_NONBLOCK) & fcntl(sd, F_GETFL);
-  fcntl(sd, F_SETFL, options);
-#endif
 
-  return 1;
+  options = fcntl(sd, F_GETFL);
+  if (options == -1)
+    return -1;
+
+  return fcntl(sd, F_SETFL, (~O_NONBLOCK) & options);
+#endif
 }
 
 /* Use the SO_BINDTODEVICE sockopt to bind with a specific interface (Linux
@@ -489,6 +500,8 @@ int fselect(int s, fd_set *rmaster, fd_set *wmaster, fd_set *emaster, struct tim
         /* selecting on anything other than stdin? */
         if (s > 1)
             fds_ready = select(s, &rset, &wset, &eset, &stv);
+        else
+            usleep(stv.tv_sec * 1000000UL + stv.tv_usec);
 
         if (fds_ready > -1 && win_stdin_ready()) {
             FD_SET(STDIN_FILENO, &rset);
@@ -593,7 +606,7 @@ unsigned long nbase_crc32(unsigned char *buf, int len)
  * CRC-32C (Castagnoli) Cyclic Redundancy Check.
  * Taken straight from Appendix C of RFC 4960 (SCTP), with the difference that
  * the remainder register (crc32) is initialized to 0xffffffffL rather than ~0L,
- * for correct operation on platforms where unisigned long is longer than 32
+ * for correct operation on platforms where unsigned long is longer than 32
  * bits.
  */
 
@@ -673,22 +686,22 @@ unsigned long nbase_adler32(unsigned char *buf, int len)
  * buffer. It uses current locale to determine if a character is printable or
  * not. It prints 73char+\n wide lines like these:
 
-0000   e8 60 65 86 d7 86 6d 30  35 97 54 87 ff 67 05 9e  .`e...m05.T..g.. 
-0010   07 5a 98 c0 ea ad 50 d2  62 4f 7b ff e1 34 f8 fc  .Z....P.bO{..4.. 
-0020   c4 84 0a 6a 39 ad 3c 10  63 b2 22 c4 24 40 f4 b1  ...j9.<.c.".$@.. 
+0000   e8 60 65 86 d7 86 6d 30  35 97 54 87 ff 67 05 9e  .`e...m05.T..g..
+0010   07 5a 98 c0 ea ad 50 d2  62 4f 7b ff e1 34 f8 fc  .Z....P.bO{..4..
+0020   c4 84 0a 6a 39 ad 3c 10  63 b2 22 c4 24 40 f4 b1  ...j9.<.c.".$@..
 
  * The lines look basically like Wireshark's hex dump.
  * WARNING: This function returns a pointer to a DYNAMICALLY allocated buffer
  * that the caller is supposed to free().
  * */
 char *hexdump(const u8 *cp, u32 length){
-  static char asciify[257];          /* Stores cha6acter table           */
+  static char asciify[257];          /* Stores character table           */
   int asc_init=0;                    /* Flag to generate table only once */
   u32 i=0, hex=0, asc=0;             /* Array indexes                    */
   u32 line_count=0;                  /* For byte count at line start     */
   char *current_line=NULL;           /* Current line to write            */
   char *buffer=NULL;                 /* Dynamic buffer we return         */
-  #define LINE_LEN 74                /* Lenght of printed line           */
+  #define LINE_LEN 74                /* Length of printed line           */
   char line2print[LINE_LEN];         /* Stores current line              */
   char printbyte[16];                /* For byte conversion              */
   int bytes2alloc;                   /* For buffer                       */
@@ -724,20 +737,20 @@ char *hexdump(const u8 *cp, u32 length){
     line2print[4]=' '; /* Replace the '\0' inserted by snprintf() with a space */
     hex=HEX_START;  asc=ASC_START;
     do { /* Print 16 bytes in both hex and ascii */
-		if (i%16 == 8) hex++; /* Insert space every 8 bytes */
+        if (i%16 == 8) hex++; /* Insert space every 8 bytes */
         snprintf(printbyte, sizeof(printbyte), "%02x", cp[i]);/* First print the hex number */
         line2print[hex++]=printbyte[0];
         line2print[hex++]=printbyte[1];
         line2print[hex++]=' ';
         line2print[asc++]=asciify[ cp[i] ]; /* Then print its ASCII equivalent */
-		i++;
-	} while (i < length && i%16 != 0);
+        i++;
+    } while (i < length && i%16 != 0);
     /* Copy line to output buffer */
     line2print[LINE_LEN-1]='\n';
     memcpy(current_line, line2print, LINE_LEN);
     current_line += LINE_LEN;
   }
-  buffer[bytes2alloc-1]='\0'; 
+  buffer[bytes2alloc-1]='\0';
   return buffer;
 } /* End of hexdump() */
 
@@ -778,7 +791,7 @@ int optcmp(const char *a, const char *b) {
   while(*a && *b) {
     if (*a == '_' || *a == '-') {
       if (*b != '_' && *b != '-')
-	return 1;
+    return 1;
     }
     else if (*a != *b)
       return 1;
@@ -793,18 +806,18 @@ int optcmp(const char *a, const char *b) {
  * is readable by the executing process.  Returns two if it is readable
  * and is a directory.  Otherwise returns 0. */
 int file_is_readable(const char *pathname) {
-	char *pathname_buf = strdup(pathname);
-	int status = 0;
-	struct stat st;
+    char *pathname_buf = strdup(pathname);
+    int status = 0;
+    struct stat st;
 
 #ifdef WIN32
-	// stat on windows only works for "dir_name" not for "dir_name/" or "dir_name\\"
-	int pathname_len = strlen(pathname_buf);
-	char last_char = pathname_buf[pathname_len - 1];
+    // stat on windows only works for "dir_name" not for "dir_name/" or "dir_name\\"
+    int pathname_len = strlen(pathname_buf);
+    char last_char = pathname_buf[pathname_len - 1];
 
-	if(	last_char == '/'
-		|| last_char == '\\')
-		pathname_buf[pathname_len - 1] = '\0';
+    if(    last_char == '/'
+        || last_char == '\\')
+        pathname_buf[pathname_len - 1] = '\0';
 
 #endif
 

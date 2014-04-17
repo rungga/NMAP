@@ -12,8 +12,8 @@
  * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
- * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * you wish to embeed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nmap.cc 32748 2014-02-21 21:10:51Z dmiller $ */
 
 #include "nmap.h"
 #include "osscan.h"
@@ -135,6 +135,7 @@
 #include "traceroute.h"
 #include "nmap_tty.h"
 #include "nmap_dns.h"
+#include "nmap_ftp.h"
 #include "services.h"
 #include "protocols.h"
 #include "targets.h"
@@ -220,39 +221,6 @@ static int parse_scanflags(char *arg) {
   return flagval;
 }
 
-/* parse a URL stype ftp string of the form user:pass@server:portno */
-static int parse_bounce_argument(struct ftpinfo *ftp, char *url) {
-  char *p = url, *q, *s;
-
-  if ((q = strrchr(url, '@'))) { /* we have user and/or pass */
-    *q++ = '\0';
-
-    if ((s = strchr(p, ':'))) { /* we have user AND pass */
-      *s++ = '\0';
-      strncpy(ftp->pass, s, 255);
-    } else { /* we ONLY have user */
-      log_write(LOG_STDOUT, "Assuming %s is a username, and using the default password: %s\n",
-                p, ftp->pass);
-    }
-
-    strncpy(ftp->user, p, 63);
-  } else {
-    q = url;
-  }
-
-  /* q points to beginning of server name */
-  if ((s = strchr(q, ':'))) { /* we have portno */
-    *s++ = '\0';
-    ftp->port = atoi(s);
-  }
-
-  strncpy(ftp->server_name, q, MAXHOSTNAMELEN);
-
-  ftp->user[63] = ftp->pass[255] = ftp->server_name[MAXHOSTNAMELEN] = 0;
-
-  return 1;
-}
-
 static void printusage(int rc) {
 
   printf("%s %s ( %s )\n"
@@ -307,7 +275,7 @@ static void printusage(int rc) {
          "  --script-trace: Show all data sent and received\n"
          "  --script-updatedb: Update the script database.\n"
          "  --script-help=<Lua scripts>: Show help about scripts.\n"
-         "           <Lua scripts> is a comma separted list of script-files or\n"
+         "           <Lua scripts> is a comma-separated list of script-files or\n"
          "           script-categories.\n"
 #endif
          "OS DETECTION:\n"
@@ -333,6 +301,7 @@ static void printusage(int rc) {
          "  -S <IP_Address>: Spoof source address\n"
          "  -e <iface>: Use specified interface\n"
          "  -g/--source-port <portnum>: Use given port number\n"
+         "  --proxies <url1,[url2],...>: Relay connections through HTTP/SOCKS4 proxies\n"
          "  --data-length <num>: Append random data to sent packets\n"
          "  --ip-options <options>: Send packets with specified ip options\n"
          "  --ttl <val>: Set IP time-to-live field\n"
@@ -491,13 +460,7 @@ void validate_scan_lists(scan_lists &ports, NmapOps &o) {
 #endif
 }
 
-#if (defined(IN_ADDR_DEEPSTRUCT) || defined( SOLARIS))
-/* Note that struct in_addr in solaris is 3 levels deep just to store an
- * unsigned int! */
-struct ftpinfo ftp = { FTPUSER, FTPPASS, "",  { { { 0 } } } , 21, 0};
-#else
-struct ftpinfo ftp = { FTPUSER, FTPPASS, "", { 0 }, 21, 0};
-#endif
+struct ftpinfo ftp = get_default_ftpinfo();
 
 /* A list of targets to be displayed by the --route-dst debugging option. */
 static std::vector<std::string> route_dst_hosts;
@@ -612,8 +575,8 @@ void parse_options(int argc, char **argv) {
     {"proxy", required_argument, 0, 0},
     {"osscan_limit", no_argument, 0, 0}, /* skip OSScan if no open ports */
     {"osscan-limit", no_argument, 0, 0}, /* skip OSScan if no open ports */
-    {"osscan_guess", no_argument, 0, 0}, /* More guessing flexability */
-    {"osscan-guess", no_argument, 0, 0}, /* More guessing flexability */
+    {"osscan_guess", no_argument, 0, 0}, /* More guessing flexibility */
+    {"osscan-guess", no_argument, 0, 0}, /* More guessing flexibility */
     {"fuzzy", no_argument, 0, 0}, /* Alias for osscan_guess */
     {"packet_trace", no_argument, 0, 0}, /* Display all packets sent/rcv */
     {"packet-trace", no_argument, 0, 0}, /* Display all packets sent/rcv */
@@ -915,7 +878,7 @@ void parse_options(int argc, char **argv) {
           o.idlescan = 1;
           o.idleProxy = strdup(optarg);
         } else if (strcmp(long_options[option_index].name, "vv") == 0) {
-          /* Compatability hack ... ugly */
+          /* Compatibility hack ... ugly */
           o.verbose += 2;
         } else if (strcmp(long_options[option_index].name, "ff") == 0) {
           o.fragscan += 16;
@@ -965,8 +928,8 @@ void parse_options(int argc, char **argv) {
         } else if (optcmp(long_options[option_index].name, "disable-arp-ping") == 0) {
           o.implicitARPPing = false;
         } else if (optcmp(long_options[option_index].name, "route-dst") == 0) {
-	  /* The --route-dst debugging option: push these on a list to be
-	     resolved later after options like -6 and -S have been parsed. */
+          /* The --route-dst debugging option: push these on a list to be
+             resolved later after options like -6 and -S have been parsed. */
           route_dst_hosts.push_back(optarg);
         } else {
           fatal("Unknown long option (%s) given@#!$#$", long_options[option_index].name);
@@ -1000,7 +963,7 @@ void parse_options(int argc, char **argv) {
       do {
         q = strchr(p, ',');
         if (q)
-	  *q = '\0';
+          *q = '\0';
         if (!strcasecmp(p, "me")) {
           if (o.decoyturn != -1)
             fatal("Can only use 'ME' as a decoy once.\n");
@@ -1072,7 +1035,7 @@ void parse_options(int argc, char **argv) {
       o.magic_port = atoi(optarg);
       o.magic_port_set = true;
       if (o.magic_port == 0)
-	error("WARNING: a source port of zero may not work on all systems.");
+        error("WARNING: a source port of zero may not work on all systems.");
       break;
     case 'h':
       printusage(0);
@@ -1508,10 +1471,10 @@ void  apply_delayed_options() {
       const char *p = delayed_options.spoofmac;
       while (*p) {
         if (*p == ':')
-	  p++;
+          p++;
         if (isxdigit((int) (unsigned char) *p) && isxdigit((int) (unsigned char) * (p + 1))) {
           if (pos >= 6)
-	    fatal("Bogus --spoof-mac value encountered (%s) -- only up to 6 bytes permitted", delayed_options.spoofmac);
+            fatal("Bogus --spoof-mac value encountered (%s) -- only up to 6 bytes permitted", delayed_options.spoofmac);
           tmphex[0] = *p;
           tmphex[1] = *(p + 1);
           tmphex[2] = '\0';
@@ -1576,7 +1539,7 @@ void  apply_delayed_options() {
    * --We are doing a raw sock scan and NOT pinging anyone */
   if (o.SourceSockAddr() && !*o.device) {
     if (ipaddr2devname(o.device, o.SourceSockAddr()) != 0) {
-      fatal("Could not figure out what device to send the packet out on with the source address you gave me!  If you are trying to sp00f your scan, this is normal, just give the -e eth0 or -e ppp0 or whatever.  Otherwise you can still use -e, but I find it kindof fishy.");
+      fatal("Could not figure out what device to send the packet out on with the source address you gave me!  If you are trying to sp00f your scan, this is normal, just give the -e eth0 or -e ppp0 or whatever.  Otherwise you can still use -e, but I find it kind of fishy.");
     }
   }
 
@@ -1669,9 +1632,9 @@ int nmap_main(int argc, char *argv[]) {
       printf("%s %s", rnfo.ii.devname, rnfo.ii.devfullname);
       printf(" srcaddr %s", inet_ntop_ez(&rnfo.srcaddr, sizeof(rnfo.srcaddr)));
       if (rnfo.direct_connect)
-	printf(" direct");
+        printf(" direct");
       else
-	printf(" nexthop %s", inet_ntop_ez(&rnfo.nexthop, sizeof(rnfo.nexthop)));
+        printf(" nexthop %s", inet_ntop_ez(&rnfo.nexthop, sizeof(rnfo.nexthop)));
     }
     printf("\n");
   }
@@ -1706,6 +1669,7 @@ int nmap_main(int argc, char *argv[]) {
   chomp(mytime);
   char *xslfname = o.XSLStyleSheet();
   xml_start_document();
+  log_write(LOG_XML, "<!DOCTYPE nmaprun PUBLIC \"-//IDN nmap.org//DTD Nmap XML %s//EN\" \"https://svn.nmap.org/nmap/docs/nmap.dtd\">\n", NMAP_XMLOUTPUTVERSION);
   if (xslfname) {
     xml_open_pi("xml-stylesheet");
     xml_attribute("href", "%s", xslfname);
@@ -1862,7 +1826,7 @@ int nmap_main(int argc, char *argv[]) {
 #endif
           ) || o.listscan) {
         /* We're done with the hosts */
-        if (currenths->flags & HOST_UP || o.verbose) {
+        if (currenths->flags & HOST_UP || (o.verbose && !o.openOnly())) {
           xml_start_tag("host");
           write_host_header(currenths);
           printmacinfo(currenths);
@@ -1998,9 +1962,9 @@ int nmap_main(int argc, char *argv[]) {
           o.current_scantype = BOUNCE_SCAN;
           keyWasPressed(); // Check if a status message should be printed
           if (ftp.sd <= 0)
-	    ftp_anon_connect(&ftp);
+            ftp_anon_connect(&ftp);
           if (ftp.sd > 0)
-	    bounce_scan(Targets[targetno], ports.tcp_ports, ports.tcp_count, &ftp);
+            bounce_scan(Targets[targetno], ports.tcp_ports, ports.tcp_count, &ftp);
         }
       }
 
@@ -2260,7 +2224,7 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     if (found) {
       q = strchr(found, '\n');
       if (!q)
-	fatal("Unable to parse supposed log file %s.  Sorry", fname);
+        fatal("Unable to parse supposed log file %s.  Sorry", fname);
       *q = '\0';
       p = strchr(found, '(');
       if (!p) { /* No DNS reverse lookup, found should already contain IP */
@@ -2518,7 +2482,7 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
 
       // Skip over a following ',' so we're ready to keep parsing
       if (*current_range == ',')
-	current_range++;
+        current_range++;
 
       continue;
     } else if (*current_range == ']') {
@@ -2556,7 +2520,7 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
 
       i = addportsfromservmask(servmask, porttbl, range_type);
       if (range_type & SCAN_PROTOCOLS)
-	i += addprotocolsfromservmask(servmask, porttbl);
+        i += addprotocolsfromservmask(servmask, porttbl);
 
       if (i == 0)
         fatal("Found no matches for the service mask '%s' and your specified protocols", servmask);
@@ -2637,7 +2601,7 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
 
     if (*current_range == ']') {
       if (!nested)
-	fatal("Unexpected ] character in port/protocol specification");
+        fatal("Unexpected ] character in port/protocol specification");
       return;
     }
 
@@ -2688,6 +2652,8 @@ const char *ipidclass2ascii(int seqclass) {
     return "Duplicated ipid (!)";
   case IPID_SEQ_INCR:
     return "Incremental";
+  case IPID_SEQ_INCR_BY_2:
+    return "Incrementing by 2";
   case IPID_SEQ_BROKEN_INCR:
     return "Broken little-endian incremental";
   case IPID_SEQ_RD:
@@ -2841,83 +2807,6 @@ const char *statenum2str(int state) {
   }
   return "unknown";
 }
-
-int ftp_anon_connect(struct ftpinfo *ftp) {
-  int sd;
-  struct sockaddr_in sock;
-  int res;
-  char recvbuf[2048];
-  char command[512];
-
-  if (o.verbose || o.debugging)
-    log_write(LOG_STDOUT, "Attempting connection to ftp://%s:%s@%s:%i\n",
-	      ftp->user, ftp->pass, ftp->server_name, ftp->port);
-
-  if ((sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-    gh_perror("Couldn't create %s socket", __func__);
-    return 0;
-  }
-  socket_bindtodevice(sd, o.device);
-
-  sock.sin_family = AF_INET;
-  sock.sin_addr.s_addr = ftp->server.s_addr;
-  sock.sin_port = htons(ftp->port);
-  res = connect(sd, (struct sockaddr *) &sock, sizeof(struct sockaddr_in));
-  if (res < 0)
-    fatal("Your FTP bounce proxy server won't talk to us!");
-  if (o.verbose || o.debugging)
-    log_write(LOG_STDOUT, "Connected:");
-  while ((res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 7, NULL)) > 0) {
-    if (o.debugging || o.verbose) {
-      recvbuf[res] = '\0';
-      log_write(LOG_STDOUT, "%s", recvbuf);
-    }
-  }
-  if (res < 0)
-    pfatal("recv problem from FTP bounce server");
-
-  Snprintf(command, 511, "USER %s\r\n", ftp->user);
-
-  send(sd, command, strlen(command), 0);
-  res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 12, NULL);
-  if (res <= 0)
-    pfatal("recv problem from FTP bounce server");
-  recvbuf[res] = '\0';
-  if (o.debugging)
-    log_write(LOG_STDOUT, "sent username, received: %s", recvbuf);
-  if (recvbuf[0] == '5')
-    fatal("Your FTP bounce server doesn't like the username \"%s\"", ftp->user);
-
-  Snprintf(command, 511, "PASS %s\r\n", ftp->pass);
-
-  send(sd, command, strlen(command), 0);
-  res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 12, NULL);
-  if (res < 0)
-    pfatal("recv problem from FTP bounce server");
-  if (!res) {
-    error("Timeout from bounce server ...");
-  } else {
-    recvbuf[res] = '\0';
-    if (o.debugging)
-      log_write(LOG_STDOUT, "sent password, received: %s", recvbuf);
-    if (recvbuf[0] == '5')
-      fatal("Your FTP bounce server refused login combo (%s/%s)", ftp->user, ftp->pass);
-  }
-  while ((res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 2, NULL)) > 0) {
-    if (o.debugging) {
-      recvbuf[res] = '\0';
-      log_write(LOG_STDOUT, "%s", recvbuf);
-    }
-  }
-  if (res < 0)
-    pfatal("recv problem from FTP bounce server");
-  if (o.verbose)
-    log_write(LOG_STDOUT, "Login credentials accepted by FTP server!\n");
-
-  ftp->sd = sd;
-  return sd;
-}
-
 
 static char *executable_dir(const char *argv0) {
   char *path, *dir;

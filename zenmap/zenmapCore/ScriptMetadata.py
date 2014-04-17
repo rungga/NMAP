@@ -10,7 +10,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -66,7 +66,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -131,6 +131,12 @@ import sys
 from zenmapCore.Paths import Path
 from zenmapCore.UmitLogging import log
 
+
+class ScriptDBSyntaxError(SyntaxError):
+    """Exception raised when encountering a syntax error in the script.db"""
+    pass
+
+
 class ScriptDB (object):
     """Class responsible for parsing the script.db file, fetching script
     names and categories."""
@@ -138,31 +144,50 @@ class ScriptDB (object):
         "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r",
         "t": "\t", "v": "\v", "\\": "\\", "\"": "\"", "'": "'", "0": "\0"
     }
-    def __init__(self, script_db_path = None):
+
+    def __init__(self, script_db_path=None):
         self.unget_buf = ""
 
         self.f = open(script_db_path, "r")
+        self.lineno = 1
+        self.line = ""
         try:
             self.entries_list = self.parse()
         finally:
             self.f.close()
 
+    def syntax_error(self, message):
+        e = ScriptDBSyntaxError(message)
+        e.filename = self.f.name
+        e.lineno = self.lineno
+        e.offset = len(self.line)
+        e.text = self.line
+        return e
+
     def getchar(self):
+        c = None
         if self.unget_buf:
             c = self.unget_buf[-1]
             self.unget_buf = self.unget_buf[:-1]
-            return c
         else:
-            return self.f.read(1)
+            c = self.f.read(1)
+        if c == "\n":
+            self.lineno += 1
+            self.line = ""
+        else:
+            self.line += c
+        return c
 
     def unget(self, data):
         if data:
+            self.line = self.line[:-len(data)]
             self.unget_buf += data
 
     def parse(self):
         """Parses a script.db entry and returns it as a dictionary. An entry
         looks like this:
-        Entry { filename = "afp-brute.nse", categories = { "auth", "intrusive", } }
+        Entry { filename = "afp-brute.nse", categories = \
+                { "auth", "intrusive", } }
         """
         entries = []
         while True:
@@ -196,7 +221,7 @@ class ScriptDB (object):
                     repl = None
                     c = self.getchar()
                     if not c:
-                        raise ScriptDBSyntaxError()
+                        raise self.syntax_error("Unexpected EOF")
                     if c.isdigit():
                         d1 = c
                         d2 = self.getchar()
@@ -204,7 +229,8 @@ class ScriptDB (object):
                         if d1 and d2 and d3:
                             n = int(d1 + d2 + d3)
                             if n > 255:
-                                raise ScriptDBSyntaxError()
+                                raise self.syntax_error(
+                                        "Character code >255")
                             repl = chr(n)
                         else:
                             self.unget(d3)
@@ -212,7 +238,7 @@ class ScriptDB (object):
                     if not repl:
                         repl = self.LUA_STRING_ESCAPES.get(c)
                     if not repl:
-                        raise ScriptDBSyntaxError()
+                        raise self.syntax_error("Unhandled string escape")
                     c = repl
                 string.append(c)
                 c = self.getchar()
@@ -220,13 +246,15 @@ class ScriptDB (object):
         elif c in "{},=":
             return ("delim", c)
         else:
-            raise ScriptDBSyntaxError()
+            raise self.syntax_error("Unknown token")
 
     def expect(self, tokens):
         for token in tokens:
             t = self.token()
             if t != token:
-                raise ScriptDBSyntaxError()
+                raise self.syntax_error(
+                        "Unexpected token '%s', expected '%s'" % (
+                            t[1], token[1]))
 
     def parse_entry(self):
         entry = {}
@@ -236,9 +264,10 @@ class ScriptDB (object):
         self.expect((("delim", "{"), ("ident", "filename"), ("delim", "=")))
         token = self.token()
         if not token or token[0] != "string":
-            raise ScriptDBSyntaxError()
+            raise self.syntax_error("Unexpected non-string token or EOF")
         entry["filename"] = token[1]
-        self.expect((("delim", ","), ("ident", "categories"), ("delim", "="), ("delim", "{")))
+        self.expect((("delim", ","), ("ident", "categories"),
+            ("delim", "="), ("delim", "{")))
         entry["categories"] = []
         token = self.token()
         if token and token[0] == "string":
@@ -252,16 +281,19 @@ class ScriptDB (object):
                 break
             token = self.token()
         if token != ("delim", "}"):
-            raise ScriptDBSyntaxError()
+            raise self.syntax_error(
+                    "Unexpected token '%s', expected '}'" % (token[1]))
         token = self.token()
         if token == ("delim", ","):
             token = self.token()
         if token != ("delim", "}"):
-            raise ScriptDBSyntaxError()
+            raise self.syntax_error(
+                    "Unexpected token '%s', expected '}'" % (token[1]))
         return entry
 
     def get_entries_list(self):
         return self.entries_list
+
 
 def nsedoc_tags_iter(f):
     in_doc_comment = False
@@ -296,6 +328,7 @@ def nsedoc_tags_iter(f):
                 tag_name = None
                 tag_text = None
 
+
 class ScriptMetadata (object):
     """Class responsible for parsing all the script information."""
 
@@ -305,14 +338,15 @@ class ScriptMetadata (object):
         def __init__(self, filename):
             self.filename = filename
             self.categories = []
-            self.arguments = [] # Arguments including library arguments.
+            self.arguments = []  # Arguments including library arguments.
             self.license = ""
             self.author = ""
             self.description = ""
             self.output = ""
             self.usage = ""
 
-        url = property(lambda self: "http://nmap.org/nsedoc/scripts/" + os.path.splitext(self.filename)[0] + ".html")
+        url = property(lambda self: "http://nmap.org/nsedoc/scripts/"
+                "%s.html" % (os.path.splitext(self.filename)[0]))
 
     def __init__(self, scripts_dir, nselib_dir):
         self.scripts_dir = scripts_dir
@@ -351,13 +385,16 @@ class ScriptMetadata (object):
         return contents
 
     def get_string_variable(self, filename, varname):
-        contents = ScriptMetadata.get_file_contents(os.path.join(self.scripts_dir, filename))
+        contents = ScriptMetadata.get_file_contents(
+            os.path.join(self.scripts_dir, filename))
         # Short string?
-        m = re.search(re.escape(varname) + r'\s*=\s*(["\'])(.*?[^\\])\1', contents)
+        m = re.search(
+            re.escape(varname) + r'\s*=\s*(["\'])(.*?[^\\])\1', contents)
         if m:
             return m.group(2)
         # Long string?
-        m = re.search(re.escape(varname) + r'\s*=\s*\[(=*)\[(.*?)\]\1\]', contents, re.S)
+        m = re.search(
+            re.escape(varname) + r'\s*=\s*\[(=*)\[(.*?)\]\1\]', contents, re.S)
         if m:
             return m.group(2)
         return None
@@ -398,7 +435,7 @@ class ScriptMetadata (object):
         for tag_name, tag_text in nsedoc_tags_iter(f):
             m = re.match(r'([\w._-]+)', tag_text)
             if (tag_name == "arg" or tag_name == "args") and m:
-                args.append((m.group(1), re.sub(r'^[\w._-]+','',tag_text)))
+                args.append((m.group(1), re.sub(r'^[\w._-]+', '', tag_text)))
         return args
 
     def get_arguments(self, filename):
@@ -444,6 +481,7 @@ class ScriptMetadata (object):
             self.library_arguments[libname] = self.get_script_args(filepath)
             self.library_requires[libname] = self.get_requires(filepath)
 
+
 def get_script_entries(scripts_dir, nselib_dir):
     """Merge the information obtained so far into one single entry for
     each script and return it."""
@@ -461,7 +499,8 @@ def get_script_entries(scripts_dir, nselib_dir):
     return entries
 
 if __name__ == '__main__':
-    for entry in get_script_entries():
+    import sys
+    for entry in get_script_entries(sys.argv[1], sys.argv[2]):
         print "*" * 75
         print "Filename:", entry.filename
         print "Categories:", entry.categories

@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -136,8 +136,10 @@ import zenmapCore.Paths
 # The [paths] configuration from zenmap.conf, used to get ndiff_command_path.
 paths_config = PathsConfig()
 
+
 class NdiffParseException(Exception):
     pass
+
 
 def get_path():
     """Return a value for the PATH environment variable that is appropriate
@@ -153,8 +155,9 @@ def get_path():
             search_paths.append(path)
     return os.pathsep.join(search_paths)
 
+
 class NdiffCommand(subprocess.Popen):
-    def __init__(self, filename_a, filename_b, temporary_filenames = []):
+    def __init__(self, filename_a, filename_b, temporary_filenames=[]):
         self.temporary_filenames = temporary_filenames
 
         search_paths = get_path()
@@ -162,20 +165,38 @@ class NdiffCommand(subprocess.Popen):
         env["PATH"] = search_paths
         if getattr(sys, "frozen", None) == "macosx_app":
             # These variables are set by py2app, but they can interfere with
-            # Ndiff because Ndiff is also a Python application. Without removing
-            # these, Ndiff will attempt to run using the py2app-bundled Python
-            # library, and may run into version or architecture mismatches.
-            if env.has_key("PYTHONPATH"):
+            # Ndiff because Ndiff is also a Python application. Without
+            # removing these, Ndiff will attempt to run using the
+            # py2app-bundled Python library, and may run into version or
+            # architecture mismatches.
+            if "PYTHONPATH" in env:
                 del env["PYTHONPATH"]
-            if env.has_key("PYTHONHOME"):
+            if "PYTHONHOME" in env:
                 del env["PYTHONHOME"]
 
-        command_list = [paths_config.ndiff_command_path, "--verbose", "--", filename_a, filename_b]
-        self.stdout_file = tempfile.TemporaryFile(mode = "rb", prefix = APP_NAME + "-ndiff-", suffix = ".xml")
+        command_list = [
+                paths_config.ndiff_command_path,
+                "--verbose",
+                "--",
+                filename_a,
+                filename_b
+                ]
+        self.stdout_file = tempfile.TemporaryFile(
+                mode="rb",
+                prefix=APP_NAME + "-ndiff-",
+                suffix=".xml"
+                )
 
         log.debug("Running command: %s" % repr(command_list))
-        # See zenmapCore.NmapCommand.py for an explanation of the shell argument.
-        subprocess.Popen.__init__(self, command_list, stdout = self.stdout_file, stderr = self.stdout_file, env = env, shell = (sys.platform == "win32"))
+        # shell argument explained in zenmapCore.NmapCommand.py
+        subprocess.Popen.__init__(
+                self,
+                command_list,
+                stdout=self.stdout_file,
+                stderr=self.stdout_file,
+                env=env,
+                shell=(sys.platform == "win32")
+                )
 
     def get_scan_diff(self):
         self.wait()
@@ -194,13 +215,17 @@ class NdiffCommand(subprocess.Popen):
     def kill(self):
         self.close()
 
+
 def ndiff(scan_a, scan_b):
     """Run Ndiff on two scan results, which may be filenames or NmapParserSAX
     objects, and return a running NdiffCommand object."""
     temporary_filenames = []
 
     if isinstance(scan_a, NmapParserSAX):
-        fd, filename_a = tempfile.mkstemp(prefix = APP_NAME + "-diff-", suffix = ".xml")
+        fd, filename_a = tempfile.mkstemp(
+                prefix=APP_NAME + "-diff-",
+                suffix=".xml"
+                )
         temporary_filenames.append(filename_a)
         f = os.fdopen(fd, "wb")
         scan_a.write_xml(f)
@@ -209,7 +234,10 @@ def ndiff(scan_a, scan_b):
         filename_a = scan_a
 
     if isinstance(scan_b, NmapParserSAX):
-        fd, filename_b = tempfile.mkstemp(prefix = APP_NAME + "-diff-", suffix = ".xml")
+        fd, filename_b = tempfile.mkstemp(
+                prefix=APP_NAME + "-diff-",
+                suffix=".xml"
+                )
         temporary_filenames.append(filename_b)
         f = os.fdopen(fd, "wb")
         scan_b.write_xml(f)

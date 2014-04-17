@@ -56,14 +56,13 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_engines.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nsock_engines.c 31737 2013-08-10 23:59:30Z henri $ */
 
 #ifdef HAVE_CONFIG_H
 #include "nsock_config.h"
 #endif
 
 #include "nsock_internal.h"
-
 
 #if HAVE_EPOLL
   extern struct io_engine engine_epoll;

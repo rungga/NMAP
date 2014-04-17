@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: filespace.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: filespace.c 32460 2013-10-23 19:04:04Z henri $ */
 
 #include "nsock_internal.h"
 #include "filespace.h"
@@ -66,7 +66,6 @@
 
 /* Assumes space for fs has already been allocated */
 int filespace_init(struct filespace *fs, int initial_size) {
-
   memset(fs, 0, sizeof(struct filespace));
   if (initial_size == 0)
     initial_size = FS_INITSIZE_DEFAULT;
@@ -94,11 +93,6 @@ int fs_cat(struct filespace *fs, const char *str, int len) {
 
   if (len == 0)
     return 0;
-
-  /*
-  printf("fscat: current_alloc=%d; current_size=%d; len=%d\n",
-         fs->current_alloc, fs->current_size, len);
-  */
 
   if (fs->current_alloc - fs->current_size < len + 2) {
     char *tmpstr;

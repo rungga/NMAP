@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -127,15 +127,18 @@ from zenmapGUI.higwidgets.higboxes import HIGVBox
 from zenmapGUI.Icons import get_os_icon
 import zenmapCore.I18N
 
+
 def treemodel_get_addrs_for_sort(model, iter):
     host = model.get_value(iter, 0)
     return host.get_addrs_for_sort()
+
 
 # Used to sort hosts by address.
 def cmp_treemodel_addr(model, iter_a, iter_b):
     addrs_a = treemodel_get_addrs_for_sort(model, iter_a)
     addrs_b = treemodel_get_addrs_for_sort(model, iter_b)
     return cmp(addrs_a, addrs_b)
+
 
 class ScanHostsView(HIGVBox, object):
     HOST_MODE, SERVICE_MODE = range(2)
@@ -272,8 +275,8 @@ class ScanHostsView(HIGVBox, object):
         self.host_column.pack_start(self.host_cell, True)
 
         self.pic_column.set_min_width(35)
-        self.pic_column.set_attributes(self.os_cell, stock_id = 1)
-        self.host_column.set_attributes(self.host_cell, text = 2)
+        self.pic_column.set_attributes(self.os_cell, stock_id=1)
+        self.host_column.set_attributes(self.host_cell, text=2)
 
     def mass_update(self, hosts):
         """Update the internal ListStores to reflect the hosts and services

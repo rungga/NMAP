@@ -19,8 +19,8 @@ The script is in the "external" category because it sends target IPs to a third 
 -- nmap -sn --script hostmap-ip2hosts <target>
 -- @output
 -- Host script results:
--- | hostmap-ip2hosts: 
--- |   hosts: 
+-- | hostmap-ip2hosts:
+-- |   hosts:
 -- |     insecure.org
 -- |     nmap.org
 -- |     sectools.org
@@ -38,16 +38,17 @@ The script is in the "external" category because it sends target IPs to a third 
 -- <elem key="filename">output_nmap.org</elem>
 ---
 
-author = {'Paulino Calderon <calderon@websec.mx>'}
+author = "Paulino Calderon <calderon@websec.mx>"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
 categories = {"external", "discovery"}
 
-local dns = require "dns"
 local ipOps = require "ipOps"
+local io = require "io"
 local http = require "http"
 local stdnse = require "stdnse"
+local string = require "string"
 local target = require "target"
 
 local HOSTMAP_BING_SERVER = "www.ip2hosts.com"
@@ -59,7 +60,7 @@ hostrule = function(host)
   return not ipOps.isPrivate(host.ip)
 end
 
-local function query_bing(ip) 
+local function query_bing(ip)
   local query = "/csv.php?ip=" .. ip
   local response
   local entries
@@ -91,7 +92,7 @@ end
 action = function(host)
   local filename_prefix = stdnse.get_script_args("hostmap.prefix")
   local hostnames = {}
-  local hostnames_str, output_str 
+  local hostnames_str, output_str
   local output_tab = stdnse.output_table()
   stdnse.print_debug(1, "Using database: %s", HOSTMAP_BING_SERVER)
   hostnames = query_bing(host.ip)

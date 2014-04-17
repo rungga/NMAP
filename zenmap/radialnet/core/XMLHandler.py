@@ -10,7 +10,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -66,7 +66,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -124,12 +124,10 @@ import xml.sax.saxutils
 from xml.sax.xmlreader import AttributesImpl as Attributes
 
 
-
 def convert_to_utf8(text):
     """
     """
     return text.encode('utf8', 'replace')
-
 
 
 class XMLNode:
@@ -143,69 +141,55 @@ class XMLNode:
         self.__attrs = dict()
         self.__children = []
 
-
     def set_text(self, text):
         """
         """
         self.__text = text
-
 
     def get_text(self):
         """
         """
         return self.__text
 
-
     def set_name(self, name):
         """
         """
         self.__name = name
-
 
     def get_name(self):
         """
         """
         return self.__name
 
-
     def add_attr(self, key, value):
         """
         """
         self.__attrs[key] = value
-
 
     def add_child(self, child):
         """
         """
         self.__children.append(child)
 
-
     def get_keys(self):
         """
         """
         return self.__attrs.keys()
 
-
     def get_attr(self, attr):
         """
         """
-        if self.__attrs.has_key(attr):
-            return self.__attrs[attr]
-
-        return None
-
+        return self.__attrs.get(attr)
 
     def get_attrs(self):
         """
         """
         return self.__attrs
 
-
     def get_children(self):
         """
         """
         return self.__children
-
 
     def query_children(self, name, attr, value, first=False, deep=False):
         """
@@ -216,7 +200,7 @@ class XMLNode:
 
             if child.get_name() == name:
 
-                if child.get_attrs().has_key(attr):
+                if attr in child.get_attrs():
 
                     c_value = child.get_attr(attr)
 
@@ -227,7 +211,7 @@ class XMLNode:
 
                 c_result = child.query_children(name, attr, value, first, deep)
 
-                if c_result != None:
+                if c_result is not None:
 
                     if first:
                         return c_result
@@ -242,7 +226,6 @@ class XMLNode:
             return None
 
         return result
-
 
     def search_children(self, name, first=False, deep=False):
         """
@@ -262,7 +245,7 @@ class XMLNode:
 
                 c_result = child.search_children(name, first, deep)
 
-                if c_result != None and c_result != []:
+                if c_result is not None and c_result != []:
 
                     if first:
                         return c_result
@@ -276,7 +259,6 @@ class XMLNode:
         return result
 
 
-
 class XMLWriter(xml.sax.saxutils.XMLGenerator):
     """
     """
@@ -287,12 +269,10 @@ class XMLWriter(xml.sax.saxutils.XMLGenerator):
 
         self.__root = root
 
-
     def set_root(self, root):
         """
         """
         self.__root = root
-
 
     def write(self):
         """
@@ -300,7 +280,6 @@ class XMLWriter(xml.sax.saxutils.XMLGenerator):
         self.startDocument()
         self.write_xml_node([self.__root])
         self.endDocument()
-
 
     def write_xml_node(self, root):
         """
@@ -317,7 +296,6 @@ class XMLWriter(xml.sax.saxutils.XMLGenerator):
             self.endElement(child.get_name())
 
 
-
 class XMLReader(xml.sax.ContentHandler):
     """
     """
@@ -330,40 +308,34 @@ class XMLReader(xml.sax.ContentHandler):
         self.__file = file
         self.__root = None
 
-        self.__parser = xml.sax.make_parser();
-        self.__parser.setContentHandler(self);
-
+        self.__parser = xml.sax.make_parser()
+        self.__parser.setContentHandler(self)
 
     def set_file(self, file, root):
         """
         """
         self.__file = file
 
-
     def get_file(self):
         """
         """
         return self.__file
-
 
     def get_root(self):
         """
         """
         return self.__root
 
-
     def parse(self):
         """
         """
-        if self.__file != None:
+        if self.__file is not None:
             self.__parser.parse(self.__file)
-
 
     def startDocument(self):
         """
         """
         pass
-
 
     def startElement(self, name, attrs):
         """
@@ -379,11 +351,10 @@ class XMLReader(xml.sax.ContentHandler):
         if len(self.__status) > 0:
             self.__status[-1].add_child(node)
 
-        if self.__root == None:
+        if self.__root is None:
             self.__root = node
 
         self.__status.append(node)
-
 
     def endElement(self, name):
         """
@@ -393,18 +364,15 @@ class XMLReader(xml.sax.ContentHandler):
         self.__text = ""
         self.__status.pop()
 
-
     def endDocument(self):
         """
         """
         pass
 
-
     def characters(self, text):
         """
         """
         self.__text += text
-
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: tcpip.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: tcpip.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 
 #ifndef TCPIP_H
@@ -247,15 +247,15 @@ class PacketTrace {
      makes this function slightly more efficient by avoiding a gettimeofday()
      call. */
   static void trace(pdirection pdir, const u8 *packet, u32 len,
-		    struct timeval *now=NULL);
+                    struct timeval *now=NULL);
 /* Adds a trace entry when a connect() is attempted if packet tracing
    is enabled.  Pass IPPROTO_TCP or IPPROTO_UDP as the protocol.  The
    sock may be a sockaddr_in or sockaddr_in6.  The return code of
    connect is passed in connectrc.  If the return code is -1, get the
    errno and pass that as connect_errno. */
-  static void traceConnect(u8 proto, const struct sockaddr *sock, 
-			   int socklen, int connectrc, int connect_errno,
-			   const struct timeval *now);
+  static void traceConnect(u8 proto, const struct sockaddr *sock,
+                           int socklen, int connectrc, int connect_errno,
+                           const struct timeval *now);
   /* Takes an ARP PACKET (including ethernet header) and prints it if
      packet tracing is enabled.  'frame' must point to the 14-byte
      ethernet header (e.g. starting with destination addr). The
@@ -263,7 +263,7 @@ class PacketTrace {
      Optional 'now' argument makes this function slightly more
      efficient by avoiding a gettimeofday() call. */
   static void traceArp(pdirection pdir, const u8 *frame, u32 len,
-				    struct timeval *now);
+                                    struct timeval *now);
   static void traceND(pdirection pdir, const u8 *frame, u32 len,
                                     struct timeval *now);
 };
@@ -276,7 +276,7 @@ class PacketCounter {
 #else
   unsigned long long
 #endif
-	  sendPackets, sendBytes, recvPackets, recvBytes;
+          sendPackets, sendBytes, recvPackets, recvBytes;
 };
 
 
@@ -288,7 +288,7 @@ class PacketCounter {
 /* Prototypes */
 /* Converts an IP address given in a sockaddr_storage to an IPv4 or
    IPv6 IP address string.  Since a static buffer is returned, this is
-   not thread-safe and can only be used once in calls like printf() 
+   not thread-safe and can only be used once in calls like printf()
 */
 const char *inet_socktop(struct sockaddr_storage *ss);
 
@@ -320,12 +320,12 @@ int send_ip_packet(int sd, const struct eth_nfo *eth,
    actually sent by this function.  Caller must delete the buffer when
    finished with the packet.  The packet length is returned in
    packetlen, which must be a valid int pointer. */
-u8 *build_ip_raw(const struct in_addr *source, const struct in_addr *victim, 
-		 u8 proto,
-		 int ttl, u16 ipid, u8 tos, bool df,
-		 const u8* ipopt, int ipoptlen,
-		 const char *data, u16 datalen,
-		 u32 *packetlen);
+u8 *build_ip_raw(const struct in_addr *source, const struct in_addr *victim,
+                 u8 proto,
+                 int ttl, u16 ipid, u8 tos, bool df,
+                 const u8* ipopt, int ipoptlen,
+                 const char *data, u16 datalen,
+                 u32 *packetlen);
 
 u8 *build_ipv6_raw(const struct in6_addr *source,
                    const struct in6_addr *victim, u8 tc, u32 flowlabel,
@@ -339,13 +339,13 @@ u8 *build_ipv6_raw(const struct in6_addr *source,
    finished with the packet.  The packet length is returned in
    packetlen, which must be a valid int pointer. */
 u8 *build_tcp_raw(const struct in_addr *source, const struct in_addr *victim,
-		  int ttl, u16 ipid, u8 tos, bool df,
-		  const u8* ipopt, int ipoptlen,
-		  u16 sport, u16 dport,
-		  u32 seq, u32 ack, u8 reserved, u8 flags, u16 window, u16 urp,
-		  const u8 *options, int optlen,
-		  const char *data, u16 datalen,
-		  u32 *packetlen);
+                  int ttl, u16 ipid, u8 tos, bool df,
+                  const u8* ipopt, int ipoptlen,
+                  u16 sport, u16 dport,
+                  u32 seq, u32 ack, u8 reserved, u8 flags, u16 window, u16 urp,
+                  const u8 *options, int optlen,
+                  const char *data, u16 datalen,
+                  u32 *packetlen);
 
 u8 *build_tcp_raw_ipv6(const struct in6_addr *source,
                        const struct in6_addr *victim, u8 tc, u32 flowlabel,
@@ -357,22 +357,22 @@ u8 *build_tcp_raw_ipv6(const struct in6_addr *source,
 /* Build and send a raw tcp packet.  If TTL is -1, a partially random
    (but likely large enough) one is chosen */
 int send_tcp_raw( int sd, const struct eth_nfo *eth,
-		  const struct in_addr *source, const struct in_addr *victim, 
-		  int ttl, bool df,
-		  u8* ipopt, int ipoptlen,
-		  u16 sport, u16 dport,
-		  u32 seq, u32 ack, u8 reserved, u8 flags, u16 window, u16 urp,
-		  u8 *options, int optlen,
-		  const char *data, u16 datalen);
+                  const struct in_addr *source, const struct in_addr *victim,
+                  int ttl, bool df,
+                  u8* ipopt, int ipoptlen,
+                  u16 sport, u16 dport,
+                  u32 seq, u32 ack, u8 reserved, u8 flags, u16 window, u16 urp,
+                  u8 *options, int optlen,
+                  const char *data, u16 datalen);
 
-int send_tcp_raw_decoys( int sd, const struct eth_nfo *eth, 
-			 const struct in_addr *victim,
-			 int ttl, bool df, 
-			 u8* ipopt, int ipoptlen,
-			 u16 sport, u16 dport,
-			 u32 seq, u32 ack, u8 reserved, u8 flags, u16 window, u16 urp,
-			 u8 *options, int optlen,
-			 const char *data, u16 datalen);
+int send_tcp_raw_decoys( int sd, const struct eth_nfo *eth,
+                         const struct in_addr *victim,
+                         int ttl, bool df,
+                         u8* ipopt, int ipoptlen,
+                         u16 sport, u16 dport,
+                         u32 seq, u32 ack, u8 reserved, u8 flags, u16 window, u16 urp,
+                         u8 *options, int optlen,
+                         const char *data, u16 datalen);
 
 /* Builds a UDP packet (including an IP header) by packing the fields
    with the given information.  It allocates a new buffer to store the
@@ -381,11 +381,11 @@ int send_tcp_raw_decoys( int sd, const struct eth_nfo *eth,
    finished with the packet.  The packet length is returned in
    packetlen, which must be a valid int pointer. */
 u8 *build_udp_raw(const struct in_addr *source, const struct in_addr *victim,
- 		  int ttl, u16 ipid, u8 tos, bool df,
-		  u8* ipopt, int ipoptlen,
- 		  u16 sport, u16 dport, 
- 		  const char *data, u16 datalen,
- 		  u32 *packetlen);
+       int ttl, u16 ipid, u8 tos, bool df,
+                  u8* ipopt, int ipoptlen,
+       u16 sport, u16 dport,
+       const char *data, u16 datalen,
+       u32 *packetlen);
 
 u8 *build_udp_raw_ipv6(const struct in6_addr *source,
                        const struct in6_addr *victim, u8 tc, u32 flowlabel,
@@ -393,18 +393,18 @@ u8 *build_udp_raw_ipv6(const struct in6_addr *source,
                        const char *data, u16 datalen, u32 *packetlen);
 
 int send_udp_raw( int sd, const struct eth_nfo *eth,
-		  struct in_addr *source, const struct in_addr *victim,
-		  int ttl, u16 ipid,
-		  u8* ipopt, int ipoptlen,
-		  u16 sport, u16 dport,
-		  const char *data, u16 datalen);
+                  struct in_addr *source, const struct in_addr *victim,
+                  int ttl, u16 ipid,
+                  u8* ipopt, int ipoptlen,
+                  u16 sport, u16 dport,
+                  const char *data, u16 datalen);
 
-int send_udp_raw_decoys( int sd, const struct eth_nfo *eth, 
-			 const struct in_addr *victim,
-			 int ttl, u16 ipid,
-			 u8* ipops, int ip,
-			 u16 sport, u16 dport,
-			 const char *data, u16 datalen);
+int send_udp_raw_decoys( int sd, const struct eth_nfo *eth,
+                         const struct in_addr *victim,
+                         int ttl, u16 ipid,
+                         u8* ipops, int ip,
+                         u16 sport, u16 dport,
+                         const char *data, u16 datalen);
 
 /* Builds an SCTP packet (including an IP header) by packing the fields
    with the given information.  It allocates a new buffer to store the
@@ -413,12 +413,12 @@ int send_udp_raw_decoys( int sd, const struct eth_nfo *eth,
    finished with the packet.  The packet length is returned in
    packetlen, which must be a valid int pointer. */
 u8 *build_sctp_raw(const struct in_addr *source, const struct in_addr *victim,
-		   int ttl, u16 ipid, u8 tos, bool df,
-		   u8* ipopt, int ipoptlen,
-		   u16 sport, u16 dport,
-		   u32 vtag, char *chunks, int chunkslen,
-		   const char *data, u16 datalen,
-		   u32 *packetlen);
+                   int ttl, u16 ipid, u8 tos, bool df,
+                   u8* ipopt, int ipoptlen,
+                   u16 sport, u16 dport,
+                   u32 vtag, char *chunks, int chunkslen,
+                   const char *data, u16 datalen,
+                   u32 *packetlen);
 
 u8 *build_sctp_raw_ipv6(const struct in6_addr *source,
                         const struct in6_addr *victim, u8 tc, u32 flowlabel,
@@ -434,11 +434,11 @@ u8 *build_sctp_raw_ipv6(const struct in6_addr *source,
    returned in packetlen, which must be a valid int pointer. The
    id/seq will be converted to network byte order (if it differs from
    HBO) */
-u8 *build_icmp_raw(const struct in_addr *source, const struct in_addr *victim, 
-		   int ttl, u16 ipid, u8 tos, bool df,
-		   u8* ipopt, int ipoptlen,
-		   u16 seq, unsigned short id, u8 ptype, u8 pcode,
-		   const char *data, u16 datalen, u32 *packetlen);
+u8 *build_icmp_raw(const struct in_addr *source, const struct in_addr *victim,
+                   int ttl, u16 ipid, u8 tos, bool df,
+                   u8* ipopt, int ipoptlen,
+                   u16 seq, unsigned short id, u8 ptype, u8 pcode,
+                   const char *data, u16 datalen, u32 *packetlen);
 
 u8 *build_icmpv6_raw(const struct in6_addr *source,
                      const struct in6_addr *victim, u8 tc, u32 flowlabel,
@@ -452,14 +452,14 @@ u8 *build_icmpv6_raw(const struct in6_addr *source,
    finished with the packet.  The packet length is returned in packetlen,
    which must be a valid int pointer.
  */
-u8 *build_igmp_raw(const struct in_addr *source, const struct in_addr *victim, 
-		   int ttl, u16 ipid, u8 tos, bool df,
-		   u8* ipopt, int ipoptlen,
-		   u8 ptype, u8 pcode,
-		   const char *data, u16 datalen, u32 *packetlen);
+u8 *build_igmp_raw(const struct in_addr *source, const struct in_addr *victim,
+                   int ttl, u16 ipid, u8 tos, bool df,
+                   u8* ipopt, int ipoptlen,
+                   u8 ptype, u8 pcode,
+                   const char *data, u16 datalen, u32 *packetlen);
 
 
-// Returns whether the packet receive time value obtaned from libpcap
+// Returns whether the packet receive time value obtained from libpcap
 // (and thus by readip_pcap()) should be considered valid.  When
 // invalid (Windows and Amiga), readip_pcap returns the time you called it.
 bool pcap_recv_timeval_valid();
@@ -497,7 +497,7 @@ char *getFinalPacketStats(char *buf, int buflen);
       directly connected to the src host running Nmap.  If it is, set the MAC.
 
    This function returns 0 if it ends up setting the MAC, nonzero otherwise
-*/  
+*/
 
 int setTargetMACIfAvailable(Target *target, struct link_header *linkhdr,
                             const struct sockaddr_storage *src, int overwrite);
@@ -512,7 +512,7 @@ int setTargetMACIfAvailable(Target *target, struct link_header *linkhdr,
 bool setTargetNextHopMAC(Target *target);
 
 bool getNextHopMAC(const char *iface, const u8 *srcmac, const struct sockaddr_storage *srcss,
-		   const struct sockaddr_storage *dstss, u8 *dstmac);
+                   const struct sockaddr_storage *dstss, u8 *dstmac);
 
 
 
@@ -520,9 +520,9 @@ bool getNextHopMAC(const char *iface, const u8 *srcmac, const struct sockaddr_st
 int get_link_offset(char *device);
 /* If rcvdtime is non-null and a packet is returned, rcvd will be
    filled with the time that packet was captured from the wire by
-   pcap.  If linknfo is not NULL, lnknfo->headerlen and
+   pcap.  If linknfo is not NULL, lnkinfo->headerlen and
    lnkinfo->header will be filled with the appropriate values. */
-char *readipv4_pcap(pcap_t *pd, unsigned int *len, long to_usec, 
+char *readipv4_pcap(pcap_t *pd, unsigned int *len, long to_usec,
                     struct timeval *rcvdtime, struct link_header *linknfo, bool validate);
 
 char *readip_pcap(pcap_t *pd, unsigned int *len, long to_usec,
@@ -537,9 +537,9 @@ int read_na_pcap(pcap_t *pd, u8 *sendermac, struct sockaddr_in6 *senderIP, long 
    and returns 1.  If it times out and reads no arp requests, returns
    0.  to_usec is the timeout period in microseconds.  Use 0 to avoid
    blocking to the extent possible, and -1 to block forever.  Returns
-   -1 or exits if ther is an error. */
+   -1 or exits if there is an error. */
 int read_arp_reply_pcap(pcap_t *pd, u8 *sendermac, struct in_addr *senderIP,
-		       long to_usec, struct timeval *rcvdtime);
+                       long to_usec, struct timeval *rcvdtime);
 
 /* Examines the given tcp packet and obtains the TCP timestamp option
    information if available.  Note that the CALLER must ensure that
@@ -563,7 +563,7 @@ void broadcast_socket(int sd);
    len) into buf .  Give up after 'seconds'.  Returns the number of
    bytes read (or -1 in the case of an error.  It only does one recv
    (it will not keep going until len bytes are read).  If timedout is
-   not NULL, it will be set to zero (no timeout occured) or 1 (it
+   not NULL, it will be set to zero (no timeout occurred) or 1 (it
    did). */
 int recvtime(int sd, char *buf, int len, int seconds, int *timedout);
 

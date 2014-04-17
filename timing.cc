@@ -15,7 +15,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -71,7 +71,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -89,12 +89,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -124,7 +124,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: timing.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: timing.cc 32717 2014-02-12 20:25:51Z dmiller $ */
 
 #include "timing.h"
 #include "NmapOps.h"
@@ -141,7 +141,7 @@ void initialize_timeout_info(struct timeout_info *to) {
   to->timeout = o.initialRttTimeout() * 1000;
 }
 
-/* Adjust our timeout values based on the time the latest probe took for a 
+/* Adjust our timeout values based on the time the latest probe took for a
    response.  We update our RTT averages, etc. */
 void adjust_timeouts(struct timeval sent, struct timeout_info *to) {
   struct timeval received;
@@ -155,9 +155,9 @@ void adjust_timeouts(struct timeval sent, struct timeout_info *to) {
  the receive time too (which could be because it was received a while
  back or it could be for efficiency because the caller already knows
  the current time */
-void adjust_timeouts2(const struct timeval *sent, 
-		      const struct timeval *received, 
-		      struct timeout_info *to) {
+void adjust_timeouts2(const struct timeval *sent,
+                      const struct timeval *received,
+                      struct timeout_info *to) {
   long delta = 0;
 
   if (o.debugging > 3) {
@@ -187,30 +187,30 @@ void adjust_timeouts2(const struct timeval *sent,
 
     if (delta >= 8000000 || delta < 0) {
       if (o.verbose)
-	error("%s: packet supposedly had rtt of %ld microseconds.  Ignoring time.", __func__, delta);
+        error("%s: packet supposedly had rtt of %ld microseconds.  Ignoring time.", __func__, delta);
       return;
     }
     rttdelta = delta - to->srtt;
     /* sanity check 2*/
     if (rttdelta > 1500000 && rttdelta > 3 * to->srtt + 2 * to->rttvar) {
       if (o.debugging) {
-	log_write(LOG_STDOUT, "Bogus rttdelta: %ld (srtt %d) ... ignoring\n", rttdelta, to->srtt);
+        log_write(LOG_STDOUT, "Bogus rttdelta: %ld (srtt %d) ... ignoring\n", rttdelta, to->srtt);
       }
       return;
     }
     to->srtt += rttdelta >> 3;
     to->rttvar += (ABS(rttdelta) - to->rttvar) >> 2;
-    to->timeout = to->srtt + (to->rttvar << 2);  
+    to->timeout = to->srtt + (to->rttvar << 2);
   }
   if (to->rttvar > 2300000) {
     error("RTTVAR has grown to over 2.3 seconds, decreasing to 2.0");
     to->rttvar = 2000000;
   }
-  
+
   /* It hurts to do this ... it really does ... but otherwise we are being
      too risky */
-  to->timeout = box(o.minRttTimeout() * 1000, o.maxRttTimeout() * 1000,  
-		    to->timeout);
+  to->timeout = box(o.minRttTimeout() * 1000, o.maxRttTimeout() * 1000,
+                    to->timeout);
 
   if (o.scan_delay)
     to->timeout = MAX((unsigned) to->timeout, o.scan_delay * 1000);
@@ -219,7 +219,7 @@ void adjust_timeouts2(const struct timeval *sent,
     log_write(LOG_STDOUT, "delta %ld ==> srtt: %d rttvar: %d to: %d\n", delta, to->srtt, to->rttvar, to->timeout);
   }
 
-  /* if (to->srtt < 0 || to->rttvar < 0 || to->timeout < 0 || delta < -50000000 || 
+  /* if (to->srtt < 0 || to->rttvar < 0 || to->timeout < 0 || delta < -50000000 ||
       sent->tv_sec == 0 || received->tv_sec == 0 ) {
     fatal("Serious time computation problem in adjust_timeout ... received = (%ld, %ld) sent=(%ld,%ld) delta = %ld srtt = %d rttvar = %d to = %d", (long) received->tv_sec, (long)received->tv_usec, (long) sent->tv_sec, (long) sent->tv_usec, delta, to->srtt, to->rttvar, to->timeout);
   } */
@@ -249,7 +249,7 @@ void enforce_scan_delay(struct timeval *tv) {
 
   gettimeofday(&now, NULL);
   time_diff = TIMEVAL_MSEC_SUBTRACT(now, lastcall);
-  if (time_diff < (int) o.scan_delay) {  
+  if (time_diff < (int) o.scan_delay) {
     if (o.debugging > 1) {
       log_write(LOG_PLAIN, "Sleeping for %d milliseconds in %s()\n", o.scan_delay - time_diff, __func__);
     }
@@ -261,7 +261,7 @@ void enforce_scan_delay(struct timeval *tv) {
     memcpy(tv, &lastcall, sizeof(struct timeval));
   }
 
-  return;    
+  return;
 }
 
 
@@ -593,7 +593,7 @@ bool ScanProgressMeter::mayBePrinted(const struct timeval *now) {
       return true;
     else
       return false;
-  } 
+  }
 
   if (difftime(now->tv_sec, last_print_test.tv_sec) < 3)
     return false;  /* No point even checking too often */
@@ -623,8 +623,8 @@ static double estimate_time_left(double perc_done,
    so if mayBePrinted() is true, and it seems reasonable to do so
    because the estimate has changed significantly.  Returns whether
    or not a line was printed.*/
-bool ScanProgressMeter::printStatsIfNecessary(double perc_done, 
-					       const struct timeval *now) {
+bool ScanProgressMeter::printStatsIfNecessary(double perc_done,
+                                               const struct timeval *now) {
   struct timeval tvtmp;
   double time_left_s;
   bool printit = false;
@@ -667,13 +667,13 @@ bool ScanProgressMeter::printStatsIfNecessary(double perc_done,
 
   if (printit) {
      return printStats(perc_done, now);
-  } 
+  }
 
   return false;
 }
 
 /* Prints an estimate of when this scan will complete.  */
-bool ScanProgressMeter::printStats(double perc_done, 
+bool ScanProgressMeter::printStats(double perc_done,
                                    const struct timeval *now) {
   struct timeval tvtmp;
   double time_left_s;
@@ -722,7 +722,7 @@ bool ScanProgressMeter::printStats(double perc_done,
   xml_close_empty_tag();
   xml_newline();
   log_flush(LOG_STDOUT|LOG_XML);
- 
+
   return true;
 }
 

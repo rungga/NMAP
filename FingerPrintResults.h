@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: FingerPrintResults.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: FingerPrintResults.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #ifndef FINGERPRINTRESULTS_H
 #define FINGERPRINTRESULTS_H
@@ -149,14 +149,14 @@ class FingerPrintResults {
   FingerPrintResults();
   virtual ~FingerPrintResults();
 
-  double accuracy[MAX_FP_RESULTS]; /* Percentage of match (1.0 == perfect 
-				      match) in same order as matches[] below */
-  FingerMatch *matches[MAX_FP_RESULTS]; /* ptrs to matching references -- 
-					      highest accuracy matches first */
+  double accuracy[MAX_FP_RESULTS]; /* Percentage of match (1.0 == perfect
+                                      match) in same order as matches[] below */
+  FingerMatch *matches[MAX_FP_RESULTS]; /* ptrs to matching references --
+                                              highest accuracy matches first */
   int num_perfect_matches; /* Number of 1.0 accuracy matches in matches[] */
   int num_matches; /* Total number of matches in matches[] */
-  int overall_results; /* OSSCAN_TOOMANYMATCHES, OSSCAN_NOMATCHES, 
-			  OSSCAN_SUCCESS, etc */
+  int overall_results; /* OSSCAN_TOOMANYMATCHES, OSSCAN_NOMATCHES,
+                          OSSCAN_SUCCESS, etc */
 
   /* Ensures that the results are available and then returns them.
    You should only call this AFTER all matching has been completed
@@ -166,12 +166,12 @@ class FingerPrintResults {
    returned */
   const struct OS_Classification_Results *getOSClassification();
 
-  int osscan_opentcpport; /* Open TCP port used for scannig (if one found -- 
-			  otherwise -1) */
-  int osscan_closedtcpport; /* Closed TCP port used for scannig (if one found -- 
-			    otherwise -1) */
-  int osscan_closedudpport;  /* Closed UDP port used for scannig (if one found -- 
-			    otherwise -1) */
+  int osscan_opentcpport; /* Open TCP port used for scanning (if one found --
+                          otherwise -1) */
+  int osscan_closedtcpport; /* Closed TCP port used for scanning (if one found --
+                            otherwise -1) */
+  int osscan_closedudpport;  /* Closed UDP port used for scanning (if one found --
+                            otherwise -1) */
   int distance; /* How "far" is this FP gotten from? */
   int distance_guess; /* How "far" is this FP gotten from? by guessing based on ttl. */
 
@@ -179,7 +179,7 @@ class FingerPrintResults {
      between sending 1st tseq probe and sending first ICMP echo probe.
      Zero means we didn't see any ratios (the tseq probes weren't
      sent), 1 is ideal, and larger values are undesirable from a
-     consistancy standpoint. */
+     consistency standpoint. */
   double maxTimingRatio;
 
 /* If the fingerprint is of potentially poor quality, we don't want to

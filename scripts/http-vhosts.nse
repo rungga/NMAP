@@ -1,5 +1,6 @@
 local coroutine = require "coroutine"
 local http = require "http"
+local io = require "io"
 local nmap = require "nmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -21,7 +22,7 @@ various names of the form <name>.example.com are tried.
 ]]
 
 ---
--- @usage 
+-- @usage
 -- nmap --script http-vhosts -p 80,8080,443 <target>
 --
 -- @arg http-vhosts.domain The domain that hostnames will be prepended to, for
@@ -42,12 +43,12 @@ various names of the form <name>.example.com are tried.
 --
 -- @todo feature: move hostnames to an external file and allow the user to use another one
 -- @internal: see http://seclists.org/nmap-dev/2010/q4/401 and http://seclists.org/nmap-dev/2010/q4/445
--- 
--- 
+--
+--
 -- @todo feature: add option report and implement it
--- @internal after stripping sensitive info like ip, domain names, hostnames 
---           and redirection targets from the result, append it to a file 
---           that can then be uploaded. If enough info is gathered, the names 
+-- @internal after stripping sensitive info like ip, domain names, hostnames
+--           and redirection targets from the result, append it to a file
+--           that can then be uploaded. If enough info is gathered, the names
 --           will be weighted. It can be shared with metasploit
 --
 -- @todo feature: fill nsedoc
@@ -80,7 +81,7 @@ end
 
 ---
 -- Makes a target name with a name and a domain
--- @param name string 
+-- @param name string
 -- @param domain string
 -- @return string
 local makeTargetName = function(name,domain)
@@ -101,12 +102,12 @@ end
 -- key -> table
 -- @param result table
 -- @return string
-local collapse = function(result) 
+local collapse = function(result)
   local collapsed = {""}
   for code, group in next, result do
     if  #group > arg_collapse then
       table.insert(collapsed, ("%d names had status %s"):format(#group, code))
-    else 
+    else
       for _,name in ipairs(group) do
         table.insert(collapsed, name)
       end
@@ -119,7 +120,7 @@ local testThread = function(result, host, port, name)
   local condvar = nmap.condvar(result)
   local targetname = makeTargetName(name , arg_domain)
   if targetname ~= nil then
-		local http_response = http.generic_request(host, port, "HEAD", arg_path, {header={Host=targetname}})
+    local http_response = http.generic_request(host, port, "HEAD", arg_path, {header={Host=targetname}})
 
     if not http_response.status  then
       result["ERROR"] = result["ERROR"] or {}
@@ -129,12 +130,20 @@ local testThread = function(result, host, port, name)
       result[status] = result[status] or {}
       if ( 300 <= http_response.status and http_response.status < 400 ) then
         table.insert(result[status], ("%s : %s -> %s"):format(targetname, status, (http_response.header.location or "(no Location provided)")))
-      else 
+      else
         table.insert(result[status], ("%s : %s"):format(targetname, status))
       end
     end
   end
   condvar "signal"
+end
+
+local readFromFile = function(filename)
+    local database = {}
+    for l in io.lines(filename) do
+        table.insert(database, l)
+    end
+    return database
 end
 
 portrule = shortport.http
@@ -144,13 +153,18 @@ portrule = shortport.http
 -- @param host table
 -- @param port table
 action = function(host, port)
-  local result, threads = {}, {}
+  local result, threads, hostnames = {}, {}, {}
   local condvar = nmap.condvar(result)
+  local status
 
-  local status, hostnames = datafiles.parse_file(arg_filelist or "nselib/data/vhosts-default.lst" , {})
-  if not status then
-    stdnse.print_debug(1, "Can not open file with vhosts file names list")
-    return
+  if arg_filelist then
+    hostnames = readFromFile(arg_filelist)
+  else
+    status, hostnames = datafiles.parse_file("nselib/data/vhosts-default.lst" , {})
+    if not status then
+      stdnse.print_debug(1, "Can not open file with vhosts file names list")
+      return
+    end
   end
 
   arg_domain = arg_domain or defineDomain(host)

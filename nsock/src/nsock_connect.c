@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_connect.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nsock_connect.c 32400 2013-09-27 15:30:18Z david $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -146,7 +146,7 @@ static int nsock_make_socket(mspool *ms, msiod *iod, int family, int type, int p
   /* inheritable_socket is from nbase */
   iod->sd = (int)inheritable_socket(family, type, proto);
   if (iod->sd == -1) {
-    perror("Socket troubles");
+    nsock_log_error(ms, "Socket trouble: %s", socket_strerror(socket_errno()));
     return -1;
   }
 
@@ -204,7 +204,7 @@ void nsock_connect_internal(mspool *ms, msevent *nse, int type, int proto, struc
     nsock_log_debug_all(ms, "TCP connection request (EID %lu) redirected through proxy chain",
                         (long)nse->id);
 
-    current = proxy_ctx_node_current(iod->px_ctx);
+    current = iod->px_ctx->px_current;
     assert(current != NULL);
 
     memcpy(&iod->px_ctx->target_ss, ss, sslen);

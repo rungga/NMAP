@@ -10,7 +10,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -66,7 +66,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -119,7 +119,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: ncat_listen.c 32742 2014-02-20 21:22:22Z dmiller $ */
 
 #include "ncat.h"
 
@@ -165,7 +165,7 @@
    from us, like a pending ssl negotiation. */
 static fd_set master_readfds, master_writefds, master_broadcastfds;
 #ifdef HAVE_OPENSSL
-/* sslpending_fds containts the list of ssl sockets that are waiting to complete
+/* sslpending_fds contains the list of ssl sockets that are waiting to complete
    the ssl handshake */
 static fd_set sslpending_fds;
 #endif
@@ -233,6 +233,7 @@ static int ncat_listen_stream(int proto)
     fd_set listen_fds;
     struct timeval tv;
     struct timeval *tvp = NULL;
+    unsigned int num_sockets;
 
     /* clear out structs */
     FD_ZERO(&master_readfds);
@@ -268,22 +269,37 @@ static int ncat_listen_stream(int proto)
     for (i = 0; i < NUM_LISTEN_ADDRS; i++)
         listen_socket[i] = -1;
 
+    num_sockets = 0;
     for (i = 0; i < num_listenaddrs; i++) {
         /* setup the main listening socket */
-        listen_socket[i] = do_listen(SOCK_STREAM, proto, &listenaddrs[i]);
+        listen_socket[num_sockets] = do_listen(SOCK_STREAM, proto, &listenaddrs[i]);
+        if (listen_socket[num_sockets] == -1) {
+            if (o.debug > 0)
+                logdebug("do_listen(\"%s\"): %s\n", inet_ntop_ez(&listenaddrs[i].storage, sizeof(listenaddrs[i].storage)), socket_strerror(socket_errno()));
+            continue;
+        }
 
         /* Make our listening socket non-blocking because there are timing issues
          * which could cause us to block on accept() even though select() says it's
          * readable.  See UNPv1 2nd ed, p422 for more.
          */
-        unblock_socket(listen_socket[i]);
+        unblock_socket(listen_socket[num_sockets]);
 
         /* setup select sets and max fd */
-        FD_SET(listen_socket[i], &master_readfds);
-        add_fd(&client_fdlist, listen_socket[i]);
+        FD_SET(listen_socket[num_sockets], &master_readfds);
+        add_fd(&client_fdlist, listen_socket[num_sockets]);
 
-        FD_SET(listen_socket[i], &listen_fds);
+        FD_SET(listen_socket[num_sockets], &listen_fds);
+
+        num_sockets++;
     }
+    if (num_sockets == 0) {
+        if (num_listenaddrs == 1)
+            bye("Unable to open listening socket on %s: %s", inet_ntop_ez(&listenaddrs[0].storage, sizeof(listenaddrs[0].storage)), socket_strerror(socket_errno()));
+        else
+            bye("Unable to open any listening sockets.");
+    }
+
     add_fd(&client_fdlist, STDIN_FILENO);
 
     init_fdlist(&broadcast_fdlist, o.conn_limit);
@@ -619,7 +635,10 @@ int read_socket(int recv_fd)
  */
 static int ncat_listen_dgram(int proto)
 {
-    int sockfd[NUM_LISTEN_ADDRS];
+    struct {
+        int fd;
+        union sockaddr_u addr;
+    } sockfd[NUM_LISTEN_ADDRS];
     int i, fdn = -1;
     int fdmax, nbytes, n, fds_ready;
     char buf[DEFAULT_UDP_BUF_LEN] = { 0 };
@@ -629,9 +648,11 @@ static int ncat_listen_dgram(int proto)
     socklen_t sslen = sizeof(remotess.storage);
     struct timeval tv;
     struct timeval *tvp = NULL;
+    unsigned int num_sockets;
 
     for (i = 0; i < NUM_LISTEN_ADDRS; i++) {
-        sockfd[i] = -1;
+        sockfd[i].fd = -1;
+        sockfd[i].addr.storage.ss_family = AF_UNSPEC;
     }
 
     FD_ZERO(&read_fds);
@@ -656,11 +677,25 @@ static int ncat_listen_dgram(int proto)
     FD_ZERO(&listen_fds);
     init_fdlist(&listen_fdlist, num_listenaddrs);
 
+    num_sockets = 0;
     for (i = 0; i < num_listenaddrs; i++) {
         /* create the UDP listen sockets */
-        sockfd[i] = do_listen(SOCK_DGRAM, proto, &listenaddrs[i]);
-        FD_SET(sockfd[i], &listen_fds);
-        add_fd(&listen_fdlist, sockfd[i]);
+        sockfd[num_sockets].fd = do_listen(SOCK_DGRAM, proto, &listenaddrs[i]);
+        if (sockfd[num_sockets].fd == -1) {
+            if (o.debug > 0)
+                logdebug("do_listen(\"%s\"): %s\n", inet_ntop_ez(&listenaddrs[i].storage, sizeof(listenaddrs[i].storage)), socket_strerror(socket_errno()));
+            continue;
+        }
+        FD_SET(sockfd[num_sockets].fd, &listen_fds);
+        add_fd(&listen_fdlist, sockfd[num_sockets].fd);
+        sockfd[num_sockets].addr = listenaddrs[i];
+        num_sockets++;
+    }
+    if (num_sockets == 0) {
+        if (num_listenaddrs == 1)
+            bye("Unable to open listening socket on %s: %s", inet_ntop_ez(&listenaddrs[0].storage, sizeof(listenaddrs[0].storage)), socket_strerror(socket_errno()));
+        else
+            bye("Unable to open any listening sockets.");
     }
 
     if (o.idletimeout > 0)
@@ -671,13 +706,15 @@ static int ncat_listen_dgram(int proto)
 
         if (fdn != -1) {
             /*remove socket descriptor which is burnt */
-            FD_CLR(sockfd[fdn], &listen_fds);
-            rm_fd(&listen_fdlist, sockfd[fdn]);
+            FD_CLR(sockfd[fdn].fd, &listen_fds);
+            rm_fd(&listen_fdlist, sockfd[fdn].fd);
 
             /* Rebuild the udp socket which got burnt */
-            sockfd[fdn] = do_listen(SOCK_DGRAM, proto, &listenaddrs[fdn]);
-            FD_SET(sockfd[fdn], &listen_fds);
-            add_fd(&listen_fdlist, sockfd[fdn]);
+            sockfd[fdn].fd = do_listen(SOCK_DGRAM, proto, &sockfd[fdn].addr);
+            if (sockfd[fdn].fd == -1)
+                bye("do_listen: %s", socket_strerror(socket_errno()));
+            FD_SET(sockfd[fdn].fd, &listen_fds);
+            add_fd(&listen_fdlist, sockfd[fdn].fd);
 
         }
         fdn = -1;
@@ -714,8 +751,8 @@ static int ncat_listen_dgram(int proto)
                     continue;
 
                 /* Check each listening socket */
-                for (j = 0; j < num_listenaddrs; j++) {
-                    if (i == sockfd[j]) {
+                for (j = 0; j < num_sockets; j++) {
+                    if (i == sockfd[j].fd) {
                         if (o.debug > 1)
                             logdebug("Valid descriptor %d \n", i);
                         fdn = j;

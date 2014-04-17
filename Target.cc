@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: Target.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: Target.cc 32717 2014-02-12 20:25:51Z dmiller $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
@@ -179,11 +179,11 @@ void Target::Initialize() {
 
 
 const char * Target::deviceName() const {
-	return (devname[0] != '\0')? devname : NULL;
+        return (devname[0] != '\0')? devname : NULL;
 }
 
 const char * Target::deviceFullName() const {
-	return (devfullname[0] != '\0')? devfullname : NULL; 
+        return (devfullname[0] != '\0')? devfullname : NULL;
 }
 
 void Target::Recycle() {
@@ -225,14 +225,14 @@ void Target::GenerateTargetIPString() {
   struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) &targetsock;
 #endif
 
-  if (inet_ntop(sin->sin_family, (sin->sin_family == AF_INET)? 
-                (char *) &sin->sin_addr : 
+  if (inet_ntop(sin->sin_family, (sin->sin_family == AF_INET)?
+                (char *) &sin->sin_addr :
 #if HAVE_IPV6
-                (char *) &sin6->sin6_addr, 
+                (char *) &sin6->sin6_addr,
 #else
                 (char *) NULL,
 #endif
-		targetipstring, sizeof(targetipstring)) == NULL) {
+                targetipstring, sizeof(targetipstring)) == NULL) {
     fatal("Failed to convert target address to presentation format!?!  Error: %s", strerror(socket_errno()));
   }
 }
@@ -252,7 +252,7 @@ void Target::GenerateSourceIPString() {
 #else
                 (char *) NULL,
 #endif
-		sourceipstring, sizeof(sourceipstring)) == NULL) {
+                sourceipstring, sizeof(sourceipstring)) == NULL) {
     fatal("Failed to convert source address to presentation format!?!  Error: %s", strerror(socket_errno()));
   }
 }
@@ -269,7 +269,7 @@ int Target::af() const {
      to the size of the sockaddr copied in. */
 int Target::TargetSockAddr(struct sockaddr_storage *ss, size_t *ss_len) const {
   assert(ss);
-  assert(ss_len);  
+  assert(ss_len);
   if (targetsocklen <= 0)
     return 1;
   assert(targetsocklen <= sizeof(*ss));
@@ -378,7 +378,7 @@ const struct in6_addr *Target::v6sourceip() const {
   return NULL;
 }
 
-  /* You can set to NULL to erase a name or if it failed to resolve -- or 
+  /* You can set to NULL to erase a name or if it failed to resolve -- or
      just don't call this if it fails to resolve */
 void Target::setHostName(const char *name) {
   char *p;
@@ -392,8 +392,8 @@ void Target::setHostName(const char *name) {
       // I think only a-z A-Z 0-9 . and - are allowed, but I'll be a little more
       // generous.
       if (!isalnum((int) (unsigned char) *p) && !strchr(".-+=:_~*", *p)) {
-	log_write(LOG_STDOUT, "Illegal character(s) in hostname -- replacing with '*'\n");
-	*p = '*';
+        log_write(LOG_STDOUT, "Illegal character(s) in hostname -- replacing with '*'\n");
+        *p = '*';
       }
       p++;
     }
@@ -566,14 +566,14 @@ const u8 *Target::NextHopMACAddress() const {
 }
 
 int Target::osscanPerformed(void) {
-	return osscan_flag;
+        return osscan_flag;
 }
 
 void Target::osscanSetFlag(int flag) {
-	if(osscan_flag == OS_PERF_UNREL)
-		return;
-	else
-		osscan_flag = flag;
+        if(osscan_flag == OS_PERF_UNREL)
+                return;
+        else
+                osscan_flag = flag;
 }
 
 

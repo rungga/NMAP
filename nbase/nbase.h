@@ -1,7 +1,7 @@
 
 /***************************************************************************
  * nbase.h -- The main include file exposing the external API for          *
- * libnbase, a library of base (often compatability) routines.  Programs   *
+ * libnbase, a library of base (often compatibility) routines.  Programs   *
  * using libnbase can guarantee the availability of functions like         *
  * (v)snprintf and inet_pton.  This library also provides consistency and  *
  * extended features for some functions.  It was originally written for    *
@@ -17,7 +17,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -73,7 +73,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -91,12 +91,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -126,7 +126,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nbase.h 32816 2014-04-11 05:08:30Z david $ */
 
 #ifndef NBASE_H
 #define NBASE_H
@@ -134,11 +134,11 @@
 /* NOTE -- libnbase offers the following features that you should probably
  * be aware of:
  *
- * * 'inline' is defined to what is neccessary for the C compiler being
+ * * 'inline' is defined to what is necessary for the C compiler being
  *   used (which may be nothing)
  *
- * * snprintf, inet_pton, memcpy, and bzero are 
- *   provided if you don't have them (prototypes for these are 
+ * * snprintf, inet_pton, memcpy, and bzero are
+ *   provided if you don't have them (prototypes for these are
  *   included either way).
  *
  * * WORDS_BIGENDIAN is defined if platform is big endian
@@ -149,13 +149,13 @@
  *
  * * Insures that getopt_* functions exist (such as getopt_long_only)
  *
- * * Various string functions such as Strncpy() and strcasestr() see protos 
+ * * Various string functions such as Strncpy() and strcasestr() see protos
  *   for more info.
  *
  * * IPv6 structures like 'sockaddr_storage' are provided if they do
  *   not already exist.
  *
- * * Various Windows -> UNIX compatability definitions are added (such as defining EMSGSIZE to WSAEMSGSIZE)
+ * * Various Windows -> UNIX compatibility definitions are added (such as defining EMSGSIZE to WSAEMSGSIZE)
  */
 
 #if HAVE_CONFIG_H
@@ -198,7 +198,7 @@
 #endif
 
 #if HAVE_NETDB_H
-#include <netdb.h>  
+#include <netdb.h>
 #endif
 
 #if HAVE_INTTYPES_H
@@ -234,7 +234,7 @@ typedef int32_t s32;
 typedef uint64_t u64;
 typedef int64_t s64;
 
-/* Mathematicial MIN/MAX/ABS (absolute value) macros */
+/* Mathematical MIN/MAX/ABS (absolute value) macros */
 #ifndef MAX
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
@@ -242,7 +242,7 @@ typedef int64_t s64;
 #define MIN(x,y) (((x)<(y))?(x):(y))
 #endif
 #ifndef ABS
-#define ABS(x) (((x) >= 0)?(x):-(x)) 
+#define ABS(x) (((x) >= 0)?(x):-(x))
 #endif
 
 /* Timeval subtraction in microseconds */
@@ -368,38 +368,46 @@ extern "C" int vsnprintf (char *, size_t, const char *, va_list);
 #define DEVNULL "/dev/null"
 #endif
 
-
-#ifdef WIN32
-#define CHECKED_FD_SET FD_SET
-#else
-#define CHECKED_FD_SET(fd, set) \
-  do { \
-    if ((fd) < FD_SETSIZE) { \
-      FD_SET((fd), (set)); \
-    } else { \
-      fprintf(stderr, "%s:%ld: Attempt to FD_SET fd %d, which is not less than" \
-        " FD_SETSIZE (%d). Try using a lower parallelism.", \
-        __FILE__, (long int) __LINE__, (fd), FD_SETSIZE); \
-      abort(); \
-    } \
-  } while (0)
+#if defined(_MSC_VER) && !defined(__cplusplus) && !defined(inline)
+#define inline __inline
 #endif
 
-#ifdef WIN32
-#define CHECKED_FD_CLR FD_CLR
-#else
-#define CHECKED_FD_CLR(fd, set) \
-  do { \
-    if ((fd) < FD_SETSIZE) { \
-      FD_CLR((fd), (set)); \
-    } else { \
-      fprintf(stderr, "%s:%ld: Attempt to FD_CLR fd %d, which is not less than" \
-        " FD_SETSIZE (%d). Try using a lower parallelism.", \
-        __FILE__, (long int) __LINE__, (fd), FD_SETSIZE); \
-      abort(); \
-    } \
-  } while (0)
+
+static inline int checked_fd_isset(int fd, fd_set *fds) {
+#ifndef WIN32
+  if (fd >= FD_SETSIZE) {
+    fprintf(stderr, "Attempt to FD_ISSET fd %d, which is not less than "
+                    "FD_SETSIZE (%d). Try using a lower parallelism.",
+                    fd, FD_SETSIZE);
+    abort();
+  }
 #endif
+  return FD_ISSET(fd, fds);
+}
+
+static inline void checked_fd_clr(int fd, fd_set *fds) {
+#ifndef WIN32
+  if (fd >= FD_SETSIZE) {
+    fprintf(stderr, "Attempt to FD_CLR fd %d, which is not less than "
+                    "FD_SETSIZE (%d). Try using a lower parallelism.",
+                    fd, FD_SETSIZE);
+    abort();
+  }
+#endif
+  FD_CLR(fd, fds);
+}
+
+static inline void checked_fd_set(int fd, fd_set *fds) {
+#ifndef WIN32
+  if (fd >= FD_SETSIZE) {
+    fprintf(stderr, "Attempt to FD_SET fd %d, which is not less than "
+                    "FD_SETSIZE (%d). Try using a lower parallelism.",
+                    fd, FD_SETSIZE);
+    abort();
+  }
+#endif
+  FD_SET(fd, fds);
+}
 
 
 #ifdef __cplusplus
@@ -484,7 +492,7 @@ char *format_bytecount(unsigned long long bytes, char *buf, size_t buflen);
 
 /* Compare a canonical option name (e.g. "max-scan-delay") with a
    user-generated option such as "max_scan_delay" and returns 0 if the
-   two values are considered equivalant (for example, - and _ are
+   two values are considered equivalent (for example, - and _ are
    considered to be the same), nonzero otherwise. */
 int optcmp(const char *a, const char *b);
 
@@ -501,7 +509,7 @@ char *path_get_dirname(const char *path);
 char *path_get_basename(const char *path);
 
 /* A few simple wrappers for the most common memory allocation routines which will exit() if the
-	allocation fails, so you don't always have to check -- see nbase_memalloc.c */
+   allocation fails, so you don't always have to check -- see nbase_memalloc.c */
 void *safe_malloc(size_t size);
 void *safe_realloc(void *ptr, size_t size);
 /* Zero-initializing version of safe_malloc */

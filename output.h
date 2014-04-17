@@ -2,7 +2,7 @@
 /***************************************************************************
  * output.h -- Handles the Nmap output system.  This currently involves    *
  * console-style human readable output, XML output, Script |<iddi3         *
- * output, and the legacy greppable output (used to be called "machine     *
+ * output, and the legacy grepable output (used to be called "machine      *
  * readable").  I expect that future output forms (such as HTML) may be    *
  * created by a different program, library, or script using the XML        *
  * output.                                                                 *
@@ -17,7 +17,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -73,7 +73,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -91,12 +91,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -126,13 +126,13 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: output.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #ifndef OUTPUT_H
 #define OUTPUT_H
 
 #define LOG_NUM_FILES 4 /* # of values that actual files (they must come first */
-#define LOG_FILE_MASK 15 /* The mask for log typs in the file array */
+#define LOG_FILE_MASK 15 /* The mask for log types in the file array */
 #define LOG_NORMAL 1
 #define LOG_MACHINE 2
 #define LOG_SKID 4
@@ -177,7 +177,7 @@ void win32_fatal_raw_sockets(const char *devname);
 #endif
 
 /* Prints the familiar Nmap tabular output showing the "interesting"
-   ports found on the machine.  It also handles the Machine/Greppable
+   ports found on the machine.  It also handles the Machine/Grepable
    output and the XML output.  It is pretty ugly -- in particular I
    should write helper functions to handle the table creation */
 void printportoutput(Target *currenths, PortList *plist);
@@ -200,7 +200,7 @@ void log_write(int logt, const char *fmt, ...)
    called through log_write(), but it can be called directly if you
    are dealing with a vfprintf-style va_list.  Unlike log_write, YOU
    CAN ONLY CALL THIS WITH ONE LOG TYPE (not a bitmask full of them).
-   In addition, YOU MUST SANDWHICH EACH EXECUTION IF THIS CALL BETWEEN
+   In addition, YOU MUST SANDWICH EACH EXECUTION OF THIS CALL BETWEEN
    va_start() AND va_end() calls. */
 void log_vwrite(int logt, const char *fmt, va_list ap);
 
@@ -215,7 +215,7 @@ void log_flush(int logt);
    corresponding logs immediately */
 void log_flush_all();
 
-/* Open a log descriptor of the type given to the filename given.  If 
+/* Open a log descriptor of the type given to the filename given.  If
    append is nonzero, the file will be appended instead of clobbered if
    it already exists.  If the file does not exist, it will be created */
 int log_open(int logt, int append, char *filename);
@@ -239,7 +239,7 @@ void output_xml_scaninfo_records(struct scan_lists *ports);
 void write_host_header(Target *currenths);
 
 /* Writes host status info to the log streams (including STDOUT).  An
-   example is "Host: 10.11.12.13 (foo.bar.example.com)\tStatus: Up\n" to 
+   example is "Host: 10.11.12.13 (foo.bar.example.com)\tStatus: Up\n" to
    machine log. */
 void write_host_status(Target *currenths);
 

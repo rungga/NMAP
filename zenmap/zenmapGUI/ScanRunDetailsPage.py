@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -121,11 +121,13 @@
 # ***************************************************************************/
 
 import gtk
-from zenmapGUI.higwidgets.higboxes import HIGVBox, HIGHBox, hig_box_space_holder
+from zenmapGUI.higwidgets.higboxes import HIGVBox, HIGHBox,\
+        hig_box_space_holder
 from zenmapGUI.higwidgets.higtables import HIGTable
 from zenmapGUI.higwidgets.higlabels import HIGEntryLabel
 
 import zenmapCore.I18N
+
 
 class ScanRunDetailsPage(HIGVBox):
     def __init__(self, scan):
@@ -146,7 +148,8 @@ class ScanRunDetailsPage(HIGVBox):
         self.debug_label = HIGEntryLabel(_('Debug level:'))
         self.info_debug_label = HIGEntryLabel(na)
 
-        self.command_expander = gtk.Expander("<b>"+_("Command Info")+"</b>")
+        self.command_expander = gtk.Expander(
+                "<b>" + _("Command Info") + "</b>")
         self.command_expander.set_use_markup(True)
 
         self.command_table = HIGTable()
@@ -158,17 +161,17 @@ class ScanRunDetailsPage(HIGVBox):
         self.command_hbox._pack_noexpand_nofill(hig_box_space_holder())
         self.command_hbox._pack_noexpand_nofill(self.command_table)
 
-        self.command_table.attach(self.command_label,0,1,0,1)
-        self.command_table.attach(self.info_command_label,1,2,0,1)
+        self.command_table.attach(self.command_label, 0, 1, 0, 1)
+        self.command_table.attach(self.info_command_label, 1, 2, 0, 1)
 
-        self.command_table.attach(self.nmap_version_label,0,1,1,2)
-        self.command_table.attach(self.info_nmap_version_label,1,2,1,2)
+        self.command_table.attach(self.nmap_version_label, 0, 1, 1, 2)
+        self.command_table.attach(self.info_nmap_version_label, 1, 2, 1, 2)
 
-        self.command_table.attach(self.verbose_label,0,1,2,3)
-        self.command_table.attach(self.info_verbose_label,1,2,2,3)
+        self.command_table.attach(self.verbose_label, 0, 1, 2, 3)
+        self.command_table.attach(self.info_verbose_label, 1, 2, 2, 3)
 
-        self.command_table.attach(self.debug_label,0,1,3,4)
-        self.command_table.attach(self.info_debug_label,1,2,3,4)
+        self.command_table.attach(self.debug_label, 0, 1, 3, 4)
+        self.command_table.attach(self.info_debug_label, 1, 2, 3, 4)
 
         self.command_expander.add(self.command_hbox)
         self._pack_noexpand_nofill(self.command_expander)
@@ -199,7 +202,8 @@ class ScanRunDetailsPage(HIGVBox):
         self.closed_label = HIGEntryLabel(_('Closed ports:'))
         self.info_closed_label = HIGEntryLabel(na)
 
-        self.general_expander = gtk.Expander("<b>"+_("General Info")+"</b>")
+        self.general_expander = gtk.Expander(
+                "<b>" + _("General Info") + "</b>")
         self.general_expander.set_use_markup(True)
 
         self.general_table = HIGTable()
@@ -211,29 +215,29 @@ class ScanRunDetailsPage(HIGVBox):
         self.general_hbox._pack_noexpand_nofill(hig_box_space_holder())
         self.general_hbox._pack_noexpand_nofill(self.general_table)
 
-        self.general_table.attach(self.start_label,0,1,0,1)
-        self.general_table.attach(self.info_start_label,1,2,0,1)
+        self.general_table.attach(self.start_label, 0, 1, 0, 1)
+        self.general_table.attach(self.info_start_label, 1, 2, 0, 1)
 
-        self.general_table.attach(self.finished_label,0,1,1,2)
-        self.general_table.attach(self.info_finished_label,1,2,1,2)
+        self.general_table.attach(self.finished_label, 0, 1, 1, 2)
+        self.general_table.attach(self.info_finished_label, 1, 2, 1, 2)
 
-        self.general_table.attach(self.host_up_label,0,1,2,3)
-        self.general_table.attach(self.info_hosts_up_label,1,2,2,3)
+        self.general_table.attach(self.host_up_label, 0, 1, 2, 3)
+        self.general_table.attach(self.info_hosts_up_label, 1, 2, 2, 3)
 
-        self.general_table.attach(self.host_down_label,0,1,3,4)
-        self.general_table.attach(self.info_hosts_down_label,1,2,3,4)
+        self.general_table.attach(self.host_down_label, 0, 1, 3, 4)
+        self.general_table.attach(self.info_hosts_down_label, 1, 2, 3, 4)
 
-        self.general_table.attach(self.host_scanned_label,0,1,4,5)
-        self.general_table.attach(self.info_hosts_scanned_label,1,2,4,5)
+        self.general_table.attach(self.host_scanned_label, 0, 1, 4, 5)
+        self.general_table.attach(self.info_hosts_scanned_label, 1, 2, 4, 5)
 
-        self.general_table.attach(self.open_label,0,1,5,6)
-        self.general_table.attach(self.info_open_label,1,2,5,6)
+        self.general_table.attach(self.open_label, 0, 1, 5, 6)
+        self.general_table.attach(self.info_open_label, 1, 2, 5, 6)
 
-        self.general_table.attach(self.filtered_label,0,1,6,7)
-        self.general_table.attach(self.info_filtered_label,1,2,6,7)
+        self.general_table.attach(self.filtered_label, 0, 1, 6, 7)
+        self.general_table.attach(self.info_filtered_label, 1, 2, 6, 7)
 
-        self.general_table.attach(self.closed_label,0,1,7,8)
-        self.general_table.attach(self.info_closed_label,1,2,7,8)
+        self.general_table.attach(self.closed_label, 0, 1, 7, 8)
+        self.general_table.attach(self.info_closed_label, 1, 2, 7, 8)
 
         self.general_expander.add(self.general_hbox)
         self._pack_noexpand_nofill(self.general_expander)
@@ -260,7 +264,8 @@ class ScanRunDetailsPage(HIGVBox):
         self.info_closed_label.set_text(str(scan.get_closed_ports()))
 
         for scaninfo in scan.get_scaninfo():
-            exp = gtk.Expander('<b>%s - %s</b>' % (_('Scan Info'), scaninfo['type'].capitalize()))
+            exp = gtk.Expander('<b>%s - %s</b>' % (
+                _('Scan Info'), scaninfo['type'].capitalize()))
             exp.set_use_markup(True)
 
             display = self.make_scaninfo_display(scaninfo)
@@ -277,17 +282,18 @@ class ScanRunDetailsPage(HIGVBox):
         table.set_row_spacings(6)
         table.set_col_spacings(6)
 
-        table.attach(HIGEntryLabel(_('Scan type:')),0,1,0,1)
-        table.attach(HIGEntryLabel(scaninfo['type']),1,2,0,1)
+        table.attach(HIGEntryLabel(_('Scan type:')), 0, 1, 0, 1)
+        table.attach(HIGEntryLabel(scaninfo['type']), 1, 2, 0, 1)
 
-        table.attach(HIGEntryLabel(_('Protocol:')),0,1,1,2)
-        table.attach(HIGEntryLabel(scaninfo['protocol']),1,2,1,2)
+        table.attach(HIGEntryLabel(_('Protocol:')), 0, 1, 1, 2)
+        table.attach(HIGEntryLabel(scaninfo['protocol']), 1, 2, 1, 2)
 
-        table.attach(HIGEntryLabel(_('# scanned ports:')),0,1,2,3)
-        table.attach(HIGEntryLabel(scaninfo['numservices']),1,2,2,3)
+        table.attach(HIGEntryLabel(_('# scanned ports:')), 0, 1, 2, 3)
+        table.attach(HIGEntryLabel(scaninfo['numservices']), 1, 2, 2, 3)
 
-        table.attach(HIGEntryLabel(_('Services:')),0,1,3,4)
-        table.attach(self.make_services_display(scaninfo['services']),1,2,3,4)
+        table.attach(HIGEntryLabel(_('Services:')), 0, 1, 3, 4)
+        table.attach(
+                self.make_services_display(scaninfo['services']), 1, 2, 3, 4)
 
         hbox._pack_noexpand_nofill(hig_box_space_holder())
         hbox._pack_noexpand_nofill(table)

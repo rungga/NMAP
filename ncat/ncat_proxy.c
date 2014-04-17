@@ -10,7 +10,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -66,7 +66,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -119,7 +119,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_proxy.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: ncat_proxy.c 32774 2014-03-07 16:57:42Z david $ */
 
 #include "base64.h"
 #include "http.h"
@@ -192,6 +192,7 @@ int ncat_http_server(void)
     union sockaddr_u conn;
     struct timeval tv;
     struct timeval *tvp = NULL;
+    unsigned int num_sockets;
 
 #ifndef WIN32
     Signal(SIGCHLD, proxyreaper);
@@ -216,16 +217,29 @@ int ncat_http_server(void)
     init_fdlist(&listen_fdlist, num_listenaddrs);
 
     /* Listen on each address, set up lists for select */
+    num_sockets = 0;
     for (i = 0; i < num_listenaddrs; i++) {
-        listen_socket[i] = do_listen(SOCK_STREAM, IPPROTO_TCP, &listenaddrs[i]);
+        listen_socket[num_sockets] = do_listen(SOCK_STREAM, IPPROTO_TCP, &listenaddrs[i]);
+        if (listen_socket[num_sockets] == -1) {
+            if (o.debug > 0)
+                logdebug("do_listen(\"%s\"): %s\n", inet_ntop_ez(&listenaddrs[i].storage, sizeof(listenaddrs[i].storage)), socket_strerror(socket_errno()));
+            continue;
+        }
 
-        /* make us not block on accepts in wierd cases. See ncat_listen.c:209 */
-        unblock_socket(listen_socket[i]);
+        /* make us not block on accepts in weird cases. See ncat_listen.c:209 */
+        unblock_socket(listen_socket[num_sockets]);
 
         /* setup select sets and max fd */
-        FD_SET(listen_socket[i], &listen_fds);
-        add_fd(&listen_fdlist, listen_socket[i]);
+        FD_SET(listen_socket[num_sockets], &listen_fds);
+        add_fd(&listen_fdlist, listen_socket[num_sockets]);
 
+        num_sockets++;
+    }
+    if (num_sockets == 0) {
+        if (num_listenaddrs == 1)
+            bye("Unable to open listening socket on %s: %s", inet_ntop_ez(&listenaddrs[0].storage, sizeof(listenaddrs[0].storage)), socket_strerror(socket_errno()));
+        else
+            bye("Unable to open any listening sockets.");
     }
 
     if (o.idletimeout > 0)
@@ -259,7 +273,7 @@ int ncat_http_server(void)
                 continue;
 
             /* Check each listening socket */
-            for (j = 0; j < num_listenaddrs; j++) {
+            for (j = 0; j < num_sockets; j++) {
                 if (i == listen_socket[j]) {
                     fds_ready--;
                     c = accept(i, &conn.sockaddr, &sslen);
@@ -646,7 +660,7 @@ static int do_transaction(struct http_request *request,
        request) if it cannot determine the length of the message, or with 411
        (length required) if it wishes to insist on receiving a valid
        Content-Length." */
-    if (strcmp(request->method, "POST") == 0 && request->content_length == 0) {
+    if (strcmp(request->method, "POST") == 0 && !request->content_length_set) {
         if (o.debug)
             logdebug("POST request with no Content-Length.\n");
         return 400;
@@ -757,14 +771,16 @@ static int do_transaction(struct http_request *request,
     /* If the Content-Length is 0, read until the connection is closed.
        Otherwise read until the Content-Length. At this point it's too late to
        return our own error code so return 0 in case of any error. */
-    while (response.content_length == 0
+    while (!response.content_length_set
         || response.bytes_transferred < response.content_length) {
-        size_t remaining = response.content_length - response.bytes_transferred;
         size_t count;
 
         count = sizeof(buf);
-        if (response.content_length > 0 && remaining < count)
-            count = remaining;
+        if (response.content_length_set) {
+            size_t remaining = response.content_length - response.bytes_transferred;
+            if (remaining < count)
+                count = remaining;
+        }
         n = socket_buffer_read(server_sock, buf, count);
         if (n <= 0)
             break;

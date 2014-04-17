@@ -10,7 +10,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -66,7 +66,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -124,7 +124,6 @@ from radialnet.gui.RadialNet import NetNode
 import zenmapCore.NmapParser
 
 import math
-import re
 
 
 COLORS = [(0.0, 1.0, 0.0),
@@ -135,16 +134,17 @@ BASE_RADIUS = 5.5
 NONE_RADIUS = 4.5
 
 
-
 def set_node_info(node, host):
     """
     """
     node.set_host(host)
 
-    radius = BASE_RADIUS + 2 * math.log(node.get_info("number_of_open_ports") + 1)
+    radius = BASE_RADIUS + 2 * math.log(
+            node.get_info("number_of_open_ports") + 1)
 
-    node.set_draw_info({"color":COLORS[node.get_info("vulnerability_score")],
-                        "radius":radius})
+    node.set_draw_info({"color": COLORS[node.get_info("vulnerability_score")],
+                        "radius": radius})
+
 
 class TracerouteHostInfo(object):
     """This is a minimal implementation of HostInfo, sufficient to
@@ -164,14 +164,17 @@ class TracerouteHostInfo(object):
     def get_best_osmatch(self):
         if not self.osmatches:
             return None
+
         def osmatch_key(osmatch):
             try:
                 return -float(osmatch["accuracy"])
             except ValueError:
                 return 0
-        return sorted(self.osmatches, key = osmatch_key)[0]
+
+        return sorted(self.osmatches, key=osmatch_key)[0]
 
     hostnames = property(lambda self: self.hostname and [self.hostname] or [])
+
 
 def make_graph_from_hosts(hosts):
     #hosts = parser.get_root().search_children('host', deep=True)
@@ -187,7 +190,8 @@ def make_graph_from_hosts(hosts):
     localhost.ip = {"addr": "127.0.0.1/8", "type": "ipv4"}
     localhost.hostname = "localhost"
     main_node.set_host(localhost)
-    main_node.set_draw_info({"valid": True, "color":(0,0,0), "radius":NONE_RADIUS})
+    main_node.set_draw_info(
+            {"valid": True, "color": (0, 0, 0), "radius": NONE_RADIUS})
 
     #Save endpoints for attaching scanned hosts to
     endpoints = {}
@@ -219,10 +223,14 @@ def make_graph_from_hosts(hosts):
                         nodes.append(node)
 
                         hop_host = TracerouteHostInfo()
-                        hop_host.ip = {"addr": hop["ipaddr"], "type": "", "vendor": ""}
-                        node.set_draw_info({"valid":True})
-                        node.set_draw_info({"color":(1,1,1),
-                                            "radius":NONE_RADIUS})
+                        hop_host.ip = {
+                                "addr": hop["ipaddr"],
+                                "type": "",
+                                "vendor": ""
+                                }
+                        node.set_draw_info({"valid": True})
+                        node.set_draw_info({"color": (1, 1, 1),
+                                            "radius": NONE_RADIUS})
 
                         if hop["host"] != "":
                             hop_host.hostname = hop["host"]
@@ -240,8 +248,9 @@ def make_graph_from_hosts(hosts):
                     node = NetNode()
                     nodes.append(node)
 
-                    node.set_draw_info({"valid":False})
-                    node.set_draw_info({"color":(1,1,1), "radius":NONE_RADIUS})
+                    node.set_draw_info({"valid": False})
+                    node.set_draw_info(
+                            {"color": (1, 1, 1), "radius": NONE_RADIUS})
 
                     graph.set_connection(node, prev_node)
 
@@ -259,12 +268,12 @@ def make_graph_from_hosts(hosts):
             node = NetNode()
             nodes.append(node)
 
-            node.set_draw_info({"no_route":True})
+            node.set_draw_info({"no_route": True})
 
             graph.set_connection(node, endpoints[host])
 
-        node.set_draw_info({"valid":True})
-        node.set_draw_info({"scanned":True})
+        node.set_draw_info({"valid": True})
+        node.set_draw_info({"scanned": True})
         set_node_info(node, host)
         node_cache[node.get_info("ip")] = node
 
@@ -272,3 +281,8 @@ def make_graph_from_hosts(hosts):
     graph.set_main_node(main_node)
 
     return graph
+
+
+def make_graph_from_nmap_parser(parser):
+    return make_graph_from_hosts(
+            parser.get_root().search_children('host', deep=True))

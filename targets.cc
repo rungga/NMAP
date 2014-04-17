@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: targets.cc 32717 2014-02-12 20:25:51Z dmiller $ */
 
 
 #include "nbase/nbase_addrset.h"
@@ -156,14 +156,14 @@ static void arpping(Target *hostbatch[], int num_hosts) {
     if (!hostbatch[targetno]->SrcMACAddress()) {
       bool islocal = islocalhost(hostbatch[targetno]->TargetSockAddr());
       if (islocal) {
-        log_write(LOG_STDOUT|LOG_NORMAL, 
+        log_write(LOG_STDOUT|LOG_NORMAL,
                   "ARP ping: Considering %s UP because it is a local IP, despite no MAC address for device %s\n",
                   hostbatch[targetno]->NameIP(), hostbatch[targetno]->deviceName());
         hostbatch[targetno]->flags = HOST_UP;
       } else {
-        log_write(LOG_STDOUT|LOG_NORMAL, 
+        log_write(LOG_STDOUT|LOG_NORMAL,
                   "ARP ping: Considering %s DOWN because no MAC address found for device %s.\n",
-                  hostbatch[targetno]->NameIP(), 
+                  hostbatch[targetno]->NameIP(),
                   hostbatch[targetno]->deviceName());
         hostbatch[targetno]->flags = HOST_DOWN;
       }
@@ -194,7 +194,7 @@ void returnhost(HostGroupState *hs) {
 
 /* Is the host passed as Target to be excluded? Much of this logic had
    to be rewritten from wam's original code to allow for the objects */
-static int hostInExclude(struct sockaddr *checksock, size_t checksocklen, 
+static int hostInExclude(struct sockaddr *checksock, size_t checksocklen,
                   const addrset *exclude_group) {
   if (exclude_group == NULL)
     return 0;
@@ -256,7 +256,7 @@ int dumpExclude(addrset *exclude_group) {
 
   return 1;
 }
- 
+
 static void massping(Target *hostbatch[], int num_hosts, struct scan_lists *ports) {
   static struct timeout_info group_to = { 0, 0, 0 };
   static char prev_device_name[16] = "";
@@ -658,9 +658,9 @@ static void refresh_hostbatch(HostGroupState *hs, const addrset *exclude_group,
   /* First I'll do the ARP ping if all of the machines in the group are
      directly connected over ethernet.  I may need the MAC addresses
      later anyway. */
-  if (hs->hostbatch[0]->ifType() == devt_ethernet && 
+  if (hs->hostbatch[0]->ifType() == devt_ethernet &&
       hs->hostbatch[0]->af() == AF_INET &&
-      hs->hostbatch[0]->directlyConnected() && 
+      hs->hostbatch[0]->directlyConnected() &&
       o.sendpref != PACKET_SEND_IP_STRONG &&
       (pingtype == PINGTYPE_ARP || o.implicitARPPing)) {
     arpping(hs->hostbatch, hs->current_batch_sz);
@@ -679,13 +679,13 @@ static void refresh_hostbatch(HostGroupState *hs, const addrset *exclude_group,
   }
 
   gettimeofday(&now, NULL);
-  if ((o.sendpref & PACKET_SEND_ETH) && 
+  if ((o.sendpref & PACKET_SEND_ETH) &&
       hs->hostbatch[0]->ifType() == devt_ethernet) {
     for (i=0; i < hs->current_batch_sz; i++) {
-      if (!(hs->hostbatch[i]->flags & HOST_DOWN) && 
+      if (!(hs->hostbatch[i]->flags & HOST_DOWN) &&
           !hs->hostbatch[i]->timedOut(&now)) {
         if (!setTargetNextHopMAC(hs->hostbatch[i])) {
-          fatal("%s: Failed to determine dst MAC address for target %s", 
+          fatal("%s: Failed to determine dst MAC address for target %s",
               __func__, hs->hostbatch[i]->NameIP());
         }
       }

@@ -5,7 +5,7 @@
 -- History:
 --   2012/05/31: Start
 --   2012/06/01: extracting data from XML; tested with ePO 4.5 and 4.6
---   2012/06/05: V0.0.2 convertion to version script by Daniel Miller
+--   2012/06/05: V0.0.2 conversion to version script by Daniel Miller
 --   2012/06/20: new portrule by Daniel Miller
 
 description = [[
@@ -18,7 +18,7 @@ Check if ePO agent is running on port 8081 or port identified as ePO Agent port.
 -- 8081/tcp  open  http    McAfee ePolicy Orchestrator Agent 4.5.0.1852 (ePOServerName: EPOSERVER, AgentGuid: D2E157F4-B917-4D31-BEF0-32074BADF081)
 -- Service Info: Host: TESTSERVER
 
-author = "Didier Stevens and Daniel Miller"
+author = "Didier Stevens, Daniel Miller"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
