@@ -1,6 +1,6 @@
 
 /***************************************************************************
- * utils_net.cc -- Miscellanious network-related functions that perform    *
+ * utils_net.cc -- Miscellaneous network-related functions that perform    *
  * various tasks.                                                          *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -471,7 +471,7 @@ int getPacketStrInfo(const char *proto, const u8 *packet, u32 len, u8 *dstbuff,
     else
         nping_fatal(QT_3, "getPacketStrInfo(): Unable to determinate transport layer protocol");
   }else{
-    nping_fatal(QT_3, "getPacketStrInfo(): Unkwnown protocol");
+    nping_fatal(QT_3, "getPacketStrInfo(): Unknown protocol");
   }
   return OP_SUCCESS;
 } /* getPacketStrInfo() */
@@ -626,10 +626,10 @@ int resolveCached(char *host, struct sockaddr_storage *ss, size_t *sslen, int pf
 
 	
 	  /* I run some tests to see what is the best approach when the cache
-	   * is full. The thing is that in Nping, we are likeley to call
+	   * is full. The thing is that in Nping, we are likely to call
 	   * this function over and over with specifying the same hosts. Deleting
 	   * the oldest entry results in 100% cache misses. I also tried to start
-	   * overwritting entries first backwards and then upwards. That showed
+	   * overwriting entries first backwards and then upwards. That showed
 	   * much better results. However, if we simply overwrite the last
 	   * cache entry over an over we get the best results. */
 	  if( current_index < MAX_CACHED_HOSTS-1 )
@@ -821,7 +821,7 @@ int hostentfree(struct hostent *src){
  *  The "txt" parameter may take the special value "rand" or "random",
  *  in which case, 6 random bytes will be stored in "targetbuff".
  *  @return OP_SUCCESS on success and OP_FAILURE in case of error.
- *  Buffer targetbuff is NOT modified if "txt" does not have the propper
+ *  Buffer targetbuff is NOT modified if "txt" does not have the proper
  *  format */
 int parseMAC(const char *txt, u8 *targetbuff){
   u8 mac_data[6];
@@ -1557,7 +1557,7 @@ int getinterfaces_inet6_linux(if6_t *ifbuf, int max_ifaces){
 
     /* Check the line has the expected format ********************************/
     /* Some versions of the kernel include colons in the IPv6 address, some
-     * others dont. E.g:
+     * others don't. E.g:
      * fe80:0000:0000:0000:0333:a5ff:4444:9306 03 40 20 80 wlan0
      * fe800000000000000333a5ff44449306 03 40 20 80 wlan0
      * So what we do is to remove the colons so we can process the line
@@ -1751,7 +1751,7 @@ int getroutes_inet6_linux(route6_t *rtbuf, int max_routes){
 
     /* Check the line has the expected format ********************************/
     /* Some versions of the kernel include colons in the IPv6 address, some
-     * others dont. So what we do is to remove the colons so we can process
+     * others don't. So what we do is to remove the colons so we can process
      * the line no matter the format of the IPv6 addresses.
      *
      * TODO: Can interfaces with format eth0:1 appear on /proc/net/ipv6_route?
@@ -1761,7 +1761,7 @@ int getroutes_inet6_linux(route6_t *rtbuf, int max_routes){
     /* 1. Check it has the correct length.  */
     size_t min_len=0;
     min_len += 3*32; /* Three IPv6 addresses in hex */
-    min_len += 2*2;  /* Two 8bit hex values (prefiex lengths) */
+    min_len += 2*2;  /* Two 8bit hex values (prefix lengths) */
     min_len += 4*8;  /* Four 32-bit hex values */
     min_len += 1;    /* I guess one char is the min for a device len */
     min_len += 9;    /* 9 spaces */

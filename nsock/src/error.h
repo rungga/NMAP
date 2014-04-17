@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: error.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: error.h 31676 2013-08-06 19:39:39Z henri $ */
 
 #ifndef ERROR_H
 #define ERROR_H
@@ -75,6 +75,7 @@
 #include <unistd.h>
 #endif
 
+
 void fatal(char *fmt, ...)
   __attribute__ ((noreturn))
   __attribute__ ((format (printf, 1, 2)));
@@ -83,7 +84,4 @@ void pfatal(char *fmt, ...)
   __attribute__ ((noreturn))
   __attribute__ ((format (printf, 1, 2)));
 
-void gh_perror(char *err, ...);
-
 #endif /* ERROR_H */
-

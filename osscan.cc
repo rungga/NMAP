@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: osscan.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: osscan.cc 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #include "osscan.h"
 #include "timing.h"
@@ -254,7 +254,7 @@ void FingerPrint::sort() {
 /* Compare an observed value (e.g. "45") against an OS DB expression (e.g.
    "3B-47" or "8|A" or ">10"). Return true iff there's a match. The syntax uses
      < (less than)
-     > (greather than)
+     > (greater than)
      + (non-zero)
      | (or)
      - (range)
@@ -536,7 +536,7 @@ double compare_fingerprints(const FingerPrint *referenceFP, const FingerPrint *o
    reference fingerprint DB.  The results are stored in in FPR (which
    must point to an instantiated FingerPrintResultsIPv4 class) -- results
    will be reverse-sorted by accuracy.  No results below
-   accuracy_threshhold will be included.  The max matches returned is
+   accuracy_threshold will be included.  The max matches returned is
    the maximum that fits in a FingerPrintResultsIPv4 class.  */
 void match_fingerprint(const FingerPrint *FP, FingerPrintResultsIPv4 *FPR,
                        const FingerPrintDB *DB, double accuracy_threshold) {
@@ -1193,9 +1193,6 @@ FingerPrintDB *parse_fingerprint_file(const char *fname) {
   DB = new FingerPrintDB;
 
   char *p, *q; /* OH YEAH!!!! */
-
-  if (!DB)
-    fatal("non-allocated DB passed to %s", __func__);
 
   fp = fopen(fname, "r");
   if (!fp)

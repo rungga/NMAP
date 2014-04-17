@@ -1,7 +1,7 @@
 
 /***************************************************************************
  * targets.h -- Functions relating to "ping scanning" as well as           *
- * determining the exact IPs to hit based on CIDR and other input formats. * 
+ * determining the exact IPs to hit based on CIDR and other input formats. *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: targets.h 32717 2014-02-12 20:25:51Z dmiller $ */
 
 #ifndef TARGETS_H
 #define TARGETS_H
@@ -144,7 +144,7 @@
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_SYS_PARAM_H   
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h> /* Defines MAXHOSTNAMELEN on BSD*/
 #endif
 
@@ -209,10 +209,10 @@ public:
   int max_batch_sz; /* The size of the hostbatch[] array */
   int current_batch_sz; /* The number of VALID members of hostbatch[] */
   int next_batch_no; /* The index of the next hostbatch[] member to be given
-			back to the user */
+                        back to the user */
   int randomize; /* Whether each batch should be "shuffled" prior to the ping
-		    scan (they will also be out of order when given back one
-		    at a time to the client program */
+                    scan (they will also be out of order when given back one
+                    at a time to the client program */
   TargetGroup current_group; /* For batch chunking -- targets in queue */
 
   /* Returns true iff the defer buffer is not yet full. */
@@ -224,7 +224,7 @@ public:
 
 /* Ports is the list of ports the user asked to be scanned (0 terminated),
    you can just pass NULL (it is only a stupid optimization that needs it) */
-Target *nexthost(HostGroupState *hs,const addrset *exclude_group, 
+Target *nexthost(HostGroupState *hs,const addrset *exclude_group,
                  struct scan_lists *ports, int pingtype);
 int load_exclude_file(addrset *exclude_group, FILE *fp);
 int load_exclude_string(addrset *exclude_group, const char *s);

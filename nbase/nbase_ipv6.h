@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_ipv6.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nbase_ipv6.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #ifndef NBASE_IPV6_H
 #define NBASE_IPV6_H
@@ -179,13 +179,13 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 
 #ifndef HAVE_SOCKADDR_STORAGE
      /* Just needs to be big enough to hold sockaddr_in or
-	sockaddr_in6.  I should really align it at 64 bits, but 32 is
-	probably fine as hosts that actually want to store a
-	sockaddr_in6 in here should already have this defined (see
-	RFC2355). */
+        sockaddr_in6.  I should really align it at 64 bits, but 32 is
+        probably fine as hosts that actually want to store a
+        sockaddr_in6 in here should already have this defined (see
+        RFC2355). */
 struct sockaddr_storage {
-	u32 padding[32];
-}; 
+    u32 padding[32];
+};
 #endif /* SOCKADDR_STORAGE */
 
 /* Compares two sockaddr_storage structures with a return value like strcmp.
@@ -202,7 +202,7 @@ int sockaddr_storage_equal(const struct sockaddr_storage *a,
 /* This function is an easier version of inet_ntop because you don't
    need to pass a dest buffer.  Instead, it returns a static buffer that
    you can use until the function is called again (by the same or another
-   thread in the process).  If there is a wierd error (like sslen being
+   thread in the process).  If there is a weird error (like sslen being
    too short) then NULL will be returned. */
 const char *inet_ntop_ez(const struct sockaddr_storage *ss, size_t sslen);
 
@@ -240,8 +240,8 @@ const char *inet_ntop_ez(const struct sockaddr_storage *ss, size_t sslen);
 
 struct sockaddr;
 int getnameinfo(const struct sockaddr *sa, size_t salen,
-		char *host, size_t hostlen,
-		char *serv, size_t servlen, int flags);
+                char *host, size_t hostlen,
+                char *serv, size_t servlen, int flags);
 #endif /* !HAVE_GETNAMEINFO */
 
 #if !HAVE_GETADDRINFO
@@ -266,8 +266,8 @@ struct addrinfo {
 #endif
 
 void freeaddrinfo(struct addrinfo *res);
-int getaddrinfo(const char *node, const char *service, 
-		const struct addrinfo *hints, struct addrinfo **res);
+int getaddrinfo(const char *node, const char *service,
+                const struct addrinfo *hints, struct addrinfo **res);
 
 #endif /* !HAVE_GETADDRINFO */
 

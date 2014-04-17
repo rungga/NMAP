@@ -10,7 +10,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -66,7 +66,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -227,6 +227,22 @@ extern void set_pseudo_sigchld_handler(void (*handler)(void))
     ncat_assert(rc != 0);
 }
 
+int setenv_portable(const char *name, const char *value)
+{
+    char *var;
+    int ret;
+    size_t len;
+    len = strlen(name) + strlen(value) + 2; /* 1 for '\0', 1 for =. */
+    var = (char *) safe_malloc(len);
+    Snprintf(var, len, "%s=%s", name, value);
+    /* _putenv was chosen over SetEnvironmentVariable because variables set
+       with the latter seem to be invisible to getenv() calls and Lua uses
+       these in the 'os' module. */
+    ret = _putenv(var) == 0;
+    free(var);
+    return ret;
+}
+
 /* Run a command and redirect its input and output handles to a pair of
    anonymous pipes.  The process handle and pipe handles are returned in the
    info struct. Returns the PID of the new process, or -1 on error. */
@@ -238,6 +254,8 @@ static int run_command_redirected(char *cmdexec, struct subprocess_info *info)
     SECURITY_ATTRIBUTES sa;
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
+
+    setup_environment(&info->fdn);
 
     /* Make the pipe handles inheritable. */
     sa.nLength = sizeof(sa);
@@ -490,7 +508,7 @@ static DWORD WINAPI subprocess_thread_func(void *data)
                     break;
                 /* Restore the select event (and non-block the socket again.) */
                 WSAEventSelect(info->fdn.fd, events[0], FD_READ | FD_CLOSE);
-                /* Queue another ansychronous read. */
+                /* Queue another asychronous read. */
                 ReadFile(info->child_out_r, pipe_buffer, sizeof(pipe_buffer), NULL, &overlap);
             } else {
                 if (GetLastError() != ERROR_IO_PENDING)

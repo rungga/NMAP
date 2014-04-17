@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -123,8 +123,8 @@
 # This prints the normal (text) output of a single scan. Ideas for further
 # development:
 #
-# Print the topology graphic. The graphic is already made with Cairo so the same
-# code can be used to draw on the print context.
+# Print the topology graphic. The graphic is already made with Cairo so the
+# same code can be used to draw on the print context.
 #
 # Print in color with highlighting, like NmapOutputViewer.
 #
@@ -138,6 +138,7 @@ import gobject
 import pango
 
 MONOSPACE_FONT_DESC = pango.FontDescription("Monospace 12")
+
 
 class PrintState (object):
     """This is the userdatum passed to gtk.PrintOperation callbacks."""
@@ -169,7 +170,9 @@ class PrintState (object):
         op.set_n_pages((len(self.lines) - 1) / self.lines_per_page + 1)
 
     def draw_page(self, op, context, page_nr):
-        this_page_lines = self.lines[page_nr * self.lines_per_page:(page_nr + 1) * self.lines_per_page]
+        this_page_lines = self.lines[
+                page_nr * self.lines_per_page:
+                (page_nr + 1) * self.lines_per_page]
         layout = context.create_pango_layout()
         # Do no wrapping.
         layout.set_width(-1)
@@ -179,6 +182,7 @@ class PrintState (object):
 
         cr = context.get_cairo_context()
         cr.show_layout(layout)
+
 
 def run_print_operation(inventory, entry):
     op = gtk.PrintOperation()

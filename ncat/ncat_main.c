@@ -11,7 +11,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -67,7 +67,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -120,7 +120,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_main.c 31567 2013-07-29 00:03:01Z david $ */
+/* $Id: ncat_main.c 32742 2014-02-20 21:22:22Z dmiller $ */
 
 #include "nsock.h"
 #include "ncat.h"
@@ -154,12 +154,10 @@ static int ncat_connect_mode(void);
 static int ncat_listen_mode(void);
 
 /* Determines if it's parsing HTTP or SOCKS by looking at defport */
-static size_t parseproxy(char *str, struct sockaddr_storage *ss, unsigned short defport)
+static size_t parseproxy(char *str, struct sockaddr_storage *ss,
+    size_t *sslen, unsigned short *portno)
 {
     char *c = strrchr(str, ':'), *ptr;
-    int httpproxy = (defport == DEFAULT_PROXY_PORT);
-    unsigned short portno;
-    size_t sslen;
     int rc;
 
     ptr = str;
@@ -168,19 +166,17 @@ static size_t parseproxy(char *str, struct sockaddr_storage *ss, unsigned short 
         *c = 0;
 
     if (c && strlen((c + 1)))
-        portno = (unsigned short) atoi(c + 1);
-    else
-        portno = defport;
+        *portno = (unsigned short) atoi(c + 1);
 
-    rc = resolve(ptr, portno, ss, &sslen, o.af);
+    rc = resolve(ptr, *portno, ss, sslen, o.af);
     if (rc != 0) {
         loguser("Could not resolve proxy \"%s\": %s.\n", ptr, gai_strerror(rc));
-        if (o.af == AF_INET6 && httpproxy)
+        if (o.af == AF_INET6 && *portno)
             loguser("Did you specify the port number? It's required for IPv6.\n");
         exit(EXIT_FAILURE);
     }
 
-    return sslen;
+    return *sslen;
 }
 
 /* These functions implement a simple linked list to hold allow/deny
@@ -259,9 +255,9 @@ int main(int argc, char *argv[])
     struct host_list_node *allow_host_list = NULL;
     struct host_list_node *deny_host_list = NULL;
 
+	unsigned short proxyport = DEFAULT_PROXY_PORT;
     int srcport = -1;
     char *source = NULL;
-    char *proxyaddr = NULL;
 
     struct option long_options[] = {
         {"4",               no_argument,        NULL,         '4'},
@@ -309,6 +305,7 @@ int main(int argc, char *argv[])
         {"proxy-type",      required_argument,  NULL,         0},
         {"proxy-auth",      required_argument,  NULL,         0},
         {"nsock-engine",    required_argument,  NULL,         0},
+        {"test",            no_argument,        NULL,         0},
 #ifdef HAVE_OPENSSL
         {"ssl",             no_argument,        &o.ssl,       1},
         {"ssl-cert",        required_argument,  NULL,         0},
@@ -432,7 +429,7 @@ int main(int argc, char *argv[])
             o.proto = IPPROTO_UDP;
             break;
         case 'v':
-            /* One -v activites verbose, after that it's debugging. */
+            /* One -v activates verbose, after that it's debugging. */
             if (o.verbose == 0)
                 o.verbose++;
             else
@@ -456,21 +453,23 @@ int main(int argc, char *argv[])
                 print_banner();
                 exit(EXIT_SUCCESS);
             } else if (strcmp(long_options[option_index].name, "proxy") == 0) {
-                if (proxyaddr)
+                if (o.proxyaddr)
                     bye("You can't specify more than one --proxy.");
-                proxyaddr = Strdup(optarg);
+                o.proxyaddr = optarg;
             } else if (strcmp(long_options[option_index].name, "proxy-type") == 0) {
                 if (o.proxytype)
                     bye("You can't specify more than one --proxy-type.");
-                o.proxytype = Strdup(optarg);
+                o.proxytype = optarg;
             } else if (strcmp(long_options[option_index].name, "proxy-auth") == 0) {
                 if (o.proxy_auth)
                     bye("You can't specify more than one --proxy-auth.");
-                o.proxy_auth = Strdup(optarg);
+                o.proxy_auth = optarg;
             } else if (strcmp(long_options[option_index].name, "nsock-engine") == 0) {
                 if (nsock_set_default_engine(optarg) < 0)
                     bye("Unknown or non-available engine: %s.", optarg);
                 o.nsock_engine = 1;
+            } else if (strcmp(long_options[option_index].name, "test") == 0) {
+                o.test = 1;
             } else if (strcmp(long_options[option_index].name, "broker") == 0) {
                 o.broker = 1;
                 /* --broker implies --listen. */
@@ -592,8 +591,9 @@ int main(int argc, char *argv[])
 "      --broker               Enable Ncat's connection brokering mode\n"
 "      --chat                 Start a simple Ncat chat server\n"
 "      --proxy <addr[:port]>  Specify address of host to proxy through\n"
-"      --proxy-type <type>    Specify proxy type (\"http\" or \"socks4\")\n"
+"      --proxy-type <type>    Specify proxy type (\"http\" or \"socks4\" or \"socks5\")\n"
 "      --proxy-auth <auth>    Authenticate with HTTP or SOCKS proxy server\n"
+
 #ifdef HAVE_OPENSSL
 "      --ssl                  Connect or listen with SSL\n"
 "      --ssl-cert             Specify SSL certificate file (PEM) for listening\n"
@@ -631,7 +631,7 @@ int main(int argc, char *argv[])
 #if HAVE_SYS_UN_H
     /* Using Unix domain sockets, so do the checks now */
     if (o.af == AF_UNIX) {
-        if (proxyaddr || o.proxytype)
+        if (o.proxyaddr || o.proxytype)
             bye("Proxy option not supported when using Unix domain sockets.");
 #ifdef HAVE_OPENSSL
         if (o.ssl)
@@ -649,7 +649,7 @@ int main(int argc, char *argv[])
     /* Will be AF_INET or AF_INET6 or AF_UNIX when valid */
     memset(&targetss.storage, 0, sizeof(targetss.storage));
     targetss.storage.ss_family = AF_UNSPEC;
-    httpconnect.storage = socksconnect.storage = srcaddr.storage = targetss.storage;
+    srcaddr.storage = targetss.storage;
 
     /* Clear the listenaddrs array */
     int i;
@@ -657,28 +657,32 @@ int main(int argc, char *argv[])
         listenaddrs[i].storage = targetss.storage;
     }
 
-    if (proxyaddr) {
+    if (o.proxyaddr) {
         if (!o.proxytype)
             o.proxytype = Strdup("http");
 
-        if (!strcmp(o.proxytype, "http")) {
-            /* Parse HTTP proxy address and temporarily store it in httpconnect.  If
-             * the proxy server is given as an IPv6 address (not hostname), the port
-             * number MUST be specified as well or parsing will break (due to the
-             * colons in the IPv6 address and host:port separator).
+        if (!strcmp(o.proxytype, "http") ||
+            !strcmp(o.proxytype, "socks4") || !strcmp(o.proxytype, "4") ||
+            !strcmp(o.proxytype, "socks5") || !strcmp(o.proxytype, "5")) {
+            /* Parse HTTP/SOCKS proxy address and store it in targetss.
+             * If the proxy server is given as an IPv6 address (not hostname),
+             * the port number MUST be specified as well or parsing will break
+             * (due to the colons in the IPv6 address and host:port separator).
              */
 
-            httpconnectlen = parseproxy(proxyaddr, &httpconnect.storage, DEFAULT_PROXY_PORT);
-        } else if (!strcmp(o.proxytype, "socks4") || !strcmp(o.proxytype, "4")) {
-            /* Parse SOCKS proxy address and temporarily store it in socksconnect */
-
-            socksconnectlen = parseproxy(proxyaddr, &socksconnect.storage, DEFAULT_SOCKS4_PORT);
+            targetsslen = parseproxy(o.proxyaddr,
+                &targetss.storage, &targetsslen, &proxyport);
+            if (o.af == AF_INET) {
+                targetss.in.sin_port = htons(proxyport);
+            } else { // might modify to else if and test AF_{INET6|UNIX|UNSPEC}
+                targetss.in6.sin6_port = htons(proxyport);
+            }
         } else {
             bye("Invalid proxy type \"%s\".", o.proxytype);
         }
 
-        free(o.proxytype);
-        free(proxyaddr);
+        if (o.listen)
+            bye("Invalid option combination: --proxy and -l.");
     } else {
         if (o.proxytype) {
             if (!o.listen)
@@ -689,7 +693,10 @@ int main(int argc, char *argv[])
     }
 
     /* Default port */
-    o.portno = DEFAULT_NCAT_PORT;
+    if (o.listen && o.proxytype && !o.portno && srcport == -1)
+        o.portno = DEFAULT_PROXY_PORT;
+    else
+        o.portno = DEFAULT_NCAT_PORT;
 
     /* Resolve the given source address */
     if (source) {
@@ -750,9 +757,12 @@ int main(int argc, char *argv[])
             int rc;
 
             o.target = argv[optind];
-            /* resolve hostname */
-            rc = resolve(o.target, 0, &targetss.storage, &targetsslen, o.af);
-            if (rc != 0)
+            /* resolve hostname only if o.proxytype == NULL
+             * targetss contains data already and you don't want remove them
+             */
+            if( !o.proxytype
+                && (rc = resolve(o.target, 0, &targetss.storage, &targetsslen, o.af)) != 0)
+
                 bye("Could not resolve hostname \"%s\": %s.", o.target, gai_strerror(rc));
             optind++;
         } else {
@@ -787,7 +797,9 @@ int main(int argc, char *argv[])
         o.portno = (unsigned short) long_port;
     }
 
-    if (targetss.storage.ss_family == AF_INET)
+    if (o.proxytype && !o.listen)
+        ; /* Do nothing - port is already set to proxyport  */
+    else if (targetss.storage.ss_family == AF_INET)
         targetss.in.sin_port = htons(o.portno);
 #ifdef HAVE_IPV6
     else if (targetss.storage.ss_family == AF_INET6)
@@ -826,25 +838,6 @@ int main(int argc, char *argv[])
                 srcaddr.in6.sin6_port = htons(srcport);
 #endif
         }
-    }
-
-    /* Since the host we're actually *connecting* to is the proxy server, we
-     * need to reverse these address structures to avoid any further confusion
-     */
-    if (httpconnect.storage.ss_family != AF_UNSPEC) {
-        union sockaddr_u tmp = targetss;
-        size_t tmplen = targetsslen;
-        targetss = httpconnect;
-        targetsslen = httpconnectlen;
-        httpconnect = tmp;
-        httpconnectlen = tmplen;
-    } else if (socksconnect.storage.ss_family != AF_UNSPEC) {
-        union sockaddr_u tmp = targetss;
-        size_t tmplen = targetsslen;
-        targetss = socksconnect;
-        targetsslen = socksconnectlen;
-        socksconnect = tmp;
-        socksconnectlen = tmplen;
     }
 
     if (o.proto == IPPROTO_UDP) {
@@ -901,7 +894,7 @@ static int ncat_connect_mode(void)
 static int ncat_listen_mode(void)
 {
     /* Can't 'listen' AND 'connect' to a proxy server at the same time. */
-    if (httpconnect.storage.ss_family != AF_UNSPEC || socksconnect.storage.ss_family != AF_UNSPEC)
+    if (o.proxyaddr != NULL)
         bye("Invalid option combination: --proxy and -l.");
 
     if (o.broker && o.cmdexec != NULL)
@@ -937,9 +930,10 @@ static int ncat_listen_mode(void)
         if (o.af == AF_INET6 || o.af == AF_UNSPEC) {
             ss_len = sizeof(listenaddrs[num_listenaddrs]);
             rc = resolve("::", o.portno, &listenaddrs[num_listenaddrs].storage, &ss_len, AF_INET6);
-            if (rc != 0)
-                bye("Failed to resolve default IPv6 address: %s.", gai_strerror(rc));
-            num_listenaddrs++;
+            if (rc == 0)
+                num_listenaddrs++;
+            else if (o.debug > 0)
+                logdebug("Failed to resolve default IPv6 address: %s\n", gai_strerror(rc));
         }
 #endif
         if (o.af == AF_INET || o.af == AF_UNSPEC) {

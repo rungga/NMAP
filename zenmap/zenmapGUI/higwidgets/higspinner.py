@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -134,12 +134,14 @@ import gobject
 
 from gtkutils import gobject_register
 
+
 class HIGSpinnerImages:
     def __init__(self):
         """This class holds list of GDK Pixbuffers.
 
         - static_pixbufs is used for multiple static pixbuffers
-        - self.animated_pixbufs is used for the pixbuffers that make up the animation
+        - self.animated_pixbufs is used for the pixbuffers that make up the
+          animation
         """
 
         dprint('HIGSpinnerImages::__init__')
@@ -182,14 +184,14 @@ class HIGSpinnerImages:
 
         dprint('HIGSpinnerImages::set_rest_pixbuf')
 
-        if not self.static_pixbufs.has_key(name):
+        if name not in self.static_pixbufs:
             raise StaticPixbufNotFound
 
         # self.rest_pixbuf holds the *real* pixbuf, not it's name
         self.rest_pixbuf = self.static_pixbufs[name]
 
     def set_size(self, width, height):
-        """Sets the size of eache pixbuf (static and animated)"""
+        """Sets the size of each pixbuf (static and animated)"""
         new_animated = []
         for p in self.animated_pixbufs:
             new_animated.append(p.scale_simple(width, height,
@@ -238,17 +240,17 @@ class HIGSpinnerCache:
         """Loads an animated icon by doing a lookup on the icon theme."""
 
         # If user do not choose a icon_name, use the default one
-        if icon_name == None:
+        if icon_name is None:
             icon_name = self.default_animated_icon_name
 
         # Even the default one (now on icon_name) might not be available
-        if icon_name == None:
+        if icon_name is None:
             raise AnimatedIconNotFound
 
         # Try to lookup the icon
         icon_info = self.icon_theme.lookup_icon(icon_name, -1, 0)
         # Even if icon_name exists, it might not be found by lookup
-        if icon_info == None:
+        if icon_info is None:
             raise AnimatedIconNotFound
 
         # Base size is, according to PyGTK docs:
@@ -289,7 +291,7 @@ class HIGSpinnerCache:
     def load_static_from_filename(self, filename, key_name=None):
         icon_pixbuf = gtk.gdk.pixbuf_new_from_file(filename)
 
-        if key_name == None:
+        if key_name is None:
             key_name = filename.split(".")[0]
 
         self.spinner_images.add_static_pixbuf(key_name, icon_pixbuf)
@@ -322,6 +324,7 @@ class HIGSpinnerCache:
         self.spinner_images.static_pixbufs[key_name].save(path_name,
                                                           image_format)
 
+
 class HIGSpinner(gtk.EventBox):
     """Simple spinner, such as the one found in webbrowsers and file managers.
 
@@ -331,8 +334,8 @@ class HIGSpinner(gtk.EventBox):
     * height, the height that will be set for the images
     """
 
-    __gsignals__ = { 'expose-event' : 'override',
-                     'size-request' : 'override' }
+    __gsignals__ = {'expose-event': 'override',
+                    'size-request': 'override'}
 
     def __init__(self):
         gtk.EventBox.__init__(self)
@@ -346,11 +349,11 @@ class HIGSpinner(gtk.EventBox):
         self.images_width = 32
         self.images_height = 32
 
-        # Timeout set to 100 miliseconds per frame, just as the
+        # Timeout set to 100 milliseconds per frame, just as the
         # Nautilus/Epiphany implementation
         self.timeout = 120
 
-        # Initialize a cache for ouselves
+        # Initialize a cache for ourselves
         self.cache = HIGSpinnerCache()
         self.cache.load_static_from_lookup()
         self.cache.load_animated_from_lookup()
@@ -384,8 +387,8 @@ class HIGSpinner(gtk.EventBox):
         if self.timer_task == 0:
             self.current_pixbuf = self.cache.spinner_images.rest_pixbuf
         else:
-            self.current_pixbuf = self.cache.spinner_images.animated_pixbufs\
-                                  [self.animated_pixbuf_index]
+            self.current_pixbuf = self.cache.spinner_images.animated_pixbufs[
+                    self.animated_pixbuf_index]
 
     def start(self):
         """Starts the animation"""
@@ -401,11 +404,11 @@ class HIGSpinner(gtk.EventBox):
         self.timer_task = 0
         self.queue_draw()
 
-
     def stop(self):
         """Stops the animation
 
-        Do the same stuff as pause, but returns the animation to the beggining."""
+        Do the same stuff as pause, but returns the animation to the
+        beginning."""
         self.pause()
         self.animated_pixbuf_index = 0
 
@@ -417,7 +420,7 @@ class HIGSpinner(gtk.EventBox):
     def do_expose_event(self, event):
         #self.chain(event)
 
-        if self.cache.spinner_images.rest_pixbuf == None:
+        if self.cache.spinner_images.rest_pixbuf is None:
             raise RestPixbufNotFound
 
         self.__select_pixbuf()
@@ -434,7 +437,7 @@ class HIGSpinner(gtk.EventBox):
         dest = event.area.intersect(pix_area)
 
         # If a graphic context doesn't not exist yet, create one
-        if self.gc == None:
+        if self.gc is None:
             self.gc = gtk.gdk.GC(self.window)
         #gc = self.gc
 

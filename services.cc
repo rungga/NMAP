@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: services.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: services.cc 32619 2014-01-05 19:14:26Z d33tah $ */
 
 #include "nmap.h"
 #include "services.h"
@@ -199,22 +199,22 @@ static int nmap_services_init() {
     error("Unable to find nmap-services!  Resorting to /etc/services");
     strcpy(filename, "/etc/services");
 #else
-	int len, wnt = GetVersion() < 0x80000000;
+        int len, wnt = GetVersion() < 0x80000000;
     error("Unable to find nmap-services!  Resorting to /etc/services");
-	if(wnt)
-		len = GetSystemDirectory(filename, 480);	//	be safe
-	else
-		len = GetWindowsDirectory(filename, 480);	//	be safe
-	if(!len)
-		error("Get%sDirectory failed (%d) @#!#@",
-		 wnt ? "System" : "Windows", GetLastError());
-	else
-	{
-		if(wnt)
-			strcpy(filename + len, "\\drivers\\etc\\services");
-		else
-			strcpy(filename + len, "\\services");
-	}
+        if(wnt)
+                len = GetSystemDirectory(filename, 480);	//	be safe
+        else
+                len = GetWindowsDirectory(filename, 480);	//	be safe
+        if(!len)
+                error("Get%sDirectory failed (%d) @#!#@",
+                 wnt ? "System" : "Windows", GetLastError());
+        else
+        {
+                if(wnt)
+                        strcpy(filename + len, "\\drivers\\etc\\services");
+                else
+                        strcpy(filename + len, "\\services");
+        }
 #endif
   }
 
@@ -239,27 +239,27 @@ static int nmap_services_init() {
       ratio = 0;
     } else if (res == 4) {
       if (strchr(ratio_str, '/')) {
-	res = sscanf(ratio_str, "%d/%d", &ratio_n, &ratio_d);
-	if (res != 2)
-	  fatal("%s:%d contains invalid port ratio string: %s", filename, lineno, ratio_str);
+        res = sscanf(ratio_str, "%d/%d", &ratio_n, &ratio_d);
+        if (res != 2)
+          fatal("%s:%d contains invalid port ratio string: %s", filename, lineno, ratio_str);
 
-	if (ratio_n < 0 || ratio_d < 0)
-	  fatal("%s:%d contains an invalid negative value", filename, lineno);
-	
-	if (ratio_n > ratio_d)
-	  fatal("%s:%d has a ratio %g. All ratios must be < 1", filename, lineno, (double)ratio_n/ratio_d);
-	
-	if (ratio_d == 0)
-	  fatal("%s:%d has a ratio denominator of 0 causing a division by 0 error", filename, lineno);
-	
-	ratio = (double)ratio_n / ratio_d;
-	ratio_format = 1;
+        if (ratio_n < 0 || ratio_d < 0)
+          fatal("%s:%d contains an invalid negative value", filename, lineno);
+        
+        if (ratio_n > ratio_d)
+          fatal("%s:%d has a ratio %g. All ratios must be < 1", filename, lineno, (double)ratio_n/ratio_d);
+        
+        if (ratio_d == 0)
+          fatal("%s:%d has a ratio denominator of 0 causing a division by 0 error", filename, lineno);
+        
+        ratio = (double)ratio_n / ratio_d;
+        ratio_format = 1;
       } else if (strncmp(ratio_str, "0.", 2) == 0) {
-	/* We assume the ratio is in floating point notation already */
-	ratio = strtod(ratio_str, NULL);
-	ratio_format = 1;
+        /* We assume the ratio is in floating point notation already */
+        ratio = strtod(ratio_str, NULL);
+        ratio_format = 1;
       } else {
-	ratio = 0;
+        ratio = 0;
       }
     } else {
       continue;
@@ -292,7 +292,7 @@ static int nmap_services_init() {
       /* possibly misplaced comment, but who cares? */
     } else {
       if (o.debugging)
-	error("Unknown protocol (%s) on line %d of services file %s.", proto, lineno, filename);
+        error("Unknown protocol (%s) on line %d of services file %s.", proto, lineno, filename);
       continue;
     }
 

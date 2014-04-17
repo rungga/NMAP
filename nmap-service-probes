@@ -1,5 +1,5 @@
 # Nmap service detection probe list -*- mode: fundamental; -*-
-# $Id: nmap-service-probes 31402 2013-07-18 03:38:37Z david $
+# $Id: nmap-service-probes 32775 2014-03-07 17:28:40Z dmiller $
 #
 # This is a database of custom probes and expected responses that the
 # Nmap Security Scanner ( http://nmap.org ) uses to
@@ -22,7 +22,7 @@
 # LLC.  It is distributed under the Nmap Open Source license as
 # provided in the COPYING file of the source distribution or at
 # http://nmap.org/data/COPYING .  Note that this license
-# requires you to license your own work under a compatable open source
+# requires you to license your own work under a compatible open source
 # license.  If you wish to embed Nmap technology into proprietary
 # software, we sell alternative licenses (contact sales@insecure.com).
 # Dozens of software vendors already license Nmap technology such as
@@ -73,6 +73,8 @@ match altiris-agent m|^<\0r\0e\0s\0p\0o\0n\0s\0e\0>\0C\0o\0n\0n\0e\0c\0t\0e\0d\0
 match amanda m|^220 ([-.\w]+) AMANDA index server \((\d[-.\w ]+)\) ready\.\r\n| p/Amanda backup system index server/ v/$2/ o/Unix/ h/$1/
 match amanda m|^501 Could not read config file [^!\r\n]+!\r\n220 ([-.\w]+) AMANDA index server \(([-\w_.]+)\) ready\.\r\n| p/Amanda backup system index server/ v/$2/ i/broken: config file not found/ h/$1/
 match amanda m|^ld\.so\.1: amandad: fatal: (libsunmath\.so\.1): open failed: No such file or directory\n$| p/Amanda backup system index server/ i/broken: $1 not found/
+
+match AndroMouse m|^AMServer$|s p/AndroMouse Android remote mouse server/
 
 match antivir m|^220 Symantec AntiVirus Scan Engine ready\.\r\n| p/Symantec AntiVirus Scan Engine/ cpe:/a:symantec:antivirus/
 match antivir m|^200 NOD32SS ([\d.]+) \((\d+)\)\r\n| p/NOD32 AntiVirus/ v/$1 ($2)/ cpe:/a:eset:nod32_antivirus:$1/
@@ -1812,9 +1814,10 @@ match mysql m|^.\0\0\0\n(0[\w._-]+)\0| p/MySQL instance manager/ v/$1/
 
 # TIME
 # This is a random 128-byte IV followed by a four-byte timestamp.
-# 0x46000000 = Tue Mar 20 09:38:40 2007
-# 0x53FFFFFF = Thu Aug 28 22:22:23 2014
-match nagios-nsca m|^.{128}[\x46-\x53]...$|s p/Nagios NSCA/
+# 0x52000000 = Mon Aug  5 12:41:52 2013
+# 0x5FFFFFFF = Thu Jan 14 00:25:35 2021
+# Calculating: perl -MPOSIX -le 'print ctime(0x5FFFFFFF)'
+match nagios-nsca m|^.{128}[\x52-\x5F]...$|s p/Nagios NSCA/
 
 match nbd m|^NBDMAGIC\0\0B| p/Network Block Device/
 
@@ -2541,7 +2544,7 @@ match smtp m|^220 CheckPoint FireWall-1 secure SMTP server\r\n$| p/Checkpoint Fi
 match smtp m|^220 ([-.+\w]+) running IBM AS/400 SMTP V([\w]+)| p|IBM AS/400 smtpd| v/$2/ h/$1/
 match smtp m|^220 ([-.+\w]+) ESMTP MailEnable Service, Version: (\d[\w.]+)- ready at | p/MailEnable smptd/ v/$2/ o/Windows/ h/$1/ cpe:/o:microsoft:windows/a
 match smtp m|^220 ([-.+\w]+) ESMTP Mail Enable SMTP Service, Version: (\d[\w.]+)-- ready at| p/MailEnable smptd/ v/$2/ o/Windows/ h/$1/ cpe:/o:microsoft:windows/a
-# Enterprise version number seems to be preceeded by "0--"; Professional with "0-"
+# Enterprise version number seems to be preceded by "0--"; Professional with "0-"
 match smtp m|^220 ([-.+\w]+) ESMTP MailEnable Service, Version: \d+--([\d.]+) ready at| p/MailEnable Enterprise smptd/ v/$2/ o/Windows/ h/$1/ cpe:/o:microsoft:windows/a
 # Catch-alls. Hyphens aren't making sense -Doug
 match smtp m|^220 ([-.+\w]+) ESMTP MailEnable Service, Version: ([\w._-]+) ready at| p/MailEnable smptd/ v/$2/ o/Windows/ h/$1/ cpe:/o:microsoft:windows/a
@@ -3106,6 +3109,9 @@ softmatch beep m|^RPY \d \d \. \d \d+\r\nContent-Type: application/beep\+xml\r\n
 match kvm m|^\0\0\0\x0bSynergy\0\x01\0| p/Synergy KVM/
 match kvm m|^\0\0\0\x0b<CSC/>\0| p/Raritan KVM/
 match kvm m|^LFB 1\.0[56]$| p/IBM BladeCenter KVM/
+
+match RemoteMouse m|^SIN 17osx nop nopwd \d+$|s p/Remote Mouse/ i/OS X/
+match RemoteMouse m|^SIN 17win nop nopwd \d+$|s p/Remote Mouse/ i/Windows/
 
 # Redhat Linux 7.1 - HAHAHAHAHAHA!!!! I love this service :)
 match systat m|^USER       PID %CPU %MEM   VSZ  RSS TTY      STAT START   TIME COMMAND\n| p/Linux systat/ o/Linux/ cpe:/o:linux:linux_kernel/a
@@ -4034,15 +4040,15 @@ match tinc m|^0 \w+ 17\n| p/tinc vpn daemon/
 # TIME
 # This will match systems with clocks set between the
 # following 2 dates:
-# 0xCA000000 = Thu May 24 14:13:52 2007
-# 0xD7FFFFFF = Sat Nov  1 18:57:35 2014
+# 0xD5000000 = Fri Mar 29 04:56:48 2013
+# 0xE2FFFFFF = Sun Sep  6 17:40:31 2020
 # Calculate this with the Python program:
 # python -c 'import datetime; print datetime.datetime.fromtimestamp(0xca000000 - 2208988800).ctime()'
 # Also needs updating (search for TIME):
 #   UDP Help
 #   TCP NULL
-match time m|^[\xca-\xd7]...$|s i/32 bits/
-match time m|^[\xca-\xd7]....\0\0\0$|s i/64 bits/
+match time m|^[\xd5-\xe2]...$|s i/32 bits/
+match time m|^[\xd5-\xe2]....\0\0\0$|s i/64 bits/
 
 # Need more examples... -Doug
 match timeedit m|^\0\0\0H\0\0\0\x02\x0fTimeEdit131\.| p/Evolvera TimeEdit/ v/1.3.1/
@@ -4125,6 +4131,10 @@ match websm m|^\+ read portFile\n\+ find /var/websm/data/wservers/| p/AIX wsmser
 match websm m|^\+ find /var/websm/data/wservers/ -type f -print -name \[0-9\]\*\[0-9\]\n\+ 2> /dev/null\n\+ head -1\n\+ read portFile\n\+| p/AIX wsmserver/ o/AIX/ cpe:/o:ibm:aix/a
 
 match weprint m|^\0\0\x26\xa1\0\0\x26\x99<header><type>hello</type><version>1</version><envVersion>2</envVersion><seq>[0-9a-f]+</seq><info>\(c\) 2008, EuroSmartz Ltd\. Only for use with EuroSmartz approved software\.</info><model>wep/([\w._-]+)</model><id>\d+</id><serverName>([\w._-]+)</serverName>| p/WePrint printer sharing server/ v/$1/ h/$2/
+
+match wifi-mouse m|^system\x20mac\x2010\.9\nversion\x201\.5\.0\.0\n$|s p/WiFi Mouse/ i/OS X/
+match wifi-mouse m|^system\x20windows\x206\.1\nversion\x201\.\x205\.\x200\.\x200\n$|s p/WiFi Mouse/ i/Windows/
+match wifi-mouse m|^system\x20linux\x2010\.0\.4\nversion\x201\.\x205\.\x200\.\x200\n$|s p/WiFi Mouse/ i/Linux/
 
 match winshell m=^Microsoft Windows( (?:2000|XP|NT 4\.0)|) \[Version ([\d.]+)\]\r\n\(C\) Copyright 1985-20\d\d Microsoft Corp\.\r\n\r\n= p/Microsoft Windows$1 $2 cmd.exe/ i/**BACKDOOR**/ o/Windows/ cpe:/o:microsoft:windows/a
 match winshell m|^Microsoft Windows \[Version ([\d.]+)\]\r\nCopyright \(c\) 20\d\d Microsoft Corporation\.  All rights reserved\.\r\n\r\n| p/Microsoft Windows $1 cmd.exe/ i/**BACKDOOR**/ o/Windows/ cpe:/o:microsoft:windows/a
@@ -4530,7 +4540,7 @@ match http m|^HTTP/1\.0 400 msg=Bad%20Request&rc=%00%00%03%1b\r\n| p/TimesTen ht
 match http m|^HTTP/1\.1 400  Bad  request\r\nContent-Type: text/html; charset=ISO-8859-1\r\n\r\n<body><h1>HTTP/1\.1 400  Bad  request <h1></body>| p/XOSoft WanSync http config/ o/Windows/ cpe:/o:microsoft:windows/a
 match http m|^HTTP/\*\.\* 400 Bad Request\r\nDate: .*\r\nContent-Type:text/plain\r\nContent-Length:61\r\n\r\nThe received request is either NULL or invalid/wrong format\r\n| p/Kaba application server httpd/
 
-# This lame service responds in many wierd ways - luckily always to GenericLines
+# This lame service responds in many weird ways - luckily always to GenericLines
 match http m|^HTTP/1\.1 403 Forbidden\r\nContent-Type: text/xml\r\n\r\n<\?xml version='1\.0' encoding='UTF-8' \?><autnresponse><action>NONE</action><response>The action you attempted is forbidden by your client</response></autnresponse>| p/Veritas backup exec continuous protection httpd/
 match http m|^HTTP/1\.1 403 Forbidden\nContent-Type: text/xml\n\n<ACTION>GETSTATUS</ACTION><RESPONSE>The action you attempted is forbidden by your client</RESPONSE>| p/Veritas backup exec continuous protection httpd/
 match http m|^HTTP/1\.0 200 OK\r\nContent-type: text/html\r\n\r\n\n\nCONNECTION NOT AUTHORIZED\n\n\n| p/Veritas backup exec continuous protection httpd/ i/unauthorized/
@@ -5863,7 +5873,7 @@ match http m|^HTTP/1\.0 200 OK\r\n.*<title>Remote UI &lt;Top Page&gt; : iR(\w+) 
 match http m|^HTTP/1\.1 200 OK\r\n.*<title>Remote UI \(Top Page\):&nbsp;(MF\w+) Series|s p/Canon $1 printer http config/ d/printer/ cpe:/h:canon:$1/
 match http m|^HTTP/1\.1 \d\d\d .*\r\nDate: .*\r\nServer: 2Wire-Gateway/([-\w_.]+)\r\n| p/2Wire HomePortal router http config/ i/Firmware $1/ d/router/
 match http m|^HTTP/1\.1 \d\d\d .*\r\nServer: 2wire Gateway ([\d.]+)\r\n|s p/2Wire HomePortal http config/ v/$1/ d/broadband router/
-match http m|^HTTP/1\.1 \d\d\d .*\r\nServer: 2wire Gateway\r\n|s p/2Wire HomePortal touer http config/ d/broadband router/
+match http m|^HTTP/1\.1 \d\d\d .*\r\nServer: 2wire Gateway\r\n|s p/2Wire HomePortal router http config/ d/broadband router/
 match http m|^HTTP/1\.1 200 OK\r\nServer: Agranat-EmWeb/R([\d_]+)\r\n.*<title>2Wire HomePortal</title>|s p/Agranat-EmWeb/ v/$SUBST(1,"_",".")/ i/2Wire HomePortal router http config/ d/router/ cpe:/a:agranat:emweb:$SUBST(1,"_",".")/
 match http m|^HTTP/1\.0 200 OK\r\nPragma:no-cache\r\nContent-Length: \d+\r\nContent-Type: text/html\r\n\r\n<html>\n<head>\n<title>AXIS ([\d/+]+); IP address: [\d.]+</title>\n| p/AXIS $1 print server http config/ d/print server/
 match http m|^HTTP/1\.0 \d\d\d.*<TITLE>Lantronix Web Manager ([\d.]+) : Home</TITLE>|s p/Lantronix Web Manager/ v/$1/
@@ -8291,6 +8301,7 @@ match http m|^HTTP/1\.1 200 Document follows\r\nServer: Micro-Web\r\n| p/Micro-W
 match http m|^HTTP/1\.1 200 OK\r\n.*Server: Indy/([\w._-]+)\r\n|s p/Indy/ v/$1/
 match http m|^HTTP/1\.1 404 File not found\r\n.*Server: Indy/([\w._-]+)\r\n|s p/Indy/ v/$1/
 match http m|^HTTP/1\.1 200 OK\r\nServer: WindWeb/([\w._-]+)\r\n| p/WindWeb/ v/$1/ cpe:/a:windriver:windweb:$1/
+match http m|^HTTP/1\.0 200 OK\r\nServer: Perl Dancer ([\w._-]+)\r\n| p/Perl Dancer/ v/$1/ 
 
 
 # No more HTTP softmatch because many services that I don't think are
@@ -8938,6 +8949,9 @@ match upnp m|^HTTP/1\.0 404 Not Found\r\nSERVER: PACKAGE_VERSION HUAWEI, UPnP, H
 # UUCP 1.06.2 on Linux 2.4.X
 # Taylor UUCP 1.06.2 on Slackware
 match uucp m|^login: Password:$| p/Taylor uucpd/
+# uucico prompt does not have space after "Password:",
+# but Debian-contributed in.uucpd calls pam_authenticate, which does.
+match uucp m|^login: Password: $| p/Debian in.uucpd, probably Taylor uucpd/ i/PAM auth/
 match uucp m|^login: Login incorrect\.$| p/Solaris uucpd/
 
 # Veritas Netbackup client v.3.4
@@ -9039,6 +9053,8 @@ match http m|^HTTP/1\.0 \d\d\d .*\r\nServer: WebSTAR/([\d.]+) ID/\d+\r\n|s p/Web
 match http m|^HTTP/1\.1 200 OK\r\nServer: INEOQUEST/([\d.]+)\r\nConnection: close\r\nSet-Cookie:|s p/IneoQuest Video Diagnostic HTTP/ v/$1/
 
 match honeypot m|^HTTP/1\.0 401 Unauthorized\r\n\r\n<BODY><HTML><H1>401 - Authorization Failed</H1></HTML></BODY>\0| p/Network Flight Recorder BackOfficer Friendly http honeypot/
+
+match http m|^HTTP/1\.1 200 OK\r\nServer: fexsrv\r\n.*A HREF="mailto:fex@([^"]*)"|s p/F*EX (Frams' Fast File EXchange) server/ h/$1/
 
 # Maybe too specific?
 match hpilo-virtual-media m|^#\0\x04\0$| p/HP Integrated Lights-Out Virtual Media/
@@ -9609,8 +9625,9 @@ match domain m|^....\x85\x80\0\x01\0\x01\0\0\0\0\x07version\x04bind\0\0\x10\0\x0
 # Has to come before BIND matches.
 match domain m|^..\0\x06\x81\x80\0\x01\0\x01\0\0\0\0\x07version\x04bind\0\0\x10\0\x03\xc0\x0c\0\x10\0\x03\0\0\0\0\0\x0e.unbound ([\w._-]+)$| p/Unbound/ v/$1/
 
-match domain m|\x07version\x04bind.*[\x03-\x14]([-\w._ ]{3,20})|s p/ISC BIND/ v/$1/ cpe:/a:isc:bind:$1/
 match domain m|\x07version\x04bind.*[\x03-\x14]BIND ([-\w._]{3,20})|s p/ISC BIND/ v/$1/ cpe:/a:isc:bind:$1/
+match domain m|\x07version\x04bind.*[\x03-\x14]NSD ([-\w._]{3,20})|s p/NLnet Labs NSD/ v/$1/ cpe:/a:nlnet:nsd:$1/
+match domain m|\x07version\x04bind.*[\x03-\x14]([-\w._ ]{3,20})|s p/ISC BIND/ v/$1/ cpe:/a:isc:bind:$1/
 # ISC Bind 9.1.3
 match domain m|\x07version\x04bind\0\0\x10\0\x03\xc0\x0c\0\x10\0\x03\0\0\0\0\0\x01\0| p/ISC BIND/ v/9.X/ cpe:/a:isc:bind:9/
 match domain m|^..\0\x06\x85\0\0\x01\0\x01\0\x01\0\0\x07version\x04bind\0\0\x10\0\x03\xc0\x0c\0\x10\0\x03\0\0\0\0...[\w._-]+-RedHat-([\w._-]+\.el5_[\w._-]+)\xc0\x0c\0\x02\0\x03\0\0\0\0\0\x02\xc0\x0c|s p/ISC BIND/ v/$1/ o/Red Hat Enterprise Linux/ cpe:/a:isc:bind:$1/ cpe:/o:redhat:enterprise_linux/
@@ -9911,8 +9928,8 @@ match daytime m|^\d\d:\d\d:\d\d \d\d.\d\d.20\d\d\n$| p/Microsoft Windows Interna
 match daytime m|^\w\w\w \w\w\w \d\d \d\d:\d\d:\d\d \d\d\d\d\r\n$| p/AIX daytime/ o/AIX/ cpe:/o:ibm:aix/a
 match daytime m|^(\w\w\w \w\w\w \d\d \d\d:\d\d:\d\d \w+ \d\d\d\d)\r\n\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0 \0\0\0\x7f\xff\xec0\0\0\0\0\0\0\0\0\0\0\0\0\x04\x01Q\xa0\0\0\0\0\0\x01\0\x15\x90-d\0\0\0\0\0\0\0\0\x1c\0\0\xff\xfe\xff\xff\xff\xff\xc5:H\0\0\x16\xc3\xd8\0\0\0\0\0\0\0\0\0\0\0\0\0\0\xff\xff\xac\x10\x0b\x05\0\xff\0\x06T\xa3\0\0 !\"#\$%&'\(\)\*\+,-\./0123456789:;<=>\?@ABCDEFGHIJKLMNO\xd3\$\x12\xccTUVWOy\x94L\0\r\xd1z\0\0\0\0\x04\x02\x1b`\0\0\0\0\x04\x02\x1b`| i/time: $1/
 # TIME
-match time m|^[\xca-\xd7]...$|s i/32 bits/
-match time m|^[\xca-\xd7]....\0\0\0$|s i/64 bits/
+match time m|^[\xd5-\xe2]...$|s i/32 bits/
+match time m|^[\xd5-\xe2]....\0\0\0$|s i/64 bits/
 # Solaris Internet Name Server (42/udp), see ien116.txt
 match nameserver m|^help\r\n\r\n\0\0\0\0\x20CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\0\0!\0\x01| p/Solaris Internet Name Server/ i/IEN 116/ o/Solaris/ cpe:/o:sun:sunos/a
 match nameserver m|^\x03\x03\x02$| p/Solaris Internet Name Server/ i/IEN 116/ o/Solaris/ cpe:/o:sun:sunos/a
@@ -11915,6 +11932,14 @@ match afp m|^\x01\x03\0\x01\0\0\0\0................\x03\xff.([^\0\x01]+)[\0\x01]
 
 
 ##############################NEXT PROBE##############################
+# Quake1 server info
+Probe UDP Quake1_server_info q|\x80\x00\x00\x0c\x02\x51\x55\x41\x4b\x45\x00\x03|
+rarity 9
+ports 26000-26004
+
+match quake m|^\x80\x00..\x83([^\x00]*)\x00([^\x00]*)\x00| p/Quake 1 server/ i/address: $1, name: $2/
+
+##############################NEXT PROBE##############################
 # Quake2 status
 Probe UDP Quake2_status q|\xff\xff\xff\xffstatus|
 rarity 8
@@ -12124,8 +12149,8 @@ match pc-duo-gw m|^.........(.*)\0|s p/Vector PC-Duo Gateway Server/ i/Servernam
 Probe TCP redis-server q|\*1\r\n\$4\r\ninfo\r\n|
 rarity 8
 ports 6379
-match redis-server m|-ERR operation not permitted\r\n|s p/Redis key-value store/
-match redis-server m|^\$\d+\r\nredis_version:([.\d]+)\r\n|s p/Redis key-value store/ v/$1/
+match redis m|-ERR operation not permitted\r\n|s p/Redis key-value store/
+match redis m|^\$\d+\r\nredis_version:([.\d]+)\r\n|s p/Redis key-value store/ v/$1/
 
 ##############################NEXT PROBE##############################
 # Memcached distributed memory object caching system
@@ -12277,6 +12302,82 @@ Probe UDP TeamSpeak2 q|\xf4\xbe\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\
 rarity 9
 ports 8767
 
-match teamspeak2 m|^\xf4\xbe\x04\x00\x00\x00\x00\x00.............([^\0]+)[^\w\s]+Win32\0+[^\0].{355}$|s p/TeamSpeak 2/ i/name: $1; no password/ o/Windows/
-match teamspeak2 m|^\xf4\xbe\x04\x00\x00\x00\x00\x00.............([^\0]+)[^\w\s]+Linux\0+[^\0].{355}$|s p/TeamSpeak 2/ i/name: $1; no password/ o/Linux/
-match teamspeak2 m|^\xf4\xbe\x04\x00\x00\x00\x00\x00............\0{60}.{356}$|s p/TeamSpeak 2/
+# Offset  Type   Value                  Comment
+# 0-1     uint16 0xBEF4                 Class: connection
+# 2-3     uint16 0x0004                 Type: login reply
+# 4-7     uint32 0                      Session key; zero on first reply
+# 8-11    uint32 client id
+# 12-15   uint32 2                      Sequence number; 2 on first reply
+# 16-19   uint32 some crc32 checksum
+# 20      uint8  server name length
+# 21-49   string server name
+# 50      uint8  platform length
+# 51-79   string platform
+# 80-81   uint16 1. version             E.g. the "2" in "2.0.23.19"
+# 82-83   uint16 2. version             E.g. the "0" in "2.0.23.19"
+# 84-85   uint16 3. version             E.g. the "23" in "2.0.23.19"
+# 86-87   uint16 4. version             E.g. the "19" in "2.0.23.19"
+# 88-179  bytes  unknown
+# 180     uint8  welcome message length
+# 181-435 string welcome message
+
+match teamspeak2 m|^\xf4\xbe\x04\x00\x00\x00\x00\x00....\x02\x00\x00\x00.....([^\0]+)\0*.Win32\0*\x02\x00\x00\x00\x17\x00\x13\x00|s p/TeamSpeak 2/ v/2.0.23.19/ i/name: $1; no password/ o/Windows/ cpe:/o:microsoft:windows/
+match teamspeak2 m|^\xf4\xbe\x04\x00\x00\x00\x00\x00....\x02\x00\x00\x00.....([^\0]+)\0*.Linux\0*\x02\x00\x00\x00\x17\x00\x13\x00|s p/TeamSpeak 2/ v/2.0.23.19/ i/name: $1; no password/ o/Linux/ cpe:/o:linux:linux_kernel/
+match teamspeak2 m|^\xf4\xbe\x04\x00\x00\x00\x00\x00....\x02\x00\x00\x00....\0{60}.{356}$|s p/TeamSpeak 2/
+
+
+##############################NEXT PROBE##############################
+# UDP login request (encrypted)
+# http://seclists.org/nmap-dev/2013/q3/72
+Probe UDP TeamSpeak3 q|\x05\xca\x7f\x16\x9c\x11\xf9\x89\x00\x00\x00\x00\x02\x9d\x74\x8b\x45\xaa\x7b\xef\xb9\x9e\xfe\xad\x08\x19\xba\xcf\x41\xe0\x16\xa2\x32\x6c\xf3\xcf\xf4\x8e\x3c\x44\x83\xc8\x8d\x51\x45\x6f\x90\x95\x23\x3e\x00\x97\x2b\x1c\x71\xb2\x4e\xc0\x61\xf1\xd7\x6f\xc5\x7e\xf6\x48\x52\xbf\x82\x6a\xa2\x3b\x65\xaa\x18\x7a\x17\x38\xc3\x81\x27\xc3\x47\xfc\xa7\x35\xba\xfc\x0f\x9d\x9d\x72\x24\x9d\xfc\x02\x17\x6d\x6b\xb1\x2d\x72\xc6\xe3\x17\x1c\x95\xd9\x69\x99\x57\xce\xdd\xdf\x05\xdc\x03\x94\x56\x04\x3a\x14\xe5\xad\x9a\x2b\x14\x30\x3a\x23\xa3\x25\xad\xe8\xe6\x39\x8a\x85\x2a\xc6\xdf\xe5\x5d\x2d\xa0\x2f\x5d\x9c\xd7\x2b\x24\xfb\xb0\x9c\xc2\xba\x89\xb4\x1b\x17\xa2\xb6|
+rarity 9
+ports 9987
+
+match ts3 m|^........\x00\x00\x02\x97\x76\x8b\x54\xad\x79\xe3\xaf\x87\xeb\xaa\x1a\x19\xba\xcf\x41\xe0\x16\xa2\x32\x6c\xf3\xcf\xf4\x8e\x3c\x44\x83\xc8\x8d\x51\x45\x6f\x90\x95\x23\x33\x08\x86\x2d\x40|s p/TeamSpeak 3 server/
+
+##############################NEXT PROBE##############################
+# xmlsysd info request
+# http://www.phy.duke.edu/~rgb/brahma/Resources/xmlsysd.php
+Probe TCP xmlsysd q|init\noff all\non identity version\nsend\nquit\n|
+rarity 9
+ports 7887
+
+match xmlsysd m|^Content-Length: [0-9]+\n\n<\?xml version=\"1\.0\"\?>\s*<xmlsysd init=\"1\">\s*<system>\s*<identity>\s*<hostname>([^<]*)</hostname>\s*<hostip>([^<]*)</hostip>\s*</identity>\s*</system>\s*<proc>\s*<version>([^<]*)</version>\s*</proc>\s*</xmlsysd>|s p/xmlsysd daemon/ h/$1/ i/IP: $2/ o/$3/ cpe:/a:wulfware:xmlsysd/
+
+##############################NEXT PROBE##############################
+# Freelancer game server status query
+# http://sourceforge.net/projects/gameq/
+# (relevant files: games.ini, packets.ini, freelancer.php)
+Probe UDP FreelancerStatus q|\x00\x02\xf1\x26\x01\x26\xf0\x90\xa6\xf0\x26\x57\x4e\xac\xa0\xec\xf8\x68\xe4\x8d\x21|
+rarity 9
+ports 2302
+
+match freelancer m|^\x00\x03\xf1\x26.{88}(.*)\0\0(?:.*?:){5}(.*)\0\0$|s p/Freelancer/ i/name: $P(1); description: $P(2)/
+
+# All-Seeing Eye service provided by some game servers for querying
+# the server's status
+# For more info on the protocol see:
+# http://int64.org/docs/gamestat-protocols/ase.html
+# http://aluigi.altervista.org/papers.htm#ase
+# http://sourceforge.net/projects/gameq/
+# (relevant files: games.ini, packets.ini, ase.php)
+Probe UDP ASE q|s|
+rarity 9
+ports 1258,2126,3123,12444,13200,23196,26000,27138,27244,27777,28138
+
+match allseeingeye m/^EYE1.(.*?)(?|\x02(\d)|\x03(\d{2})|\x04(\d{3})|\x05(\d{4})|\x06(\d{5}))/s p/All-Seeing Eye/ i/game: $1; port: $2/
+
+##############################NEXT PROBE##############################
+Probe UDP AndroMouse q|AMSNIFF|
+rarity 9
+ports 8888
+
+match AndroMouse m|^GOTBACK$|s p/AndroMouse Android remote mouse server/
+
+##############################NEXT PROBE##############################
+Probe UDP AirHID q|from:airhid|
+rarity 9
+ports 13246
+
+match AirHID m|^andReceiver-\d+\.\d+\.\d+$|s p/AirHID Andrioid remote mouse server/
+

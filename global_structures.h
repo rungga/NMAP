@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: global_structures.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: global_structures.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 
 #ifndef GLOBAL_STRUCTURES_H
@@ -138,7 +138,7 @@ struct portinfo {
    unsigned long portno; /* TCP/UDP/SCTP port or RPC program id or IP protocool */
    short trynum;
    int sd[3]; /* Socket descriptors for connect_scan */
-   struct timeval sent[3]; 
+   struct timeval sent[3];
    int state;
    int next; /* not struct portinfo * for historical reasons */
    int prev;
@@ -162,32 +162,23 @@ struct udpprobeinfo {
   struct in_addr target;
 };
 
-/* The runtime statistics used to decide how fast to proced and how
+/* The runtime statistics used to decide how fast to proceed and how
    many ports we can try at once */
 struct scanstats {
   int packet_incr;
-  int initial_packet_width; /* Number of queries in parallel we should 
-			       start with */
+  int initial_packet_width; /* Number of queries in parallel we should
+                               start with */
   double fallback_percent;
   int numqueries_outstanding; /* How many unexpired queries are on the 'net
-				 right now? */
+                                 right now? */
   double numqueries_ideal; /* How many do we WANT to be on the 'net right now? */
-  int max_width; /* What is the MOST we will tolerate at once.  Can be 
-		    modified via --max_parallelism */
-  int min_width; /* We must always allow at least this many at once.  Can 
-		    be modified via --min_parallelism*/
+  int max_width; /* What is the MOST we will tolerate at once.  Can be
+                    modified via --max_parallelism */
+  int min_width; /* We must always allow at least this many at once.  Can
+                    be modified via --min_parallelism*/
   int ports_left;
   int changed; /* Has anything changed since last round? */
   int alreadydecreasedqueries;
-};
-
-struct ftpinfo {
-  char user[64];
-  char pass[256]; /* methinks you're paranoid if you need this much space */
-  char server_name[MAXHOSTNAMELEN + 1];
-  struct in_addr server;
-  u16 port;
-  int sd; /* socket descriptor */
 };
 
 struct AVal {
@@ -249,7 +240,7 @@ struct FingerPrintDB {
 struct ultra_timing_vals {
   double cwnd; /* Congestion window - in probes */
   int ssthresh; /* The threshold above which mode is changed from slow start
-		   to congestion avoidance */
+                   to congestion avoidance */
   /* The number of replies we would expect if every probe produced a reply. This
      is almost like the total number of probes sent but it is not incremented
      until a reply is received or a probe times out. This and
@@ -278,20 +269,20 @@ struct scan_performance_vars {
   int host_initial_cwnd; /* Initial congestion window for ind. hosts */
   int group_initial_cwnd; /* Initial congestion window for all hosts as a group */
   int max_cwnd; /* I should never have more than this many probes
-		   outstanding */
+                   outstanding */
   int slow_incr; /* How many probes are incremented for each response
-		    in slow start mode */
-  int ca_incr; /* How many probes are incremented per (roughly) rtt in 
-		  congestion avoidance mode */
+                    in slow start mode */
+  int ca_incr; /* How many probes are incremented per (roughly) rtt in
+                  congestion avoidance mode */
   int cc_scale_max; /* The maximum scaling factor for congestion window
-		       increments. */
+                       increments. */
   int initial_ssthresh;
   double group_drop_cwnd_divisor; /* all-host group cwnd divided by this
-				     value if any packet drop occurs */
+                                     value if any packet drop occurs */
   double group_drop_ssthresh_divisor; /* used to drop the group ssthresh when
-					 any drop occurs */
+                                         any drop occurs */
   double host_drop_ssthresh_divisor; /* used to drop the host ssthresh when
-					 any drop occurs */
+                                         any drop occurs */
 
   /* Do initialization after the global NmapOps table has been filled in. */
   void init();
@@ -316,36 +307,36 @@ struct seq_info {
 
 /* Different kinds of Ipids. */
 struct ipid_info {
-  int tcp_ipids[NUM_SEQ_SAMPLES];
-  int tcp_closed_ipids[NUM_SEQ_SAMPLES];
-  int icmp_ipids[NUM_SEQ_SAMPLES];
+  u32 tcp_ipids[NUM_SEQ_SAMPLES];
+  u32 tcp_closed_ipids[NUM_SEQ_SAMPLES];
+  u32 icmp_ipids[NUM_SEQ_SAMPLES];
 };
 
 /* The various kinds of port/protocol scans we can have
  * Each element is to point to an array of port/protocol numbers
  */
 struct scan_lists {
-	/* The "synprobes" are also used when doing a connect() ping */
-	unsigned short *syn_ping_ports;
-	unsigned short *ack_ping_ports;
-	unsigned short *udp_ping_ports;
-	unsigned short *sctp_ping_ports;
-	unsigned short *proto_ping_ports;
-	int syn_ping_count;
-	int ack_ping_count;
-	int udp_ping_count;
-	int sctp_ping_count;
-	int proto_ping_count;
-	//the above fields are only used for host discovery
-	//the fields below are only used for port scanning
-	unsigned short *tcp_ports;
-	int tcp_count;
-	unsigned short *udp_ports;
-	int udp_count;
-	unsigned short *sctp_ports;
-	int sctp_count;
-	unsigned short *prots;
-	int prot_count;
+        /* The "synprobes" are also used when doing a connect() ping */
+        unsigned short *syn_ping_ports;
+        unsigned short *ack_ping_ports;
+        unsigned short *udp_ping_ports;
+        unsigned short *sctp_ping_ports;
+        unsigned short *proto_ping_ports;
+        int syn_ping_count;
+        int ack_ping_count;
+        int udp_ping_count;
+        int sctp_ping_count;
+        int proto_ping_count;
+        //the above fields are only used for host discovery
+        //the fields below are only used for port scanning
+        unsigned short *tcp_ports;
+        int tcp_count;
+        unsigned short *udp_ports;
+        int udp_count;
+        unsigned short *sctp_ports;
+        int sctp_count;
+        unsigned short *prots;
+        int prot_count;
 };
 
 typedef enum { STYPE_UNKNOWN, HOST_DISCOVERY, ACK_SCAN, SYN_SCAN, FIN_SCAN, XMAS_SCAN, UDP_SCAN, CONNECT_SCAN, NULL_SCAN, WINDOW_SCAN, SCTP_INIT_SCAN, SCTP_COOKIE_ECHO_SCAN, MAIMON_SCAN, IPPROT_SCAN, PING_SCAN, PING_SCAN_ARP, IDLE_SCAN, BOUNCE_SCAN, SERVICE_SCAN, OS_SCAN, SCRIPT_PRE_SCAN, SCRIPT_SCAN, SCRIPT_POST_SCAN, TRACEROUTE, PING_SCAN_ND }stype;

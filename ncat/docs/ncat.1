@@ -2,12 +2,12 @@
 .\"     Title: Ncat
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/28/2013
+.\"      Date: 04/10/2014
 .\"    Manual: Ncat Reference Guide
 .\"    Source: Ncat
 .\"  Language: English
 .\"
-.TH "NCAT" "1" "07/28/2013" "Ncat" "Ncat Reference Guide"
+.TH "NCAT" "1" "04/10/2014" "Ncat" "Ncat Reference Guide"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ Among Ncat\*(Aqs vast number of features there is the ability to chain Ncats tog
 .RS 4
 .\}
 .nf
-Ncat 6\&.40 ( http://nmap\&.org/ncat )
+Ncat 6\&.45 ( http://nmap\&.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
 Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
@@ -83,7 +83,7 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
       \-\-broker               Enable Ncat\*(Aqs connection brokering mode
       \-\-chat                 Start a simple Ncat chat server
       \-\-proxy <addr[:port]>  Specify address of host to proxy through
-      \-\-proxy\-type <type>    Specify proxy type ("http" or "socks4")
+      \-\-proxy\-type <type>    Specify proxy type ("http" or "socks4" or "socks5")
       \-\-proxy\-auth <auth>    Authenticate with HTTP or SOCKS proxy server
       \-\-ssl                  Connect or listen with SSL
       \-\-ssl\-cert             Specify SSL certificate file (PEM) for listening
@@ -319,6 +319,31 @@ Same as
 \fB\-\-lua\-exec \fR\fB\fIfile\fR\fR (Execute a \&.lua script) .\" --lua-exec (Ncat option)
 .RS 4
 Runs the specified file as a Lua script after a connection has been established, using a built\-in interpreter\&. Both the script\*(Aqs standard input and the standard output are redirected to the connection data streams\&.
+.RE
+.PP
+All exec options add the following variables to the child\*(Aqs environment:
+.PP
+\fBNCAT_REMOTE_ADDR\fR, \fBNCAT_REMOTE_PORT\fR
+.RS 4
+.\" NCAT_REMOTE_ADDR> environment variable
+.\" NCAT_REMOTE_PORT> environment variable
+The IP address and port number of the remote host\&. In connect mode, it\*(Aqs the target\*(Aqs address; in listen mode, it\*(Aqs the client\*(Aqs address\&.
+.RE
+.PP
+\fBNCAT_LOCAL_ADDR\fR, \fBNCAT_LOCAL_PORT\fR
+.RS 4
+.\" NCAT_LOCAL_ADDR> environment variable
+.\" NCAT_LOCAL_PORT> environment variable
+The IP address and port number of the local end of the connection\&.
+.RE
+.PP
+\fBNCAT_PROTO\fR
+.RS 4
+.\" NCAT_PROTO> environment variable
+The protocol in use: one of
+TCP,
+UDP, and
+SCTP\&.
 .RE
 .SH "ACCESS CONTROL OPTIONS"
 .PP

@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -133,7 +133,7 @@ import ConfigParser
 # Python 2.7 that otherwise causes an assertion failure. See
 # https://bugzilla.redhat.com/show_bug.cgi?id=620216#c10.
 import warnings
-warnings.filterwarnings("error", module = "gtk", append = "True")
+warnings.filterwarnings("error", module="gtk", append="True")
 try:
     import gtk
 except Exception:
@@ -163,13 +163,12 @@ import zenmapCore.I18N
 from zenmapCore.Paths import Path
 from zenmapCore.Name import APP_DISPLAY_NAME
 
-from zenmapGUI.MainWindow import ScanWindow
-
 from zenmapGUI.higwidgets.higdialogs import HIGAlertDialog
 
 # A global list of open scan windows. When the last one is destroyed, we call
 # gtk.main_quit.
 open_windows = []
+
 
 def _destroy_callback(window):
     open_windows.remove(window)
@@ -183,7 +182,9 @@ def _destroy_callback(window):
         # Cleaning up data base
         UmitDB().cleanup(SearchConfig().converted_save_time)
 
+
 def new_window():
+    from zenmapGUI.MainWindow import ScanWindow
     w = ScanWindow()
     w.connect("destroy", _destroy_callback)
     if is_maemo():
@@ -193,11 +194,14 @@ def new_window():
     open_windows.append(w)
     return w
 
-# Script found at http://www.py2exe.org/index.cgi/HowToDetermineIfRunningFromExe
+
+# Script found at
+# http://www.py2exe.org/index.cgi/HowToDetermineIfRunningFromExe
 def main_is_frozen():
-    return (hasattr(sys, "frozen") # new py2exe
-            or hasattr(sys, "importers") # old py2exe
-            or imp.is_frozen("__main__")) # tools/freeze
+    return (hasattr(sys, "frozen")  # new py2exe
+            or hasattr(sys, "importers")  # old py2exe
+            or imp.is_frozen("__main__"))  # tools/freeze
+
 
 def is_root():
     if 'NMAP_PRIVILEGED' in os.environ:
@@ -206,6 +210,7 @@ def is_root():
         return False
     else:
         return sys.platform == "win32" or os.getuid() == 0 or is_maemo()
+
 
 def install_excepthook():
     # This will catch exceptions and send them to bugzilla
@@ -218,7 +223,7 @@ def install_excepthook():
         # produces a warning, but the lack of a display eventually causes a
         # segmentation fault. See http://live.gnome.org/PyGTK/WhatsNew210.
         import warnings
-        warnings.filterwarnings("error", module = "gtk")
+        warnings.filterwarnings("error", module="gtk")
         import gtk
         warnings.resetwarnings()
 
@@ -229,10 +234,9 @@ def install_excepthook():
         if type == ImportError:
             d = HIGAlertDialog(type=gtk.MESSAGE_ERROR,
                 message_format=_("Import error"),
-                secondary_text=_("""\
-A required module was not found.
+                secondary_text=_("""A required module was not found.
 
-""" + value.message))
+""" + unicode(value)))
             d.run()
             d.destroy()
         else:
@@ -246,6 +250,7 @@ A required module was not found.
 
     sys.excepthook = excepthook
 
+
 def safe_shutdown(signum, stack):
     """Kills any active scans/tabs and shuts down the application."""
     log.debug("\n\n%s\nSAFE SHUTDOWN!\n%s\n" % ("#" * 30, "#" * 30))
@@ -255,6 +260,7 @@ def safe_shutdown(signum, stack):
         window.scan_interface.kill_all_scans()
 
     sys.exit(signum)
+
 
 def run():
     if os.name == "posix":
@@ -271,19 +277,25 @@ def run():
     try:
         # Create the ~/.zenmap directory by copying from the system-wide
         # template directory.
-        zenmapCore.Paths.create_user_config_dir(Path.user_config_dir, Path.config_dir)
+        zenmapCore.Paths.create_user_config_dir(
+                Path.user_config_dir, Path.config_dir)
     except (IOError, OSError), e:
-        error_dialog = HIGAlertDialog(message_format = _("Error creating the per-user configuration directory"),
-            secondary_text = _("""\
+        error_dialog = HIGAlertDialog(
+                message_format=_(
+                    "Error creating the per-user configuration directory"),
+                secondary_text=_("""\
 There was an error creating the directory %s or one of the files in it. \
 The directory is created by copying the contents of %s. \
-The specific error was\n\
-\n\
-%s\n\
-\n\
+The specific error was
+
+%s
+
 %s needs to create this directory to store information such as the list of \
-scan profiles. Check for access to the directory and try again.\
-""") % (repr(Path.user_config_dir), repr(Path.config_dir), repr(str(e)), APP_DISPLAY_NAME))
+scan profiles. Check for access to the directory and try again.""") % (
+                    repr(Path.user_config_dir), repr(Path.config_dir),
+                    repr(str(e)), APP_DISPLAY_NAME
+                    )
+                )
         error_dialog.run()
         error_dialog.destroy()
         sys.exit(1)
@@ -292,16 +304,17 @@ scan profiles. Check for access to the directory and try again.\
         # Read the ~/.zenmap/zenmap.conf configuration file.
         zenmapCore.UmitConf.config_parser.read(Path.user_config_file)
     except ConfigParser.ParsingError, e:
-        error_dialog = HIGAlertDialog(message_format = _("Error parsing the configuration file"),
-            secondary_text = _("""\
+        error_dialog = HIGAlertDialog(
+                message_format=_("Error parsing the configuration file"),
+                secondary_text=_("""\
 There was an error parsing the configuration file %s. \
-The specific error was\n\
-\n\
-%s\n\
-\n\
+The specific error was
+
+%s
+
 %s can continue without this file but any information in it will be ignored \
-until it is repaired.\
-""") % (Path.user_config_file, str(e), APP_DISPLAY_NAME))
+until it is repaired.""") % (Path.user_config_file, str(e), APP_DISPLAY_NAME)
+                )
         error_dialog.run()
         error_dialog.destroy()
 
@@ -355,10 +368,13 @@ until it is repaired.\
     if main_is_frozen():
         gtk.gdk.threads_leave()
 
+
 class NonRootWarning (HIGAlertDialog):
     def __init__(self):
-        warning_text = _('''You are trying to run %s with a non-root user!\n
-Some %s options need root privileges to work.''') % (APP_DISPLAY_NAME, NMAP_DISPLAY_NAME)
+        warning_text = _('''You are trying to run %s with a non-root user!
+
+Some %s options need root privileges to work.''') % (
+            APP_DISPLAY_NAME, NMAP_DISPLAY_NAME)
 
         HIGAlertDialog.__init__(self, message_format=_('Non-root user'),
                                 secondary_text=warning_text)

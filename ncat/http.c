@@ -10,7 +10,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -66,7 +66,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -570,7 +570,7 @@ static int field_name_equal(const char *a, const char *b)
 
 /* Get the value of every header with the given name, separated by commas. If
    you only want the first value for header fields that should not be
-   concatentated in this way, use http_header_get_first. The returned string
+   concatenated in this way, use http_header_get_first. The returned string
    must be freed. */
 char *http_header_get(const struct http_header *header, const char *name)
 {
@@ -843,6 +843,7 @@ void http_request_init(struct http_request *request)
     uri_init(&request->uri);
     request->version = HTTP_UNKNOWN;
     request->header = NULL;
+    request->content_length_set = 0;
     request->content_length = 0;
     request->bytes_transferred = 0;
 }
@@ -898,6 +899,7 @@ void http_response_init(struct http_response *response)
     response->code = 0;
     response->phrase = NULL;
     response->header = NULL;
+    response->content_length_set = 0;
     response->content_length = 0;
     response->bytes_transferred = 0;
 }
@@ -1053,7 +1055,7 @@ int http_parse_header(struct http_header **result, const char *header)
     return 0;
 }
 
-static int http_header_get_content_length(const struct http_header *header, unsigned long *content_length)
+static int http_header_get_content_length(const struct http_header *header, int *content_length_set, unsigned long *content_length)
 {
     char *content_length_s;
     char *tail;
@@ -1061,6 +1063,7 @@ static int http_header_get_content_length(const struct http_header *header, unsi
 
     content_length_s = http_header_get_first(header, "Content-Length");
     if (content_length_s == NULL) {
+        *content_length_set = 0;
         *content_length = 0;
         return 0;
     }
@@ -1068,6 +1071,7 @@ static int http_header_get_content_length(const struct http_header *header, unsi
     code = 0;
 
     errno = 0;
+    *content_length_set = 1;
     *content_length = parse_long(content_length_s, (char **) &tail);
     if (errno != 0 || *tail != '\0' || tail == content_length_s)
         code = 400;
@@ -1084,7 +1088,7 @@ int http_request_parse_header(struct http_request *request, const char *header)
     code = http_parse_header(&request->header, header);
     if (code != 0)
         return code;
-    code = http_header_get_content_length(request->header, &request->content_length);
+    code = http_header_get_content_length(request->header, &request->content_length_set, &request->content_length);
     if (code != 0)
         return code;
 
@@ -1099,7 +1103,7 @@ int http_response_parse_header(struct http_response *response, const char *heade
     code = http_parse_header(&response->header, header);
     if (code != 0)
         return code;
-    code = http_header_get_content_length(response->header, &response->content_length);
+    code = http_header_get_content_length(response->header, &response->content_length_set, &response->content_length);
     if (code != 0)
         return code;
 

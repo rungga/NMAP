@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -131,7 +131,7 @@ import shutil
 from zenmapCore.BasePaths import base_paths, fs_dec
 from zenmapCore.Version import VERSION
 from zenmapCore.Name import APP_NAME
-from zenmapCore.UmitOptionParser import option_parser
+
 
 # Find out the prefix under which data files (interface definition XML,
 # pixmaps, etc.) are stored. This can vary depending on whether we are running
@@ -161,6 +161,8 @@ MISC_DIR = join(prefix, "share", APP_NAME, "misc")
 PIXMAPS_DIR = join(prefix, "share", "zenmap", "pixmaps")
 DOCS_DIR = join(prefix, "share", APP_NAME, "docs")
 NMAPDATADIR = join(prefix, "..")
+
+
 def get_extra_executable_search_paths():
     """Return a list of additional executable search paths as a convenience for
     platforms where the default PATH is inadequate."""
@@ -169,6 +171,7 @@ def get_extra_executable_search_paths():
     elif sys.platform == 'win32':
         return [dirname(sys.executable)]
     return []
+
 
 #######
 # Paths
@@ -193,26 +196,39 @@ class Paths(object):
                        "profile_editor"]
 
     def __init__(self):
-        self.user_config_dir = option_parser.get_confdir()
-        self.user_config_file = os.path.join(self.user_config_dir, base_paths['user_config_file'])
         self.config_dir = CONFIG_DIR
         self.locale_dir = LOCALE_DIR
         self.pixmaps_dir = PIXMAPS_DIR
         self.misc_dir = MISC_DIR
         self.docs_dir = DOCS_DIR
         self.nmap_dir = NMAPDATADIR
+        self._delayed_incomplete = True
+
+    # Delay initializing these paths so that
+    # zenmapCore.I18N.install_gettext can install _() before modules that
+    # need it get imported
+    def _delayed_init(self):
+        if self._delayed_incomplete:
+            from zenmapCore.UmitOptionParser import option_parser
+            self.user_config_dir = option_parser.get_confdir()
+            self.user_config_file = os.path.join(
+                    self.user_config_dir, base_paths['user_config_file'])
+            self._delayed_incomplete = False
 
     def __getattr__(self, name):
         if name in self.hardcoded:
             return self.__dict__[name]
 
-        elif name in self.config_files_list:
-            return return_if_exists(join(self.user_config_dir, base_paths[name]))
+        self._delayed_init()
+        if name in self.config_files_list:
+            return return_if_exists(
+                    join(self.user_config_dir, base_paths[name]))
 
-        elif name in self.empty_config_files_list:
-            return return_if_exists(join(self.user_config_dir, base_paths[name]), True)
+        if name in self.empty_config_files_list:
+            return return_if_exists(
+                    join(self.user_config_dir, base_paths[name]), True)
 
-        elif name in self.misc_files_list:
+        if name in self.misc_files_list:
             return return_if_exists(join(self.misc_dir, base_paths[name]))
 
         try:
@@ -223,14 +239,16 @@ class Paths(object):
     def __setattr__(self, name, value):
         self.__dict__[name] = value
 
+
 def create_dir(path):
     """Create a directory with os.makedirs without raising an error if the
-        directory already exists."""
+    directory already exists."""
     try:
         os.makedirs(path)
     except OSError, e:
         if e.errno != errno.EEXIST:
             raise
+
 
 def create_user_config_dir(user_dir, template_dir):
     """Create a user configuration directory by creating the directory if
@@ -252,6 +270,7 @@ def create_user_config_dir(user_dir, template_dir):
             continue
         shutil.copyfile(template_filename, user_filename)
         log.debug(">>> Copy %s to %s." % (template_filename, user_filename))
+
 
 def return_if_exists(path, create=False):
     path = os.path.abspath(path)

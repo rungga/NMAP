@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nsock.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #ifndef NSOCK_H
 #define NSOCK_H
@@ -380,11 +380,14 @@ nsock_iod nsi_new2(nsock_pool nsockp, int sd, void *userdata);
  * pending on this nsock_iod.  This can be NSOCK_PENDING_NOTIFY (send a KILL
  * notification to each event), NSOCK_PENDING_SILENT (do not send notification
  * to the killed events), or NSOCK_PENDING_ERROR (print an error message and
- * quiit the program) */
-#define NSOCK_PENDING_NOTIFY 1
-#define NSOCK_PENDING_SILENT 2
-#define NSOCK_PENDING_ERROR 4
-void nsi_delete(nsock_iod nsockiod, int pending_response);
+ * quit the program) */
+enum nsock_del_mode {
+  NSOCK_PENDING_NOTIFY,
+  NSOCK_PENDING_SILENT,
+  NSOCK_PENDING_ERROR,
+};
+
+void nsi_delete(nsock_iod nsockiod, enum nsock_del_mode pending_response);
 
 /* Sometimes it is useful to store a pointer to information inside
  * the nsiod so you can retrieve it during a callback. */
@@ -564,7 +567,7 @@ nsock_event_id nsock_reconnect_ssl(nsock_pool nsp, nsock_iod nsiod,
 
 /* Read up to nlines lines (terminated with \n, which of course inclues \r\n),
  * or until EOF, or until the timeout, whichever comes first.  Note that
- * NSE_STATUS_SUCCESS will be returned in the case of EOF or tiemout if at least
+ * NSE_STATUS_SUCCESS will be returned in the case of EOF or timeout if at least
  * 1 char has been read.  Also note that you may get more than 'nlines' back --
  * we just stop once "at least" 'nlines' is read */
 nsock_event_id nsock_readlines(nsock_pool nsp, nsock_iod nsiod,
@@ -622,13 +625,16 @@ const struct timeval *nsock_gettimeofday();
  *   promisc: whether to open device in promiscuous mode
  *   bpf_fmt: berkeley filter
  *
- * return value: NULL if everything was okay, or error string if error occurred
- * [sorry Fyodor for breaking the API, but it's just simpler]
+ * return value: 0 if everything was okay, or error code if error occurred.
  * */
-char *nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device, int snaplen, int promisc, const char *bpf_fmt, ...);
+int nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device,
+                    int snaplen, int promisc, const char *bpf_fmt, ...);
 
-/* Requests exactly one packet to be captured.from pcap.See nsock_read() for parameters description. */
-nsock_event_id nsock_pcap_read_packet(nsock_pool nsp, nsock_iod nsiod, nsock_ev_handler handler, int timeout_msecs, void *userdata);
+/* Requests exactly one packet to be captured.from pcap.
+ * See nsock_read() for parameters description. */
+nsock_event_id nsock_pcap_read_packet(nsock_pool nsp, nsock_iod nsiod,
+                                      nsock_ev_handler handler,
+                                      int timeout_msecs, void *userdata);
 
 /* Gets packet data. This should be called after successful receipt of packet
  * to get packet.  If you're not interested in some values, just pass NULL
@@ -640,7 +646,8 @@ nsock_event_id nsock_pcap_read_packet(nsock_pool nsp, nsock_iod nsiod, nsock_ev_
  * As a result you'll get longer times than you should, but it's safer to
  * think that host is a bit further.
  * */
-void nse_readpcap(nsock_event nsee, const unsigned char **l2_data, size_t *l2_len, const unsigned char **l3_data, size_t *l3_len,
+void nse_readpcap(nsock_event nsee, const unsigned char **l2_data,
+                  size_t *l2_len, const unsigned char **l3_data, size_t *l3_len,
                   size_t *packet_len, struct timeval *ts);
 
 /* Well. Just pcap-style datalink. Like DLT_EN10MB or DLT_SLIP. Check in pcap(3) manpage. */

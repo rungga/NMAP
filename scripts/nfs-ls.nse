@@ -10,7 +10,7 @@ description = [[
 Attempts to get useful information about files from NFS exports.
 The output is intended to resemble the output of <code>ls</code>.
 
-The script starts by enumerating and mounting the remote NFS exports. After 
+The script starts by enumerating and mounting the remote NFS exports. After
 that it performs an NFS GETATTR procedure call for each mounted point
 in order to get its ACLs.
 For each mounted directory the script will try to list its file entries
@@ -32,6 +32,9 @@ These access permissions are shown only with NFSv3:
 ]]
 
 ---
+-- @usage
+-- nmap -p 111 --script=nfs-ls <target>
+-- nmap -sV --script=nfs-ls <target>
 -- @output
 -- PORT    STATE SERVICE
 -- 111/tcp open  rpcbind
@@ -67,7 +70,7 @@ These access permissions are shown only with NFSv3:
 -- * <code>a</code>: last access time (atime)
 -- * <code>c</code>: last change time (ctime)
 -- The default value is <code>m</code> (mtime).
- 
+
 -- Created 05/28/2010 - v0.1 - combined nfs-dirlist and nfs-acls scripts
 -- Revised 06/04/2010 - v0.2 - make NFS exports listing with their acls
 --                             default action.
@@ -79,7 +82,7 @@ These access permissions are shown only with NFSv3:
 --                             library.
 -- Revised 06/27/2010 - v0.7 - added NFSv3 ACCESS support.
 -- Revised 06/28/2010 - v0.8 - added NFSv2 support.
--- 
+--
 
 author = "Patrik Karlsson, Djalal Harouni"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -114,7 +117,7 @@ hostrule = function(host)
   end
   if nfsport == nil then return false end
   if host.registry.nfs.nfsver == nil then
-    local low, high = string.match(nfsport.version.version, "(%d)-(%d)")
+    local low, high = string.match(nfsport.version.version, "(%d)%-(%d)")
     if high == nil then
       high = tonumber(nfsport.version.version)
       if high == 4 then
@@ -132,7 +135,7 @@ hostrule = function(host)
   end
   if mountport == nil then return false end
   if host.registry.nfs.mountver == nil then
-    local low, high = string.match(mountport.version.version, "(%d)-(%d)")
+    local low, high = string.match(mountport.version.version, "(%d)%-(%d)")
     if high == nil then
       host.registry.nfs.mountver = tonumber(mountport.version.version)
     else
@@ -197,7 +200,7 @@ local function table_dirlist(nfs, mount, dirlist)
   for _, v in pairs(files) do
     table.insert(ret, attrs[v])
   end
-    
+
   return ret
 end
 
@@ -221,7 +224,7 @@ local function nfs_ls(nfs, mount, results, access)
   if nfs_comm == nil then
     rpc.Helper.UnmountPath(mnt_comm, mount)
     return false, status
-  end 
+  end
 
   -- check if NFS and Mount versions are compatible
   -- RPC library will check if the Mount and NFS versions are supported
@@ -335,7 +338,7 @@ local mainaction = function(host)
   if nfs_info.maxfiles > 0 then
     local args = {}
     args['name'] = 'Arguments:'
-    table.insert(args, 
+    table.insert(args,
           string.format("maxfiles: %d (file listing output limited)",
                 nfs_info.maxfiles))
     table.insert(o, args)

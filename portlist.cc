@@ -12,7 +12,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -68,7 +68,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -86,12 +86,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: portlist.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: portlist.cc 32741 2014-02-20 18:44:12Z dmiller $ */
 
 
 #include "nmap.h"
@@ -293,7 +293,7 @@ void serviceDeductions::populateFullVersionString(char *buf, size_t n) const {
       strncat(dst, " ", spaceleft);
       spaceleft--;
     }
-    // This time we need to trucate inside of the () so we have spaceleft - 2
+    // This time we need to truncate inside of the () so we have spaceleft - 2
     strncat(dst, "(", spaceleft);
     if (spaceleft - 2 < strlen(extrainfo)) {
       strncat(dst, extrainfo, spaceleft - 5);
@@ -352,7 +352,7 @@ static char *cstringSanityCheck(const char* string, int len) {
   int slen;
 
   if(!string)
-	  return NULL;
+          return NULL;
 
   slen = strlen(string);
   if (slen > len) slen = len;
@@ -521,8 +521,8 @@ void PortList::setPortState(u16 portno, u8 protocol, int state) {
 
   if ((state == PORT_OPEN && o.verbose) || (o.debugging > 1)) {
     log_write(LOG_STDOUT, "Discovered %s port %hu/%s%s\n",
-	      statenum2str(state), portno,
-	      proto2ascii_lowercase(protocol), idstr? idstr : "");
+              statenum2str(state), portno,
+              proto2ascii_lowercase(protocol), idstr? idstr : "");
     log_flush(LOG_STDOUT);
   }
 
@@ -567,7 +567,7 @@ int PortList::getPortState(u16 portno, u8 protocol) {
 }
 
 /* Return true if nothing special is known about this port; i.e., it's in the
-   default state as defiend by setDefaultPortState and every other data field is
+   default state as defined by setDefaultPortState and every other data field is
    unset. */
 bool PortList::portIsDefault(u16 portno, u8 protocol) {
   return lookupPort(portno, protocol) == NULL;
@@ -610,14 +610,14 @@ int PortList::getStateCounts(int state) const {
    except that if you ask for both TCP, UDP & SCTP, every TCP port
    will be returned before we start returning UDP and SCTP ports */
 Port *PortList::nextPort(const Port *cur, Port *next,
-			 int allowed_protocol, int allowed_state) {
+                         int allowed_protocol, int allowed_state) {
   int proto;
   int mapped_pno;
   Port *port;
 
   if (cur) {
     proto = INPROTO2PORTLISTPROTO(cur->proto);
-    assert(port_map[proto]!=NULL); // Hmm, it's not posible to handle port that doesn't have anything in map
+    assert(port_map[proto]!=NULL); // Hmm, it's not possible to handle port that doesn't have anything in map
     assert(cur->proto!=IPPROTO_IP || cur->portno<256);
     mapped_pno = port_map[proto][cur->portno];
     mapped_pno++; //  we're interested in next port after current
@@ -728,8 +728,8 @@ int PortList::forgetPort(u16 portno, u8 protocol) {
 
   if (o.verbose) {
     log_write(LOG_STDOUT, "Deleting port %hu/%s, which we thought was %s\n",
-	      portno, proto2ascii_lowercase(answer->proto),
-	      statenum2str(answer->state));
+              portno, proto2ascii_lowercase(answer->proto),
+              statenum2str(answer->state));
     log_flush(LOG_STDOUT);
   }
 
@@ -759,8 +759,8 @@ u16 *PortList::port_map[PORTLIST_PROTO_MAX];
 u16 *PortList::port_map_rev[PORTLIST_PROTO_MAX];
 int PortList::port_list_count[PORTLIST_PROTO_MAX];
 
-/* This function must be runned before any PortList object is created.
- * It must be runned for every used protocol. The data in "ports"
+/* This function must be run before any PortList object is created.
+ * It must be run for every used protocol. The data in "ports"
  * should be sorted. */
 void PortList::initializePortMap(int protocol, u16 *ports, int portcount) {
   int i;
@@ -789,7 +789,7 @@ void PortList::initializePortMap(int protocol, u16 *ports, int portcount) {
 
   /* Cycles through the 0 or more "ignored" ports which should be
    consolidated for Nmap output.  They are returned sorted by the
-   number of prots in the state, starting with the most common.  It
+   number of ports in the state, starting with the most common.  It
    should first be called with PORT_UNKNOWN to obtain the most popular
    ignored state (if any).  Then call with that state to get the next
    most popular one.  Returns the state if there is one, but returns
@@ -810,8 +810,8 @@ int PortList::nextIgnoredState(int prevstate) {
     /* If a previous state was given, we must have fewer ports than
        that one, or be tied but be a larger state number */
     if (prevstate != PORT_UNKNOWN &&
-	(getStateCounts(state) > getStateCounts(prevstate) ||
-	 (getStateCounts(state) == getStateCounts(prevstate) && state <= prevstate)))
+        (getStateCounts(state) > getStateCounts(prevstate) ||
+         (getStateCounts(state) == getStateCounts(prevstate) && state <= prevstate)))
       continue;
 
     /* We only qualify if we have more ports than the current best */
@@ -906,7 +906,7 @@ int PortList::setStateReason(u16 portno, u8 proto, reason_t reason, u8 ttl,
       answer->reason.ip_addr.sockaddr.sa_family = AF_UNSPEC;
     else
       answer->reason.set_ip_addr(ip_addr);
-	answer->reason.ttl = ttl;
+        answer->reason.ttl = ttl;
     return 0;
 }
 
@@ -932,13 +932,13 @@ void random_port_cheat(u16 *ports, int portcount) {
     // see if the currentport is a popular port
     for(popportidx = 0; popportidx < num_pop_ports; popportidx++) {
       if (ports[allportidx] == pop_ports[popportidx]) {
-	// This one is popular!  Swap it near to the beginning.
-	if (allportidx != earlyreplidx) {
-	  ports[allportidx] = ports[earlyreplidx];
-	  ports[earlyreplidx] = pop_ports[popportidx];
-	}
-	earlyreplidx++;
-	break;
+        // This one is popular!  Swap it near to the beginning.
+        if (allportidx != earlyreplidx) {
+          ports[allportidx] = ports[earlyreplidx];
+          ports[earlyreplidx] = pop_ports[popportidx];
+        }
+        earlyreplidx++;
+        break;
       }
     }
   }

@@ -9,14 +9,14 @@ local pcre = require "pcre"
 local stdnse = require "stdnse"
 _ENV = stdnse.module("match", stdnse.seeall)
 
---various functions for use with nse's nsock:receive_buf - function
+--various functions for use with NSE's nsock:receive_buf - function
 
--- e.g. 
--- sock:receive_buf(regex("myregexpattern")) - does a match using pcre- regular-
---                                           - expressions
--- sock:receive_buf(numbytes(80)) - is the buffered version of 
---                                  sock:receive_bytes(80) - i.e. it returns
---                                  exactly 80 bytes and no more 
+-- e.g.
+-- sock:receive_buf(regex("myregexpattern"), true) - does a match using pcre
+--                                                   regular expressions
+-- sock:receive_buf(numbytes(80), true) - is the buffered version of
+--                                        sock:receive_bytes(80) - i.e. it
+--                                        returns exactly 80 bytes and no more
 
 --- Return a function that allows delimiting with a regular expression.
 --
@@ -24,16 +24,16 @@ _ENV = stdnse.module("match", stdnse.seeall)
 -- give script developers the ability to use regular expressions for delimiting
 -- instead of Lua's string patterns.
 -- @param pattern The regex.
--- @usage sock:receive_buf(match.regex("myregexpattern"))
+-- @usage sock:receive_buf(match.regex("myregexpattern"), true)
 -- @see nmap.receive_buf
 -- @see pcre.exec
 regex = function(pattern)
-	local r = pcre.new(pattern, 0,"C")
+  local r = pcre.new(pattern, 0,"C")
 
-	return function(buf)
-		local s,e = r:exec(buf, 0,0);
-		return s,e
-	end
+  return function(buf)
+    local s,e = r:exec(buf, 0,0);
+    return s,e
+  end
 end
 
 --- Return a function that allows delimiting at a certain number of bytes.
@@ -41,18 +41,22 @@ end
 -- This function can be used to get a buffered version of
 -- <code>sock:receive_bytes(n)</code> in case a script requires more than one
 -- fixed-size chunk, as the unbuffered version may return more bytes than
--- requested and thus would require you to do the parsing on your own. 
+-- requested and thus would require you to do the parsing on your own.
+--
+-- The <code>keeppattern</code> parameter to receive_buf should be set to
+-- <code>true</code>, otherwise the string returned will be 1 less than
+-- <code>num</code>
 -- @param num Number of bytes.
--- @usage sock:receive_buf(match.numbytes(80))
+-- @usage sock:receive_buf(match.numbytes(80), true)
 -- @see nmap.receive_buf
 numbytes = function(num)
-	local n = num
-	return function(buf)
-		if(#buf >=n) then
-			return n, n
-		end
-		return nil
-	end
+  local n = num
+  return function(buf)
+    if(#buf >=n) then
+      return n, n
+    end
+    return nil
+  end
 end
 
 

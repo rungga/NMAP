@@ -13,7 +13,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -69,7 +69,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -87,12 +87,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOutputTable.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: NmapOutputTable.cc 32717 2014-02-12 20:25:51Z dmiller $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
@@ -153,8 +153,8 @@ NmapOutputTable::~NmapOutputTable() {
     for(col = 0; col < numColumns; col++) {
       cell = getCellAddy(row, col);
       if (cell->weAllocated) {
-	assert(cell->str);
-	free(cell->str);
+        assert(cell->str);
+        free(cell->str);
       }
     }
   }
@@ -166,10 +166,10 @@ NmapOutputTable::~NmapOutputTable() {
 }
 
 void NmapOutputTable::addItem(unsigned int row, unsigned int column, bool fullrow,
-				bool copy, const char *item, int itemlen) {
+                                bool copy, const char *item, int itemlen) {
   struct NmapOutputTableCell *cell;
   int mc = maxColLen[column];
-  
+
   addItem(row, column, copy, item, itemlen);
 
   if(fullrow) {
@@ -180,8 +180,8 @@ void NmapOutputTable::addItem(unsigned int row, unsigned int column, bool fullro
   return;
 }
 
-void NmapOutputTable::addItem(unsigned int row, unsigned int column, bool copy, const char *item, 
-			      int itemlen) {
+void NmapOutputTable::addItem(unsigned int row, unsigned int column, bool copy, const char *item,
+                              int itemlen) {
   struct NmapOutputTableCell *cell;
 
   assert(row < numRows);
@@ -214,14 +214,14 @@ void NmapOutputTable::addItem(unsigned int row, unsigned int column, bool copy, 
   return;
 }
 
-void NmapOutputTable::addItemFormatted(unsigned int row, 
-					  unsigned int column,
-					  bool fullrow,
-					  const char *fmt, ...) {
+void NmapOutputTable::addItemFormatted(unsigned int row,
+                                          unsigned int column,
+                                          bool fullrow,
+                                          const char *fmt, ...) {
   struct NmapOutputTableCell *cell;
   int mc = maxColLen[column];
   unsigned int res;
-  va_list ap; 
+  va_list ap;
   va_start(ap,fmt);
   char buf[4096];
   res = Vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -241,27 +241,27 @@ void NmapOutputTable::addItemFormatted(unsigned int row,
 
 /* True if every column in nrow is empty */
 bool NmapOutputTable::emptyRow(unsigned int nrow) {
-	NmapOutputTableCell *cell;
-	unsigned int col;
-	bool isEmpty = true;
-	
-	assert(nrow < numRows);
+        NmapOutputTableCell *cell;
+        unsigned int col;
+        bool isEmpty = true;
 
-	for(col = 0 ; col < numColumns; col++) {
-		cell = getCellAddy(nrow, col);
-		if(cell->strlength > 0) {
-			isEmpty = false;
-			break;
-		}
-	}
-	return isEmpty;		
+        assert(nrow < numRows);
+
+        for(col = 0 ; col < numColumns; col++) {
+                cell = getCellAddy(nrow, col);
+                if(cell->strlength > 0) {
+                        isEmpty = false;
+                        break;
+                }
+        }
+        return isEmpty;
 }
 
  // This function sticks the entire table into a character buffer.
  // Note that the buffer is likely to be reused if you call the
  // function again, and it will also be invalidated if you free the
  // table. If size is not NULL, it will be filled with the size of
- // the ASCII table in bytes (not including the terminating NUL) 
+ // the ASCII table in bytes (not including the terminating NUL)
  // All blank rows are removed from the returned string
 char *NmapOutputTable::printableTable(int *size) {
   unsigned int col, row;
@@ -279,15 +279,15 @@ char *NmapOutputTable::printableTable(int *size) {
   for(row = 0; row < numRows; row++) {
     validthisrow = 0;
 
-    if(emptyRow(row)) 
-	continue;
+    if(emptyRow(row))
+        continue;
 
     cell = getCellAddy(row, 0);
     if(cell->fullrow && cell->strlength > 0) {
       /* Full rows are easy, just make sure we have the space + \n\0 */
       if (cell->strlength + p + 2 > tableoutsz) {
-	tableoutsz = (cell->strlength + p + 2) * 2;
-	tableout = (char *) safe_realloc(tableout, tableoutsz);
+        tableoutsz = (cell->strlength + p + 2) * 2;
+        tableout = (char *) safe_realloc(tableout, tableoutsz);
       }
       memcpy(tableout + p, cell->str,  cell->strlength);
       p += cell->strlength;
@@ -295,11 +295,11 @@ char *NmapOutputTable::printableTable(int *size) {
       for(col = 0; col < numColumns; col++) {
         cell = getCellAddy(row, col);
         clen = maxColLen[col];
-	/* Cells get padded with an extra space + \n\0 */
-	if (clen + p + 3 > tableoutsz) {
-	  tableoutsz = (cell->strlength + p + 2) * 2;
-	  tableout = (char *) safe_realloc(tableout, tableoutsz);
-	}
+        /* Cells get padded with an extra space + \n\0 */
+        if (clen + p + 3 > tableoutsz) {
+          tableoutsz = (cell->strlength + p + 2) * 2;
+          tableout = (char *) safe_realloc(tableout, tableoutsz);
+        }
         if (cell->strlength > 0) {
           memcpy(tableout + p, cell->str,  cell->strlength);
           p += cell->strlength;

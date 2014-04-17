@@ -10,7 +10,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -66,7 +66,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -135,8 +135,7 @@ HOSTS_HEADER = ['ID', '#', 'Hosts']
 
 DIMENSION = (700, 400)
 
-IP_RE = '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
-
+IP_RE = re.compile('^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$')
 
 
 class HostsViewer(BWMainWindow):
@@ -155,7 +154,6 @@ class HostsViewer(BWMainWindow):
 
         self.__create_widgets()
 
-
     def __create_widgets(self):
         """
         """
@@ -170,12 +168,10 @@ class HostsViewer(BWMainWindow):
 
         self.add(self.__panel)
 
-
-
     def change_notebook(self, node):
         """
         """
-        if self.__view != None:
+        if self.__view is not None:
             self.__view.destroy()
 
         if node is not None:
@@ -185,7 +181,6 @@ class HostsViewer(BWMainWindow):
         self.__view.show_all()
 
         self.__panel.add2(self.__view)
-
 
 
 class HostsList(gtk.ScrolledWindow):
@@ -202,7 +197,6 @@ class HostsList(gtk.ScrolledWindow):
         self.__nodes = nodes
 
         self.__create_widgets()
-
 
     def __create_widgets(self):
         """
@@ -239,16 +233,16 @@ class HostsList(gtk.ScrolledWindow):
 
             column = gtk.TreeViewColumn(HOSTS_HEADER[i],
                                         self.__cell,
-                                        text = i)
+                                        text=i)
 
             self.__hosts_column.append(column)
 
             self.__hosts_column[i].set_reorderable(True)
             self.__hosts_column[i].set_resizable(True)
             self.__hosts_column[i].set_attributes(self.__cell,
-                                                  text = i,
-                                                  background = 3,
-                                                  editable = 4)
+                                                  text=i,
+                                                  background=3,
+                                                  editable=4)
 
         self.__hosts_treeview.append_column(self.__hosts_column[2])
 
@@ -261,7 +255,6 @@ class HostsList(gtk.ScrolledWindow):
         if len(self.__hosts_treeview.get_model()) > 0:
             self.__hosts_treeview.set_cursor((0,))
         self.__cursor_callback(self.__hosts_treeview)
-
 
     def __cursor_callback(self, widget):
         """
@@ -276,15 +269,14 @@ class HostsList(gtk.ScrolledWindow):
 
         self.__parent.change_notebook(node)
 
-
     def __host_sort(self, treemodel, iter1, iter2):
         """
         """
         value1 = treemodel.get_value(iter1, 2)
         value2 = treemodel.get_value(iter2, 2)
 
-        value1_is_ip = re.search(IP_RE, value1)
-        value2_is_ip = re.search(IP_RE, value2)
+        value1_is_ip = IP_RE.match(value1)
+        value2_is_ip = IP_RE.match(value2)
 
         if value1_is_ip and value2_is_ip:
             return ipv4_compare(value1, value2)

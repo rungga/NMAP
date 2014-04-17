@@ -1,15 +1,15 @@
 description = [[
-Attempts to exploit an authentication bypass vulnerability in Adobe Coldfusion servers (APSA13-01:http://www.adobe.com/support/security/advisories/apsa13-01.html) to retrieve a valid administrator's session cookie. 
+Attempts to exploit an authentication bypass vulnerability in Adobe Coldfusion servers (APSA13-01: http://www.adobe.com/support/security/advisories/apsa13-01.html) to retrieve a valid administrator's session cookie.
 ]]
 
 ---
 -- @usage nmap -sV --script http-adobe-coldfusion-apsa1301 <target>
 -- @usage nmap -p80 --script http-adobe-coldfusion-apsa1301 --script-args basepath=/cf/adminapi/ <target>
--- 
+--
 -- @output
 -- PORT   STATE SERVICE
 -- 80/tcp open  http
--- | http-adobe-coldfusion-apsa1301: 
+-- | http-adobe-coldfusion-apsa1301:
 -- |_  admin_cookie: aW50ZXJhY3RpdmUNQUEyNTFGRDU2NzM1OEYxNkI3REUzRjNCMjJERTgxOTNBNzUxN0NEMA1jZmFkbWlu
 --
 -- @args http-adobe-coldfusion-apsa1301.basepath URI path to administrator.cfc. Default: /CFIDE/adminapi/
@@ -23,7 +23,7 @@ categories = {"exploit", "vuln"}
 local http = require "http"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
-local url = require "url"
+local string = require "string"
 
 portrule = shortport.http
 local DEFAULT_PATH = "/CFIDE/adminapi/"

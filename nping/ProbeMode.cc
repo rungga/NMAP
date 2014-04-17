@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -199,19 +199,18 @@ nsock_pool ProbeMode::getNsockPool(){
   * event handlers, here we just schedule them, take care of the timers,
   * set up pcap and the bpf filter, etc. */
 int ProbeMode::start(){
-
+  int rc;
   int p=0, pc=-1;                  /**< Indexes for ports count              */
   u32 c=0;                         /**< Index for packet count               */
   u32 zero=0;                      /**< Empty payload                        */
   u8 pktinfobuffer[512+1];         /**< Used in ippackethdrinfo() calls      */
   u8 pkt[MAX_IP_PACKET_LEN];       /**< Holds packets returned by fillpacket */
-  int pktLen=0;                    /**< Lenght of current packet             */
+  int pktLen=0;                    /**< Length of current packet             */
   NpingTarget *target=NULL;        /**< Current target                       */
   u16 *targetPorts=NULL;           /**< Pointer to array of target ports     */
   int numTargetPorts=0;            /**< Total number of target ports         */
   u16 currentPort=0;               /**< Current target port                  */
   char *filterstring;              /**< Stores BFP filter spec string        */
-  char *auxpnt=NULL;               /**< Aux str pointer                      */
   int rawipsd=-1;                  /**< Descriptor for raw IP socket         */
   enum nsock_loopstatus loopret;   /**< Stores nsock_loop returned status    */
   nsock_iod pcap_nsi;              /**< Stores Pcap IOD                      */
@@ -222,7 +221,7 @@ int ProbeMode::start(){
   sendpkt_t pkts2send[MX_PKT];     /**< We have a race condition here but the
   * problem is not trivial to solve because we cannot create a sendpkt_t
   * struct for every probe we send. That could be alright in most cases but
-  * not when targetting large networks or when doing flooding. The problem here
+  * not when targeting large networks or when doing flooding. The problem here
   * is that we may need access to specific sendpkt_t vars inside the nsock
   * event handlers but as some operations are asynchronous, we may exhaust
   * the current array of sendpkt_t structs and overwrite some positions
@@ -292,7 +291,7 @@ int ProbeMode::start(){
 
 
   /***************************************************************************/
-  /** UDP UNPRIVILEGD MODE                                                  **/
+  /** UDP UNPRIVILEGED MODE                                                 **/
   /***************************************************************************/
   case UDP_UNPRIV:
     o.stats.startClocks();
@@ -376,18 +375,22 @@ int ProbeMode::start(){
         filterstring=getBPFFilterString();
         nping_print(DBG_2,"Opening pcap device %s", o.getDevice() );
         #ifdef WIN32
-        /* Nping normally uses device names obtained through dnet for interfaces, but Pcap has its own
-        naming system.  So the conversion is done here */
+        /* Nping normally uses device names obtained through dnet for interfaces,
+         * but Pcap has its own naming system.  So the conversion is done here */
           if (!DnetName2PcapName(o.getDevice(), pcapdev, sizeof(pcapdev))) {
-               /* Oh crap -- couldn't find the corresponding dev apparently.  Let's just go with what we have then ... */
+               /* Oh crap -- couldn't find the corresponding dev apparently.
+                * Let's just go with what we have then ... */
                Strncpy(pcapdev, o.getDevice(), sizeof(pcapdev));
           }
         #else
           Strncpy(pcapdev, o.getDevice(), sizeof(pcapdev));
         #endif
-        if( (auxpnt=nsock_pcap_open(nsp, pcap_nsi, pcapdev, 8192, (o.spoofSource())? 1 : 0, filterstring )) != NULL )
-            nping_fatal(QT_3, "Error opening capture device %s --> %s\n", o.getDevice(), auxpnt);
-        nping_print(DBG_2,"Pcap device %s open successfully", o.getDevice() );
+
+        rc = nsock_pcap_open(nsp, pcap_nsi, pcapdev, 8192,
+                             (o.spoofSource()) ? 1 : 0, filterstring);
+        if (rc)
+            nping_fatal(QT_3, "Error opening capture device %s\n", o.getDevice());
+        nping_print(DBG_2,"Pcap device %s open successfully", o.getDevice());
     }
 
     /* Ready? Go! */
@@ -845,7 +848,7 @@ int ProbeMode::fillPacketTCP(NpingTarget *target, u16 port, u8 *buff, int buffle
   if( o.getFlagTCP(FLAG_FIN) == 1 )  t.setFIN();
 
 
- /* Now let's encapsule the TCP packet into an IP packet */
+ /* Now let's encapsulate the TCP packet into an IP packet */
  switch( o.getIPVersion() ){
 
     case IP_VERSION_4:
@@ -963,7 +966,7 @@ int ProbeMode::fillPacketUDP(NpingTarget *target, u16 port, u8 *buff, int buffle
   u.setDestinationPort( port );
   u.setTotalLength();
 
- /* Now let's encapsule the TCP packet into an IP packet */
+ /* Now let's encapsulate the TCP packet into an IP packet */
  switch( o.getIPVersion() ){
 
     case IP_VERSION_4:

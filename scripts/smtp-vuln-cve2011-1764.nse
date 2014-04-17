@@ -27,7 +27,7 @@ Reference:
 -- @output
 -- PORT   STATE SERVICE
 -- 25/tcp open  smtp
--- | smtp-vuln-cve2011-1764: 
+-- | smtp-vuln-cve2011-1764:
 -- |   VULNERABLE:
 -- |   Exim DKIM format string
 -- |     State: VULNERABLE
@@ -80,10 +80,10 @@ local function get_exim_banner(response)
 end
 
 -- Sends the mail with the evil DKIM-Signatures header.
--- Returns true, true if the Exim server is vulnrable
+-- Returns true, true if the Exim server is vulnerable
 local function check_dkim(socket, smtp_opts)
   local killed = false
-  
+
   stdnse.print_debug(2, "%s: checking the Exim DKIM Format String",
         SCRIPT_NAME)
 
@@ -172,7 +172,7 @@ local function check_exim(smtp_opts)
       return smtp_finish(socket, true)
     end
   end
-  
+
   local status, response = smtp.ehlo(socket, smtp_opts.domain)
   if not status then
     return smtp_finish(socket, status, response)

@@ -2,7 +2,7 @@ dnl # -*- mode: fundamental; -*-
 dnl # Autoconf configuration file for Nbase
 dnl #
 dnl # Process this file with autoconf to produce a configure script.
-dnl # $Id: configure.ac 30889 2013-05-13 04:21:11Z david $
+dnl # $Id: configure.ac 32559 2013-12-11 23:17:42Z dmiller $
 
 # Because nbase is usually distributed with Nmap, the necessary files
 # config.guess, config.guess, and install-sh are not distributed with
@@ -34,7 +34,7 @@ if test "$user_localdirs" = 1; then
      LDFLAGS="$LDFLAGS -L/usr/local/lib"
      fi
    if test -d /usr/local/include; then
-     CFLAGS="$CFLAGS -I/usr/local/include"
+     CPPFLAGS="$CPPFLAGS -I/usr/local/include"
    fi
 fi
 

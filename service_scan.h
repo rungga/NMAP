@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: service_scan.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: service_scan.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #ifndef SERVICE_SCAN_H
 #define SERVICE_SCAN_H
@@ -161,7 +161,7 @@ struct MatchDetails {
   // The line number of this match in nmap-service-probes.
   int lineno;
 
-  // The product/verson/info for the service that was matched (Or NULL)
+  // The product/version/info for the service that was matched (Or NULL)
   // zero-terminated.
   const char *product;
   const char *version;
@@ -199,7 +199,7 @@ class ServiceProbeMatch {
   // match.  If the buf doesn't match, the serviceName field in the
   // structure will be NULL.  The MatchDetails returned is only valid
   // until the next time this function is called.  The only exception
-  // is that the serviceName field can be saved throughought program
+  // is that the serviceName field can be saved throughout program
   // execution.  If no version matched, that field will be NULL.
   const struct MatchDetails *testMatch(const u8 *buf, int buflen);
 // Returns the service name this matches
@@ -241,9 +241,9 @@ class ServiceProbeMatch {
   // are sufficient).  Returns zero for success.  If no template is available
   // for a string, that string will have zero length after the function
   // call (assuming the corresponding length passed in is at least 1)
-  int getVersionStr(const u8 *subject, int subjectlen, int *ovector, 
-		  int nummatches, char *product, int productlen,
-		  char *version, int versionlen, char *info, int infolen,
+  int getVersionStr(const u8 *subject, int subjectlen, int *ovector,
+                  int nummatches, char *product, int productlen,
+                  char *version, int versionlen, char *info, int infolen,
                   char *hostname, int hostnamelen, char *ostype, int ostypelen,
                   char *devicetype, int devicetypelen,
                   char *cpe_a, int cpe_alen,
@@ -273,16 +273,16 @@ class ServiceProbe {
   // (giving the line number) if it fails to parse the string.
   void setProbeDetails(char *pd, int lineno);
 
-  // obtains the probe string (in raw binary form) and the length.  The string will be 
+  // obtains the probe string (in raw binary form) and the length.  The string will be
   // NUL-terminated, but there may be other \0 in the string, so the termination is only
   // done for ease of printing ASCII probes in debugging cases.
   const u8 *getProbeString(int *stringlen) { *stringlen = probestringlen; return probestring; }
   void setProbeString(const u8 *ps, int stringlen);
 
   /* Protocols are IPPROTO_TCP and IPPROTO_UDP */
-  u8 getProbeProtocol() { 
-    assert(probeprotocol == IPPROTO_TCP || probeprotocol == IPPROTO_UDP); 
-    return probeprotocol;  
+  u8 getProbeProtocol() {
+    assert(probeprotocol == IPPROTO_TCP || probeprotocol == IPPROTO_UDP);
+    return probeprotocol;
   }
   void setProbeProtocol(u8 protocol) { probeprotocol = protocol; }
 
@@ -295,7 +295,7 @@ class ServiceProbe {
   // are a comma separated list of ports and ranges
   // (e.g. 53,80,6000-6010).
   void setProbablePorts(enum service_tunnel_type tunnel,
-			const char *portstr, int lineno);
+                        const char *portstr, int lineno);
 
   /* Returns true if the passed in port is on the list of probable
      ports for this probe and tunnel type.  Use a tunnel of
@@ -327,7 +327,7 @@ class ServiceProbe {
   // If the buf doesn't match, the serviceName field in the structure
   // will be NULL.  The MatchDetails returned is only valid until the
   // next time this function is called.  The only exception is that the
-  // serviceName field can be saved throughought program execution.  If
+  // serviceName field can be saved throughout program execution.  If
   // no version matched, that field will be NULL. This function may
   // return NULL if there are no match lines at all in this probe.
   const struct MatchDetails *testMatch(const u8 *buf, int buflen, int n);
@@ -336,8 +336,8 @@ class ServiceProbe {
   ServiceProbe *fallbacks[MAXFALLBACKS+1];
 
  private:
-  void setPortVector(std::vector<u16> *portv, const char *portstr, 
-				 int lineno);
+  void setPortVector(std::vector<u16> *portv, const char *portstr,
+                                 int lineno);
   char *probename;
 
   u8 *probestring;
@@ -372,7 +372,7 @@ public:
   int isExcluded(unsigned short port, int proto);
   bool excluded_seen;
   struct scan_lists excludedports;
-  
+
   static AllProbes *service_scan_init(void);
   static void service_scan_free(void);
   static int check_excluded_port(unsigned short port, int proto);

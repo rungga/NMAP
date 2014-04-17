@@ -35,14 +35,14 @@ argument.
 --</table>
 --@usage
 -- nmap --script=socks-open-proxy \
---		--script-args proxy.url=<host>,proxy.pattern=<pattern>
+--    --script-args proxy.url=<host>,proxy.pattern=<pattern>
 
 author = "Joao Correa"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "external", "safe"}
 
 
---- Performs the custom test, with user's arguments 
+--- Performs the custom test, with user's arguments
 -- @param host The host table
 -- @param port The port table
 -- @param test_url The url to request
@@ -50,13 +50,13 @@ categories = {"default", "discovery", "external", "safe"}
 -- @return status If any request succeeded
 -- @return response Table with supported methods
 local function custom_test(host, port, test_url, pattern)
-  local status4, status5, fstatus
+  local status4, status5, fstatus, cstatus4, cstatus5
   local get_r4, get_r5
   local methods
   local response = {}
 
   -- strip hostname
-  if not string.match(test_url, "^http://.*") then 
+  if not string.match(test_url, "^http://.*") then
     test_url = "http://" .. test_url
     stdnse.print_debug("URL missing scheme. URL concatenated to http://")
   end
@@ -71,8 +71,8 @@ local function custom_test(host, port, test_url, pattern)
   fstatus = status4 or status5
   if(cstatus4) then response[#response+1]="socks4" end
   if(cstatus5) then response[#response+1]="socks5" end
-  if(fstatus) then return fstatus, response end	
-  
+  if(fstatus) then return fstatus, response end
+
   -- Nothing works...
   if not (cstatus4 or cstatus5) then
     return false, nil
@@ -101,7 +101,7 @@ local function default_test(host, port)
   local get_r4, get_r5
   local methods
   local response = {}
-	
+
   local test_url = "/"
   local hostname = "www.google.com"
   local pattern = "^server: gws"
@@ -113,13 +113,13 @@ local function default_test(host, port)
   if(cstatus5) then response[#response+1]="socks5" end
   if(fstatus) then return fstatus, response end
 
-  -- if we receive a invalid response, but with a valid 
+  -- if we receive a invalid response, but with a valid
   -- response code, we should make a next attempt.
   -- if we do not receive any valid status code,
   -- there is no reason to keep testing... the proxy is probably not open
   if not (cstatus4 or cstatus5) then return false, nil end
   stdnse.print_debug("Test 1 - Google Web Server: Received valid status codes, but pattern does not match")
-	
+
   test_url = "/"
   hostname = "www.wikipedia.org"
   pattern  = "wikimedia"
@@ -132,8 +132,8 @@ local function default_test(host, port)
 
   if not (cstatus4 or cstatus5) then return false, nil end
   stdnse.print_debug("Test 2 - Wikipedia.org: Received valid status codes, but pattern does not match")
-  
-  redir_check_get = get_r4 or get_r5
+
+  local redir_check_get = get_r4 or get_r5
 
   test_url = "/"
   hostname = "www.computerhistory.org"
@@ -159,7 +159,7 @@ local function default_test(host, port)
 end
 
 portrule = shortport.port_or_service({1080, 9050},
-	{"socks", "socks4", "socks5", "tor-socks"})
+  {"socks", "socks4", "socks5", "tor-socks"})
 
 action = function(host, port)
   local supported_versions

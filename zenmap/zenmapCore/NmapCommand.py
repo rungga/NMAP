@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -128,7 +128,6 @@ import errno
 import locale
 import sys
 import os
-import re
 import tempfile
 import unittest
 
@@ -151,6 +150,7 @@ from zenmapCore.Name import APP_NAME
 paths_config = PathsConfig()
 
 log.debug(">>> Platform: %s" % sys.platform)
+
 
 def wrap_file_in_preferred_encoding(f):
     """Wrap an open file to automatically decode its contents when reading from
@@ -184,17 +184,19 @@ def wrap_file_in_preferred_encoding(f):
 
     return f
 
+
 def escape_nmap_filename(filename):
     """Escape '%' characters so they are not interpreted as strftime format
     specifiers, which are not supported by Zenmap."""
     return filename.replace("%", "%%")
+
 
 class NmapCommand(object):
     """This class represents an Nmap command line. It is responsible for
     starting, stopping, and returning the results from a command-line scan. A
     command line is represented as a string but it is split into a list of
     arguments for execution.
-    
+
     The normal output (stdout and stderr) are written to the file object
     self.stdout_file."""
 
@@ -231,7 +233,8 @@ class NmapCommand(object):
                 self.ops[op] = escape_nmap_filename(self.ops[op])
 
         if self.xml_is_temp:
-            self.xml_output_filename = tempfile.mktemp(prefix = APP_NAME + "-", suffix = ".xml")
+            self.xml_output_filename = tempfile.mktemp(
+                    prefix=APP_NAME + "-", suffix=".xml")
             self.ops["-oX"] = escape_nmap_filename(self.xml_output_filename)
 
         log.debug(">>> Temporary files:")
@@ -261,7 +264,8 @@ class NmapCommand(object):
         else:
             try:
                 import ctypes
-                ctypes.windll.kernel32.TerminateProcess(int(self.command_process._handle), -1)
+                ctypes.windll.kernel32.TerminateProcess(
+                        int(self.command_process._handle), -1)
             except:
                 pass
 
@@ -279,13 +283,13 @@ class NmapCommand(object):
                 search_paths.append(path)
         return os.pathsep.join(search_paths)
 
-    def run_scan(self, stderr = None):
+    def run_scan(self, stderr=None):
         """Run the command represented by this class."""
 
         # We don't need a file name for stdout output, just a handle. A
         # TemporaryFile is deleted as soon as it is closed, and in Unix is
         # unlinked immediately after creation so it's not even visible.
-        f = tempfile.TemporaryFile(mode = "rb", prefix = APP_NAME + "-stdout-")
+        f = tempfile.TemporaryFile(mode="rb", prefix=APP_NAME + "-stdout-")
         self.stdout_file = wrap_file_in_preferred_encoding(f)
         if stderr is None:
             stderr = f
@@ -303,7 +307,8 @@ class NmapCommand(object):
             # This keeps a terminal window from opening.
             startupinfo = subprocess.STARTUPINFO()
             try:
-                startupinfo.dwFlags |= subprocess._subprocess.STARTF_USESHOWWINDOW
+                startupinfo.dwFlags |= \
+                        subprocess._subprocess.STARTF_USESHOWWINDOW
             except AttributeError:
                 # This name is used before Python 2.6.5.
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -312,7 +317,7 @@ class NmapCommand(object):
                                      stdin=subprocess.PIPE,
                                      stdout=f,
                                      stderr=stderr,
-                                     startupinfo = startupinfo,
+                                     startupinfo=startupinfo,
                                      env=env)
 
     def scan_state(self):
@@ -321,21 +326,24 @@ class NmapCommand(object):
         subprocess completed successfully. If the subprocess terminated with an
         error an exception is raised. The scan must have been started with
         run_scan before calling this method."""
-        if self.command_process == None:
+        if self.command_process is None:
             raise Exception("Scan is not running yet!")
 
         state = self.command_process.poll()
 
-        if state == None:
-            return True # True means that the process is still running
+        if state is None:
+            return True  # True means that the process is still running
         elif state == 0:
-            return False # False means that the process had a successful exit
+            return False  # False means that the process had a successful exit
         else:
             log.warning("An error occurred during the scan execution!")
-            log.warning("Command that raised the exception: '%s'" % self.ops.render_string())
+            log.warning("Command that raised the exception: '%s'" %
+                    self.ops.render_string())
             log.warning("Scan output:\n%s" % self.get_output())
 
-            raise Exception("An error occurred during the scan execution!\n\n'%s'" % self.get_output())
+            raise Exception(
+                    "An error occurred during the scan execution!\n\n'%s'" %
+                    self.get_output())
 
     def get_output(self):
         """Return the complete contents of the self.stdout_file. This modifies
@@ -348,4 +356,5 @@ class NmapCommand(object):
         return self.xml_output_filename
 
 if __name__ == '__main__':
-    unittest.TextTestRunner().run(unittest.TestLoader().loadTestsFromTestCase(SplitQuotedTest))
+    unittest.TextTestRunner().run(
+            unittest.TestLoader().loadTestsFromTestCase(SplitQuotedTest))

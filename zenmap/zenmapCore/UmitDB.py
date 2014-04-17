@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -175,15 +175,15 @@ if isinstance(umitdb, str):
         fs_enc = "UTF-8"
     umitdb = umitdb.decode(fs_enc)
 
-# pyslite 2.4.0 doesn't handle a unicode database name, though earlier and later
-# versions do. Encode to UTF-8 as pysqlite would do internally anyway.
+# pysqlite 2.4.0 doesn't handle a unicode database name, though earlier and
+# later versions do. Encode to UTF-8 as pysqlite would do internally anyway.
 umitdb = umitdb.encode("UTF-8")
 
 connection = sqlite.connect(umitdb)
 
 # By default pysqlite will raise an OperationalError when trying to return a
 # TEXT data type that is not UTF-8 (it always tries to decode text in order to
-# return a unicdoe object). We store XML in the database, which may have a
+# return a unicode object). We store XML in the database, which may have a
 # different encoding, so instruct pysqlite to return a plain str for TEXT data
 # types, and not to attempt any decoding.
 try:
@@ -191,6 +191,7 @@ try:
 except AttributeError:
     # However, text_factory is available only in pysqlite 2.1.0 and later.
     pass
+
 
 class Table(object):
     def __init__(self, table_name):
@@ -203,9 +204,11 @@ class Table(object):
         if self.__getattribute__("_%s" % item_name):
             return self.__getattribute__("_%s" % item_name)
 
-        sql = "SELECT %s FROM %s WHERE %s_id = %s" % (item_name, self.table_name,
-                                                      self.table_name,
-                                                      self.__getattribute__(self.table_id))
+        sql = "SELECT %s FROM %s WHERE %s_id = %s" % (
+                item_name,
+                self.table_name,
+                self.table_name,
+                self.__getattribute__(self.table_id))
 
         self.cursor.execute(sql)
 
@@ -216,9 +219,11 @@ class Table(object):
         if item_value == self.__getattribute__("_%s" % item_name):
             return None
 
-        sql = "UPDATE %s SET %s = ? WHERE %s_id = %s" % (self.table_name, item_name,
-                                                         self.table_name,
-                                                         self.__getattribute__(self.table_id))
+        sql = "UPDATE %s SET %s = ? WHERE %s_id = %s" % (
+                self.table_name,
+                item_name,
+                self.table_name,
+                self.__getattribute__(self.table_id))
         self.cursor.execute(sql, (item_value,))
         connection.commit()
         self.__setattr__("_%s" % item_name, item_value)
@@ -247,31 +252,30 @@ class Table(object):
         self.cursor.execute(sql)
         return self.cursor.fetchall()[0][0]
 
+
 class UmitDB(object):
     def __init__(self):
         self.cursor = connection.cursor()
 
     def create_db(self):
-        drop_string = ("DROP TABLE scans;",)
+        drop_string = "DROP TABLE scans;"
 
         try:
-            for d in drop_string:
-                self.cursor.execute(d)
+            self.cursor.execute(drop_string)
         except:
             connection.rollback()
         else:
             connection.commit()
 
+        creation_string = """CREATE TABLE scans (
+            scans_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            scan_name TEXT,
+            nmap_xml_output TEXT,
+            digest TEXT,
+            date INTEGER)"""
 
-        creation_string = ("""CREATE TABLE scans (scans_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                                  scan_name TEXT,
-                                                  nmap_xml_output TEXT,
-                                                  digest TEXT,
-                                                  date INTEGER)""",)
-
-        for c in creation_string:
-            self.cursor.execute(c)
-            connection.commit()
+        self.cursor.execute(creation_string)
+        connection.commit()
 
     def add_scan(self, **kargs):
         return Scans(**kargs)
@@ -288,12 +292,14 @@ class UmitDB(object):
 
     def cleanup(self, save_time):
         log.debug(">>> Cleaning up data base.")
-        log.debug(">>> Removing results olders than %s seconds" % save_time)
-        self.cursor.execute("SELECT scans_id FROM scans WHERE date < ?", (time() - save_time,))
+        log.debug(">>> Removing results older than %s seconds" % save_time)
+        self.cursor.execute("SELECT scans_id FROM scans WHERE date < ?",
+                (time() - save_time,))
 
         for sid in [sid[0] for sid in self.cursor.fetchall()]:
             log.debug(">>> Removing results with scans_id %s" % sid)
-            self.cursor.execute("DELETE FROM scans WHERE scans_id = ?", (sid, ))
+            self.cursor.execute("DELETE FROM scans WHERE scans_id = ?",
+                    (sid, ))
         else:
             connection.commit()
             log.debug(">>> Data base successfully cleaned up!")
@@ -310,25 +316,30 @@ class Scans(Table, object):
 
             for k in kargs.keys():
                 if k not in fields:
-                    raise Exception("Wrong table field passed to creation method. '%s'" % k)
+                    raise Exception(
+                            "Wrong table field passed to creation method. "
+                            "'%s'" % k)
 
-            if "nmap_xml_output" not in kargs.keys() or not kargs["nmap_xml_output"]:
+            if ("nmap_xml_output" not in kargs.keys() or
+                    not kargs["nmap_xml_output"]):
                 raise Exception("Can't save result without xml output")
 
-            if not self.verify_digest(md5(kargs["nmap_xml_output"]).hexdigest()):
+            if not self.verify_digest(
+                    md5(kargs["nmap_xml_output"]).hexdigest()):
                 raise Exception("XML output registered already!")
 
             self.scans_id = self.insert(**kargs)
 
     def verify_digest(self, digest):
-        self.cursor.execute("SELECT scans_id FROM scans WHERE digest = ?", (digest, ))
+        self.cursor.execute(
+                "SELECT scans_id FROM scans WHERE digest = ?", (digest, ))
         result = self.cursor.fetchall()
         if result:
             return False
         return True
 
     def add_host(self, **kargs):
-        kargs.update({self.table_id:self.scans_id})
+        kargs.update({self.table_id: self.scans_id})
         return Hosts(**kargs)
 
     def get_hosts(self):

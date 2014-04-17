@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_read.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nsock_read.c 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #include "nsock_internal.h"
 #include "nsock_log.h"
@@ -63,10 +63,11 @@
 
 /* Read up to nlines lines (terminated with \n, which of course includes \r\n),
  * or until EOF, or until the timeout, whichever comes first.  Note that
- * NSE_STATUS_SUCCESS will be returned in the case of EOF or tiemout if at least
+ * NSE_STATUS_SUCCESS will be returned in the case of EOF or timeout if at least
  * 1 char has been read.  Also note that you may get more than 'nlines' back --
  * we just stop once "at least" 'nlines' is read */
-nsock_event_id nsock_readlines(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_handler handler, int timeout_msecs,
+nsock_event_id nsock_readlines(nsock_pool nsp, nsock_iod ms_iod,
+                               nsock_ev_handler handler, int timeout_msecs,
                                void *userdata, int nlines) {
   msiod *nsi = (msiod *)ms_iod;
   mspool *ms = (mspool *)nsp;
@@ -87,7 +88,8 @@ nsock_event_id nsock_readlines(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_handle
 }
 
 /* Same as above, except it tries to read at least 'nbytes' instead of 'nlines'. */
-nsock_event_id nsock_readbytes(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_handler handler, int timeout_msecs,
+nsock_event_id nsock_readbytes(nsock_pool nsp, nsock_iod ms_iod,
+                               nsock_ev_handler handler, int timeout_msecs,
                                void *userdata, int nbytes) {
 
   msiod *nsi = (msiod *)ms_iod;
@@ -111,7 +113,9 @@ nsock_event_id nsock_readbytes(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_handle
 
 /* The simplest read function -- returns NSE_STATUS_SUCCESS when it
  * reads anything, otherwise it returns timeout, eof, or error as appropriate */
-nsock_event_id nsock_read(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_handler handler, int timeout_msecs, void *userdata) {
+nsock_event_id nsock_read(nsock_pool nsp, nsock_iod ms_iod,
+                          nsock_ev_handler handler, int timeout_msecs,
+                          void *userdata) {
   msiod *nsi = (msiod *)ms_iod;
   mspool *ms = (mspool *)nsp;
   msevent *nse;

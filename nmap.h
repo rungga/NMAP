@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nmap.h 32814 2014-04-11 02:59:07Z fyodor $ */
 
 #ifndef NMAP_H
 #define NMAP_H
@@ -180,7 +180,7 @@ void *realloc();
 #include <sys/wait.h>
 #endif /* !WIN32 */
 
-#ifdef HAVE_SYS_PARAM_H   
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h> /* Defines MAXHOSTNAMELEN on BSD*/
 #endif
 
@@ -193,7 +193,7 @@ void *realloc();
 #if HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
- 
+
 #include <sys/stat.h>
 
 #if HAVE_NETINET_IN_H
@@ -250,7 +250,7 @@ void *realloc();
 // #define NET_IF_H
 // #endif
 // #endif
-// #if HAVE_NETINET_IF_ETHER_H 
+// #if HAVE_NETINET_IF_ETHER_H
 // #ifndef NETINET_IF_ETHER_H
 // #include <netinet/if_ether.h>
 // #define NETINET_IF_ETHER_H
@@ -262,8 +262,8 @@ void *realloc();
 #ifndef NMAP_VERSION
 /* Edit this definition only within the quotes, because it is read from this
    file by the makefiles. */
-#define NMAP_VERSION "6.40"
-#define NMAP_NUM_VERSION "6.0.40.0"
+#define NMAP_VERSION "6.45"
+#define NMAP_NUM_VERSION "6.0.45.0"
 #endif
 /* The version number of updates retrieved by the nmap-update
    program. It can be different (but should always be the same or
@@ -274,18 +274,13 @@ void *realloc();
 
 /* User configurable #defines: */
 #define MAX_PROBE_PORTS 10     /* How many TCP probe ports are allowed ? */
-/* Default number of ports in parallel.  Doesn't always involve actual 
+/* Default number of ports in parallel.  Doesn't always involve actual
    sockets.  Can also adjust with the -M command line option.  */
-#define MAX_SOCKETS 36 
+#define MAX_SOCKETS 36
 
-/* How do we want to log into ftp sites for */ 
-#define FTPUSER "anonymous"
-#define FTPPASS "-wwwuser@"
-#define FTP_RETRIES 2 /* How many times should we relogin if we lose control
-                         connection? */
-#define MAX_TIMEOUTS MAX_SOCKETS   /* How many timed out connection attempts 
-				      in a row before we decide the host is 
-				      dead? */
+#define MAX_TIMEOUTS MAX_SOCKETS   /* How many timed out connection attempts
+                                      in a row before we decide the host is
+                                      dead? */
 #define _STR(X) #X
 #define STR(X)  _STR(X)
 #define DEFAULT_TCP_PROBE_PORT 80 /* The ports TCP ping probes go to if
@@ -320,7 +315,7 @@ void *realloc();
 #endif
 
 /* Maximum number of extra hostnames, OSs, and devices, we
-   consider when outputing the extra service info fields */
+   consider when outputting the extra service info fields */
 #define MAX_SERVICE_INFO_FIELDS 5
 
 /* We wait at least 100 ms for a response by default - while that
@@ -328,12 +323,12 @@ void *realloc();
    drops until many probes later on extremely low-latency
    networks (such as localhost scans).  */
 #ifndef MIN_RTT_TIMEOUT
-#define MIN_RTT_TIMEOUT 100 
+#define MIN_RTT_TIMEOUT 100
 #endif
 
 #ifndef MAX_RTT_TIMEOUT
 #define MAX_RTT_TIMEOUT 10000 /* Never allow more than 10 secs for packet round
-				 trip */
+                                 trip */
 #endif
 
 #define INITIAL_RTT_TIMEOUT 1000 /* Allow 1 second initially for packet responses */
@@ -354,7 +349,7 @@ void *realloc();
 
 #define HOST_UNKNOWN 0
 #define HOST_UP 1
-#define HOST_DOWN 2 
+#define HOST_DOWN 2
 
 #define PINGTYPE_UNKNOWN 0
 #define PINGTYPE_NONE 1
@@ -403,13 +398,14 @@ void *realloc();
 
 #define IPID_SEQ_UNKNOWN 0
 #define IPID_SEQ_INCR 1  /* simple increment by one each time */
-#define IPID_SEQ_BROKEN_INCR 2 /* Stupid MS -- forgot htons() so it 
+#define IPID_SEQ_BROKEN_INCR 2 /* Stupid MS -- forgot htons() so it
                                   counts by 256 on little-endian platforms */
-#define IPID_SEQ_RPI 3 /* Goes up each time but by a "random" positive 
+#define IPID_SEQ_RPI 3 /* Goes up each time but by a "random" positive
                           increment */
 #define IPID_SEQ_RD 4 /* Appears to select IPID using a "random" distributions (meaning it can go up or down) */
 #define IPID_SEQ_CONSTANT 5 /* Contains 1 or more sequential duplicates */
 #define IPID_SEQ_ZERO 6 /* Every packet that comes back has an IP.ID of 0 (eg Linux 2.4 does this) */
+#define IPID_SEQ_INCR_BY_2 7 /* simple increment by two each time */
 
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64
@@ -435,8 +431,6 @@ void *realloc();
 
 /* print Interactive usage information */
 void printinteractiveusage();
-
-int ftp_anon_connect(struct ftpinfo *ftp);
 
 /* port manipulators */
 void getpts(const char *expr, struct scan_lists * ports); /* someone stole the name getports()! */

@@ -13,7 +13,7 @@
 --
 -- A few notes about the safety of the engine, that is, the ability for
 -- a script developer to crash or otherwise stall NSE. The purpose of noting
--- these attack vectors is more to show the difficulty in accidently
+-- these attack vectors is more to show the difficulty in accidentally
 -- breaking the system than to indicate a user may wish to break the
 -- system through these means.
 --  - A script writer can use the undocumented Lua function newproxy
@@ -125,7 +125,7 @@ local unpack = table.unpack;
 
 do -- Add loader to look in nselib/?.lua (nselib/ can be in multiple places)
   local function loader (lib)
-    lib = lib:gsub("%.", "/"); -- change Lua "module seperator" to directory separator
+    lib = lib:gsub("%.", "/"); -- change Lua "module separator" to directory separator
     local name = "nselib/"..lib..".lua";
     local type, path = cnse.fetchfile_absolute(name);
     if type == "file" then
@@ -162,7 +162,7 @@ local NSE_YIELD_VALUE = {};
 do
   -- This is the method by which we allow a script to have nested
   -- coroutines. If a sub-thread yields in an NSE function such as
-  -- nsock.connect, then we propogate the yield up. These replacements
+  -- nsock.connect, then we propagate the yield up. These replacements
   -- to the coroutine library are used only by Script Threads, not the engine.
 
   local function handle (co, status, ...)
@@ -315,12 +315,17 @@ do
   -- Changes "%THREAD" with an appropriate identifier for the debug level
   function Thread:d (fmt, ...)
     local against = against_name(self.host, self.port);
+    local function replace(fmt, pattern, repl)
+      -- Escape each % twice: once for gsub, and once for print_debug.
+      local r = gsub(repl, "%%", "%%%%%%%%")
+      return gsub(fmt, pattern, r);
+    end
     if debugging() > 1 then
-      fmt = gsub(fmt, "%%THREAD_AGAINST", self.info..against);
-      fmt = gsub(fmt, "%%THREAD", self.info);
+      fmt = replace(fmt, "%%THREAD_AGAINST", self.info..against);
+      fmt = replace(fmt, "%%THREAD", self.info);
     else
-      fmt = gsub(fmt, "%%THREAD_AGAINST", self.short_basename..against);
-      fmt = gsub(fmt, "%%THREAD", self.short_basename);
+      fmt = replace(fmt, "%%THREAD_AGAINST", self.short_basename..against);
+      fmt = replace(fmt, "%%THREAD", self.short_basename);
     end
     print_debug(1, fmt, ...);
   end
@@ -330,7 +335,7 @@ do
     if not self.worker then
       -- Structure table and unstructured string outputs.
       local tab, str
-  
+
       if r2 then
         tab, str = r1, tostring(r2);
       elseif type(r1) == "string" then
@@ -340,7 +345,7 @@ do
       else
         tab, str = r1, nil;
       end
-  
+
       if self.type == "prerule" or self.type == "postrule" then
         cnse.script_set_output(self.id, tab, str);
       elseif self.type == "hostrule" then
@@ -572,12 +577,12 @@ do
     local postrule = rules.postrule;
     -- Assert that categories is an array of strings
     for i, category in ipairs(rawget(env, "categories")) do
-      assert(type(category) == "string", 
+      assert(type(category) == "string",
         filename.." has non-string entries in the 'categories' array");
     end
     -- Assert that dependencies is an array of strings
     for i, dependency in ipairs(rawget(env, "dependencies")) do
-      assert(type(dependency) == "string", 
+      assert(type(dependency) == "string",
         filename.." has non-string entries in the 'dependencies' array");
     end
     -- Return the script
@@ -624,7 +629,7 @@ end
 -- Arguments:
 --   rules  The array of rules to use for loading scripts.
 -- Returns:
---   chosen_scripts  The array of scripts loaded for the given rules. 
+--   chosen_scripts  The array of scripts loaded for the given rules.
 local function get_chosen_scripts (rules)
   check_rules(rules);
 
@@ -745,7 +750,7 @@ local function get_chosen_scripts (rules)
               " -> script rule expression not supported.");
       end
       -- The script rule matches a category or a pattern
-      if found then 
+      if found then
         used_rules[rule_table.original_rule] = true;
         script_params.forced = not not forced_rules[rule_table.original_rule];
         local t, path = cnse.fetchscript(filename);
@@ -806,7 +811,7 @@ local function get_chosen_scripts (rules)
   local chain = {}; -- chain of script names
   local function calculate_runlevel (script)
     chain[#chain+1] = script.short_basename;
-    if script.runlevel == false then -- circular dependency 
+    if script.runlevel == false then -- circular dependency
       error("circular dependency in chain `"..concat(chain, "->").."`");
     else
       script.runlevel = false; -- placeholder
@@ -1171,10 +1176,10 @@ do -- Load script arguments (--script-args)
       return "", eqj-1;
     else
       error("Value around '"..sub(str, start, start+10)..
-          "' is invalid or is unterminated by a valid seperator");
+          "' is invalid or is unterminated by a valid separator");
     end
   end
-  -- Takes 'str' at index 'start' and parses a table. 
+  -- Takes 'str' at index 'start' and parses a table.
   -- Returns the table and the place in the string it finished reading.
   local function parse_table (str, start)
     local _, j = find(str, "^%s*{", start);
@@ -1228,7 +1233,7 @@ do -- Load script arguments (--script-args)
   if debugging() >= 2 then
     local out = {}
     rawget(stdnse, "pretty_printer")(nmap.registry.args, function (s) out[#out+1] = s end)
-    print_debug(2, concat(out))
+    print_debug(2, "%s", concat(out))
   end
 end
 
@@ -1303,13 +1308,13 @@ local function main (hosts, scantype)
   --  parent  A table that contains the parent thread table (it self).
   --  close_handlers
   --          A table that contains the thread destructor handlers.
-  --  info    A string that contains the script name and the thread 
+  --  info    A string that contains the script name and the thread
   --            debug information.
-  --  args    A table that contains the arguments passed to scripts, 
+  --  args    A table that contains the arguments passed to scripts,
   --            arguments can be host and port tables.
   --  env     A table that contains the global script environment:
   --            categories, description, author, license, nmap table,
-  --            action function, rule functions, SCRIPT_PATH, 
+  --            action function, rule functions, SCRIPT_PATH,
   --            SCRIPT_NAME, SCRIPT_TYPE (pre|host|port|post rule).
   --  identifier
   --          A string to identify the thread address.

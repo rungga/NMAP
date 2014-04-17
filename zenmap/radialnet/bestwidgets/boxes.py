@@ -10,7 +10,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -66,7 +66,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -122,7 +122,6 @@
 import gtk
 
 
-
 class BWBox(gtk.Box):
     """
     """
@@ -131,36 +130,30 @@ class BWBox(gtk.Box):
         """
         self.pack_start(widget, True, True, padding)
 
-
     def bw_pack_start_expand_nofill(self, widget, padding=0):
         """
         """
         self.pack_start(widget, True, False, padding)
-
 
     def bw_pack_start_noexpand_nofill(self, widget, padding=0):
         """
         """
         self.pack_start(widget, False, False, padding)
 
-
     def bw_pack_end_expand_fill(self, widget, padding=0):
         """
         """
         self.pack_end(widget, True, True, padding)
-
 
     def bw_pack_end_expand_nofill(self, widget, padding=0):
         """
         """
         self.pack_end(widget, True, False, padding)
 
-
     def bw_pack_end_noexpand_nofill(self, widget, padding=0):
         """
         """
         self.pack_end(widget, False, False, padding)
-
 
 
 class BWHBox(gtk.HBox, BWBox):
@@ -172,7 +165,6 @@ class BWHBox(gtk.HBox, BWBox):
         gtk.HBox.__init__(self, homogeneous, spacing)
 
 
-
 class BWVBox(gtk.VBox, BWBox):
     """
     """
@@ -182,7 +174,6 @@ class BWVBox(gtk.VBox, BWBox):
         gtk.VBox.__init__(self, homogeneous, spacing)
 
 
-
 class BWStatusbar(gtk.Statusbar, BWBox):
     """
     """
@@ -190,7 +181,6 @@ class BWStatusbar(gtk.Statusbar, BWBox):
         """
         """
         gtk.HBox.__init__(self, homogeneous, spacing)
-
 
 
 class BWTable(gtk.Table, BWBox):
@@ -207,13 +197,11 @@ class BWTable(gtk.Table, BWBox):
 
         self.__last_point = (0, 0)
 
-
     def bw_set_spacing(self, spacing):
         """
         """
         self.set_row_spacings(spacing)
         self.set_col_spacings(spacing)
-
 
     def bw_resize(self, rows, columns):
         """
@@ -223,11 +211,10 @@ class BWTable(gtk.Table, BWBox):
 
         self.resize(rows, columns)
 
-
     def bw_attach_next(self,
                        child,
-                       xoptions=gtk.EXPAND|gtk.FILL,
-                       yoptions=gtk.EXPAND|gtk.FILL,
+                       xoptions=gtk.EXPAND | gtk.FILL,
+                       yoptions=gtk.EXPAND | gtk.FILL,
                        xpadding=0,
                        ypadding=0):
         """
@@ -255,7 +242,6 @@ class BWTable(gtk.Table, BWBox):
                 column += 1
 
             self.__last_point = (row, column)
-
 
 
 class BWScrolledWindow(gtk.ScrolledWindow):

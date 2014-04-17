@@ -1,7 +1,7 @@
 
 /***************************************************************************
  * common_modified.cc --  This file holds all those functions and classes  *
- * that have been reused from nmap's code but that needed to be modified   *
+ * that have been reused from Nmap's code but that needed to be modified   *
  * in order to reuse them.                                                 *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -152,7 +152,7 @@ void TargetGroup::Initialize() {
 }
 
 /* take the object back to the beginning without  (mdmcl)
- * reinitalizing the data structures */
+ * reinitializing the data structures */
 int TargetGroup::rewind() {
 
   /* For netmasks we must set the current address to the
@@ -178,7 +178,7 @@ int TargetGroup::rewind() {
   }
 #if HAVE_IPV6
   /* For IPV6 there is only one address, this function doesn't
-   * make much sence for IPv6 does it? */
+   * make much sense for IPv6 does it? */
   else if (targets_type == IPV6_ADDRESS) {
     ipsleft = 1;
     return 0;
@@ -216,7 +216,7 @@ int TargetGroup::skip_range(_octet_nums octet) {
       oct = 2;
       hosts_skipped = (last[3] + 1);
       break;
-    default:  /* Hmm, how'd you do that */
+    default:  /* Hmm, how did you do that? */
       return -1;
   }
 
@@ -456,7 +456,7 @@ int TargetGroup::parse_expr(const char * const target_expr, int af) {
          * I haven't been able to find any problem with that code but
          * still, the fact that DNS queries are cached does not improve
          * performance a lot. It may save one DNS query per execution
-         * in those cases wher NpingOps::validateOptions() grabs the
+         * in those cases where NpingOps::validateOptions() grabs the
          * first target and uses it to determine output network interface.
          * It would also save some queries in the case where a user
          * specified the same host twice in the commandlined, something
@@ -803,7 +803,7 @@ void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int *portwarning)
 
 
 
-/* IPv6 compatible version of nmap's devname2ipaddr()
+/* IPv6 compatible version of Nmap's devname2ipaddr()
  * @warning For this to work we need getinterfaces() not to skip IPv6 */
 int devname2ipaddr_alt(char *dev, struct sockaddr_storage *addr) {
 struct interface_info *mydevs;

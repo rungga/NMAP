@@ -10,7 +10,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -66,7 +66,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -133,8 +133,8 @@ TYPES = ((_("By extension"), None, None),
          (_("PNG"), RadialNet.FILE_TYPE_PNG, ".png"),
          (_("PostScript"), RadialNet.FILE_TYPE_PS, ".ps"),
          (_("SVG"), RadialNet.FILE_TYPE_SVG, ".svg"))
-# Build a reverse index of extensions to file types, for the "By extension" file
-# type.
+# Build a reverse index of extensions to file types, for the "By extension"
+# file type.
 EXTENSIONS = {}
 for type in TYPES:
     if type[2] is not None:
@@ -181,7 +181,8 @@ class SaveDialog(zenmapGUI.FileChoosers.UnicodeFileChooserDialog):
             self.set_current_folder(dir)
 
         # Find the recommended extension.
-        new_ext = self.__combo.get_model().get_value(self.__combo.get_active_iter(), 2)
+        new_ext = self.__combo.get_model().get_value(
+                self.__combo.get_active_iter(), 2)
         if new_ext is not None:
             # Change the filename to use the recommended extension.
             root, ext = os.path.splitext(basename)
@@ -197,15 +198,17 @@ class SaveDialog(zenmapGUI.FileChoosers.UnicodeFileChooserDialog):
             if ext == "":
                 filename = self.get_filename() or ""
                 dir, basename = os.path.split(filename)
-                alert = HIGAlertDialog(message_format=_("No filename extension"),
-                    secondary_text=_("""\
-The filename "%s" does not have an extension, and no specific file type was chosen.
-Enter a known extension or select the file type from the list.\
-""" % basename))
+                alert = HIGAlertDialog(
+                        message_format=_("No filename extension"),
+                        secondary_text=_("""\
+The filename "%s" does not have an extension, \
+and no specific file type was chosen.
+Enter a known extension or select the file type from the list.""" % basename))
 
             else:
-                alert = HIGAlertDialog(message_format=_("Unknown filename extension"),
-                    secondary_text=_("""\
+                alert = HIGAlertDialog(
+                        message_format=_("Unknown filename extension"),
+                        secondary_text=_("""\
 There is no file type known for the filename extension "%s".
 Enter a known extension or select the file type from the list.\
 """) % self.__get_extension())
@@ -218,7 +221,8 @@ Enter a known extension or select the file type from the list.\
         return os.path.splitext(self.get_filename())[1]
 
     def get_filetype(self):
-        filetype = self.__combo.get_model().get_value(self.__combo.get_active_iter(), 1)
+        filetype = self.__combo.get_model().get_value(
+                self.__combo.get_active_iter(), 1)
         if filetype is None:
             # Guess based on extension.
             return EXTENSIONS.get(self.__get_extension())

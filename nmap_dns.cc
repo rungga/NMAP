@@ -12,7 +12,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -68,7 +68,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -86,12 +86,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -168,7 +168,7 @@
 // http://www.hcsw.org
 
 /*
- * DNS Caching and ageing added by Eddie Bell ejlbell@gmail.com 2007
+ * DNS Caching and aging added by Eddie Bell ejlbell@gmail.com 2007
  */
 
 // TODO:
@@ -404,7 +404,7 @@ static void do_possible_writes() {
 
       if (tpreq) {
         if (o.debugging >= TRACE_DEBUG_LEVEL)
-	   log_write(LOG_STDOUT, "mass_rdns: TRANSMITTING for <%s> (server <%s>)\n", tpreq->targ->targetipstr() , servI->hostname.c_str());
+           log_write(LOG_STDOUT, "mass_rdns: TRANSMITTING for <%s> (server <%s>)\n", tpreq->targ->targetipstr() , servI->hostname.c_str());
         stat_trans++;
         put_dns_packet_on_wire(tpreq);
       }
@@ -581,7 +581,7 @@ static int process_result(u32 ia, char *result, int action, u16 id) {
         do_possible_writes();
 
         // Close DNS servers if we're all done so that we kill
-        // all events and return from nsock_loop immediatley
+        // all events and return from nsock_loop immediateley
         if (total_reqs == 0)
           close_dns_servers();
         return 1;
@@ -666,7 +666,7 @@ static int encoded_name_to_normal(const unsigned char *buf, char *output, int ou
 // Takes a pointer to the start of a DNS name inside a packet. It makes
 // sure that there is enough space in the name, deals with compression, etc.
 static int advance_past_dns_name(u8 *buf, int buflen, int curbuf,
-			  int *nameloc) {
+                          int *nameloc) {
   int compression=0;
 
   if (curbuf <= 0 || curbuf >= buflen) return -1;
@@ -994,8 +994,7 @@ static void parse_resolvdotconf() {
     return;
   }
 
-  /* Customize a sscanf format to sizeof(ipaddr). */
-  Snprintf(fmt, sizeof(fmt), "nameserver %%%us", (unsigned int) sizeof(ipaddr));
+  Snprintf(fmt, sizeof(fmt), "nameserver %%%us", INET6_ADDRSTRLEN-1);
 
   while (fgets(buf, sizeof(buf), fp)) {
     tp = buf;
@@ -1354,19 +1353,19 @@ void nmap_mass_rdns(Target **targets, int num_targets) {
   if (stat_actual > 0) {
     if (o.debugging || o.verbose >= 3) {
       if (o.mass_dns && o.af() == AF_INET) {
-	// #:  Number of DNS servers used
-	// OK: Number of fully reverse resolved queries
-	// NX: Number of confirmations of 'No such reverse domain eXists'
-	// DR: Dropped IPs (no valid responses were received)
-	// SF: Number of IPs that got 'Server Failure's
-	// TR: Total number of transmissions necessary. The number of domains is ideal, higher is worse
-	log_write(LOG_STDOUT, "DNS resolution of %d IPs took %.2fs. Mode: Async [#: %lu, OK: %d, NX: %d, DR: %d, SF: %d, TR: %d, CN: %d]\n",
-		  stat_actual, TIMEVAL_MSEC_SUBTRACT(now, starttv) / 1000.0,
-		  (unsigned long) servs.size(), stat_ok, stat_nx, stat_dropped, stat_sf, stat_trans, stat_cname);
+        // #:  Number of DNS servers used
+        // OK: Number of fully reverse resolved queries
+        // NX: Number of confirmations of 'No such reverse domain eXists'
+        // DR: Dropped IPs (no valid responses were received)
+        // SF: Number of IPs that got 'Server Failure's
+        // TR: Total number of transmissions necessary. The number of domains is ideal, higher is worse
+        log_write(LOG_STDOUT, "DNS resolution of %d IPs took %.2fs. Mode: Async [#: %lu, OK: %d, NX: %d, DR: %d, SF: %d, TR: %d, CN: %d]\n",
+                  stat_actual, TIMEVAL_MSEC_SUBTRACT(now, starttv) / 1000.0,
+                  (unsigned long) servs.size(), stat_ok, stat_nx, stat_dropped, stat_sf, stat_trans, stat_cname);
       } else {
-	log_write(LOG_STDOUT, "DNS resolution of %d IPs took %.2fs. Mode: System [OK: %d, ??: %d]\n",
-		  stat_actual, TIMEVAL_MSEC_SUBTRACT(now, starttv) / 1000.0,
-		  stat_ok, stat_actual - stat_ok);
+        log_write(LOG_STDOUT, "DNS resolution of %d IPs took %.2fs. Mode: System [OK: %d, ??: %d]\n",
+                  stat_actual, TIMEVAL_MSEC_SUBTRACT(now, starttv) / 1000.0,
+                  stat_ok, stat_actual - stat_ok);
       }
     }
   }

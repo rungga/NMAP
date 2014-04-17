@@ -1,5 +1,5 @@
 /***************************************************************************
- * ncat_core.c -- Contains option defintions and miscellaneous functions.  *
+ * ncat_core.c -- Contains option definitions and miscellaneous functions. *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
  * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
@@ -10,7 +10,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -66,7 +66,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -119,7 +119,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: ncat_core.c 32742 2014-02-20 21:22:22Z dmiller $ */
 
 #include "ncat.h"
 #include "util.h"
@@ -149,9 +149,6 @@ size_t srcaddrlen;
 
 union sockaddr_u targetss;
 size_t targetsslen;
-
-union sockaddr_u httpconnect, socksconnect;
-size_t httpconnectlen, socksconnectlen;
 
 /* Global options structure. */
 struct options o;
@@ -190,6 +187,8 @@ void options_init(void)
     o.httpserver = 0;
 
     o.nsock_engine = 0;
+
+    o.test = 0;
 
     o.numsrcrtes = 0;
     o.srcrteptr = 4;
@@ -452,16 +451,6 @@ int ncat_delay_timer(int delayval)
     return 1;
 }
 
-/* Open a logfile for writing.
- * Return the open file descriptor. */
-int ncat_openlog(const char *logfile, int append)
-{
-    if (append)
-        return Open(logfile, O_WRONLY | O_CREAT | O_APPEND, 0664);
-    else
-        return Open(logfile, O_WRONLY | O_CREAT | O_TRUNC, 0664);
-}
-
 static int ncat_hexdump(int logfd, const char *data, int len);
 
 void ncat_log_send(const char *data, size_t len)
@@ -542,4 +531,72 @@ static int ncat_hexdump(int logfd, const char *data, int len)
     }
 
     return 1;
+}
+
+/* this function will return in what format the target
+ * host is specified. It will return:
+ * 1 - for ipv4,
+ * 2 - for ipv6,
+ * -1 - for hostname
+ * this has to work even if there is no IPv6 support on
+ * local system, proxy may support it.
+ */
+int getaddrfamily(const char *addr)
+{
+    int ret;
+    struct addrinfo hint, *info = 0;
+
+    if (strchr(addr,':'))
+      return 2;
+
+    zmem(&hint,sizeof(hint));
+    hint.ai_family = AF_UNSPEC;
+    hint.ai_flags = AI_NUMERICHOST;
+    ret = getaddrinfo(addr, 0, &hint, &info);
+    if (ret)
+        return -1;
+    freeaddrinfo(info);
+    return 1;
+}
+
+void setup_environment(struct fdinfo *info)
+{
+    union sockaddr_u su;
+    char ip[INET6_ADDRSTRLEN];
+    char port[16];
+    socklen_t alen = sizeof(su);
+
+    if (getpeername(info->fd, &su.sockaddr, &alen) != 0) {
+        bye("getpeername failed: %s", socket_strerror(socket_errno()));
+    }
+    if (getnameinfo((struct sockaddr *)&su, alen, ip, sizeof(ip),
+            port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+        setenv_portable("NCAT_REMOTE_ADDR", ip);
+        setenv_portable("NCAT_REMOTE_PORT", port);
+    } else {
+        bye("getnameinfo failed: %s", socket_strerror(socket_errno()));
+    }
+
+    if (getsockname(info->fd, (struct sockaddr *)&su, &alen) < 0) {
+        bye("getsockname failed: %s", socket_strerror(socket_errno()));
+    }
+    if (getnameinfo((struct sockaddr *)&su, alen, ip, sizeof(ip),
+            port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+        setenv_portable("NCAT_LOCAL_ADDR", ip);
+        setenv_portable("NCAT_LOCAL_PORT", port);
+    } else {
+        bye("getnameinfo failed: %s", socket_strerror(socket_errno()));
+    }
+
+    switch(o.proto) {
+        case IPPROTO_TCP:
+            setenv_portable("NCAT_PROTO", "TCP");
+            break;
+        case IPPROTO_SCTP:
+            setenv_portable("NCAT_PROTO", "SCTP");
+            break;
+        case IPPROTO_UDP:
+            setenv_portable("NCAT_PROTO", "UDP");
+            break;
+    }
 }

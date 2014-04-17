@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -128,6 +128,7 @@ from zenmapGUI.higwidgets.higbuttons import HIGButton
 from zenmapGUI.higwidgets.higscrollers import HIGScrolledWindow
 import zenmapCore.I18N
 
+
 def status_data_func(widget, cell_renderer, model, iter):
     entry = model.get_value(iter, 0)
     if entry.running:
@@ -143,14 +144,17 @@ def status_data_func(widget, cell_renderer, model, iter):
         status = _("Canceled")
     cell_renderer.set_property("text", status)
 
+
 def command_data_func(widget, cell_renderer, model, iter):
     entry = model.get_value(iter, 0)
     cell_renderer.set_property("ellipsize", pango.ELLIPSIZE_END)
     cell_renderer.set_property("text", entry.get_command_string())
 
+
 class ScanScanListPage(HIGVBox):
-    """This is the "Scans" scan results tab. It the list of running and finished
-    scans contained in the ScansListStore passed to the constructor."""
+    """This is the "Scans" scan results tab. It the list of running and
+    finished scans contained in the ScansListStore passed to the
+    constructor."""
     def __init__(self, scans_store):
         HIGVBox.__init__(self)
 
@@ -159,7 +163,8 @@ class ScanScanListPage(HIGVBox):
         scans_store.connect("row-changed", self._row_changed)
 
         self.scans_list = gtk.TreeView(scans_store)
-        self.scans_list.get_selection().connect("changed", self._selection_changed)
+        self.scans_list.get_selection().connect(
+                "changed", self._selection_changed)
 
         status_col = gtk.TreeViewColumn(_("Status"))
         cell = gtk.CellRendererText()
@@ -193,9 +198,9 @@ class ScanScanListPage(HIGVBox):
         self.cancel_button = HIGButton(_("Cancel Scan"), gtk.STOCK_CANCEL)
         buttonbox.pack_start(self.cancel_button, False)
 
-        hbox.pack_start(buttonbox, padding = 4)
+        hbox.pack_start(buttonbox, padding=4)
 
-        self.pack_start(hbox, False, padding = 4)
+        self.pack_start(hbox, False, padding=4)
 
         self._update()
 
@@ -206,13 +211,13 @@ class ScanScanListPage(HIGVBox):
         self._update()
 
     def _update(self):
-        # Make the Cancel button sensitive or not depending on whether a running
-        # scan is selected.
+        # Make the Cancel button sensitive or not depending on whether a
+        # running scan is selected.
         tree_selection = self.scans_list.get_selection()
         if tree_selection is None:
             # I can't find anything in the PyGTK documentation that suggests
-            # this is possible, but we received many crash reports that indicate
-            # it is.
+            # this is possible, but we received many crash reports that
+            # indicate it is.
             model, selection = None, []
         else:
             model, selection = tree_selection.get_selected_rows()

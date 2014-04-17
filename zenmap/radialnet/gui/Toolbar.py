@@ -10,7 +10,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -66,7 +66,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -84,12 +84,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -136,7 +136,6 @@ HIDE = False
 REFRESH_RATE = 500
 
 
-
 class ToolsMenu(gtk.Menu):
     """
     """
@@ -148,7 +147,6 @@ class ToolsMenu(gtk.Menu):
         self.radialnet = radialnet
 
         self.__create_items()
-
 
     def __create_items(self):
         """
@@ -163,7 +161,6 @@ class ToolsMenu(gtk.Menu):
 
         self.__hosts.show_all()
 
-
     def __hosts_viewer_callback(self, widget):
         """
         """
@@ -171,18 +168,15 @@ class ToolsMenu(gtk.Menu):
         window.show_all()
         window.set_keep_above(True)
 
-
     def enable_dependents(self):
         """
         """
         self.__hosts.set_sensitive(True)
 
-
     def disable_dependents(self):
         """
         """
         self.__hosts.set_sensitive(False)
-
 
 
 class Toolbar(gtk.HBox):
@@ -213,7 +207,6 @@ class Toolbar(gtk.HBox):
 
         self.__create_widgets()
 
-
     def __create_widgets(self):
         """
         """
@@ -233,7 +226,8 @@ class Toolbar(gtk.HBox):
         self.__hosts_button = BWStockButton(gtk.STOCK_INDEX, _("Hosts Viewer"))
         self.__hosts_button.connect("clicked", self.__hosts_viewer_callback)
 
-        self.__control = BWToggleStockButton(gtk.STOCK_PROPERTIES, _("Controls"))
+        self.__control = BWToggleStockButton(
+                gtk.STOCK_PROPERTIES, _("Controls"))
         self.__control.connect('clicked', self.__control_callback)
         self.__control.set_active(False)
 
@@ -273,7 +267,6 @@ class Toolbar(gtk.HBox):
         self.pack_start(self.__control, False)
         self.pack_end(self.__save_button, False)
 
-
     def disable_controls(self):
         """
         """
@@ -281,7 +274,6 @@ class Toolbar(gtk.HBox):
         self.__fisheye.set_sensitive(False)
         self.__hosts_button.set_sensitive(False)
         #self.__tools_menu.disable_dependents()
-
 
     def enable_controls(self):
         """
@@ -291,12 +283,10 @@ class Toolbar(gtk.HBox):
         self.__hosts_button.set_sensitive(True)
         #self.__tools_menu.enable_dependents()
 
-
     def __tools_callback(self, widget):
         """
         """
         self.__tools_menu.popup(None, None, None, 1, 0)
-
 
     def __hosts_viewer_callback(self, widget):
         """
@@ -304,7 +294,6 @@ class Toolbar(gtk.HBox):
         window = HostsViewer(self.radialnet.get_scanned_nodes())
         window.show_all()
         window.set_keep_above(True)
-
 
     def __save_image_callback(self, widget):
         """
@@ -330,7 +319,6 @@ class Toolbar(gtk.HBox):
 
         self.__save_chooser.hide()
 
-
     def __control_callback(self, widget=None):
         """
         """
@@ -339,7 +327,6 @@ class Toolbar(gtk.HBox):
 
         else:
             self.__control_widget.hide()
-
 
     def __fisheye_callback(self, widget=None):
         """
@@ -356,13 +343,11 @@ class Toolbar(gtk.HBox):
                 self.__fisheye_widget.deactive_fisheye()
                 self.__fisheye_widget.hide()
 
-
     def __about_callback(self, widget):
         """
         """
         self.__about_dialog = AboutDialog()
         self.__about_dialog.show_all()
-
 
     def __fullscreen_callback(self, widget=None):
         """
@@ -372,4 +357,3 @@ class Toolbar(gtk.HBox):
 
         else:
             self.__window.unfullscreen()
-

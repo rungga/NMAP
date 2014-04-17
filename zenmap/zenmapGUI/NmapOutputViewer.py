@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -134,13 +134,14 @@ from zenmapCore.UmitConf import NmapOutputHighlight
 
 from zenmapGUI.NmapOutputProperties import NmapOutputProperties
 
+
 class NmapOutputViewer (gtk.VBox):
     HIGHLIGHT_PROPERTIES = ["details", "date", "hostname", "ip", "port_list",
             "open_port", "closed_port", "filtered_port"]
 
-    def __init__ (self, refresh=1, stop=1):
+    def __init__(self, refresh=1, stop=1):
         self.nmap_highlight = NmapOutputHighlight()
-        gtk.VBox.__init__ (self)
+        gtk.VBox.__init__(self)
 
         # Creating widgets
         self.__create_widgets()
@@ -158,7 +159,7 @@ class NmapOutputViewer (gtk.VBox):
         self.refreshing = True
 
         # Adding widgets to the VBox
-        self.pack_start(self.scrolled, expand = True, fill = True)
+        self.pack_start(self.scrolled, expand=True, fill=True)
 
         # The NmapCommand instance, if any, whose output is shown in this
         # display.
@@ -166,16 +167,16 @@ class NmapOutputViewer (gtk.VBox):
         # The position of the last read from the output stream.
         self.output_file_pointer = None
 
-    def __create_widgets (self):
+    def __create_widgets(self):
         # Creating widgets
-        self.scrolled = gtk.ScrolledWindow ()
-        self.text_view = gtk.TextView ()
+        self.scrolled = gtk.ScrolledWindow()
+        self.text_view = gtk.TextView()
 
-    def __set_scrolled_window (self):
+    def __set_scrolled_window(self):
         # Seting scrolled window
-        self.scrolled.set_border_width (5)
+        self.scrolled.set_border_width(5)
         self.scrolled.add(self.text_view)
-        self.scrolled.set_policy (gtk.POLICY_AUTOMATIC,gtk.POLICY_AUTOMATIC)
+        self.scrolled.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 
     def __set_text_view(self):
         self.text_view.set_wrap_mode(gtk.WRAP_WORD)
@@ -205,8 +206,12 @@ class NmapOutputViewer (gtk.VBox):
             text_color = settings[3]
             highlight_color = settings[4]
 
-            tag.set_property("foreground", gtk.color_selection_palette_to_string([gtk.gdk.Color(*text_color),]))
-            tag.set_property("background", gtk.color_selection_palette_to_string([gtk.gdk.Color(*highlight_color),]))
+            tag.set_property(
+                    "foreground", gtk.color_selection_palette_to_string(
+                        [gtk.gdk.Color(*text_color), ]))
+            tag.set_property(
+                    "background", gtk.color_selection_palette_to_string(
+                        [gtk.gdk.Color(*highlight_color), ]))
 
     def go_to_host(self, host):
         """Go to host line on nmap output result"""
@@ -218,7 +223,8 @@ class NmapOutputViewer (gtk.VBox):
 
         for i in xrange(len(output)):
             if re_host.match(output[i]):
-                self.text_view.scroll_to_iter(buff.get_iter_at_line(i), 0, True, 0, 0)
+                self.text_view.scroll_to_iter(
+                        buff.get_iter_at_line(i), 0, True, 0, 0)
                 break
 
     def show_output_properties(self, widget):
@@ -259,7 +265,7 @@ class NmapOutputViewer (gtk.VBox):
         self.nmap_highlight.save_changes()
         self.apply_highlighting()
 
-    def apply_highlighting(self, start_iter = None, end_iter = None):
+    def apply_highlighting(self, start_iter=None, end_iter=None):
         buf = self.text_view.get_buffer()
 
         if start_iter is None:
@@ -302,7 +308,7 @@ class NmapOutputViewer (gtk.VBox):
             self.output_file_pointer = None
         self.refresh_output()
 
-    def refresh_output(self, widget = None):
+    def refresh_output(self, widget=None):
         """Update the output from the latest output of the command associated
         with this view, as set by set_command_execution. It has no effect if no
         command has been set."""
@@ -316,7 +322,8 @@ class NmapOutputViewer (gtk.VBox):
         pos = self.command_execution.stdout_file.tell()
         new_output = self.command_execution.stdout_file.read()
         self.output_file_pointer = self.command_execution.stdout_file.tell()
-        # print "read %d -> %d %d" % (pos, self.output_file_pointer, len(new_output))
+        # print "read %d -> %d %d" % (
+        #         pos, self.output_file_pointer, len(new_output))
 
         v_adj = self.scrolled.get_vadjustment()
         if new_output and v_adj is not None:
@@ -324,15 +331,19 @@ class NmapOutputViewer (gtk.VBox):
             at_end = (v_adj.value >= v_adj.upper - v_adj.page_size)
 
             buf = self.text_view.get_buffer()
-            prev_end_mark = buf.create_mark(None, buf.get_end_iter(), left_gravity = True)
+            prev_end_mark = buf.create_mark(
+                    None, buf.get_end_iter(), left_gravity=True)
             buf.insert(buf.get_end_iter(), new_output)
             # Highlight the new text.
-            self.apply_highlighting(buf.get_iter_at_mark(prev_end_mark), buf.get_end_iter())
+            self.apply_highlighting(
+                    buf.get_iter_at_mark(prev_end_mark), buf.get_end_iter())
 
             if at_end:
                 # If we were already scrolled to the bottom, scroll back to the
                 # bottom again. Also do it in an idle handler in case the added
-                # text causes a scroll bar to appear and reflow the text, making
-                # the text a bit taller.
+                # text causes a scroll bar to appear and reflow the text,
+                # making the text a bit taller.
                 self.text_view.scroll_mark_onscreen(self.end_mark)
-                gobject.idle_add(lambda: self.text_view.scroll_mark_onscreen(self.end_mark))
+                gobject.idle_add(
+                        lambda: self.text_view.scroll_mark_onscreen(
+                            self.end_mark))

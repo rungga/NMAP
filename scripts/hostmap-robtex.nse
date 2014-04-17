@@ -13,10 +13,10 @@ Discovers hostnames that resolve to the target's IP address by querying the onli
 -- nmap --script hostmap-robtex -sn -Pn scanme.nmap.org
 --
 -- @output
--- | hostmap-robtex: 
--- |   hosts: 
+-- | hostmap-robtex:
+-- |   hosts:
 -- |_    scanme.nmap.org
--- 
+--
 -- @xmloutput
 -- <table key="hosts">
 --  <elem>nmap.org</elem>
@@ -39,7 +39,7 @@ function parse_robtex_response (data)
   local result = {}
 
   for domain in string.gmatch(data, "<span id=\"dns[0-9]+\"><a href=\"//[a-z]+.robtex.com/([^\"]-)%.html\"") do
-    if not table.contains(result, domain) then
+    if not stdnse.contains(result, domain) then
       table.insert(result, domain)
     end
   end
@@ -51,7 +51,7 @@ hostrule = function (host)
 end
 
 action = function (host)
-  local link = "http://ip.robtex.com/" .. host.ip .. ".html"
+  local link = "https://ip.robtex.com/" .. host.ip .. ".html"
   local htmldata = http.get_url(link)
   local domains = parse_robtex_response(htmldata.body)
   local output_tab = stdnse.output_table()
@@ -59,13 +59,4 @@ action = function (host)
     output_tab.hosts = domains
   end
   return output_tab
-end
-
-function table.contains (table, element)
-  for _, value in pairs(table) do
-    if value == element then
-      return true
-    end
-  end
-  return false
 end

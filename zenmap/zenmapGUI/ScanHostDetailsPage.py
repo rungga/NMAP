@@ -11,7 +11,7 @@
 # * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
 # * modify, and redistribute this software under certain conditions.  If    *
 # * you wish to embed Nmap technology into proprietary software, we sell    *
-# * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+# * alternative licenses (contact sales@nmap.com).  Dozens of software      *
 # * vendors already license Nmap technology such as host discovery, port    *
 # * scanning, OS detection, version detection, and the Nmap Scripting       *
 # * Engine.                                                                 *
@@ -67,7 +67,7 @@
 # * obeying all GPL rules and restrictions.  For example, source code of    *
 # * the whole work must be provided and free redistribution must be         *
 # * allowed.  All GPL references to "this License", are to be treated as    *
-# * including the special and conditions of the license text as well.       *
+# * including the terms and conditions of this license text as well.        *
 # *                                                                         *
 # * Because this license imposes special exceptions to the GPL, Covered     *
 # * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -85,12 +85,12 @@
 # * applications and appliances.  These contracts have been sold to dozens  *
 # * of software vendors, and generally include a perpetual license as well  *
 # * as providing for priority support and updates.  They also fund the      *
-# * continued development of Nmap.  Please email sales@insecure.com for     *
-# * further information.                                                    *
+# * continued development of Nmap.  Please email sales@nmap.com for further *
+# * information.                                                            *
 # *                                                                         *
-# * If you received these files with a written license agreement or         *
-# * contract stating terms other than the terms above, then that            *
-# * alternative license agreement takes precedence over these comments.     *
+# * If you have received a written license agreement or contract for        *
+# * Covered Software stating terms other than these, you may choose to use  *
+# * and redistribute Covered Software under those terms instead of these.   *
 # *                                                                         *
 # * Source is provided to this software because we believe users have a     *
 # * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,8 @@
 import gtk
 
 from zenmapGUI.higwidgets.higexpanders import HIGExpander
-from zenmapGUI.higwidgets.higboxes import HIGVBox, HIGHBox, hig_box_space_holder
+from zenmapGUI.higwidgets.higboxes import HIGVBox, HIGHBox,\
+        hig_box_space_holder
 from zenmapGUI.higwidgets.higlabels import HIGEntryLabel
 from zenmapGUI.higwidgets.higtables import HIGTable
 from zenmapGUI.Icons import get_os_logo, get_vulnerability_logo
@@ -132,12 +133,14 @@ import zenmapCore.I18N
 
 na = _('Not available')
 
+
 class ScanHostDetailsPage(HIGExpander):
     def __init__(self, host):
         HIGExpander.__init__(self, host.get_hostname())
 
         self.host_details = HostDetails(host)
         self.hbox._pack_expand_fill(self.host_details)
+
 
 class HostDetails(HIGVBox):
     def __init__(self, host):
@@ -147,7 +150,8 @@ class HostDetails(HIGVBox):
 
         self.set_os_image(get_os_logo(host))
 
-        self.set_vulnerability_image(get_vulnerability_logo(host.get_open_ports()))
+        self.set_vulnerability_image(
+                get_vulnerability_logo(host.get_open_ports()))
 
         self.set_host_status({'state': host.get_state(),
             'open': str(host.get_open_ports()),
@@ -179,16 +183,19 @@ class HostDetails(HIGVBox):
         self.set_comment(host.comment)
 
     def __create_widgets(self):
-        self.host_status_expander = gtk.Expander('<b>'+_('Host Status')+'</b>')
-        self.address_expander = gtk.Expander('<b>'+_('Addresses')+'</b>')
-        self.hostnames_expander = gtk.Expander('<b>'+_('Hostnames')+'</b>')
-        self.os_expander = gtk.Expander('<b>'+_('Operating System')+'</b>')
-        self.portsused_expander = gtk.Expander('<b>'+_('Ports used')+'</b>')
-        self.osclass_expander = gtk.Expander('<b>'+_('OS Classes')+'</b>')
-        self.tcp_expander = gtk.Expander('<b>'+_('TCP Sequence')+'</b>')
-        self.ip_expander = gtk.Expander('<b>'+_('IP ID Sequence')+'</b>')
-        self.tcpts_expander = gtk.Expander('<b>'+_('TCP TS Sequence')+'</b>')
-        self.comment_expander = gtk.Expander('<b>'+_('Comments')+'</b>')
+        self.host_status_expander = gtk.Expander(
+                '<b>' + _('Host Status') + '</b>')
+        self.address_expander = gtk.Expander('<b>' + _('Addresses') + '</b>')
+        self.hostnames_expander = gtk.Expander('<b>' + _('Hostnames') + '</b>')
+        self.os_expander = gtk.Expander('<b>' + _('Operating System') + '</b>')
+        self.portsused_expander = gtk.Expander(
+                '<b>' + _('Ports used') + '</b>')
+        self.osclass_expander = gtk.Expander('<b>' + _('OS Classes') + '</b>')
+        self.tcp_expander = gtk.Expander('<b>' + _('TCP Sequence') + '</b>')
+        self.ip_expander = gtk.Expander('<b>' + _('IP ID Sequence') + '</b>')
+        self.tcpts_expander = gtk.Expander(
+                '<b>' + _('TCP TS Sequence') + '</b>')
+        self.comment_expander = gtk.Expander('<b>' + _('Comments') + '</b>')
         self.os_image = gtk.Image()
         self.vulnerability_image = gtk.Image()
 
@@ -213,7 +220,6 @@ class HostDetails(HIGVBox):
 
         self.lastboot_label = HIGEntryLabel(_('Last boot:'))
         self.info_lastboot_label = HIGEntryLabel(na)
-
 
         # Addresses expander
         self.ipv4_label = HIGEntryLabel(_('IPv4:'))
@@ -242,64 +248,58 @@ class HostDetails(HIGVBox):
         self.host_status_expander.set_expanded(True)
         table, hbox = self.create_table_hbox()
 
-        try:
-            if status['state'] == '': raise Exception
+        if ('state' in status and
+                status['state'] != ''):
             self.info_host_state_label.set_text(status['state'])
-        except:pass
 
-        try:
-            if status['open'] == '': raise Exception
+        if ('open' in status and
+                status['open'] != ''):
             self.info_open_ports.set_text(status['open'])
-        except:pass
 
-        try:
-            if status['filtered'] == '': raise Exception
+        if ('filtered' in status and
+                status['filtered'] != ''):
             self.info_filtered_label.set_text(status['filtered'])
-        except:pass
 
-        try:
-            if status['closed'] == '': raise Exception
+        if ('closed' in status and
+                status['closed'] != ''):
             self.info_closed_ports.set_text(status['closed'])
-        except:pass
 
-        try:
-            if status['scanned'] == '': raise Exception
+        if ('scanned' in status and
+                status['scanned'] != ''):
             self.info_scanned_label.set_text(status['scanned'])
-        except:pass
 
-        try:
-            if status['uptime'] == '': raise Exception
+        if ('uptime' in status and
+                status['uptime'] != ''):
             self.info_uptime_label.set_text(status['uptime'])
-        except:pass
 
-        try:
-            if status['lastboot'] == '': raise Exception
+        if ('lastboot' in status and
+                status['lastboot'] != ''):
             self.info_lastboot_label.set_text(status['lastboot'])
-        except:pass
 
-        table.attach(self.host_state_label,0,1,0,1)
-        table.attach(self.info_host_state_label,1,2,0,1)
+        table.attach(self.host_state_label, 0, 1, 0, 1)
+        table.attach(self.info_host_state_label, 1, 2, 0, 1)
 
-        table.attach(self.open_label,0,1,1,2)
-        table.attach(self.info_open_ports,1,2,1,2)
+        table.attach(self.open_label, 0, 1, 1, 2)
+        table.attach(self.info_open_ports, 1, 2, 1, 2)
 
-        table.attach(self.filtered_label,0,1,2,3)
-        table.attach(self.info_filtered_label,1,2,2,3)
+        table.attach(self.filtered_label, 0, 1, 2, 3)
+        table.attach(self.info_filtered_label, 1, 2, 2, 3)
 
-        table.attach(self.closed_label,0,1,3,4)
-        table.attach(self.info_closed_ports,1,2,3,4)
+        table.attach(self.closed_label, 0, 1, 3, 4)
+        table.attach(self.info_closed_ports, 1, 2, 3, 4)
 
-        table.attach(self.scanned_label,0,1,4,5)
-        table.attach(self.info_scanned_label,1,2,4,5)
+        table.attach(self.scanned_label, 0, 1, 4, 5)
+        table.attach(self.info_scanned_label, 1, 2, 4, 5)
 
-        table.attach(self.uptime_label,0,1,5,6)
-        table.attach(self.info_uptime_label,1,2,5,6)
+        table.attach(self.uptime_label, 0, 1, 5, 6)
+        table.attach(self.info_uptime_label, 1, 2, 5, 6)
 
-        table.attach(self.lastboot_label,0,1,6,7)
-        table.attach(self.info_lastboot_label,1,2,6,7)
+        table.attach(self.lastboot_label, 0, 1, 6, 7)
+        table.attach(self.info_lastboot_label, 1, 2, 6, 7)
 
-        table.attach(self.os_image,2,4,0,3,xoptions=1,yoptions=0)
-        table.attach(self.vulnerability_image,2,4,4,7,xoptions=1,yoptions=0)
+        table.attach(self.os_image, 2, 4, 0, 3, xoptions=1, yoptions=0)
+        table.attach(
+                self.vulnerability_image, 2, 4, 4, 7, xoptions=1, yoptions=0)
 
         table.set_col_spacing(1, 50)
 
@@ -307,10 +307,10 @@ class HostDetails(HIGVBox):
         self._pack_noexpand_nofill(self.host_status_expander)
 
     def set_os_image(self, image):
-            self.os_image.set_from_stock(image,gtk.ICON_SIZE_DIALOG)
+            self.os_image.set_from_stock(image, gtk.ICON_SIZE_DIALOG)
 
     def set_vulnerability_image(self, image):
-        self.vulnerability_image.set_from_stock(image,gtk.ICON_SIZE_DIALOG)
+        self.vulnerability_image.set_from_stock(image, gtk.ICON_SIZE_DIALOG)
 
     def set_addresses(self, address):
         self.address_expander.set_use_markup(True)
@@ -318,29 +318,26 @@ class HostDetails(HIGVBox):
         self.address_expander.set_expanded(True)
 
         #print '>>> Address:', address
-        try:
-            if address['ipv4'] == 1: raise Exception
+        if ('ipv4' in address and
+                address['ipv4'] != 1):
             self.info_ipv4_label.set_text(address['ipv4'])
-        except:pass
 
-        try:
-            if address['ipv6'] == 1: raise Exception
+        if ('ipv6' in address and
+                address['ipv6'] != 1):
             self.info_ipv6_label.set_text(address['ipv6'])
-        except:pass
 
-        try:
-            if address['mac'] == 1: raise Exception
+        if ('mac' in address and
+                address['mac'] != 1):
             self.info_mac_label.set_text(address['mac'])
-        except:pass
 
-        table.attach(self.ipv4_label,0,1,0,1)
-        table.attach(self.info_ipv4_label,1,2,0,1)
+        table.attach(self.ipv4_label, 0, 1, 0, 1)
+        table.attach(self.info_ipv4_label, 1, 2, 0, 1)
 
-        table.attach(self.ipv6_label,0,1,1,2)
-        table.attach(self.info_ipv6_label,1,2,1,2)
+        table.attach(self.ipv6_label, 0, 1, 1, 2)
+        table.attach(self.info_ipv6_label, 1, 2, 1, 2)
 
-        table.attach(self.mac_label,0,1,2,3)
-        table.attach(self.info_mac_label,1,2,2,3)
+        table.attach(self.mac_label, 0, 1, 2, 3)
+        table.attach(self.info_mac_label, 1, 2, 2, 3)
 
         self.address_expander.add(hbox)
         self._pack_noexpand_nofill(self.address_expander)
@@ -355,18 +352,13 @@ class HostDetails(HIGVBox):
             y2 = 2
 
             for h in hostname:
-                name = na
-                try:name = h['hostname']
-                except:pass
+                name = h.get('hostname', na)
+                type = h.get('hostname_type', na)
 
-                type = na
-                try:type = h['hostname_type']
-                except:pass
-
-                table.attach(HIGEntryLabel(_('Name - Type:')),0,1,y1,y2)
-                table.attach(HIGEntryLabel(name+' - '+\
-                                           type),1,2,y1,y2)
-                y1+=1;y2+=1
+                table.attach(HIGEntryLabel(_('Name - Type:')), 0, 1, y1, y2)
+                table.attach(HIGEntryLabel(name + ' - ' + type), 1, 2, y1, y2)
+                y1 += 1
+                y2 += 1
 
             self.hostnames_expander.add(hbox)
             self._pack_noexpand_nofill(self.hostnames_expander)
@@ -378,30 +370,31 @@ class HostDetails(HIGVBox):
             table, hbox = self.create_table_hbox()
             progress = gtk.ProgressBar()
 
-            try:
-                progress.set_fraction(float(os['accuracy'])/100.0)
-                progress.set_text(os['accuracy']+'%')
-            except:progress.set_text(_('Not Available'))
+            if 'accuracy' in os:
+                progress.set_fraction(float(os['accuracy']) / 100.0)
+                progress.set_text(os['accuracy'] + '%')
+            else:
+                progress.set_text(_('Not Available'))
 
-            table.attach(HIGEntryLabel(_('Name:')),0,1,0,1)
-            table.attach(HIGEntryLabel(os['name']),1,2,0,1)
+            table.attach(HIGEntryLabel(_('Name:')), 0, 1, 0, 1)
+            table.attach(HIGEntryLabel(os['name']), 1, 2, 0, 1)
 
-            table.attach(HIGEntryLabel(_('Accuracy:')),0,1,1,2)
-            table.attach(progress,1,2,1,2)
+            table.attach(HIGEntryLabel(_('Accuracy:')), 0, 1, 1, 2)
+            table.attach(progress, 1, 2, 1, 2)
 
-            y1=2;y2=3
+            y1 = 2
+            y2 = 3
 
-            try:
+            if 'portsused' in os:
                 self.set_ports_used(os['portsused'])
-                table.attach(self.portsused_expander,0,2,y1,y2)
-                y1+=1;y2+=1
-            except:pass
+                table.attach(self.portsused_expander, 0, 2, y1, y2)
+                y1 += 1
+                y2 += 1
 
-            try:
+            if 'osclasses' in os:
                 self.set_osclass(os['osclasses'])
                 self.osclass_expander.set_use_markup(True)
-                table.attach(self.osclass_expander,0,2,y1,y2)
-            except:pass
+                table.attach(self.osclass_expander, 0, 2, y1, y2)
 
             self.os_expander.add(hbox)
             self._pack_noexpand_nofill(self.os_expander)
@@ -410,13 +403,17 @@ class HostDetails(HIGVBox):
         self.portsused_expander.set_use_markup(True)
         table, hbox = self.create_table_hbox()
 
-        y1=0;y2=1
+        y1 = 0
+        y2 = 1
 
         for p in ports:
-            table.attach(HIGEntryLabel(_('Port-Protocol-State:')),0,1,y1,y2)
-            table.attach(HIGEntryLabel(p['portid']+' - '+p['proto']+' - '+\
-                                       p['state']),1,2,y1,y2)
-            y1+=1;y2+=1
+            table.attach(HIGEntryLabel(
+                _('Port-Protocol-State:')), 0, 1, y1, y2)
+            table.attach(HIGEntryLabel(
+                p['portid'] + ' - ' + p['proto'] + ' - ' + p['state']
+                ), 1, 2, y1, y2)
+            y1 += 1
+            y2 += 1
 
         self.portsused_expander.add(hbox)
 
@@ -425,25 +422,27 @@ class HostDetails(HIGVBox):
             self.osclass_expander.set_use_markup(True)
             table, hbox = self.create_table_hbox()
 
-            table.attach(HIGEntryLabel(_('Type')),0,1,0,1)
-            table.attach(HIGEntryLabel(_('Vendor')),1,2,0,1)
-            table.attach(HIGEntryLabel(_('OS Family')),2,3,0,1)
-            table.attach(HIGEntryLabel(_('OS Generation')),3,4,0,1)
-            table.attach(HIGEntryLabel(_('Accuracy')),4,5,0,1)
+            table.attach(HIGEntryLabel(_('Type')), 0, 1, 0, 1)
+            table.attach(HIGEntryLabel(_('Vendor')), 1, 2, 0, 1)
+            table.attach(HIGEntryLabel(_('OS Family')), 2, 3, 0, 1)
+            table.attach(HIGEntryLabel(_('OS Generation')), 3, 4, 0, 1)
+            table.attach(HIGEntryLabel(_('Accuracy')), 4, 5, 0, 1)
 
-            y1=1;y2=2
+            y1 = 1
+            y2 = 2
 
             for o in osclass:
-                table.attach(HIGEntryLabel(o['type']),0,1,y1,y2)
-                table.attach(HIGEntryLabel(o['vendor']),1,2,y1,y2)
-                table.attach(HIGEntryLabel(o['osfamily']),2,3,y1,y2)
-                table.attach(HIGEntryLabel(o['osgen']),3,4,y1,y2)
+                table.attach(HIGEntryLabel(o['type']), 0, 1, y1, y2)
+                table.attach(HIGEntryLabel(o['vendor']), 1, 2, y1, y2)
+                table.attach(HIGEntryLabel(o['osfamily']), 2, 3, y1, y2)
+                table.attach(HIGEntryLabel(o['osgen']), 3, 4, y1, y2)
 
                 progress = gtk.ProgressBar()
-                progress.set_text(o['accuracy']+'%')
-                progress.set_fraction(float(o['accuracy'])/100.0)
-                table.attach(progress,4,5,y1,y2)
-                y1+=1;y2+=1
+                progress.set_text(o['accuracy'] + '%')
+                progress.set_fraction(float(o['accuracy']) / 100.0)
+                table.attach(progress, 4, 5, y1, y2)
+                y1 += 1
+                y2 += 1
 
             self.osclass_expander.add(hbox)
 
@@ -456,14 +455,14 @@ class HostDetails(HIGVBox):
             for v in tcpseq['values'].split(','):
                 combo.append_text(v)
 
-            table.attach(HIGEntryLabel(_('Difficulty:')),0,1,1,2)
-            table.attach(HIGEntryLabel(tcpseq['difficulty']),1,2,1,2)
+            table.attach(HIGEntryLabel(_('Difficulty:')), 0, 1, 1, 2)
+            table.attach(HIGEntryLabel(tcpseq['difficulty']), 1, 2, 1, 2)
 
-            table.attach(HIGEntryLabel(_('Index:')),0,1,2,3)
-            table.attach(HIGEntryLabel(tcpseq['index']),1,2,2,3)
+            table.attach(HIGEntryLabel(_('Index:')), 0, 1, 2, 3)
+            table.attach(HIGEntryLabel(tcpseq['index']), 1, 2, 2, 3)
 
-            table.attach(HIGEntryLabel(_('Values:')),0,1,3,4)
-            table.attach(combo,1,2,3,4)
+            table.attach(HIGEntryLabel(_('Values:')), 0, 1, 3, 4)
+            table.attach(combo, 1, 2, 3, 4)
 
             self.tcp_expander.add(hbox)
             self._pack_noexpand_nofill(self.tcp_expander)
@@ -478,11 +477,11 @@ class HostDetails(HIGVBox):
             for i in ipseq['values'].split(','):
                 combo.append_text(i)
 
-            table.attach(HIGEntryLabel(_('Class:')),0,1,0,1)
-            table.attach(HIGEntryLabel(ipseq['class']),1,2,0,1)
+            table.attach(HIGEntryLabel(_('Class:')), 0, 1, 0, 1)
+            table.attach(HIGEntryLabel(ipseq['class']), 1, 2, 0, 1)
 
-            table.attach(HIGEntryLabel(_('Values:')),0,1,1,2)
-            table.attach(combo,1,2,1,2)
+            table.attach(HIGEntryLabel(_('Values:')), 0, 1, 1, 2)
+            table.attach(combo, 1, 2, 1, 2)
 
             self.ip_expander.add(hbox)
             self._pack_noexpand_nofill(self.ip_expander)
@@ -497,11 +496,11 @@ class HostDetails(HIGVBox):
             for i in tcptsseq['values'].split(','):
                 combo.append_text(i)
 
-            table.attach(HIGEntryLabel(_('Class:')),0,1,0,1)
-            table.attach(HIGEntryLabel(tcptsseq['class']),1,2,0,1)
+            table.attach(HIGEntryLabel(_('Class:')), 0, 1, 0, 1)
+            table.attach(HIGEntryLabel(tcptsseq['class']), 1, 2, 0, 1)
 
-            table.attach(HIGEntryLabel(_('Values:')),0,1,1,2)
-            table.attach(combo,1,2,1,2)
+            table.attach(HIGEntryLabel(_('Values:')), 0, 1, 1, 2)
+            table.attach(combo, 1, 2, 1, 2)
 
             self.tcpts_expander.add(hbox)
             self._pack_noexpand_nofill(self.tcpts_expander)
@@ -515,8 +514,8 @@ class HostDetails(HIGVBox):
 
         self.comment_scrolled = gtk.ScrolledWindow()
         self.comment_scrolled.set_border_width(5)
-        self.comment_scrolled.set_policy(gtk.POLICY_AUTOMATIC,\
-                                         gtk.POLICY_AUTOMATIC)
+        self.comment_scrolled.set_policy(
+                gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 
         self.comment_txt_vw = gtk.TextView()
         self.comment_txt_vw.set_wrap_mode(gtk.WRAP_WORD)

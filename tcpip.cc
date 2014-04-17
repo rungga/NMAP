@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: tcpip.cc 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: tcpip.cc 32741 2014-02-20 18:44:12Z dmiller $ */
 #ifdef WIN32
 #include "nmap_winconfig.h"
 #endif
@@ -2083,7 +2083,7 @@ void broadcast_socket(int sd) {
    len) into buf .  Give up after 'seconds'.  Returns the number of
    bytes read (or -1 in the case of an error.  It only does one recv
    (it will not keep going until len bytes are read).  If timedout is
-   not NULL, it will be set to zero (no timeout occured) or 1 (it
+   not NULL, it will be set to zero (no timeout occurred) or 1 (it
    did). */
 int recvtime(int sd, char *buf, int len, int seconds, int *timedout) {
 

@@ -22,7 +22,7 @@ AC_ARG_WITH(openssl,[  --with-openssl=DIR    Use optional openssl libs and inclu
   *)
     specialssldir="$with_openssl"
     LDFLAGS="$LDFLAGS -L$with_openssl/lib"
-    CFLAGS="-I$with_openssl/include $CFLAGS"
+    CPPFLAGS="-I$with_openssl/include $CPPFLAGS"
   ;;
   esac]
 )
@@ -241,9 +241,6 @@ AC_HELP_STRING([--without-liblua], [Compile without lua (this will exclude all o
 
 LUA_CFLAGS="-DLUA_USE_POSIX -DLUA_USE_DLOPEN"
 AC_SUBST(LUA_CFLAGS)
-
-# OpenSSL and NSE C modules can require dlopen
-AC_SEARCH_LIBS(dlopen, dl)
 
 # They don't want lua
 if test "$no_lua" = "yes"; then

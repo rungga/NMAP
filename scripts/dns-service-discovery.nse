@@ -3,7 +3,7 @@ local nmap = require "nmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 
-description=[[ 
+description=[[
 Attempts to discover target hosts' services using the DNS Service Discovery protocol.
 
 The script first sends a query for _services._dns-sd._udp.local to get a
@@ -19,7 +19,7 @@ get more information.
 -- @output
 -- PORT     STATE SERVICE  REASON
 -- 5353/udp open  zeroconf udp-response
--- | dns-service-discovery:  
+-- | dns-service-discovery:
 -- |   548/tcp afpovertcp
 -- |     model=MacBook5,1
 -- |     Address=192.168.0.2 fe80:0:0:0:223:6cff:1234:5678
@@ -55,13 +55,13 @@ categories = {"default", "discovery", "safe"}
 portrule = shortport.portnumber(5353, "udp")
 
 action = function(host, port)
-	local helper = dnssd.Helper:new( host, port )
-	local status, result = helper:queryServices()
+  local helper = dnssd.Helper:new( host, port )
+  local status, result = helper:queryServices()
 
-	if ( status ) then
-		-- set port to open
-		nmap.set_port_state(host, port, "open")
-		return stdnse.format_output(true, result)
-	end
+  if ( status ) then
+    -- set port to open
+    nmap.set_port_state(host, port, "open")
+    return stdnse.format_output(true, result)
+  end
 end
 

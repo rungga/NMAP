@@ -54,7 +54,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: filespace.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: filespace.h 32460 2013-10-23 19:04:04Z henri $ */
 
 #ifndef FILESPACE_H
 #define FILESPACE_H
@@ -92,7 +92,7 @@ static inline int fs_length(const struct filespace *fs) {
   return fs->current_size;
 }
 
-static inline char * fs_str(const struct filespace *fs) {
+static inline char *fs_str(const struct filespace *fs) {
   return fs->str;
 }
 

@@ -6,13 +6,14 @@
 -- exception handling via <code>nmap.new_try</code>.
 --
 -- These functions may be passed a table of options, but it's not required. The
--- keys for the options table are <code>"bytes"</code>, <code>"lines"</code>,
--- <code>"proto"</code>, and <code>"timeout"</code>. <code>"bytes"</code> sets
--- a minimum number of bytes to read. <code>"lines"</code> does the same for
--- lines. <code>"proto"</code> sets the protocol to communicate with,
--- defaulting to <code>"tcp"</code> if not provided. <code>"timeout"</code>
--- sets the socket timeout (see the socket function <code>set_timeout</code>
--- for details). 
+-- keys for the options table are:
+-- * <code>bytes</code> - minimum number of bytes to read.
+-- * <code>lines</code> - minimum number of lines to read.
+-- * <code>proto</code> - string, protocol to use. Default <code>"tcp"</code>
+-- * <code>timeout</code> - socket timeout in milliseconds. Default 8000
+-- * <code>connect_timeout</code> - override timeout for connection
+-- * <code>request_timeout</code> - override timeout for requests
+-- * <code>recv_before</code> - boolean, receive data before sending first payload
 --
 -- If both <code>"bytes"</code> and <code>"lines"</code> are provided,
 -- <code>"lines"</code> takes precedence. If neither are given, the functions
@@ -21,6 +22,7 @@
 -- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
 local nmap = require "nmap"
+local shortport = require "shortport"
 local stdnse = require "stdnse"
 _ENV = stdnse.module("comm", stdnse.seeall)
 
@@ -130,30 +132,16 @@ exchange = function(host, port, data, opts)
     return status, ret
 end
 
---- This function just checks if the provided port number is on a list
--- of ports that usually provide services with ssl
+--- This function uses shortport.ssl to check if the port is a likely SSL port
+-- @see shortport.ssl
 --
--- @param port_number The number of the port to check
+-- @param port The port table to check
 -- @return bool True if port is usually ssl, otherwise false
-local function is_ssl(port_number)
-    local common_ssl_ports = {
-      [443] = true,
-      [465] = true,
-      [989] = true,
-      [990] = true,
-      [992] = true,
-      [993] = true,
-      [994] = true,
-      [995] = true,
-      [587] = true,
-      [6697] = true,
-      [6679] = true,
-      [8443] = true,
-    }
-    return not not common_ssl_ports[port_number]
+local function is_ssl(port)
+  return shortport.ssl(nil, port)
 end
 
---- This function returns best protocol order for trying  to open a 
+--- This function returns best protocol order for trying  to open a
 -- connection based on port and service information
 --
 -- The first value is the best option, the second is the worst
@@ -164,15 +152,15 @@ local function bestoption(port)
     if type(port) == 'table' then
         if port.version and port.version.service_tunnel and port.version.service_tunnel == "ssl" then return "ssl","tcp" end
         if port.version and port.version.name_confidence and port.version.name_confidence > 6 then return "tcp","ssl" end
-        if is_ssl(port.number) then return "ssl","tcp" end
-    elseif type(port) == 'number' then
         if is_ssl(port) then return "ssl","tcp" end
+    elseif type(port) == 'number' then
+      if is_ssl({number=port, protocol="tcp", state="open", version={}}) then return "ssl","tcp" end
     end
     return "tcp","ssl"
 end
 
 --- This function opens a connection, sends the first data payload and
---  check if a response is correctly received (what means that the 
+--  check if a response is correctly received (what means that the
 --  protocol used is fine)
 --
 -- Possible options:
@@ -196,7 +184,7 @@ local function opencon(host, port, protocol, data, opts)
 
     -- check for connect_timeout or timeout option
 
-    if opts and opts.connect_timeout then 
+    if opts and opts.connect_timeout then
         sd:set_timeout(opts.connect_timeout)
     elseif opts and opts.timeout then
         sd:set_timeout(opts.timeout)
@@ -205,9 +193,9 @@ local function opencon(host, port, protocol, data, opts)
     end
 
     local status = sd:connect(host, port, protocol)
-    if not status then 
+    if not status then
           sd:close()
-          return nil, nil, nil 
+          return nil, nil, nil
         end
 
     -- check for request_timeout or timeout option
@@ -227,14 +215,14 @@ local function opencon(host, port, protocol, data, opts)
         status, response = sd:receive()
     else
         if not (opts and opts.recv_before) then
-            stdnse.print_debug("Using comm.tryssl without first data payload and recv_first." ..
+            stdnse.print_debug("Using comm.tryssl without either first data payload or opts.recv_before." ..
                          "\nImpossible to test the connection for the correct protocol!")
         end
         response = early_resp
     end
-    if not status then 
+    if not status then
           sd:close()
-          return nil, response, early_resp 
+          return nil, response, early_resp
         end
     return sd, response, early_resp
 end
@@ -268,5 +256,15 @@ function tryssl(host, port, data, opts)
     if not sd then best = "none" end
     return sd, response, best, early_resp
 end
+
+local unittest = require "unittest"
+if not unittest.testing() then
+  return _ENV
+end
+test_suite = unittest.TestSuite:new()
+test_suite:add_test(unittest.table_equal({bestoption(443)}, {"ssl", "tcp"}), "bestoption ssl number")
+test_suite:add_test(unittest.table_equal({bestoption(80)}, {"tcp", "ssl"}), "bestoption tcp number")
+test_suite:add_test(unittest.table_equal({bestoption({number=8443,protocol="tcp",state="open",version={}})}, {"ssl", "tcp"}), "bestoption ssl table")
+test_suite:add_test(unittest.table_equal({bestoption({number=1234,protocol="tcp",state="open",version={}})}, {"tcp", "ssl"}), "bestoption tcp table")
 
 return _ENV;

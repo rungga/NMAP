@@ -14,7 +14,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -70,7 +70,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -88,12 +88,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: Target.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: Target.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #ifndef TARGET_H
 #define TARGET_H
@@ -149,17 +149,17 @@
 #endif
 
 enum osscan_flags {
-	OS_NOTPERF=0, OS_PERF, OS_PERF_UNREL
+        OS_NOTPERF=0, OS_PERF, OS_PERF_UNREL
 };
 
 /* The method used to calculate the Target::distance, included in OS
    fingerprints. */
 enum dist_calc_method {
-	DIST_METHOD_NONE,
-	DIST_METHOD_LOCALHOST,
-	DIST_METHOD_DIRECT,
-	DIST_METHOD_ICMP,
-	DIST_METHOD_TRACEROUTE
+        DIST_METHOD_NONE,
+        DIST_METHOD_LOCALHOST,
+        DIST_METHOD_DIRECT,
+        DIST_METHOD_ICMP,
+        DIST_METHOD_TRACEROUTE
 };
 
 struct host_timeout_nfo {
@@ -226,7 +226,7 @@ class Target {
    or v6).  If the name has not been set, or was set to NULL, an empty
    string ("") is returned to make printing easier. */
   const char *HostName() const { return hostname? hostname : "";  }
-  /* You can set to NULL to erase a name or if it failed to resolve -- or 
+  /* You can set to NULL to erase a name or if it failed to resolve -- or
      just don't call this if it fails to resolve.  The hostname is blown
      away when you setTargetSockAddr(), so make sure you do these in proper
      order
@@ -241,7 +241,7 @@ class Target {
   /* This next version returns a STATIC buffer -- so no concurrency */
   const char *NameIP() const;
 
-  /* Give the name from the last setTargetName() call, which is the 
+  /* Give the name from the last setTargetName() call, which is the
    name of the target given on the command line if it's a named
    host. */
   const char *TargetName() { return targetname; }
@@ -270,7 +270,7 @@ class Target {
   void setMTU(int devmtu);
   int MTU(void);
 
-  /* Sets the interface type to one of: 
+  /* Sets the interface type to one of:
      devt_ethernet, devt_loopback, devt_p2p, devt_other
    */
   void setIfType(devtype iftype) { interface_type = iftype; }
@@ -325,7 +325,7 @@ class Target {
   unsigned int flags; /* HOST_UNKNOWN, HOST_UP, or HOST_DOWN. */
   struct timeout_info to;
   char *hostname; // Null if unable to resolve or unset
-  char * targetname; // The name of the target host given on the commmand line if it is a named host
+  char * targetname; // The name of the target host given on the command line if it is a named host
 
   struct probespec traceroute_probespec;
   std::list <TracerouteHop> traceroute_hops;
@@ -361,7 +361,7 @@ class Target {
   char targetipstring[INET6_ADDRSTRLEN];
   char sourceipstring[INET6_ADDRSTRLEN];
   mutable char *nameIPBuf; /* for the NameIP(void) function to return */
-  u8 MACaddress[6], SrcMACaddress[6], NextHopMACaddress[6];  
+  u8 MACaddress[6], SrcMACaddress[6], NextHopMACaddress[6];
   bool MACaddress_set, SrcMACaddress_set, NextHopMACaddress_set;
   struct host_timeout_nfo htn;
   devtype interface_type;
@@ -369,9 +369,9 @@ class Target {
   char devfullname[32];
   int mtu;
   /* 0 (OS_NOTPERF) if os detection not performed
-   * 1 (OS_PERF) if os detection performed 
+   * 1 (OS_PERF) if os detection performed
    * 2 (OS_PERF_UNREL) if an unreliable os detection has been performed */
-  int osscan_flag; 
+  int osscan_flag;
 };
 
 #endif /* TARGET_H */

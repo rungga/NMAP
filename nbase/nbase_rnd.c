@@ -19,7 +19,7 @@
  * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
  * modify, and redistribute this software under certain conditions.  If    *
  * you wish to embed Nmap technology into proprietary software, we sell    *
- * alternative licenses (contact sales@insecure.com).  Dozens of software  *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
  * vendors already license Nmap technology such as host discovery, port    *
  * scanning, OS detection, version detection, and the Nmap Scripting       *
  * Engine.                                                                 *
@@ -75,7 +75,7 @@
  * obeying all GPL rules and restrictions.  For example, source code of    *
  * the whole work must be provided and free redistribution must be         *
  * allowed.  All GPL references to "this License", are to be treated as    *
- * including the special and conditions of the license text as well.       *
+ * including the terms and conditions of this license text as well.        *
  *                                                                         *
  * Because this license imposes special exceptions to the GPL, Covered     *
  * Work may not be combined (even as part of a larger work) with plain GPL *
@@ -93,12 +93,12 @@
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
  * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -128,7 +128,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_rnd.c 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nbase_rnd.c 32300 2013-09-11 19:06:20Z d33tah $ */
 
 #include "nbase.h"
 #include <errno.h>
@@ -145,17 +145,17 @@
 
 /* data for our random state */
 struct nrand_handle {
-  u8	 i, j, s[256], *tmp;
-  int	 tmplen;
+  u8    i, j, s[256], *tmp;
+  int   tmplen;
 };
 typedef struct nrand_handle nrand_h;
 
 static void nrand_addrandom(nrand_h *rand, u8 *buf, int len) {
   int i;
   u8 si;
-	
+
   /* Mix entropy in buf with s[]...
-   * 
+   *
    * This is the ARC4 key-schedule.  It is rather poor and doesn't mix
    * the key in very well.  This causes a bias at the start of the stream.
    * To eliminate most of this bias, the first N bytes of the stream should
@@ -174,7 +174,7 @@ static void nrand_addrandom(nrand_h *rand, u8 *buf, int len) {
 
 static u8 nrand_getbyte(nrand_h *r) {
   u8 si, sj;
-  
+
   /* This is the core of ARC4 and provides the pseudo-randomness */
   r->i = (r->i + 1);
   si = r->s[r->i];
@@ -245,7 +245,7 @@ void nrand_init(nrand_h *r) {
 int get_random_bytes(void *buf, int numbytes) {
   static nrand_h state;
   static int state_init = 0;
-  
+
   /* Initialize if we need to */
   if (!state_init) {
     nrand_init(&state);
@@ -303,7 +303,7 @@ unsigned short get_random_ushort() {
 
 
 /* This function is magic ;-)
- * 
+ *
  * Sometimes Nmap wants to generate IPs that look random
  * but don't have any duplicates.  The strong RC4 generator
  * can't be used for this purpose because it can generate duplicates
@@ -321,7 +321,7 @@ u32 get_random_unique_u32() {
   static u32 state, tweak1, tweak2, tweak3;
   static int state_init = 0;
   u32 output;
-  
+
   /* Initialize if we need to */
   if (!state_init) {
     get_random_bytes(&state, sizeof(state));
@@ -389,7 +389,7 @@ u32 get_random_unique_u32() {
    * duplicates.
    */
   state = (((state * 1664525) & 0xFFFFFFFF) + 1013904223) & 0xFFFFFFFF;
- 
+
   output = state;
 
   /* With a normal LCG, we would just output the state.

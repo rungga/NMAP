@@ -15,6 +15,9 @@ the version used is NFSv3.
 ]]
 
 ---
+-- @usage
+-- nmap -p 111 --script=nfs-statfs <target>
+-- nmap -sV --script=nfs-statfs <target>
 -- @output
 -- PORT    STATE SERVICE
 -- | nfs-statfs:
@@ -67,7 +70,7 @@ hostrule = function(host)
   end
   if nfsport == nil then return false end
   if host.registry.nfs.nfsver == nil then
-    local low, high = string.match(nfsport.version.version, "(%d)-(%d)")
+    local low, high = string.match(nfsport.version.version, "(%d)%-(%d)")
     if high == nil then
       high = tonumber(nfsport.version.version)
       if high == 4 then
@@ -85,7 +88,7 @@ hostrule = function(host)
   end
   if mountport == nil then return false end
   if host.registry.nfs.mountver == nil then
-    local low, high = string.match(mountport.version.version, "(%d)-(%d)")
+    local low, high = string.match(mountport.version.version, "(%d)%-(%d)")
     if high == nil then
       host.registry.nfs.mountver = tonumber(mountport.version.version)
     else
@@ -179,7 +182,7 @@ local function nfs_filesystem_info(nfs, mount, filesystem)
   if nfs_comm == nil then
     rpc.Helper.UnmountPath(mnt_comm, mount)
     return false, status
-  end 
+  end
 
   nfs.version = nfs_comm.version
 
@@ -195,8 +198,8 @@ local function nfs_filesystem_info(nfs, mount, filesystem)
   elseif nfs_comm.version == 3 then
     status, res = nfsobj:FsStat(nfs_comm, fhandle)
   end
-  
-  if status then 
+
+  if status then
     status, res = table_fsstat(nfs, mount, res)
     if status then
       for k, v in pairs(res) do
@@ -259,7 +262,7 @@ mainaction = function(host)
                   string.format("%s: %s", v.name, err))
     end
   end
- 
+
   return stdnse.format_output(true, report(nfs_info, fs_info))
 end
 

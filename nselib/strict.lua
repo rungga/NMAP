@@ -12,7 +12,7 @@
 --
 -- @class module
 -- @name strict
--- @copyright Copyright© Same as Nmap--See http://nmap.org/book/man-legal.html
+-- @copyright Same as Nmap--See http://nmap.org/book/man-legal.html
 
 local debug = require "debug"
 
@@ -51,9 +51,9 @@ end
 local function strict (env)
   local mt = getmetatable(env) or setmetatable(env, {}) and getmetatable(env);
   local _newindex, _index = mt.__newindex, mt.__index;
-  
+
   mt.__declared = {};
-  
+
   function mt.__newindex (t, n, v)
     if type(_newindex) == "function" then
       _newindex(t, n, v); -- hook it
@@ -67,7 +67,7 @@ local function strict (env)
     end
     rawset(t, n, v);
   end
-  
+
   function mt.__index (t, n)
     if type(_index) == "function" then
       local v = _index(t, n); -- hook it

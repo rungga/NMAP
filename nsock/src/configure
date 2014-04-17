@@ -626,6 +626,7 @@ NBASEDIR
 LIBNBASE_LIBS
 OPENSSL_LIBS
 RANLIB
+LIBPCAP_LIBS
 EGREP
 GREP
 CPP
@@ -686,7 +687,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_localdirs
-with_pcap
+with_libpcap
 with_openssl
 with_libnbase
 '
@@ -1310,7 +1311,9 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-localdirs        Explicitly ask compiler to use /usr/local/{include,libs} if they exist
-  --disable-pcap          Disable pcap functions.
+  --with-libpcap=DIR      Look for pcap headers in DIR/include.
+  --with-libpcap=included Always use version included with Nmap
+  --without-libpcap       Disable pcap functions.
   --with-openssl=DIR      Use optional openssl libs and includes from
                           [DIR]/lib/ and [DIR]/include/openssl/)
   --with-libnbase=DIR     Look for nbase include/libs in DIR
@@ -2105,6 +2108,14 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
+if test "${top_nmap_srcdir+set}" != set; then
+  top_nmap_srcdir=../..
+  export top_nmap_srcdir
+fi
+
+ac_config_files="$ac_config_files Makefile ../tests/Makefile"
+
+
 ac_config_headers="$ac_config_headers ../include/nsock_config.h"
 
 
@@ -2322,18 +2333,10 @@ if test "$user_localdirs" = 1; then
    fi
 fi
 
-pcap_enabled=yes
+have_libpcap=no
 
-# Check whether --with-pcap was given.
-if test "${with_pcap+set}" = set; then :
-  withval=$with_pcap;  pcap_enabled="$withval"
-fi
-
-
-if test "$pcap_enabled" != "no"; then
-  $as_echo "#define HAVE_PCAP 1" >>confdefs.h
-
-fi
+# By default, search for pcap library
+test "${with_libpcap+set}" != "set" && with_libpcap=yes
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -3520,6 +3523,106 @@ _ACEOF
 fi
 
 done
+
+
+
+# Check whether --with-libpcap was given.
+if test "${with_libpcap+set}" = set; then :
+  withval=$with_libpcap;   case "$with_libpcap" in
+  yes)
+    ac_fn_c_check_header_mongrel "$LINENO" "pcap.h" "ac_cv_header_pcap_h" "$ac_includes_default"
+if test "x$ac_cv_header_pcap_h" = xyes; then :
+
+      have_libpcap=yes
+      LIBPCAP_LIBS=-lpcap
+fi
+
+
+    ;;
+  included)
+    have_libpcap=no
+   ;;
+  no)
+    ;;
+  *)
+    _cppflags=$CPPFLAGS
+    _ldflags=$LDFLAGS
+
+    CPPFLAGS="-I$with_libpcap/include $CPPFLAGS"
+    LDFLAGS="-L$with_libpcap/lib $LDFLAGS"
+
+    ac_fn_c_check_header_mongrel "$LINENO" "pcap.h" "ac_cv_header_pcap_h" "$ac_includes_default"
+if test "x$ac_cv_header_pcap_h" = xyes; then :
+
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_datalink in -lpcap" >&5
+$as_echo_n "checking for pcap_datalink in -lpcap... " >&6; }
+if ${ac_cv_lib_pcap_pcap_datalink+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpcap  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pcap_datalink ();
+int
+main ()
+{
+return pcap_datalink ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_pcap_pcap_datalink=yes
+else
+  ac_cv_lib_pcap_pcap_datalink=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcap_pcap_datalink" >&5
+$as_echo "$ac_cv_lib_pcap_pcap_datalink" >&6; }
+if test "x$ac_cv_lib_pcap_pcap_datalink" = xyes; then :
+  have_libpcap=yes
+        LIBPCAP_LIBS=-lpcap
+        LIBPCAP_INC=$with_libpcap/include
+        LIBPCAP_LIB=$with_libpcap/lib
+fi
+
+fi
+
+
+
+    LDFLAGS=$_ldflags
+    CPPFLAGS=$_cppflags
+    ;;
+  esac
+
+fi
+
+
+if test "$with_libpcap" != "no" -a "$have_libpcap" = "no"; then
+  LIBPCAP_INC=${top_nmap_srcdir}/libpcap
+  LIBPCAP_LIB=${top_nmap_srcdir}/libpcap
+  LIBPCAP_LIBS=${LIBPCAP_LIB}/libpcap.a
+  have_libpcap=yes
+fi
+if test "$have_libpcap" != "no"; then
+  $as_echo "#define HAVE_PCAP 1" >>confdefs.h
+
+  if test "${LIBPCAP_INC+set}" = "set"; then
+    CPPFLAGS="-I$LIBPCAP_INC $CPPFLAGS"
+    LDFLAGS="-L$LIBPCAP_LIB $LDFLAGS"
+  fi
+fi
 
 
   ax_have_epoll_cppflags="${CPPFLAGS}"
@@ -4789,7 +4892,7 @@ if test "${with_libnbase+set}" = set; then :
     ;;
   esac
 else
-  NBASEDIR="../../nbase"
+  NBASEDIR="${top_nmap_srcdir}/nbase"
 
 fi
 
@@ -4805,8 +4908,6 @@ LIBNBASE_LIBS="$LIBS -lnbase"
 
 
 
-
-ac_config_files="$ac_config_files Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -5497,8 +5598,9 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
-    "../include/nsock_config.h") CONFIG_HEADERS="$CONFIG_HEADERS ../include/nsock_config.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+    "../tests/Makefile") CONFIG_FILES="$CONFIG_FILES ../tests/Makefile" ;;
+    "../include/nsock_config.h") CONFIG_HEADERS="$CONFIG_HEADERS ../include/nsock_config.h" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac

@@ -56,7 +56,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_ssl.h 31563 2013-07-28 22:08:48Z fyodor $ */
+/* $Id: nsock_ssl.h 32741 2014-02-20 18:44:12Z dmiller $ */
 
 #ifndef NSOCK_SSL_H
 #define NSOCK_SSL_H
@@ -72,9 +72,9 @@
 #include <openssl/rand.h>
 
 struct sslinfo {
-  /* SSL_ERROR_NONE, SSL_ERROR_WANT_CONNECT, SSL_ERROR_WAINT_READ, or
+  /* SSL_ERROR_NONE, SSL_ERROR_WANT_CONNECT, SSL_ERROR_WANT_READ, or
    * SSL_ERROR_WANT_WRITE */
-  int ssl_desire; 
+  int ssl_desire;
 };
 
 int nsi_ssl_post_connect_verify(const nsock_iod nsockiod);
