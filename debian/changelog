@@ -1,3 +1,9 @@
+nmap (6.45-0kali1) kali; urgency=low
+
+  * Upstream update
+
+ -- Mati Aharoni <muts@kali.org>  Thu, 17 Apr 2014 03:15:07 -0400
+
 nmap (6.40-1kali3) kali; urgency=low
 
   * Bump version, rebuild against newer openssl libs
