@@ -9,8 +9,8 @@ NBASELIB=$(NBASEDIR)/libnbase.a
 
 CC 	= gcc
 CFLAGS	= -Wall -O0 -I../include -I$(NBASEDIR)
-LDFLAGS	= -L/home/muts/nmap/libpcap  -L/home/muts/nmap/nbase
-LIBS	= -lssl -lcrypto /home/muts/nmap/libpcap/libpcap.a
+LDFLAGS	=  -L/home/muts/nmap/nbase
+LIBS	= -lssl -lcrypto -lpcap
 
 SRC = tests_main.c \
       basic.c \
