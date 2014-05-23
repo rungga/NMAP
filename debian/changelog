@@ -1,3 +1,9 @@
+nmap (6.46-1kali1) kali; urgency=low
+
+  * Upstream import
+
+ -- Mati Aharoni <muts@kali.org>  Fri, 23 May 2014 05:33:14 -0400
+
 nmap (6.45-0kali1) kali; urgency=low
 
   * Upstream update
