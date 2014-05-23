@@ -80,59 +80,9 @@ local function testversion(host, port, version)
 
   local hello = tls.client_hello({
       ["protocol"] = version,
-      ["ciphers"] = {
-        "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
-        "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
-        "TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA",
-        "TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA",
-        "TLS_DHE_RSA_WITH_AES_256_CBC_SHA",
-        "TLS_DHE_DSS_WITH_AES_256_CBC_SHA",
-        "TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA",
-        "TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA",
-        "TLS_ECDH_RSA_WITH_AES_256_CBC_SHA",
-        "TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA",
-        "TLS_RSA_WITH_AES_256_CBC_SHA",
-        "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA",
-        "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",
-        "TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA",
-        "TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA",
-        "TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA",
-        "TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA",
-        "TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA",
-        "TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA",
-        "TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA",
-        "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
-        "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
-        "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
-        "TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA",
-        "TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA",
-        "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",
-        "TLS_DHE_DSS_WITH_AES_128_CBC_SHA",
-        "TLS_DHE_RSA_WITH_SEED_CBC_SHA",
-        "TLS_DHE_DSS_WITH_SEED_CBC_SHA",
-        "TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA",
-        "TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA",
-        "TLS_ECDH_RSA_WITH_AES_128_CBC_SHA",
-        "TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA",
-        "TLS_RSA_WITH_AES_128_CBC_SHA",
-        "TLS_RSA_WITH_SEED_CBC_SHA",
-        "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA",
-        "TLS_ECDHE_RSA_WITH_RC4_128_SHA",
-        "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA",
-        "TLS_ECDH_RSA_WITH_RC4_128_SHA",
-        "TLS_ECDH_ECDSA_WITH_RC4_128_SHA",
-        "TLS_RSA_WITH_RC4_128_SHA",
-        "TLS_RSA_WITH_RC4_128_MD5",
-        "TLS_DHE_RSA_WITH_DES_CBC_SHA",
-        "TLS_DHE_DSS_WITH_DES_CBC_SHA",
-        "TLS_RSA_WITH_DES_CBC_SHA",
-        "TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA",
-        "TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA",
-        "TLS_RSA_EXPORT_WITH_DES40_CBC_SHA",
-        "TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5",
-        "TLS_RSA_EXPORT_WITH_RC4_40_MD5",
-        "TLS_EMPTY_RENEGOTIATION_INFO_SCSV",
-      },
+      -- Claim to support every cipher
+      -- Doesn't work with IIS, but IIS isn't vulnerable
+      ["ciphers"] = keys(tls.CIPHERS),
       ["compressors"] = {"NULL"},
       ["extensions"] = {
         -- Claim to support every elliptic curve
@@ -146,7 +96,7 @@ local function testversion(host, port, version)
   local payload = "Nmap ssl-heartbleed"
   local hb = tls.record_write("heartbeat", version, bin.pack("C>SA",
       1, -- HeartbeatMessageType heartbeat_request
-      0x0fe9, -- payload length (falsified)
+      0x4000, -- payload length (falsified)
       -- payload length is based on 4096 - 16 bytes padding - 8 bytes packet
       -- header + 1 to overflow
       payload -- less than payload length.
@@ -245,7 +195,7 @@ local function testversion(host, port, version)
     end
     if typ == 24 then
       local pay
-      status, pay = recvmsg(s, len)
+      status, pay = recvmsg(s, 0x0fe9)
       s:close()
       if #pay > 3 then
         return true

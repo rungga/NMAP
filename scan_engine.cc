@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: scan_engine.cc 32741 2014-02-20 18:44:12Z dmiller $ */
+/* $Id: scan_engine.cc 32838 2014-04-17 21:58:39Z dmiller $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
@@ -3129,7 +3129,7 @@ static void init_socket(int sd) {
   }
   if (o.spoofsource && !bind_failed) {
     o.SourceSockAddr(&ss, &sslen);
-    if (bind(sd, (struct sockaddr*)&ss, sslen) != 0) {
+    if (::bind(sd, (struct sockaddr*)&ss, sslen) != 0) {
       error("%s: Problem binding source address (%s), errno: %d", __func__, inet_socktop(&ss), socket_errno());
       perror("bind");
       bind_failed = 1;
