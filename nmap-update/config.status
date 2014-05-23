@@ -445,7 +445,7 @@ Copyright (C) 2010 Free Software Foundation, Inc.
 This config.status script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it."
 
-ac_pwd='/tmp/nmap/nmap-update'
+ac_pwd='/home/muts/nmap/nmap-update'
 srcdir='.'
 INSTALL='/usr/bin/install -c'
 test -n "$AWK" || AWK=awk
@@ -625,7 +625,7 @@ S["INSTALL_PROGRAM"]="${INSTALL}"
 S["OBJEXT"]="o"
 S["EXEEXT"]=""
 S["ac_ct_CC"]="gcc"
-S["CPPFLAGS"]="  -DLINUX=2 -D_REENTRANT -D_GNU_SOURCE -I/usr/include/apr-1.0 "
+S["CPPFLAGS"]="  -D_REENTRANT -D_GNU_SOURCE -I/usr/include/apr-1.0 "
 S["LDFLAGS"]=""
 S["CFLAGS"]="-O2 -Wall -D_GNU_SOURCE -Wall -Wno-deprecated-declarations"
 S["CC"]="gcc"
