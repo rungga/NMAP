@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -340,7 +340,7 @@
 /* General tunable defines  **************************************************/
 #define NPING_NAME "Nping"
 #define NPING_URL "http://nmap.org/nping"
-#define NPING_VERSION "0.6.46"
+#define NPING_VERSION "0.6.47"
 
 
 #define DEFAULT_VERBOSITY VB_0

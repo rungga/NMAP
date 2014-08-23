@@ -9,7 +9,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -126,7 +126,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: idle_scan.cc 32741 2014-02-20 18:44:12Z dmiller $ */
+/* $Id: idle_scan.cc 33540 2014-08-16 02:45:47Z dmiller $ */
 
 /* IPv6 fragment ID sequence algorithms. http://seclists.org/nmap-dev/2013/q3/369.
         Android 4.1 (Linux 3.0.15) | Per host, incremental (1)

@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -126,6 +126,11 @@ from zenmapGUI.higwidgets.higboxes import HIGVBox
 
 from zenmapCore.Name import APP_DISPLAY_NAME, NMAP_DISPLAY_NAME, NMAP_WEB_SITE
 import zenmapCore.I18N
+
+
+# Prevent loading PyXML
+import xml
+xml.__path__ = [x for x in xml.__path__ if "_xmlplus" not in x]
 
 # For escaping text in marked-up labels.
 from xml.sax.saxutils import escape

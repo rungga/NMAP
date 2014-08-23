@@ -9,7 +9,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -126,7 +126,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.cc 32741 2014-02-20 18:44:12Z dmiller $ */
+/* $Id: output.cc 33540 2014-08-16 02:45:47Z dmiller $ */
 
 #include "nmap.h"
 #include "output.h"
@@ -364,6 +364,7 @@ int print_iflist(void) {
   struct sys_route *routes;
   NmapOutputTable *Tbl = NULL;
   char errstr[256];
+  const char *address = NULL;
   errstr[0]='\0';
 
   iflist = getinterfaces(&numifs, errstr, sizeof(errstr));
@@ -388,8 +389,9 @@ int print_iflist(void) {
       Tbl->addItem(i + 1, devcol, false, iflist[i].devfullname);
       Tbl->addItemFormatted(i + 1, shortdevcol, false, "(%s)",
                             iflist[i].devname);
+      address = inet_ntop_ez(&(iflist[i].addr), sizeof(iflist[i].addr));
       Tbl->addItemFormatted(i + 1, ipcol, false, "%s/%d",
-                            inet_ntop_ez(&(iflist[i].addr), sizeof(iflist[i].addr)),
+                            address == NULL ? "(none)" : address,
                             iflist[i].netmask_bits);
       if (iflist[i].device_type == devt_ethernet) {
         Tbl->addItem(i + 1, typecol, false, "ethernet");

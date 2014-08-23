@@ -2,7 +2,7 @@
  * ncat_core.c -- Contains option definitions and miscellaneous functions. *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -119,7 +119,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 32742 2014-02-20 21:22:22Z dmiller $ */
+/* $Id: ncat_core.c 33540 2014-08-16 02:45:47Z dmiller $ */
 
 #include "ncat.h"
 #include "util.h"
