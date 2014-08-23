@@ -2,7 +2,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -118,6 +118,11 @@
 # * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
 # *                                                                         *
 # ***************************************************************************/
+
+
+# Prevent loading PyXML
+import xml
+xml.__path__ = [x for x in xml.__path__ if "_xmlplus" not in x]
 
 import xml.sax
 import xml.sax.saxutils

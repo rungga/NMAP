@@ -58,16 +58,30 @@ cp -R $LIBPREFIX/lib/gtk-2.0/$gtk_version/* $BASE/Resources/lib/gtk-2.0/$gtk_ver
 mkdir -p $BASE/Resources/etc/gtk-2.0
 cp $SCRIPT_DIR/gtkrc $BASE/Resources/etc/gtk-2.0/
 
+echo "Updating paths in GTK+ .so files"
+ESCAPED_LIBPREFIX=$(echo $LIBPREFIX | sed 's/\([\/\\.]\)/\\\1/g')
+find $BASE/Resources/lib/gtk-2.0/$gtk_version/ -type f -name '*.so' | while read so; do
+  otool -L "$so" | awk "/$ESCAPED_LIBPREFIX/{print \$1}" | while read dep; do
+    install_name_tool -change $dep $(echo $dep | sed "s/$ESCAPED_LIBPREFIX\/lib/@executable_path\/..\/Frameworks/") "$so"
+  done
+done
+
 pango_version=`$PKG_CONFIG --variable=pango_module_version pango`
 echo "Copying Pango $pango_version files."
 mkdir -p $BASE/Resources/etc/pango
 cat > $BASE/Resources/etc/pango/pangorc.in <<EOF
 # This template is filled in at run time by the application.
 
-[PangoX]
-AliasFiles = \${RESOURCES}/etc/pango/pangox.aliases
+#
+# pangorc file for uninstalled operation.
+# We set the path as ../modules, such that it works from any of
+# top level build subdirs.
+#
+
+[Pango]
+ModuleFiles = \${RESOURCES}/etc/pango/pango.modules
 EOF
-cp $LIBPREFIX/etc/pango/pangox.aliases $BASE/Resources/etc/pango/
+cp $LIBPREFIX/etc/pango/pango.modules $BASE/Resources/etc/pango/
 
 echo "Copying Fontconfig files."
 cp -R $LIBPREFIX/etc/fonts $BASE/Resources/etc/
@@ -75,7 +89,7 @@ cp -R $LIBPREFIX/etc/fonts $BASE/Resources/etc/
 sed -i "" 's/ *<dir>'$(echo "$LIBPREFIX" | sed -e 's/\([^a-zA-Z0-9]\)/\\\1/g')'\/share\/fonts<\/dir>//g' $BASE/Resources/etc/fonts/fonts.conf
 sed -i "" '/<cachedir>'$(echo "$LIBPREFIX" | sed -e 's/\([^a-zA-Z0-9]\)/\\\1/g')'\/var\/cache\/fontconfig<\/cachedir>/d' $BASE/Resources/etc/fonts/fonts.conf
 # Disable hinting to better match the Mac GUI.
-ln -sf ../conf.avail/10-unhinted.conf $BASE/Resources/etc/fonts/conf.d
+cp $LIBPREFIX/share/fontconfig/conf.avail/10-unhinted.conf $BASE/Resources/etc/fonts/conf.d
 
 echo "Renaming main Zenmap executable."
 mv $BASE/MacOS/$APP_NAME $BASE/MacOS/zenmap.bin

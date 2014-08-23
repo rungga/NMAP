@@ -2,7 +2,7 @@
  * ncat.h                                                                  *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -119,7 +119,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat.h 32840 2014-04-18 04:36:33Z fyodor $ */
+/* $Id: ncat.h 33540 2014-08-16 02:45:47Z dmiller $ */
 
 #ifndef NCAT_H_
 #define NCAT_H_
@@ -146,7 +146,7 @@
 /* Ncat information for output, etc. */
 #define NCAT_NAME "Ncat"
 #define NCAT_URL "http://nmap.org/ncat"
-#define NCAT_VERSION "6.46"
+#define NCAT_VERSION "6.47"
 
 #ifndef __GNUC__
 #ifndef __attribute__

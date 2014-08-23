@@ -2,7 +2,7 @@
  * xml.cc -- Simple library to emit XML.                                   *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -309,8 +309,10 @@ int xml_write_escaped_v(const char *fmt, va_list va) {
   return 0;
 }
 
-/* Write the XML declaration: <?xml version="1.0"?>. */
-int xml_start_document() {
+/* Write the XML declaration: <?xml version="1.0"?>
+ * and the DOCTYPE declaration: <!DOCTYPE rootnode>
+ */
+int xml_start_document(const char *rootnode) {
   if (xml_open_pi("xml") < 0)
     return -1;
   if (xml_attribute("version", "1.0") < 0)
@@ -319,6 +321,8 @@ int xml_start_document() {
     return -1;
   if (xml_newline() < 0)
     return -1;
+
+  log_write(LOG_XML, "<!DOCTYPE %s>\n", rootnode);
 
   return 0;
 }

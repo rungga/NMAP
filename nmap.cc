@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 32748 2014-02-21 21:10:51Z dmiller $ */
+/* $Id: nmap.cc 33595 2014-08-21 22:04:19Z dmiller $ */
 
 #include "nmap.h"
 #include "osscan.h"
@@ -1668,8 +1668,7 @@ int nmap_main(int argc, char *argv[]) {
   Strncpy(mytime, ctime(&timep), sizeof(mytime));
   chomp(mytime);
   char *xslfname = o.XSLStyleSheet();
-  xml_start_document();
-  log_write(LOG_XML, "<!DOCTYPE nmaprun PUBLIC \"-//IDN nmap.org//DTD Nmap XML %s//EN\" \"https://svn.nmap.org/nmap/docs/nmap.dtd\">\n", NMAP_XMLOUTPUTVERSION);
+  xml_start_document("nmaprun");
   if (xslfname) {
     xml_open_pi("xml-stylesheet");
     xml_attribute("href", "%s", xslfname);

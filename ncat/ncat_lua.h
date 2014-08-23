@@ -2,7 +2,7 @@
  * ncat_lua.h -- ncat lua facilities header file                           *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -119,7 +119,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_lua.h 32307 2013-09-12 08:20:13Z david $ */
+/* $Id: ncat_lua.h 33540 2014-08-16 02:45:47Z dmiller $ */
 
 #ifndef _NCAT_LUA_H
 #define _NCAT_LUA_H

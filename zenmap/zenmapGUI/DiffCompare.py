@@ -3,7 +3,7 @@
 
 # ***********************IMPORTANT NMAP LICENSE TERMS************************
 # *                                                                         *
-# * The Nmap Security Scanner is (C) 1996-2013 Insecure.Com LLC. Nmap is    *
+# * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
 # * also a registered trademark of Insecure.Com LLC.  This program is free  *
 # * software; you may redistribute and/or modify it under the terms of the  *
 # * GNU General Public License as published by the Free Software            *
@@ -126,6 +126,11 @@ import pango
 import os
 import os.path
 import sys
+
+# Prevent loading PyXML
+import xml
+xml.__path__ = [x for x in xml.__path__ if "_xmlplus" not in x]
+
 import xml.sax
 
 from zenmapGUI.higwidgets.higdialogs import HIGAlertDialog, HIGDialog
@@ -298,7 +303,7 @@ class ScanChooser(HIGVBox):
     def get_nmap_output(self):
         """Return the currently selected scan's output as a string, or None if
         no valid scan is selected."""
-        return self.parsed_scan
+        return self.parsed_scan.get_nmap_output()
 
     nmap_output = property(get_nmap_output)
     parsed_scan = property(get_parsed_scan)
