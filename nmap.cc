@@ -5,62 +5,94 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embeed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
- * applications and appliances.  These contracts have been sold to dozens  *
- * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
  *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
+ * linked combinations including the two.                                  *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the terms and conditions of this license text as well.        *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
+ * applications and appliances.  These contracts have been sold to dozens  *
+ * of software vendors, and generally include a perpetual license as well  *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
+ *                                                                         *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -69,8 +101,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -84,14 +116,13 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 30306 2012-11-29 03:19:52Z david $ */
+/* $Id: nmap.cc 33595 2014-08-21 22:04:19Z dmiller $ */
 
 #include "nmap.h"
 #include "osscan.h"
@@ -104,6 +135,7 @@
 #include "traceroute.h"
 #include "nmap_tty.h"
 #include "nmap_dns.h"
+#include "nmap_ftp.h"
 #include "services.h"
 #include "protocols.h"
 #include "targets.h"
@@ -189,39 +221,6 @@ static int parse_scanflags(char *arg) {
   return flagval;
 }
 
-/* parse a URL stype ftp string of the form user:pass@server:portno */
-static int parse_bounce_argument(struct ftpinfo *ftp, char *url) {
-  char *p = url, *q, *s;
-
-  if ((q = strrchr(url, '@'))) { /* we have user and/or pass */
-    *q++ = '\0';
-
-    if ((s = strchr(p, ':'))) { /* we have user AND pass */
-      *s++ = '\0';
-      strncpy(ftp->pass, s, 255);
-    } else { /* we ONLY have user */
-      log_write(LOG_STDOUT, "Assuming %s is a username, and using the default password: %s\n",
-                p, ftp->pass);
-    }
-
-    strncpy(ftp->user, p, 63);
-  } else {
-    q = url;
-  }
-
-  /* q points to beginning of server name */
-  if ((s = strchr(q, ':'))) { /* we have portno */
-    *s++ = '\0';
-    ftp->port = atoi(s);
-  }
-
-  strncpy(ftp->server_name, q, MAXHOSTNAMELEN);
-
-  ftp->user[63] = ftp->pass[255] = ftp->server_name[MAXHOSTNAMELEN] = 0;
-
-  return 1;
-}
-
 static void printusage(int rc) {
 
   printf("%s %s ( %s )\n"
@@ -276,7 +275,7 @@ static void printusage(int rc) {
          "  --script-trace: Show all data sent and received\n"
          "  --script-updatedb: Update the script database.\n"
          "  --script-help=<Lua scripts>: Show help about scripts.\n"
-         "           <Lua scripts> is a comma separted list of script-files or\n"
+         "           <Lua scripts> is a comma-separated list of script-files or\n"
          "           script-categories.\n"
 #endif
          "OS DETECTION:\n"
@@ -302,6 +301,7 @@ static void printusage(int rc) {
          "  -S <IP_Address>: Spoof source address\n"
          "  -e <iface>: Use specified interface\n"
          "  -g/--source-port <portnum>: Use given port number\n"
+         "  --proxies <url1,[url2],...>: Relay connections through HTTP/SOCKS4 proxies\n"
          "  --data-length <num>: Append random data to sent packets\n"
          "  --ip-options <options>: Send packets with specified ip options\n"
          "  --ttl <val>: Set IP time-to-live field\n"
@@ -460,13 +460,7 @@ void validate_scan_lists(scan_lists &ports, NmapOps &o) {
 #endif
 }
 
-#if (defined(IN_ADDR_DEEPSTRUCT) || defined( SOLARIS))
-/* Note that struct in_addr in solaris is 3 levels deep just to store an
- * unsigned int! */
-struct ftpinfo ftp = { FTPUSER, FTPPASS, "",  { { { 0 } } } , 21, 0};
-#else
-struct ftpinfo ftp = { FTPUSER, FTPPASS, "", { 0 }, 21, 0};
-#endif
+struct ftpinfo ftp = get_default_ftpinfo();
 
 /* A list of targets to be displayed by the --route-dst debugging option. */
 static std::vector<std::string> route_dst_hosts;
@@ -577,10 +571,12 @@ void parse_options(int argc, char **argv) {
     {"randomize-hosts", no_argument, 0, 0},
     {"nsock_engine", required_argument, 0, 0},
     {"nsock-engine", required_argument, 0, 0},
+    {"proxies", required_argument, 0, 0},
+    {"proxy", required_argument, 0, 0},
     {"osscan_limit", no_argument, 0, 0}, /* skip OSScan if no open ports */
     {"osscan-limit", no_argument, 0, 0}, /* skip OSScan if no open ports */
-    {"osscan_guess", no_argument, 0, 0}, /* More guessing flexability */
-    {"osscan-guess", no_argument, 0, 0}, /* More guessing flexability */
+    {"osscan_guess", no_argument, 0, 0}, /* More guessing flexibility */
+    {"osscan-guess", no_argument, 0, 0}, /* More guessing flexibility */
     {"fuzzy", no_argument, 0, 0}, /* Alias for osscan_guess */
     {"packet_trace", no_argument, 0, 0}, /* Display all packets sent/rcv */
     {"packet-trace", no_argument, 0, 0}, /* Display all packets sent/rcv */
@@ -804,6 +800,9 @@ void parse_options(int argc, char **argv) {
         } else if (optcmp(long_options[option_index].name, "nsock-engine") == 0) {
           if (nsock_set_default_engine(optarg) < 0)
             fatal("Unknown or non-available engine: %s", optarg);
+        } else if ((optcmp(long_options[option_index].name, "proxies") == 0) || (optcmp(long_options[option_index].name, "proxy") == 0)) {
+          if (nsock_proxychain_new(optarg, &o.proxy_chain, NULL) < 0)
+            fatal("Invalid proxy chain specification");
         } else if (optcmp(long_options[option_index].name, "osscan-limit")  == 0) {
           o.osscan_limit = 1;
         } else if (optcmp(long_options[option_index].name, "osscan-guess")  == 0
@@ -844,7 +843,7 @@ void parse_options(int argc, char **argv) {
         } else if (optcmp(long_options[option_index].name, "deprecated-xml-osclass") == 0) {
           o.deprecated_xml_osclass = true;
         } else if (strcmp(long_options[option_index].name, "webxml") == 0) {
-          o.setXSLStyleSheet("http://nmap.org/svn/docs/nmap.xsl");
+          o.setXSLStyleSheet("https://svn.nmap.org/nmap/docs/nmap.xsl");
         } else if (strcmp(long_options[option_index].name, "oN") == 0) {
           delayed_options.normalfilename = logfilename(optarg, local_time);
         } else if (strcmp(long_options[option_index].name, "oG") == 0
@@ -879,7 +878,7 @@ void parse_options(int argc, char **argv) {
           o.idlescan = 1;
           o.idleProxy = strdup(optarg);
         } else if (strcmp(long_options[option_index].name, "vv") == 0) {
-          /* Compatability hack ... ugly */
+          /* Compatibility hack ... ugly */
           o.verbose += 2;
         } else if (strcmp(long_options[option_index].name, "ff") == 0) {
           o.fragscan += 16;
@@ -929,8 +928,8 @@ void parse_options(int argc, char **argv) {
         } else if (optcmp(long_options[option_index].name, "disable-arp-ping") == 0) {
           o.implicitARPPing = false;
         } else if (optcmp(long_options[option_index].name, "route-dst") == 0) {
-	  /* The --route-dst debugging option: push these on a list to be
-	     resolved later after options like -6 and -S have been parsed. */
+          /* The --route-dst debugging option: push these on a list to be
+             resolved later after options like -6 and -S have been parsed. */
           route_dst_hosts.push_back(optarg);
         } else {
           fatal("Unknown long option (%s) given@#!$#$", long_options[option_index].name);
@@ -964,7 +963,7 @@ void parse_options(int argc, char **argv) {
       do {
         q = strchr(p, ',');
         if (q)
-	  *q = '\0';
+          *q = '\0';
         if (!strcasecmp(p, "me")) {
           if (o.decoyturn != -1)
             fatal("Can only use 'ME' as a decoy once.\n");
@@ -1036,7 +1035,7 @@ void parse_options(int argc, char **argv) {
       o.magic_port = atoi(optarg);
       o.magic_port_set = true;
       if (o.magic_port == 0)
-	error("WARNING: a source port of zero may not work on all systems.");
+        error("WARNING: a source port of zero may not work on all systems.");
       break;
     case 'h':
       printusage(0);
@@ -1178,9 +1177,6 @@ void parse_options(int argc, char **argv) {
       if (o.portlist)
         fatal("Only 1 -p option allowed, separate multiple ranges with commas.");
       o.portlist = strdup(optarg);
-      break;
-    case 'q':
-      o.quashargv++;
       break;
     case 'R':
       o.resolve_all++;
@@ -1475,10 +1471,10 @@ void  apply_delayed_options() {
       const char *p = delayed_options.spoofmac;
       while (*p) {
         if (*p == ':')
-	  p++;
+          p++;
         if (isxdigit((int) (unsigned char) *p) && isxdigit((int) (unsigned char) * (p + 1))) {
           if (pos >= 6)
-	    fatal("Bogus --spoof-mac value encountered (%s) -- only up to 6 bytes permitted", delayed_options.spoofmac);
+            fatal("Bogus --spoof-mac value encountered (%s) -- only up to 6 bytes permitted", delayed_options.spoofmac);
           tmphex[0] = *p;
           tmphex[1] = *(p + 1);
           tmphex[2] = '\0';
@@ -1543,7 +1539,7 @@ void  apply_delayed_options() {
    * --We are doing a raw sock scan and NOT pinging anyone */
   if (o.SourceSockAddr() && !*o.device) {
     if (ipaddr2devname(o.device, o.SourceSockAddr()) != 0) {
-      fatal("Could not figure out what device to send the packet out on with the source address you gave me!  If you are trying to sp00f your scan, this is normal, just give the -e eth0 or -e ppp0 or whatever.  Otherwise you can still use -e, but I find it kindof fishy.");
+      fatal("Could not figure out what device to send the packet out on with the source address you gave me!  If you are trying to sp00f your scan, this is normal, just give the -e eth0 or -e ppp0 or whatever.  Otherwise you can still use -e, but I find it kind of fishy.");
     }
   }
 
@@ -1580,12 +1576,8 @@ int nmap_main(int argc, char *argv[]) {
   /* Pre-Scan and Post-Scan script results datastructure */
   ScriptResults *script_scan_results = NULL;
 #endif
-  char **host_exp_group;
-  int num_host_exp_groups;
-  HostGroupState *hstate = NULL;
   unsigned int ideal_scan_group_sz = 0;
   Target *currenths;
-  char *host_spec = NULL;
   char myname[MAXHOSTNAMELEN + 1];
   int sourceaddrwarning = 0; /* Have we warned them yet about unguessable
                                 source addresses? */
@@ -1593,7 +1585,6 @@ int nmap_main(int argc, char *argv[]) {
   char hostname[MAXHOSTNAMELEN + 1] = "";
   struct sockaddr_storage ss;
   size_t sslen;
-  char **fakeargv = NULL;
 
   now = time(NULL);
   local_time = localtime(&now);
@@ -1606,19 +1597,12 @@ int nmap_main(int argc, char *argv[]) {
   if (argc < 2)
     printusage(-1);
 
-  /* argv faking silliness */
-  fakeargv = (char **) safe_malloc(sizeof(char *) * (argc + 1));
-  for (i = 0; i < argc; i++) {
-    fakeargv[i] = strdup(argv[i]);
-  }
-  fakeargv[argc] = NULL;
-
   Targets.reserve(100);
 #ifdef WIN32
   win_pre_init();
 #endif
 
-  parse_options(argc, fakeargv);
+  parse_options(argc, argv);
 
   tty_init(); // Put the keyboard in raw mode
 
@@ -1648,9 +1632,9 @@ int nmap_main(int argc, char *argv[]) {
       printf("%s %s", rnfo.ii.devname, rnfo.ii.devfullname);
       printf(" srcaddr %s", inet_ntop_ez(&rnfo.srcaddr, sizeof(rnfo.srcaddr)));
       if (rnfo.direct_connect)
-	printf(" direct");
+        printf(" direct");
       else
-	printf(" nexthop %s", inet_ntop_ez(&rnfo.nexthop, sizeof(rnfo.nexthop)));
+        printf(" nexthop %s", inet_ntop_ez(&rnfo.nexthop, sizeof(rnfo.nexthop)));
     }
     printf("\n");
   }
@@ -1659,17 +1643,6 @@ int nmap_main(int argc, char *argv[]) {
   if (delayed_options.iflist) {
     print_iflist();
     exit(0);
-  }
-
-  /* more fakeargv junk, BTW malloc'ing extra space in argv[0] doesn't work */
-  if (o.quashargv) {
-    size_t fakeargvlen = strlen(FAKE_ARGV), argvlen = strlen(argv[0]);
-    if (argvlen < fakeargvlen)
-      fatal("If you want me to fake your argv, you need to call the program with a longer name.  Try the full pathname, or rename it fyodorssuperdedouperportscanner");
-    strncpy(argv[0], FAKE_ARGV, fakeargvlen);
-    memset(&argv[0][fakeargvlen], '\0', strlen(&argv[0][fakeargvlen]));
-    for (i = 1; i < argc; i++)
-      memset(argv[i], '\0', strlen(argv[i]));
   }
 
   /* If he wants to bounce off of an FTP site, that site better damn well be reachable! */
@@ -1695,7 +1668,7 @@ int nmap_main(int argc, char *argv[]) {
   Strncpy(mytime, ctime(&timep), sizeof(mytime));
   chomp(mytime);
   char *xslfname = o.XSLStyleSheet();
-  xml_start_document();
+  xml_start_document("nmaprun");
   if (xslfname) {
     xml_open_pi("xml-stylesheet");
     xml_attribute("href", "%s", xslfname);
@@ -1706,14 +1679,14 @@ int nmap_main(int argc, char *argv[]) {
 
   std::string command;
   if (argc > 0)
-    command += fakeargv[0];
+    command += argv[0];
   for (i = 1; i < argc; i++) {
     command += " ";
-    command += fakeargv[i];
+    command += argv[i];
   }
 
   xml_start_comment();
-  xml_write_escaped(" %s %s scan initiated %s as: %s ", NMAP_NAME, NMAP_VERSION, mytime, join_quoted(fakeargv, argc).c_str());
+  xml_write_escaped(" %s %s scan initiated %s as: %s ", NMAP_NAME, NMAP_VERSION, mytime, join_quoted(argv, argc).c_str());
   xml_end_comment();
   xml_newline();
 
@@ -1724,7 +1697,7 @@ int nmap_main(int argc, char *argv[]) {
 
   xml_open_start_tag("nmaprun");
   xml_attribute("scanner", "nmap");
-  xml_attribute("args", "%s", join_quoted(fakeargv, argc).c_str());
+  xml_attribute("args", "%s", join_quoted(argv, argc).c_str());
   xml_attribute("start", "%lu", (unsigned long) timep);
   xml_attribute("startstr", "%s", mytime);
   xml_attribute("version", "%s", NMAP_VERSION);
@@ -1833,61 +1806,15 @@ int nmap_main(int argc, char *argv[]) {
   }
 #endif
 
-  /* Time to create a hostgroup state object filled with all the requested
-     machines. The list is initially empty. It is refilled inside the loop
-     whenever it is empty. */
-  host_exp_group = (char **) safe_malloc(o.ping_group_sz * sizeof(char *));
-  num_host_exp_groups = 0;
-
-  hstate = new HostGroupState(o.ping_group_sz, o.randomize_hosts,
-                              host_exp_group, num_host_exp_groups);
+  HostGroupState hstate(o.ping_group_sz, o.randomize_hosts, argc, (const char **) argv);
 
   do {
     ideal_scan_group_sz = determineScanGroupSize(o.numhosts_scanned, &ports);
     while (Targets.size() < ideal_scan_group_sz) {
       o.current_scantype = HOST_DISCOVERY;
-      currenths = nexthost(hstate, &exclude_group, &ports, o.pingtype);
-      if (!currenths) {
-        /* Try to refill with any remaining expressions */
-        /* First free the old ones */
-        for (i = 0; i < num_host_exp_groups; i++)
-          free(host_exp_group[i]);
-        num_host_exp_groups = 0;
-        /* Now grab any new expressions */
-        while (num_host_exp_groups < o.ping_group_sz &&
-               (!o.max_ips_to_scan || o.max_ips_to_scan > o.numhosts_scanned + (int) Targets.size() + num_host_exp_groups) &&
-               (host_spec = grab_next_host_spec(o.inputfd, o.generate_random_ips, argc, fakeargv))) {
-          // For purposes of random scan
-          host_exp_group[num_host_exp_groups++] = strdup(host_spec);
-        }
-#ifndef NOLUA
-        /* Add the new NSE discovered targets to the scan queue */
-        if (o.script) {
-          if (new_targets != NULL) {
-            while (new_targets->get_queued() > 0 && num_host_exp_groups < o.ping_group_sz) {
-              std::string target_spec = new_targets->read();
-              if (target_spec.length())
-                host_exp_group[num_host_exp_groups++] = strdup(target_spec.c_str());
-            }
-
-            if (o.debugging > 3)
-              log_write(LOG_PLAIN,
-                        "New targets in the scanned cache: %ld, pending ones: %ld.\n",
-                        new_targets->get_scanned(), new_targets->get_queued());
-          }
-        }
-#endif
-        if (num_host_exp_groups == 0)
-          break;
-        delete hstate;
-        hstate = new HostGroupState(o.ping_group_sz, o.randomize_hosts, host_exp_group,
-                                    num_host_exp_groups);
-
-        /* Try one last time -- with new expressions */
-        currenths = nexthost(hstate, &exclude_group, &ports, o.pingtype);
-        if (!currenths)
-          break;
-      }
+      currenths = nexthost(&hstate, &exclude_group, &ports, o.pingtype);
+      if (!currenths)
+        break;
 
       if (currenths->flags & HOST_UP && !o.listscan)
         o.numhosts_up++;
@@ -1898,7 +1825,7 @@ int nmap_main(int argc, char *argv[]) {
 #endif
           ) || o.listscan) {
         /* We're done with the hosts */
-        if (currenths->flags & HOST_UP || o.verbose) {
+        if (currenths->flags & HOST_UP || (o.verbose && !o.openOnly())) {
           xml_start_tag("host");
           write_host_header(currenths);
           printmacinfo(currenths);
@@ -1960,7 +1887,7 @@ int nmap_main(int argc, char *argv[]) {
            the next group if necessary. See target_needs_new_hostgroup for the
            details of when we need to split. */
         if (target_needs_new_hostgroup(Targets, currenths)) {
-          returnhost(hstate);
+          returnhost(&hstate);
           o.numhosts_up--;
           break;
         }
@@ -2034,9 +1961,9 @@ int nmap_main(int argc, char *argv[]) {
           o.current_scantype = BOUNCE_SCAN;
           keyWasPressed(); // Check if a status message should be printed
           if (ftp.sd <= 0)
-	    ftp_anon_connect(&ftp);
+            ftp_anon_connect(&ftp);
           if (ftp.sd > 0)
-	    bounce_scan(Targets[targetno], ports.tcp_ports, ports.tcp_count, &ftp);
+            bounce_scan(Targets[targetno], ports.tcp_ports, ports.tcp_count, &ftp);
         }
       }
 
@@ -2126,16 +2053,7 @@ int nmap_main(int argc, char *argv[]) {
   }
 #endif
 
-  delete hstate;
-
   addrset_free(&exclude_group);
-  hstate = NULL;
-
-  /* Free host expressions */
-  for (i = 0; i < num_host_exp_groups; i++)
-    free(host_exp_group[i]);
-  num_host_exp_groups = 0;
-  free(host_exp_group);
 
   if (o.inputfd != NULL)
     fclose(o.inputfd);
@@ -2149,11 +2067,6 @@ int nmap_main(int argc, char *argv[]) {
   eth_close_cached();
 
   if (o.release_memory) {
-    /* Free fake argv */
-    for (i = 0; i < argc; i++)
-      free(fakeargv[i]);
-    free(fakeargv);
-
     nmap_free_mem();
   }
   return 0;
@@ -2215,8 +2128,6 @@ static bool target_needs_new_hostgroup(std::vector<Target *> &targets, const Tar
 void nmap_free_mem() {
   PortList::freePortMap();
   cp_free();
-  free_dns_servers();
-  free_etchosts();
   free_services();
   AllProbes::service_scan_free();
   traceroute_hop_cache_clear();
@@ -2312,7 +2223,7 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     if (found) {
       q = strchr(found, '\n');
       if (!q)
-	fatal("Unable to parse supposed log file %s.  Sorry", fname);
+        fatal("Unable to parse supposed log file %s.  Sorry", fname);
       *q = '\0';
       p = strchr(found, '(');
       if (!p) { /* No DNS reverse lookup, found should already contain IP */
@@ -2570,7 +2481,7 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
 
       // Skip over a following ',' so we're ready to keep parsing
       if (*current_range == ',')
-	current_range++;
+        current_range++;
 
       continue;
     } else if (*current_range == ']') {
@@ -2608,7 +2519,7 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
 
       i = addportsfromservmask(servmask, porttbl, range_type);
       if (range_type & SCAN_PROTOCOLS)
-	i += addprotocolsfromservmask(servmask, porttbl);
+        i += addprotocolsfromservmask(servmask, porttbl);
 
       if (i == 0)
         fatal("Found no matches for the service mask '%s' and your specified protocols", servmask);
@@ -2689,7 +2600,7 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
 
     if (*current_range == ']') {
       if (!nested)
-	fatal("Unexpected ] character in port/protocol specification");
+        fatal("Unexpected ] character in port/protocol specification");
       return;
     }
 
@@ -2740,6 +2651,8 @@ const char *ipidclass2ascii(int seqclass) {
     return "Duplicated ipid (!)";
   case IPID_SEQ_INCR:
     return "Incremental";
+  case IPID_SEQ_INCR_BY_2:
+    return "Incrementing by 2";
   case IPID_SEQ_BROKEN_INCR:
     return "Broken little-endian incremental";
   case IPID_SEQ_RD:
@@ -2893,83 +2806,6 @@ const char *statenum2str(int state) {
   }
   return "unknown";
 }
-
-int ftp_anon_connect(struct ftpinfo *ftp) {
-  int sd;
-  struct sockaddr_in sock;
-  int res;
-  char recvbuf[2048];
-  char command[512];
-
-  if (o.verbose || o.debugging)
-    log_write(LOG_STDOUT, "Attempting connection to ftp://%s:%s@%s:%i\n",
-	      ftp->user, ftp->pass, ftp->server_name, ftp->port);
-
-  if ((sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-    gh_perror("Couldn't create %s socket", __func__);
-    return 0;
-  }
-  socket_bindtodevice(sd, o.device);
-
-  sock.sin_family = AF_INET;
-  sock.sin_addr.s_addr = ftp->server.s_addr;
-  sock.sin_port = htons(ftp->port);
-  res = connect(sd, (struct sockaddr *) &sock, sizeof(struct sockaddr_in));
-  if (res < 0)
-    fatal("Your FTP bounce proxy server won't talk to us!");
-  if (o.verbose || o.debugging)
-    log_write(LOG_STDOUT, "Connected:");
-  while ((res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 7, NULL)) > 0) {
-    if (o.debugging || o.verbose) {
-      recvbuf[res] = '\0';
-      log_write(LOG_STDOUT, "%s", recvbuf);
-    }
-  }
-  if (res < 0)
-    pfatal("recv problem from FTP bounce server");
-
-  Snprintf(command, 511, "USER %s\r\n", ftp->user);
-
-  send(sd, command, strlen(command), 0);
-  res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 12, NULL);
-  if (res <= 0)
-    pfatal("recv problem from FTP bounce server");
-  recvbuf[res] = '\0';
-  if (o.debugging)
-    log_write(LOG_STDOUT, "sent username, received: %s", recvbuf);
-  if (recvbuf[0] == '5')
-    fatal("Your FTP bounce server doesn't like the username \"%s\"", ftp->user);
-
-  Snprintf(command, 511, "PASS %s\r\n", ftp->pass);
-
-  send(sd, command, strlen(command), 0);
-  res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 12, NULL);
-  if (res < 0)
-    pfatal("recv problem from FTP bounce server");
-  if (!res) {
-    error("Timeout from bounce server ...");
-  } else {
-    recvbuf[res] = '\0';
-    if (o.debugging)
-      log_write(LOG_STDOUT, "sent password, received: %s", recvbuf);
-    if (recvbuf[0] == '5')
-      fatal("Your FTP bounce server refused login combo (%s/%s)", ftp->user, ftp->pass);
-  }
-  while ((res = recvtime(sd, recvbuf, sizeof(recvbuf) - 1, 2, NULL)) > 0) {
-    if (o.debugging) {
-      recvbuf[res] = '\0';
-      log_write(LOG_STDOUT, "%s", recvbuf);
-    }
-  }
-  if (res < 0)
-    pfatal("recv problem from FTP bounce server");
-  if (o.verbose)
-    log_write(LOG_STDOUT, "Login credentials accepted by FTP server!\n");
-
-  ftp->sd = sd;
-  return sd;
-}
-
 
 static char *executable_dir(const char *argv0) {
   char *path, *dir;

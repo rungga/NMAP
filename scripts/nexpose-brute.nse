@@ -17,7 +17,7 @@ Performs brute force password auditing against a Nexpose vulnerability scanner u
 -- @output
 -- PORT     STATE SERVICE     REASON  VERSION
 -- 3780/tcp open  ssl/nexpose syn-ack NeXpose NSC 0.6.4
--- | nexpose-brute: 
+-- | nexpose-brute:
 -- |   Accounts
 -- |     nxadmin:nxadmin - Valid credentials
 -- |   Statistics
@@ -25,7 +25,7 @@ Performs brute force password auditing against a Nexpose vulnerability scanner u
 --
 -- As the Nexpose application enforces account lockout after 4 incorrect login
 -- attempts, the script performs only 3 guesses per default. This can be
--- altered by supplying the <code>brute.guesses</code> argument a different 
+-- altered by supplying the <code>brute.guesses</code> argument a different
 -- value or 0 (zero) to guess the whole dictionary.
 
 author = "Vlatko Kosturjak"
@@ -37,45 +37,45 @@ categories = {"intrusive", "brute"}
 
 portrule = shortport.port_or_service(3780, "nexpose", "tcp")
 
-Driver = 
+Driver =
 {
-	new = function (self, host, port)
-		local o = { host = host, port = port }
-		setmetatable (o,self)
-		self.__index = self
-		return o
-	end,
+  new = function (self, host, port)
+    local o = { host = host, port = port }
+    setmetatable (o,self)
+    self.__index = self
+    return o
+  end,
 
-	connect = function ( self )	return true	end,
+  connect = function ( self ) return true end,
 
-	login = function( self, username, password )
-		local postdata='<?xml version="1.0" encoding="UTF-8"?><LoginRequest sync-id="1" user-id="'..username..'" password="'..password..'"></LoginRequest>'
-		local response = http.post( self.host, self.port, '/api/1.1/xml', { no_cache = true, header = { ["Content-Type"] = "text/xml" } }, nil, postdata )
+  login = function( self, username, password )
+    local postdata='<?xml version="1.0" encoding="UTF-8"?><LoginRequest sync-id="1" user-id="'..username..'" password="'..password..'"></LoginRequest>'
+    local response = http.post( self.host, self.port, '/api/1.1/xml', { no_cache = true, header = { ["Content-Type"] = "text/xml" } }, nil, postdata )
 
-		if (not(response)) then
-			local err = brute.Error:new( "Couldn't send/receive HTTPS request" )
-			err:setRetry( true )
-			return false, err
-		end
+    if (not(response)) then
+      local err = brute.Error:new( "Couldn't send/receive HTTPS request" )
+      err:setRetry( true )
+      return false, err
+    end
 
-		if (response.body == nil or response.body:match('<LoginResponse.*success="0"')) then
-			stdnse.print_debug(2, "nexpose-brute: Bad login: %s/%s", username, password)
-			return false, brute.Error:new( "Bad login" )
-		elseif (response.body:match('<LoginResponse.*success="1"')) then
-			stdnse.print_debug(1, "nexpose-brute: Good login: %s/%s", username, password)
-			return true, brute.Account:new(username, password, creds.State.VALID)
-		end
-		stdnse.print_debug(1, "nexpose-brute: WARNING: Unhandled response: %s", response.body)
-		return false, brute.Error:new( "incorrect response from server" )
-	end,
+    if (response.body == nil or response.body:match('<LoginResponse.*success="0"')) then
+      stdnse.print_debug(2, "nexpose-brute: Bad login: %s/%s", username, password)
+      return false, brute.Error:new( "Bad login" )
+    elseif (response.body:match('<LoginResponse.*success="1"')) then
+      stdnse.print_debug(1, "nexpose-brute: Good login: %s/%s", username, password)
+      return true, brute.Account:new(username, password, creds.State.VALID)
+    end
+    stdnse.print_debug(1, "nexpose-brute: WARNING: Unhandled response: %s", response.body)
+    return false, brute.Error:new( "incorrect response from server" )
+  end,
 
-	disconnect = function( self ) return true end,
+  disconnect = function( self ) return true end,
 }
 
 action = function(host, port)
-	local engine = brute.Engine:new(Driver, host, port)
-	engine.options.script_name = SCRIPT_NAME
-	engine.options.max_guesses = tonumber(stdnse.get_script_args('brute.guesses')) or 3
-	local status, result = engine:start()
-	return result
+  local engine = brute.Engine:new(Driver, host, port)
+  engine.options.script_name = SCRIPT_NAME
+  engine.options.max_guesses = tonumber(stdnse.get_script_args('brute.guesses')) or 3
+  local status, result = engine:start()
+  return result
 end

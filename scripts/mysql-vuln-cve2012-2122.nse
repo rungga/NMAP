@@ -37,7 +37,7 @@ Interesting post about this vuln:
 -- | mysql-vuln-cve2012-2122:
 -- |   VULNERABLE:
 -- |   Authentication bypass in MySQL servers.
--- |     State: VULNERABLE 
+-- |     State: VULNERABLE
 -- |     IDs:  CVE:CVE-2012-2122
 -- |     Description:
 -- |       When a user connects to MariaDB/MySQL, a token (SHA
@@ -64,9 +64,10 @@ Interesting post about this vuln:
 -- |       http://seclists.org/oss-sec/2012/q2/493
 -- |_      http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2012-2122
 --
--- @args mysql-cve2012-2122.user MySQL username. Default: root.
--- @args mysql-cve2012-2122.iterations Connection retries. Default: 1500.
--- @args mysql-cve2012-2122.socket_timeout Socket timeout. Default: 5000.
+-- @args mysql-vuln-cve2012-2122.user MySQL username. Default: root.
+-- @args mysql-vuln-cve2012-2122.pass MySQL password. Default: nmapFTW.
+-- @args mysql-vuln-cve2012-2122.iterations Connection retries. Default: 1500.
+-- @args mysql-vuln-cve2012-2122.socket_timeout Socket timeout. Default: 5s.
 ---
 
 local mysql = require "mysql"
@@ -78,7 +79,7 @@ local table = require "table"
 local vulns = require "vulns"
 local openssl = stdnse.silent_require "openssl"
 
-author = "Paulino Calderon <calderon()websec.mx>"
+author = "Paulino Calderon <calderon@websec.mx>"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "intrusive", "vuln"}
 
@@ -101,7 +102,7 @@ hitting this bug is about 1/256.
 Which means, if one knows a user name to connect (and "root" almost
 always exists), she can connect using *any* password by repeating
 connection attempts. ~300 attempts takes only a fraction of second, so
-basically account password protection is as good as nonexistent. 
+basically account password protection is as good as nonexistent.
 ]],
     references = {
            'http://seclists.org/oss-sec/2012/q2/493',
@@ -120,7 +121,8 @@ basically account password protection is as good as nonexistent.
   local mysql_user = stdnse.get_script_args(SCRIPT_NAME..".user") or "root"
   local mysql_pwd = stdnse.get_script_args(SCRIPT_NAME..".pass") or "nmapFTW"
   local iterations = stdnse.get_script_args(SCRIPT_NAME..".iterations") or 1500
-  local conn_timeout = stdnse.get_script_args(SCRIPT_NAME..".socket_timeout") or 5000	
+  local conn_timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME..".socket_timeout"))
+  conn_timeout = (conn_timeout or 5) * 1000
 
   socket:set_timeout(conn_timeout)
 
@@ -131,7 +133,7 @@ basically account password protection is as good as nonexistent.
     stdnse.print_debug(1, "%s: Connection attempt #%d", SCRIPT_NAME, i)
     try( socket:connect(host, port) )
     response = try( mysql.receiveGreeting(socket) )
-    status, response = mysql.loginRequest(socket, {authversion = "post41", charset = response.charset}, mysql_user, mysql_pwd, response.salt) 
+    status, response = mysql.loginRequest(socket, {authversion = "post41", charset = response.charset}, mysql_user, mysql_pwd, response.salt)
     if status and response.errorcode == 0 then
       vuln.extra_info = string.format("Server granted access at iteration #%d\n", iterations)
       vuln.state = vulns.STATE.EXPLOIT
@@ -147,6 +149,6 @@ basically account password protection is as good as nonexistent.
     end
     socket:close()
   end
-	
+
   return vuln_report:make_output(vuln)
 end

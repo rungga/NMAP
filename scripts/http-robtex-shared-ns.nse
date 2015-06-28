@@ -13,7 +13,7 @@ The target must be specified by DNS name, not IP address.
 -- @usage
 -- nmap --script http-robtex-shared-ns
 --
--- @output
+-- @outt
 -- Host script results:
 -- | http-robtex-shared-ns:
 -- |   example.edu
@@ -26,7 +26,7 @@ The target must be specified by DNS name, not IP address.
 -- * Add list of nameservers, or group output accordingly
 --
 
-author = "Arturo Busleiman <buanzo@buanzo.com.ar>"
+author = "Arturo 'Buanzo' Busleiman"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 categories = {"discovery", "safe", "external"}
 
@@ -43,68 +43,56 @@ end
 function parse_robtex_response(data)
   local result = {}
 
-	-- cut out the section we're interested in
-	data = data:match("<span id=\\\"sharednss?\\\">.-<ul.->(.-)</ul>")
-	if ( not(data) ) then
-		return
-	end
-	
-	-- process each html list item
-	for li in data:gmatch("<li>(.-)</li>") do
-		local domain = li:match("<a.->(.*)</a>")
-		if ( domain ) then
-			table.insert(result, domain)
-		end
-	end
-	
+  if ( not(data) ) then
+    return
+  end
+
+  -- cut out the section we're interested in
+  data = data:match("<span id=\"sharednss\">.-<ul.->(.-)</ul>")
+
+  -- process each html list item
+  for li in data:gmatch("<li>(.-)</li>") do
+    local domain = li:match("<a.->(.*)</a>")
+    if ( domain ) then
+      table.insert(result, domain)
+    end
+  end
+
   return result
 end
 
 local function lookup_dns_server(data)
-	return data:match("The primary name server is <a.->(.-)</a>.")
+  return data:match("The primary name server is <a.->(.-)</a>.")
 end
 
 local function fetch_robtex_data(url)
-  local htmldata = http.get_url(url)
-	if ( not(htmldata) or not(htmldata.body) ) then
-		return
-	end
-  
-	local url = htmldata.body:match("var%s*uurl%s*='([^']*)")
-	if ( not(url) ) then
-		return
-	end
-	
-	-- retreive the url having the shared dns information
-	htmldata = http.get_url(url)
-	if ( not(htmldata) or not(htmldata.body) ) then
-		return
-	end
-	
-	-- fixup line breaks
-	htmldata = htmldata.body:gsub("(.-)\\\r?\n", "%1")
+  local htmldata = http.get("www.robtex.com", 443, url)
+  if ( not(htmldata) or not(htmldata.body) ) then
+    return
+  end
 
-	-- fixup hex encodings
-	return unescape(htmldata)
+  -- fixup hex encodings
+  return unescape(htmldata.body)
 end
 
 hostrule = function (host) return host.targetname end
 
 action = function(host)
-	local base_url = "http://www.robtex.com/dns/%s.html"
-	local data = fetch_robtex_data(base_url:format(host.targetname))
+  local base_url = "/dns/" .. host.targetname .. ".html"
+  local data = fetch_robtex_data(base_url)
   local domains = parse_robtex_response(data)
-	
-	if ( not(domains) ) then
-		local server = lookup_dns_server(data)
-		if ( not(server) ) then
-			return
-		end
-		local url = base_url:format(server)
-		stdnse.print_debug(2, "%s: Querying URL: %s", SCRIPT_NAME, url)
-		data = fetch_robtex_data(url)
-		domains = parse_robtex_response(data)
-	end
+
+  if ( not(domains) ) then
+    local server = lookup_dns_server(data)
+    if ( not(server) ) then
+      return
+    end
+    local url = base_url:format(server)
+    stdnse.print_debug(2, "%s: Querying URL: %s", SCRIPT_NAME, url)
+    data = fetch_robtex_data(url)
+
+    domains = parse_robtex_response(data)
+  end
 
   if (domains and #domains > 0) then
     return stdnse.format_output(true, domains)

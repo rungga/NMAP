@@ -9,12 +9,12 @@ printer.
 
 ---
 -- @usage
--- nmap -p 631 <ip> --script cups-queue-info 
+-- nmap -p 631 <ip> --script cups-queue-info
 --
 -- @output
 -- PORT    STATE SERVICE
 -- 631/tcp open  ipp
--- | cups-queue-info: 
+-- | cups-queue-info:
 -- |   HP Laserjet
 -- |     id  time                 state  size (kb)  owner            jobname
 -- |     14  2012-04-26 22:01:19  Held   2071k      Patrik Karlsson  Print - CUPS Implementation of IPP - Documentation - CUPS
@@ -37,13 +37,13 @@ portrule = shortport.port_or_service(631, "ipp", "tcp", "open")
 local function fail(err) return ("\n  ERROR: %s"):format(err or "") end
 
 action = function(host, port)
-	local helper = ipp.Helper:new(host, port)
-	if ( not(helper:connect()) ) then
-		return fail("Failed to connect to server")
-	end
-	
-	local output = helper:getQueueInfo()
-	if ( output ) then
-		return stdnse.format_output(true, output)
-	end
+  local helper = ipp.Helper:new(host, port)
+  if ( not(helper:connect()) ) then
+    return fail("Failed to connect to server")
+  end
+
+  local output = helper:getQueueInfo()
+  if ( output ) then
+    return stdnse.format_output(true, output)
+  end
 end

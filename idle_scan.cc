@@ -9,62 +9,94 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
- * applications and appliances.  These contracts have been sold to dozens  *
- * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
  *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
+ * linked combinations including the two.                                  *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the terms and conditions of this license text as well.        *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
+ * applications and appliances.  These contracts have been sold to dozens  *
+ * of software vendors, and generally include a perpetual license as well  *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
+ *                                                                         *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -73,8 +105,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -88,14 +120,37 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: idle_scan.cc 30160 2012-10-31 17:00:55Z david $ */
+/* $Id: idle_scan.cc 33540 2014-08-16 02:45:47Z dmiller $ */
+
+/* IPv6 fragment ID sequence algorithms. http://seclists.org/nmap-dev/2013/q3/369.
+        Android 4.1 (Linux 3.0.15) | Per host, incremental (1)
+        FreeBSD 7.4 | Random
+        FreeBSD 9.1 | Random
+        iOS 6.1.2 | Random
+        Linux 2.6.32 | Per host, incremental (2)
+        Linux 3.2 | Per host, incremental (1)
+        Linux 3.8 | Per host, incremental
+        OpenBSD 4.6 | Random
+        OpenBSD 5.2 | Random
+        OS X 10.6.7 | Global, incremental (3)
+        OS X 10.8.3 | Random
+        Solaris 11 | Per host, incremental
+        Windows Server 2003 R2 Standard 64bit, SP2 | Global, incremental
+        Windows Server 2008 Standard 32bit,  SP1 | Global, incremental
+        Windows Server 2008 R2 Standard 64bit, SP1 | Global, incremental by 2
+        Windows Server 2012 Standard 64bit | Global, incremental by 2
+        Windows XP Professional 32bit, SP3 | Global, incremental (4)
+        Windows Vista Business 64bit, SP1 | Global, incremental
+        Windows 7 Home Premium 32bit, SP1 | Global, incremental by 2
+        Windows 7 Ultimate 32bit, SP1 | Global, incremental by 2
+        Windows 8 Enterprise 32 bit | Global, incremental by 2
+*/
 
 #include "idle_scan.h"
 #include "timing.h"
@@ -116,18 +171,18 @@ extern NmapOps o;
 struct idle_proxy_info {
   Target host; /* contains name, IP, source IP, timing info, etc. */
   int seqclass; /* IP ID sequence class (IPID_SEQ_* defined in nmap.h) */
-  u16 latestid; /* The most recent IP ID we have received from the proxy */
+  u32 latestid; /* The most recent IP ID we have received from the proxy */
   u16 probe_port; /* The port we use for probing IP ID infoz */
   u16 max_groupsz; /* We won't test groups larger than this ... */
   u16 min_groupsz; /* We won't allow the group size to fall below this
-		      level.  Affected by --min-parallelism */
+                      level.  Affected by --min-parallelism */
   double current_groupsz; /* Current group size being used ... depends on
                           conditions ... won't be higher than
                           max_groupsz */
   int senddelay; /* Delay between sending pr0be SYN packets to target
                     (in microseconds) */
   int max_senddelay; /* Maximum time we are allowed to wait between
-                        sending pr0bes (when we send a bunch in a row.
+                        sending probes (when we send a bunch in a row.
                         In microseconds. */
 
   pcap_t *pd; /* A Pcap descriptor which (starting in
@@ -138,6 +193,40 @@ struct idle_proxy_info {
   struct eth_nfo *ethptr; // points to eth if filled out, otherwise NULL
 };
 
+/* Finds the IPv6 extension header for fragmentation in an IPv6 packet, and returns
+ * the identification value of the fragmentation header
+*/
+int ipv6_get_fragment_id(const struct ip6_hdr *ip6, unsigned int len) {
+  const unsigned char *p, *end;
+  u8 hdr;
+  struct ip6_ext_data_fragment *frag_header = NULL;
+
+  if (len < sizeof(*ip6))
+    return -1;
+
+  p = (unsigned char *) ip6;
+  end = p + len;
+
+  hdr = ip6->ip6_nxt;
+  p += sizeof(*ip6);
+
+  /* If the first extension header is not the fragmentation, we search our way
+   * through the extension headers until we find the fragmentation header */
+  while (p < end && hdr != IP_PROTO_FRAGMENT) {
+    if (p + 2 > end)
+      return -1;
+    hdr = *p;
+    p += (*(p + 1) + 1) * 8;
+  }
+
+  if ( hdr != IP_PROTO_FRAGMENT ||  (p + 2 + sizeof(ip6_ext_data_fragment)) > end)
+    return -1;
+
+  frag_header = (struct ip6_ext_data_fragment *)( p + 2 );
+
+  return (ntohl(frag_header->ident));
+
+}
 
 /* Sends an IP ID probe to the proxy machine and returns the IP ID.
    This function handles retransmissions, and returns -1 if it fails.
@@ -157,10 +246,18 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
   unsigned int bytes;
   int base_port;
   struct ip *ip;
-  struct tcp_hdr *tcp;
+  struct tcp_hdr *tcp = NULL;
   static u32 seq_base = 0;
   static u32 ack = 0;
   static int packet_send_count = 0; /* Total # of probes sent by this program -- to ensure that our sequence # always changes */
+  u32 packetlen = 0;
+  u8 *ipv6_packet = NULL;
+  struct sockaddr_storage ss;
+  size_t sslen;
+  struct ip6_hdr *ip6 = NULL;
+  const void *ipv6_data;
+  u8 hdr;
+  int res;
 
   if (o.magic_port_set)
     base_port = o.magic_port;
@@ -177,14 +274,30 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
     gettimeofday(&tv_sent[tries], NULL);
 
     /* Time to send the pr0be!*/
-    send_tcp_raw(proxy->rawsd, proxy->ethptr,
-                 proxy->host.v4sourceip(), proxy->host.v4hostip(),
-                 o.ttl, false,
-                 o.ipoptions, o.ipoptionslen,
-                 base_port + tries, proxy->probe_port,
-                 seq_base + (packet_send_count++ * 500) + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
-                 (u8 *) "\x02\x04\x05\xb4", 4,
-                 NULL, 0);
+    if (o.af() == AF_INET)
+      send_tcp_raw(proxy->rawsd, proxy->ethptr,
+                  proxy->host.v4sourceip(), proxy->host.v4hostip(),
+                  o.ttl, false,
+                  o.ipoptions, o.ipoptionslen,
+                  base_port + tries, proxy->probe_port,
+                  seq_base + (packet_send_count++ * 500) + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
+                  (u8 *) "\x02\x04\x05\xb4", 4,
+                  NULL, 0);
+    else {
+      ipv6_packet = build_tcp_raw_ipv6(proxy->host.v6sourceip(), proxy->host.v6hostip(),
+                        0x00, 0x0000,
+                        o.ttl,
+                        base_port + tries, proxy->probe_port,
+                        seq_base + (packet_send_count++ * 500) + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
+                        (u8 *) "\x02\x04\x05\xb4", 4,
+                        NULL, 0,
+                        &packetlen);
+      proxy->host.TargetSockAddr(&ss, &sslen);
+      res = send_ip_packet(proxy->rawsd, proxy->ethptr, &ss, ipv6_packet, packetlen);
+      if (res == -1)
+        fatal("Error occurred while trying to send IPv6 packet");
+      free(ipv6_packet);
+    }
     sent++;
     tries++;
 
@@ -196,15 +309,26 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
       to_usec = proxy->host.to.timeout - TIMEVAL_SUBTRACT(tv_end, tv_sent[tries - 1]);
       if (to_usec < 0)
         to_usec = 0; // Final no-block poll
-      ip = (struct ip *) readipv4_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);
+      ip = (struct ip *) readip_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);
       gettimeofday(&tv_end, NULL);
       if (ip) {
-        if (bytes < ( 4 * ip->ip_hl) + 14U)
-          continue;
-
-        if (ip->ip_p == IPPROTO_TCP) {
-
-          tcp = ((struct tcp_hdr *) (((char *) ip) + 4 * ip->ip_hl));
+        if (o.af() == AF_INET) {
+          if (bytes < ( 4 * ip->ip_hl) + 14U)
+            continue;
+          if (ip->ip_p == IPPROTO_TCP)
+            tcp = ((struct tcp_hdr *) (((char *) ip) + 4 * ip->ip_hl));
+        } else if (o.af() == AF_INET6) {
+          if (ip->ip_v != 6) {
+            error("IPv6 packet with a version field != 6 received");
+          } else {
+            ip6 = (struct ip6_hdr *) ip;
+            ipv6_data = ipv6_get_data(ip6, &packetlen, &hdr);
+            if (hdr == IPPROTO_TCP && ipv6_data != NULL) {
+              tcp = (struct tcp_hdr *) ipv6_data;
+            }
+          }
+        }
+        if (tcp) {
           if (ntohs(tcp->th_dport) < base_port || ntohs(tcp->th_dport) - base_port >= tries  || ntohs(tcp->th_sport) != proxy->probe_port || ((tcp->th_flags & TH_RST) == 0)) {
             if (ntohs(tcp->th_dport) > o.magic_port && ntohs(tcp->th_dport) < (o.magic_port + 260)) {
               if (o.debugging) {
@@ -214,7 +338,12 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
               proxy->host.to.rttvar = (int) (proxy->host.to.rttvar * 1.2);
               rcvd++;
             } else if (o.debugging > 1) {
-              error("Received unexpected response packet from %s during IP ID zombie probing:", inet_ntoa(ip->ip_src));
+              char straddr[INET6_ADDRSTRLEN];
+              if (o.af() == AF_INET)
+                inet_ntop(AF_INET, &(ip->ip_src), straddr, sizeof(straddr));
+              else if (o.af() == AF_INET6)
+                inet_ntop(AF_INET6, &(ip6->ip6_src), straddr, sizeof(straddr));
+              error("Received unexpected response packet from %s during IP ID zombie probing:", straddr);
               readtcppacket( (unsigned char *) ip, MIN(ntohs(ip->ip_len), bytes));
             }
             continue;
@@ -223,7 +352,10 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
           trynum = ntohs(tcp->th_dport) - base_port;
           rcvd++;
 
-          ipid = ntohs(ip->ip_id);
+          if (o.af() == AF_INET)
+            ipid = ntohs(ip->ip_id);
+          else if (o.af() == AF_INET6)
+            ipid = ipv6_get_fragment_id(ip6, bytes);
           adjust_timeouts2(&(tv_sent[trynum]), &rcvdtime, &(proxy->host.to));
         }
       }
@@ -238,20 +370,27 @@ static int ipid_proxy_probe(struct idle_proxy_info *proxy, int *probes_sent,
   return ipid;
 }
 
+static u16 byteswap_u16(u16 h) {
+  return ((h&0xff) << 8) | ((h>>8)&0xff);
+}
 
 /* Returns the number of increments between an early IP ID and a later
    one, assuming the given IP ID Sequencing class.  Returns -1 if the
    distance cannot be determined */
 
-static int ipid_distance(int seqclass , u16 startid, u16 endid) {
+static int ipid_distance(int seqclass , u32 startid, u32 endid) {
   if (seqclass == IPID_SEQ_INCR)
     return endid - startid;
 
   if (seqclass == IPID_SEQ_BROKEN_INCR) {
     /* Convert to network byte order */
-    startid = htons(startid);
-    endid = htons(endid);
+    startid = byteswap_u16((u16) startid);
+    endid = byteswap_u16((u16) endid);
     return endid - startid;
+  }
+
+  if (seqclass == IPID_SEQ_INCR_BY_2) {
+    return (endid - startid)/2;
   }
 
   return -1;
@@ -269,22 +408,139 @@ static void initialize_proxy_struct(struct idle_proxy_info *proxy) {
   proxy->ethptr = NULL;
 }
 
+/* Forces the permanent use of the IPv6 extension header for fragmentation in each IPv6 packet sent from
+ * the idle host to the target or the attacker
+ * This is achieved by first sending a ping, and afterwards an ICMPv6 Packet Too Big message
+ * which states that the response from the ping was too big, our MTU is smaller than the IPv6 minimum MTU */
+static void ipv6_force_fragmentation(struct idle_proxy_info *proxy, Target *target) {
+  int hardtimeout = 9000000; /* Generally don't wait more than 9 secs total */
+  char filter[512]; /* Libpcap filter string */
+  struct ip *ip;
+  /* The maximum data size we can create without fragmenting, considering that the headers also need place */
+  char data[IP6_MTU_MIN - IPv6_HEADER_LEN - ETH_HDR_LEN - ICMPv6_MIN_HEADER_LEN];
+  unsigned int datalen, bytes;
+  const unsigned int proxy_reply_timeout = 2000;
+  const void *rdata; //the data received in the echo response
+  struct timeval tmptv, rcvdtime, ipv6_packet_send_time;
+  struct abstract_ip_hdr hdr;
+  bool response_received = false;
+  struct icmpv6_hdr *icmp6_header;
+  u8 *ipv6_packet = NULL;
+  u32 packetlen = 0;
+  u16 pingid = 0;
+  u16 seq = 0;
+  struct sockaddr_storage ss;
+  size_t sslen;
+  int res;
+  assert(proxy);
+
+  /* First, we force the proxy to provide us with a fragmentation header in each packet
+     by sending an ping and afterwards an ICMPv6 Packet Too Big */
+  memset(data,'A', sizeof(data));
+  pingid = get_random_u16();
+  seq = get_random_u16();
+
+  /* pcap, to get the answer. Max size here is the IPv6 minimum MTU  */
+  if ((proxy->pd = my_pcap_open_live(proxy->host.deviceName(), IP6_MTU_MIN,  (o.spoofsource) ? 1 : 0, 50)) == NULL)
+    fatal("%s", PCAP_OPEN_ERRMSG);
+
+  Snprintf(filter, sizeof(filter), "icmp6 and src host %s and dst host %s", proxy->host.targetipstr(), proxy->host.sourceipstr());
+  if (o.debugging)
+    log_write(LOG_STDOUT, "Packet capture filter (device %s): %s\n", proxy->host.deviceFullName(), filter);
+
+  /* Make a ping that is in total 1280 byte long and send it */
+  proxy->host.TargetSockAddr(&ss, &sslen);
+  ipv6_packet = build_icmpv6_raw(proxy->host.v6sourceip(), proxy->host.v6hostip(), 0x00, 0x0000, o.ttl, seq , pingid, ICMPV6_ECHO, 0x00, data, sizeof(data) , &packetlen);
+  res = send_ip_packet(proxy->rawsd, proxy->ethptr, &ss, ipv6_packet, packetlen);
+  if (res == -1)
+    fatal("Error occurred while trying to send ICMPv6 Echo Request to the idle host");
+  free(ipv6_packet);
+  gettimeofday(&ipv6_packet_send_time, NULL);
+
+  /* Now let's wait for the answer */
+  while (!response_received) {
+    gettimeofday(&tmptv, NULL);
+    ip = (struct ip *) readip_pcap(proxy->pd, &bytes, proxy_reply_timeout, &rcvdtime, NULL, true);
+    if (!ip) {
+      if (TIMEVAL_SUBTRACT(tmptv, ipv6_packet_send_time) >= hardtimeout) {
+            fatal("Idle scan zombie %s (%s) port %hu cannot be used because it has not returned any of our ICMPv6 Echo Requests -- perhaps it is down or firewalled.",
+                  proxy->host.HostName(), proxy->host.targetipstr(),
+                  proxy->probe_port);
+      }
+      continue;
+    }
+    datalen = bytes;
+    rdata = ip_get_data(ip, &datalen, &hdr);
+    if (hdr.version == 6 && hdr.proto == IPPROTO_ICMPV6) {
+      icmp6_header = (struct icmpv6_hdr *) rdata;
+      if (icmp6_header->icmpv6_type == ICMPV6_ECHOREPLY) {
+        const struct icmpv6_msg_echo *echo;
+        echo = (struct icmpv6_msg_echo *) ((u8 *) icmp6_header + sizeof(*icmp6_header));
+        if (ntohs(echo->icmpv6_id) == pingid && ntohs(echo->icmpv6_seq) == seq)
+          response_received=true;
+      }
+    }
+  }
+
+  if (proxy->pd)
+    pcap_close(proxy->pd);
+
+  /* Now we can tell the idle host that its reply was too big, we want it smaller than the IPV6 minimum MTU */
+  /* the data contains first the MTU we want, and then the received IPv6 package */
+  *(uint32_t *)&data = ntohl(IP6_MTU_MIN - 2);
+  memcpy(&data[4], ip, sizeof(data)-4);
+
+  ipv6_packet = build_icmpv6_raw(proxy->host.v6sourceip(), proxy->host.v6hostip(), 0x00, 0x0000, o.ttl, 0x00 , 0x00, 0x02, 0x00, data, sizeof(data) , &packetlen);
+  res = send_ip_packet(proxy->rawsd, proxy->ethptr, &ss, ipv6_packet, packetlen);
+  if (res == -1)
+    fatal("Error occurred while trying to send spoofed ICMPv6 Echo Request to the idle host");
+
+  free(ipv6_packet);
+
+  /* Now we do the same in the name of the target */
+  /* No pcap this time, we won't receive the answer */
+  memset(data,'A', sizeof(data));
+  pingid = get_random_u16();
+  seq = get_random_u16();
+
+  ipv6_packet = build_icmpv6_raw(target->v6hostip(), proxy->host.v6hostip(), 0x00, 0x0000, o.ttl, seq , pingid, ICMPV6_ECHO, 0x00, data, sizeof(data) , &packetlen);
+  res = send_ip_packet(proxy->rawsd, proxy->ethptr, &ss, ipv6_packet, packetlen);
+  if (res == -1)
+    fatal("Error occurred while trying to send ICMPv6 Echo Request to the idle host");
+
+  free(ipv6_packet);
+
+  /* Now we guess what answer the decoy host sent to the target, so that we can piggyback this on the ICMPV6 Packet too Big message */
+  ipv6_packet = build_icmpv6_raw(proxy->host.v6hostip(), target->v6hostip(), 0x00, 0x0000, o.ttl, seq , pingid, ICMPV6_ECHOREPLY, 0x00, data, sizeof(data) , &packetlen);
+  *(uint32_t *)&data = ntohl(IP6_MTU_MIN - 2);
+  memcpy(&data[4], ipv6_packet, sizeof(data)-4);
+  free(ipv6_packet);
+
+  ipv6_packet = build_icmpv6_raw(target->v6hostip(), proxy->host.v6hostip(), 0x00, 0x0000, o.ttl, 0x00 , 0x00, 0x02, 0x00, data, sizeof(data) , &packetlen);
+  /* give the decoy host time to reply to the target */
+  usleep(10000);
+  res = send_ip_packet(proxy->rawsd, proxy->ethptr, &ss, ipv6_packet, packetlen);
+  if (res == -1)
+    fatal("Error occurred while trying to send ICMPv6 PTB to the idle host");
+  free(ipv6_packet);
+}
+
 /* takes a proxy name/IP, resolves it if necessary, tests it for IP ID
    suitability, and fills out an idle_proxy_info structure.  If the
    proxy is determined to be unsuitable, the function whines and exits
    the program */
 #define NUM_IPID_PROBES 6
 static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
-                                 const struct in_addr *first_target, const struct scan_lists *ports) {
-  int probes_sent = 0, probes_returned = 0;
+                                 Target *target, const struct scan_lists *ports) {
+  unsigned int probes_sent = 0, probes_returned = 0;
   int hardtimeout = 9000000; /* Generally don't wait more than 9 secs total */
   unsigned int bytes, to_usec;
   int timedout = 0;
-  char *p, *q;
+  char *p, *q = NULL, *r;
   char *endptr = NULL;
   int seq_response_num;
   int newipid;
-  int i;
+  unsigned int i;
   char filter[512]; /* Libpcap filter string */
   char name[MAXHOSTNAMELEN + 1];
   struct sockaddr_storage ss;
@@ -292,15 +548,23 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
   u32 sequence_base;
   u32 ack = 0;
   struct timeval probe_send_times[NUM_IPID_PROBES], tmptv, rcvdtime;
-  u16 lastipid = 0;
+  u32 lastipid = 0;
   struct ip *ip;
   struct tcp_hdr *tcp;
   int distance;
-  int ipids[NUM_IPID_PROBES];
+  u32 ipids[NUM_IPID_PROBES];
   u8 probe_returned[NUM_IPID_PROBES];
   struct route_nfo rnfo;
+  assert(proxyName);
+  u8 *ipv6_packet = NULL;
+  u32 packetlen = 0;
+  const struct ip6_hdr *ip6;
+  u8 ip6hdr;
+  const void *ip6data;
+  bool retried_forcing_fragmentation = false;
   assert(proxy);
   assert(proxyName);
+  int res;
 
   ack = get_random_u32();
 
@@ -314,8 +578,26 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
   proxy->max_groupsz = MAX(proxy->min_groupsz, o.max_parallelism ? o.max_parallelism : 100);
   proxy->max_senddelay = 100000;
 
-  Strncpy(name, proxyName, sizeof(name));
-  q = strchr(name, ':');
+
+  /* If we have an IPv6 address, we specify the port with [address]:port */
+  if (o.af() == AF_INET)
+    q = strchr(proxyName, ':');
+  else if (o.af() == AF_INET6) {
+    r = strstr(proxyName, "]:");
+    if (r != NULL)
+      q = strchr(r, ':');
+    else
+      q = NULL;
+  }
+
+  /* If we have a : in IPv4 or [] in IPv6, we strip them off */
+  if (o.af() == AF_INET && strchr(proxyName, ':') != NULL )
+    strncpy(name, proxyName , MIN(strcspn(proxyName,":") , sizeof(name)));
+  else if (o.af() == AF_INET6 && strchr(proxyName, '[') != NULL && strchr(proxyName, ']') != NULL)
+    strncpy(name, strchr(proxyName, '[') + 1, MIN(strcspn(proxyName,"]") - strcspn(proxyName, "[") - 1, sizeof(name)));
+  else
+    strncpy(name, proxyName, sizeof(name));
+
   if (q) {
     *q++ = '\0';
     proxy->probe_port = strtoul(q, &endptr, 10);
@@ -346,7 +628,7 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
   proxy->host.setTargetSockAddr(&ss, sslen);
 
   /* Lets figure out the appropriate source address to use when sending
-     the pr0bez */
+     the probes */
   proxy->host.TargetSockAddr(&ss, &sslen);
   if (!nmap_route_dst(&ss, &rnfo))
     fatal("Unable to find appropriate source address and device interface to use when sending packets to %s", proxyName);
@@ -393,18 +675,21 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
     proxy->ethptr = NULL;
   }
 
-  /* Now for the pcap opening nonsense ... */
-  /* Note that the snaplen is 152 = 64 byte max IPhdr + 24 byte max link_layer
-   * header + 64 byte max TCP header. */
-  if ((proxy->pd = my_pcap_open_live(proxy->host.deviceName(), 152,  (o.spoofsource) ? 1 : 0, 50)) == NULL)
+  if (proxy->host.af() == AF_INET6)
+    ipv6_force_fragmentation(proxy, target);
+
+  /* Now for the pcap opening nonsense ...
+     Snaplen will be the IPv6 minimum MTU of 1280, because an IPv6 packet
+     may have any number of extension header up to the minimal IPv6 MTU */
+  if ((proxy->pd = my_pcap_open_live(proxy->host.deviceName(), IP6_MTU_MIN,  (o.spoofsource) ? 1 : 0, 50)) == NULL)
     fatal("%s", PCAP_OPEN_ERRMSG);
 
 
-  p = strdup(proxy->host.targetipstr());
-  q = strdup(inet_ntoa(proxy->host.v4source()));
-  Snprintf(filter, sizeof(filter), "tcp and src host %s and dst host %s and src port %hu", p, q, proxy->probe_port);
-  free(p);
-  free(q);
+  p = (char *) proxy->host.targetipstr();
+  q = (char *) proxy->host.sourceipstr();
+
+  /* libpcap doesn't find the source port in IPv6 if there is an extension header. So we check for this later in the tcp header.  */
+  Snprintf(filter, sizeof(filter), "tcp and src host %s and dst host %s", p, q);
   set_pcap_filter(proxy->host.deviceFullName(), proxy->pd,  filter);
   if (o.debugging)
     log_write(LOG_STDOUT, "Packet capture filter (device %s): %s\n", proxy->host.deviceFullName(), filter);
@@ -413,7 +698,7 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
 
   sequence_base = get_random_u32();
 
-  /* Yahoo!  It is finally time to send our pr0beZ! */
+  /* Yahoo!  It is finally time to send our probes! */
 
   while (probes_sent < NUM_IPID_PROBES) {
     if (o.scan_delay)
@@ -427,14 +712,30 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
        a response with the exact request for timing purposes.  So I
        think I'll use TH_SYN, although it is a tough call. */
     /* We can't use decoys 'cause that would screw up the IP IDs */
-    send_tcp_raw(proxy->rawsd, proxy->ethptr,
-                 proxy->host.v4sourceip(), proxy->host.v4hostip(),
-                 o.ttl, false,
-                 o.ipoptions, o.ipoptionslen,
-                 o.magic_port + probes_sent + 1, proxy->probe_port,
-                 sequence_base + probes_sent + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
-                 (u8 *) "\x02\x04\x05\xb4", 4,
-                 NULL, 0);
+    if (o.af() == AF_INET)
+      send_tcp_raw(proxy->rawsd, proxy->ethptr,
+                   proxy->host.v4sourceip(), proxy->host.v4hostip(),
+                   o.ttl, false,
+                   o.ipoptions, o.ipoptionslen,
+                   o.magic_port + probes_sent + 1, proxy->probe_port,
+                   sequence_base + probes_sent + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
+                   (u8 *) "\x02\x04\x05\xb4", 4,
+                   NULL, 0);
+    else if (o.af() == AF_INET6) {
+      ipv6_packet = build_tcp_raw_ipv6(proxy->host.v6sourceip(), proxy->host.v6hostip(),
+                                       0x00, 0x0000,
+                                       o.ttl,
+                                       o.magic_port + probes_sent + 1, proxy->probe_port,
+                                       sequence_base + probes_sent + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
+                                       (u8 *) "\x02\x04\x05\xb4", 4,
+                                       NULL, 0,
+                                       &packetlen);
+      res = send_ip_packet(proxy->rawsd, proxy->ethptr, &ss, ipv6_packet, packetlen);
+      if (res == -1)
+        fatal("Error occurred while trying to send IPv6 packet");
+      free(ipv6_packet);
+    }
+
     gettimeofday(&probe_send_times[probes_sent], NULL);
     probes_sent++;
 
@@ -442,7 +743,7 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
     while (probes_returned < probes_sent && !timedout) {
 
       to_usec = (probes_sent == NUM_IPID_PROBES) ? hardtimeout : 1000;
-      ip = (struct ip *) readipv4_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);
+      ip = (struct ip *) readip_pcap(proxy->pd, &bytes, to_usec, &rcvdtime, NULL, true);
 
       gettimeofday(&tmptv, NULL);
 
@@ -457,32 +758,94 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
         timedout = 1;
       }
 
-      if (lastipid != 0 && ip->ip_id == lastipid) {
-        continue; /* probably a duplicate */
-      }
-      lastipid = ip->ip_id;
-
-      if (bytes < ( 4 * ip->ip_hl) + 14U)
-        continue;
-
-      if (ip->ip_p == IPPROTO_TCP) {
-        tcp = ((struct tcp_hdr *) (((char *) ip) + 4 * ip->ip_hl));
-        if (ntohs(tcp->th_dport) < (o.magic_port + 1) || ntohs(tcp->th_dport) - o.magic_port > NUM_IPID_PROBES  || ntohs(tcp->th_sport) != proxy->probe_port || ((tcp->th_flags & TH_RST) == 0)) {
-          if (o.debugging > 1)
-	    error("Received unexpected response packet from %s during initial IP ID zombie testing", inet_ntoa(ip->ip_src));
+      if (o.af() == AF_INET) {
+        if (ip->ip_v != 4) {
+          error("Received a packet with version field != 4");
           continue;
         }
+        if (lastipid != 0 && ip->ip_id == lastipid) {
+          continue; /* probably a duplicate */
+        }
+        lastipid = ip->ip_id;
+        if (bytes < ( 4 * ip->ip_hl) + 14U)
+          continue;
 
-        seq_response_num = probes_returned;
+        if (ip->ip_p == IPPROTO_TCP) {
+          tcp = ((struct tcp_hdr *) (((char *) ip) + 4 * ip->ip_hl));
+          /* Checking now for the source port, which we were not able to do in the libpcap filter */
+          if (ntohs(tcp->th_sport) != proxy->probe_port) {
+             continue;
+          }
 
-        /* The stuff below only works when we send SYN packets instead of
-           SYN|ACK, but then are slightly less stealthy and have less chance
-           of sneaking through the firewall.  Plus SYN|ACK is what they will
-           be receiving back from the target */
-        probes_returned++;
-        ipids[seq_response_num] = (u16) ntohs(ip->ip_id);
-        probe_returned[seq_response_num] = 1;
-        adjust_timeouts2(&probe_send_times[seq_response_num], &rcvdtime, &(proxy->host.to));
+          if (ntohs(tcp->th_dport) < (o.magic_port + 1) || ntohs(tcp->th_dport) - o.magic_port > NUM_IPID_PROBES || ((tcp->th_flags & TH_RST) == 0)) {
+            if (o.debugging > 1)
+              error("Received unexpected response packet from %s during initial IP ID zombie testing", inet_ntoa(ip->ip_src));
+            continue;
+          }
+
+          seq_response_num = probes_returned;
+
+          /* The stuff below only works when we send SYN packets instead of
+             SYN|ACK, but then are slightly less stealthy and have less chance
+             of sneaking through the firewall.  Plus SYN|ACK is what they will
+             be receiving back from the target */
+          probes_returned++;
+          ipids[seq_response_num] = ntohs(ip->ip_id);
+          probe_returned[seq_response_num] = 1;
+          adjust_timeouts2(&probe_send_times[seq_response_num], &rcvdtime, &(proxy->host.to));
+        }
+      } else if (o.af() == AF_INET6) {
+        if (ip->ip_v != 6) {
+          error("Received a packet with version field != 6");
+          continue;
+        } else {
+          ip6 = (struct ip6_hdr *) ip;
+          newipid = ipv6_get_fragment_id(ip6, bytes);
+          if (newipid < 0 ) {
+            /* ok, the idle host does not seem to append the extension header for fragmentation. Let's try this once more,
+            * maybe the idle host just adjusted its Path MTU. If we keep on having the problem, we quit */
+            if (!retried_forcing_fragmentation) {
+              ipv6_force_fragmentation(proxy, target);
+              retried_forcing_fragmentation = true;
+            } else
+              fatal("IPv6 packet without fragmentation header received - issues with the zombie?");
+          }
+          /* now that the additional ipv6 stuff is done, we do as for IPv4 */
+          if (lastipid != 0 && newipid == (int)lastipid) {
+            continue; /* probably a duplicate */
+          }
+          lastipid = newipid;
+
+          ip6data = ipv6_get_data(ip6, &packetlen, &ip6hdr);
+          if (ip6hdr == IPPROTO_TCP && ip6data != NULL) {
+              tcp = (struct tcp_hdr *) ip6data;
+              /* Checking now for the source port, which we were not able to do in the libpcap filter */
+              if (ntohs(tcp->th_sport) != proxy->probe_port) {
+                continue;
+              }
+          }else
+          {
+            error("Malformed packet received");
+            continue;
+          }
+
+          if (ntohs(tcp->th_dport) < (o.magic_port + 1) || ntohs(tcp->th_dport) - o.magic_port > NUM_IPID_PROBES  || ((tcp->th_flags & TH_RST) == 0)) {
+            if (o.debugging > 1)
+              error("Received unexpected response packet from %s during initial IP ID zombie testing", inet_ntoa(ip->ip_src));
+            continue;
+          }
+
+          seq_response_num = probes_returned;
+
+          /* The stuff below only works when we send SYN packets instead of
+             SYN|ACK, but then are slightly less stealthy and have less chance
+             of sneaking through the firewall.  Plus SYN|ACK is what they will
+             be receiving back from the target */
+          probes_returned++;
+          ipids[seq_response_num] = newipid;
+          probe_returned[seq_response_num] = 1;
+          adjust_timeouts2(&probe_send_times[seq_response_num], &rcvdtime, &(proxy->host.to));
+        }
       }
     }
   }
@@ -501,14 +864,18 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
           proxy->host.HostName(), proxy->host.targetipstr(),
           proxy->probe_port);
 
-  proxy->seqclass = get_ipid_sequence(probes_returned, ipids, 0);
+  if (o.af() == AF_INET)
+    proxy->seqclass = get_ipid_sequence_16(probes_returned, ipids, 0);
+  else
+    proxy->seqclass = get_ipid_sequence_32(probes_returned, ipids, 0);
   switch (proxy->seqclass) {
   case IPID_SEQ_INCR:
+  case IPID_SEQ_INCR_BY_2:
   case IPID_SEQ_BROKEN_INCR:
     log_write(LOG_PLAIN, "Idle scan using zombie %s (%s:%hu); Class: %s\n", proxy->host.HostName(), proxy->host.targetipstr(), proxy->probe_port, ipidclass2ascii(proxy->seqclass));
     break;
   default:
-    fatal("Idle scan zombie %s (%s) port %hu cannot be used because IP ID sequencability class is: %s.  Try another proxy.", proxy->host.HostName(), proxy->host.targetipstr(), proxy->probe_port, ipidclass2ascii(proxy->seqclass));
+    fatal("Idle scan zombie %s (%s) port %hu cannot be used because IP ID sequence class is: %s.  Try another proxy.", proxy->host.HostName(), proxy->host.targetipstr(), proxy->probe_port, ipidclass2ascii(proxy->seqclass));
   }
 
   proxy->latestid = ipids[probes_returned - 1];
@@ -534,19 +901,34 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
    changed.  This will also catch the case where the Nmap user is
    behind an egress filter or other measure that prevents this sort of
    sp00fery */
-  if (first_target) {
+  /* this behavior gets quite common in IPv6 so now its even more important to check */
+  if (target->v4hostip() || target->v6hostip()) {
     for (probes_sent = 0; probes_sent < 4; probes_sent++) {
       if (probes_sent != 0)
         usleep(50000);
-      send_tcp_raw(proxy->rawsd, proxy->ethptr,
-                   first_target, proxy->host.v4hostip(),
-                   o.ttl, false,
-                   o.ipoptions, o.ipoptionslen,
-                   o.magic_port, proxy->probe_port,
-                   sequence_base + probes_sent + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
-                   (u8 *) "\x02\x04\x05\xb4",
-                   4, NULL, 0);
-
+      if (target->v4hostip()) {
+        send_tcp_raw(proxy->rawsd, proxy->ethptr,
+                    target->v4hostip(), proxy->host.v4hostip(),
+                    o.ttl, false,
+                    o.ipoptions, o.ipoptionslen,
+                    o.magic_port, proxy->probe_port,
+                    sequence_base + probes_sent + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
+                    (u8 *) "\x02\x04\x05\xb4",
+                    4, NULL, 0);
+      } else {
+        ipv6_packet = build_tcp_raw_ipv6(target->v6hostip(), proxy->host.v6hostip(),
+                                         0x00, 0x0000,
+                                         o.ttl,
+                                         o.magic_port, proxy->probe_port,
+                                         sequence_base + probes_sent + 1, ack, 0, TH_SYN | TH_ACK, 0, 0,
+                                         (u8 *) "\x02\x04\x05\xb4",
+                                         4, NULL, 0,
+                                         &packetlen);
+        res = send_ip_packet(proxy->rawsd, proxy->ethptr, &ss, ipv6_packet, packetlen);
+        if (res == -1)
+          fatal("Error occurred while trying to send IPv6 packet ");
+        free(ipv6_packet);
+      }
     }
 
     /* Sleep a little while to give packets time to reach their destination */
@@ -648,7 +1030,7 @@ static int idlescan_countopen2(struct idle_proxy_info *proxy,
   int openports;
   int tries;
   int proxyprobes_sent = 0; /* diff. from tries 'cause sometimes we
-			       skip tries */
+                               skip tries */
   int proxyprobes_rcvd = 0; /* To determine if packets were dr0pped */
   int sent, rcvd;
   int ipid_dist;
@@ -661,10 +1043,16 @@ static int idlescan_countopen2(struct idle_proxy_info *proxy,
   int lasttry = 0;
   int dotry3 = 0;
   struct eth_nfo eth;
+  u8 *packet = NULL;
+  struct sockaddr_storage ss;
+  size_t sslen;
+  u32 packetlen = 0;
+  int res;
 
   if (seq == 0)
     seq = get_random_u32();
 
+  target->TargetSockAddr(&ss, &sslen);
   memset(&end, 0, sizeof(end));
   memset(&latestchange, 0, sizeof(latestchange));
   gettimeofday(&start, NULL);
@@ -683,7 +1071,7 @@ static int idlescan_countopen2(struct idle_proxy_info *proxy,
       fatal("%s: Failed to open ethernet device (%s)", __func__, target->deviceName());
   } else eth.ethsd = NULL;
 
-  /* I start by sending out the SYN pr0bez */
+  /* I start by sending out the SYN probes */
   for (pr0be = 0; pr0be < numports; pr0be++) {
     if (o.scan_delay)
       enforce_scan_delay(NULL);
@@ -693,13 +1081,27 @@ static int idlescan_countopen2(struct idle_proxy_info *proxy,
        but doing it the straightforward way (using the same decoys as
        we use in probing the proxy box is risky.  I'll have to think
        about this more. */
-    send_tcp_raw(proxy->rawsd, eth.ethsd ? &eth : NULL,
-                 proxy->host.v4hostip(), target->v4hostip(),
-                 o.ttl, false,
-                 o.ipoptions, o.ipoptionslen,
-                 proxy->probe_port, ports[pr0be], seq, 0, 0, TH_SYN, 0, 0,
-                 (u8 *) "\x02\x04\x05\xb4", 4,
-                 o.extra_payload, o.extra_payload_length);
+   if ( o.af() == AF_INET ) {
+      send_tcp_raw(proxy->rawsd, eth.ethsd ? &eth : NULL,
+                   proxy->host.v4hostip(), target->v4hostip(),
+                   o.ttl, false,
+                   o.ipoptions, o.ipoptionslen,
+                   proxy->probe_port, ports[pr0be], seq, 0, 0, TH_SYN, 0, 0,
+                   (u8 *) "\x02\x04\x05\xb4", 4,
+                   o.extra_payload, o.extra_payload_length);
+   } else {
+        packet = build_tcp_raw_ipv6(proxy->host.v6hostip(), target->v6hostip(),
+                                    0x00, 0x0000,
+                                    o.ttl,
+                                    proxy->probe_port, ports[pr0be], seq, 0, 0, TH_SYN, 0, 0,
+                                    (u8 *) "\x02\x04\x05\xb4", 4,
+                                    o.extra_payload, o.extra_payload_length,
+                                    &packetlen);
+        res = send_ip_packet(proxy->rawsd, eth.ethsd ? &eth : NULL, &ss, packet, packetlen);
+        if (res == -1)
+          fatal("Error occurred while trying to send IPv6 packet");
+        free(packet);
+    }
   }
   gettimeofday(&end, NULL);
 
@@ -822,7 +1224,7 @@ static int idlescan_countopen(struct idle_proxy_info *proxy,
     sleep(tries * tries);
     if (tries == 5)
       sleep(45); /* We're gonna give up if this fails, so we will be a bit
-		    patient */
+                    patient */
     /* Since the host may have received packets while we were sleeping,
        lets update our proxy IP ID counter */
     proxy->latestid = ipid_proxy_probe(proxy, NULL, NULL);
@@ -946,7 +1348,7 @@ static int idle_treescan(struct idle_proxy_info *proxy, Target *target,
           adjust_idle_timing(proxy, target, retry2, retrycount);
         } else {
           if (o.debugging)
-            error("Adjusting timing because my first scan of %d ports, starting with %hu found %d open, while second scan yeilded %d", secondHalfSz, ports[firstHalfSz], flatcount2, retrycount);
+            error("Adjusting timing because my first scan of %d ports, starting with %hu found %d open, while second scan yielded %d", secondHalfSz, ports[firstHalfSz], flatcount2, retrycount);
           adjust_idle_timing(proxy, target, flatcount2, retrycount);
         }
 
@@ -1010,7 +1412,7 @@ void idle_scan(Target *target, u16 *portarray, int numports,
 
   /* If this is the first call,  */
   if (!*lastproxy) {
-    initialize_idleproxy(&proxy, proxyName, target->v4hostip(), ports);
+    initialize_idleproxy(&proxy, proxyName, target, ports);
     strncpy(lastproxy, proxyName, sizeof(lastproxy));
   }
 
@@ -1030,7 +1432,7 @@ void idle_scan(Target *target, u16 *portarray, int numports,
      scan is sort of tree structured (we scan a group and then divide
      it up and drill down in subscans of the group), we split the port
      space into smaller groups and then call a recursive
-     divide-and-counquer function to find the open ports */
+     divide-and-conquer function to find the open ports */
   while (portidx < numports) {
     portsleft = numports - portidx;
     /* current_groupsz is doubled below because idle_subscan cuts in half */

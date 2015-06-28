@@ -1,4 +1,3 @@
-local bin = require "bin"
 local nmap = require "nmap"
 local pppoe = require "pppoe"
 local stdnse = require "stdnse"
@@ -20,7 +19,7 @@ mode to operate.
 -- nmap --script broadcast-pppoe-discover
 --
 -- @output
--- | broadcast-pppoe-discover: 
+-- | broadcast-pppoe-discover:
 -- | Server: 08:00:27:AB:CD:EF
 -- |   Version: 1
 -- |   Type: 1
@@ -36,43 +35,37 @@ categories = {"broadcast", "safe"}
 
 
 prerule = function()
-	if not nmap.is_privileged() then
-		stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
-		return false
-	end
-	return true
+  if not nmap.is_privileged() then
+    stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+    return false
+  end
+  return true
 end
 
 local function fail(err)
-	if ( err ) then
-		return ("\n  ERROR: %s"):format(err)
-	end
-end
-
-local function mac_tostr(mac)
-	local srv_mac = {}
-	for i=1, #mac do table.insert(srv_mac, select(2,bin.unpack("H", mac, i))) end
-	return stdnse.strjoin(":", srv_mac)
+  if ( err ) then
+    return ("\n  ERROR: %s"):format(err)
+  end
 end
 
 local function discoverPPPoE(helper)
 
-	local status, err = helper:connect()
-	if ( not(status) ) then
-		return false, err
-	end
-	
-	local status, pado = helper:discoverInit()
-	if ( not(status) ) then
-		return false, pado
-	end
-	
-	status, err = helper:discoverRequest()
-	if ( not(status) ) then
-		return false, err
-	end
-	
-	return true, pado
+  local status, err = helper:connect()
+  if ( not(status) ) then
+    return false, err
+  end
+
+  local status, pado = helper:discoverInit()
+  if ( not(status) ) then
+    return false, pado
+  end
+
+  status, err = helper:discoverRequest()
+  if ( not(status) ) then
+    return false, err
+  end
+
+  return true, pado
 end
 
 -- Gets a list of available interfaces based on link and up filters
@@ -81,53 +74,53 @@ end
 -- @param up string containing the interface status to filter
 -- @return result table containing the matching interfaces
 local function getInterfaces(link, up)
-	if( not(nmap.list_interfaces) ) then return end
-	local interfaces, err = nmap.list_interfaces()
-	local result
-	if ( not(err) ) then
-		for _, iface in ipairs(interfaces) do
-			if ( iface.link == link and iface.up == up ) then
-				result = result or {}
-				result[iface.device] = true
-			end
-		end
-	end
-	return result
-end	
+  if( not(nmap.list_interfaces) ) then return end
+  local interfaces, err = nmap.list_interfaces()
+  local result
+  if ( not(err) ) then
+    for _, iface in ipairs(interfaces) do
+      if ( iface.link == link and iface.up == up ) then
+        result = result or {}
+        result[iface.device] = true
+      end
+    end
+  end
+  return result
+end
 
 action = function()
 
-	local interfaces
-	
-	-- first check if the user supplied an interface
-	if ( nmap.get_interface() ) then
-		interfaces = { [nmap.get_interface()] = true }
-	else
-		interfaces = getInterfaces("ethernet", "up")
-	end
-	
-	for iface in pairs(interfaces) do
-		local helper, err = pppoe.Helper:new(iface)
-		if ( not(helper) ) then
-			return fail(err)
-		end
-		local status, pado = discoverPPPoE(helper)
-		if ( not(status) ) then
-			return fail(pado)
-		end
-		helper:close()
-	
-		local output = { name = ("Server: %s"):format(mac_tostr(pado.mac_srv)) }
-		table.insert(output, ("Version: %d"):format(pado.header.version))
-		table.insert(output, ("Type: %d"):format(pado.header.type))
-			
-		local tags = { name = "TAGs" }
-		for _, tag in ipairs(pado.tags) do
-			local name, val = pppoe.PPPoE.TagName[tag.tag], tag.decoded
-			table.insert(tags, ("%s: %s"):format(name, val))
-		end
-		table.insert(output, tags)
+  local interfaces
 
-		return stdnse.format_output(true, output)
-	end
+  -- first check if the user supplied an interface
+  if ( nmap.get_interface() ) then
+    interfaces = { [nmap.get_interface()] = true }
+  else
+    interfaces = getInterfaces("ethernet", "up")
+  end
+
+  for iface in pairs(interfaces) do
+    local helper, err = pppoe.Helper:new(iface)
+    if ( not(helper) ) then
+      return fail(err)
+    end
+    local status, pado = discoverPPPoE(helper)
+    if ( not(status) ) then
+      return fail(pado)
+    end
+    helper:close()
+
+    local output = { name = ("Server: %s"):format(stdnse.format_mac(pado.mac_srv)) }
+    table.insert(output, ("Version: %d"):format(pado.header.version))
+    table.insert(output, ("Type: %d"):format(pado.header.type))
+
+    local tags = { name = "TAGs" }
+    for _, tag in ipairs(pado.tags) do
+      local name, val = pppoe.PPPoE.TagName[tag.tag], tag.decoded
+      table.insert(tags, ("%s: %s"):format(name, val))
+    end
+    table.insert(output, tags)
+
+    return stdnse.format_output(true, output)
+  end
 end

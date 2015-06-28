@@ -242,7 +242,7 @@
         </term>
         <listitem>
           <para>The maximum number of simultaneous connections accepted by an Ncat
-          instance. 100 is the default.</para>
+          instance. 100 is the default (60 on Windows).</para>
         </listitem>
       </varlistentry>
 
@@ -461,7 +461,7 @@
           specified port/application like inetd. Ncat will only
           accept a maximum, definable, number of simultaneous connections
           controlled by the <option>-m</option> option. By default this is set
-          to 100.</para>
+          to 100 (60 on Windows).</para>
         </listitem>
       </varlistentry>
 
@@ -479,8 +479,51 @@
           like environment variables are available.</para>
         </listitem>
       </varlistentry>
+
+      <varlistentry>
+        <term>
+          <option>--lua-exec <replaceable>file</replaceable></option> (Execute a .lua script)
+          <indexterm><primary><option>--lua-exec</option> (Ncat option)</primary></indexterm>
+        </term>
+        <listitem>
+          <para>Runs the specified file as a Lua script after a connection has been
+          established, using a built-in interpreter. Both the script's standard input and
+          the standard output are redirected to the connection data streams.</para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
 
+    <para>All exec options add the following variables to the child's environment:</para>
+    <variablelist>
+    <varlistentry>
+      <term><envar>NCAT_REMOTE_ADDR</envar></term><indexterm><primary><envar>NCAT_REMOTE_ADDR></envar> environment variable</primary></indexterm>
+      <term><envar>NCAT_REMOTE_PORT</envar></term><indexterm><primary><envar>NCAT_REMOTE_PORT></envar> environment variable</primary></indexterm>
+      <listitem>
+      <para>
+      The IP address and port number of the remote host. In connect mode, it's
+      the target's address; in listen mode, it's the client's address.
+      </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term><envar>NCAT_LOCAL_ADDR</envar></term><indexterm><primary><envar>NCAT_LOCAL_ADDR></envar> environment variable</primary></indexterm>
+      <term><envar>NCAT_LOCAL_PORT</envar></term><indexterm><primary><envar>NCAT_LOCAL_PORT></envar> environment variable</primary></indexterm>
+      <listitem>
+      <para>
+      The IP address and port number of the local end of the connection.
+      </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term><envar>NCAT_PROTO</envar></term><indexterm><primary><envar>NCAT_PROTO></envar> environment variable</primary></indexterm>
+      <listitem>
+      <para>
+      The protocol in use: one of <code>TCP</code>, <code>UDP</code>, and <code>SCTP</code>.
+      </para>
+      </listitem>
+    </varlistentry>
+    </variablelist>
   </refsect1>
 
   <refsect1 id="ncat-man-access-options">
@@ -649,8 +692,8 @@
         <listitem>
           <para>Issue Ncat with <option>-v</option> and it will be verbose and
           display all kinds of useful connection based information. Use more
-          than once (<option>-vv</option>, <option>-vvv</option>) for greater
-          verbosity. <option>-vvv</option> is the maximum level.</para>
+          than once (<option>-vv</option>, <option>-vvv</option>...) for greater
+          verbosity.</para>
         </listitem>
       </varlistentry>
     </variablelist>
@@ -887,11 +930,11 @@
     <indexterm><primary><citetitle>nmap-dev</citetitle> mailing list</primary></indexterm>
     Read this full manual page as
     well.  If nothing comes of this, mail a bug report to
-    <email>nmap-dev@insecure.org</email>.  Please include everything
+    <email>dev@nmap.org</email>.  Please include everything
     you have learned about the problem, as well as what version of
     Ncat you are running and what operating system version it is
     running on.  Problem reports and Ncat usage questions sent to
-    nmap-dev@insecure.org are far more likely to be answered than
+    dev@nmap.org are far more likely to be answered than
     those sent to Fyodor directly.</para>
 
     <para>Code patches to fix bugs are even better than bug reports.
@@ -915,7 +958,7 @@
         <para>Mixter <email>mixter@gmail.com</email></para>
       </listitem>
       <listitem>
-        <para>Fyodor <email>fyodor@insecure.org</email>
+        <para>Fyodor <email>fyodor@nmap.org</email>
         (<ulink url="http://insecure.org" />)</para>
       </listitem>
     </itemizedlist>
@@ -965,7 +1008,7 @@ run it. This also allows you to audit the software for security holes
 <para>Source code also allows you to port Nmap (which includes Ncat)
 to new platforms, fix bugs, and add new features.  You are highly
 encouraged to send your changes to
-<email>nmap-dev@insecure.org</email> for possible incorporation into
+<email>dev@nmap.org</email> for possible incorporation into
 the main distribution.  By sending these changes to Fyodor or one of
 the Insecure.Org development mailing lists, it is assumed that you are
 offering the Nmap Project (Insecure.Com LLC) the unlimited,

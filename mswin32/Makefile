@@ -10,11 +10,8 @@ NMAP_MSWIN32_AUX = ../../nmap-mswin32-aux
 winbuild: nmap.rc nsis/Nmap.nsi LICENSE
 # VCExpress.exe is devenv.com with the commercial Visual Studio suite instead of VC++ Express
 
-# MSBUILDDISABLENODEREUSE prevents zombie msbuild.exe processes that
-# break subsequent builds.
-	MSBUILDDISABLENODEREUSE=1 \
-	&& "$(VCEXPRESS)" nmap.sln /build release /log $(LOGLOC) \
-	&& "$(VCEXPRESS)" nmap.sln /build release /project nmap-update /log $(LOGLOC)
+	"$(VCEXPRESS)" nmap.sln /build release /out $(LOGLOC)
+	"$(VCEXPRESS)" nmap.sln /build release /project nmap-update /out $(LOGLOC)
 	$(MAKENSIS) winpcap/winpcap-nmap.nsi
 	rm -rf nmap-$(NMAP_VERSION)
 	rm -f nmap-$(NMAP_VERSION)-win32.zip
@@ -42,7 +39,7 @@ winbuild: nmap.rc nsis/Nmap.nsi LICENSE
 	cp ../nping/Release/nping.exe nmap-$(NMAP_VERSION)
 	cp ../nmap-update/Release/nmap-update.exe nmap-$(NMAP_VERSION)
 # Install the ndiff batch file wrapper in the zip distribution.
-	cp ../ndiff/ndiff nmap-$(NMAP_VERSION)/ndiff.py
+	cp ../ndiff/ndiff.py nmap-$(NMAP_VERSION)/ndiff.py
 	cp python-wrap.bat nmap-$(NMAP_VERSION)/ndiff.bat
 	zip -r nmap-$(NMAP_VERSION)-win32.zip nmap-$(NMAP_VERSION)
 # Remove ndiff.py and ndiff.bat for the installer because it has ndiff.exe.

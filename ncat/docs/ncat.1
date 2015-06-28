@@ -2,12 +2,12 @@
 .\"     Title: Ncat
 .\"    Author: [see the "Authors" section]
 .\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 11/29/2012
+.\"      Date: 08/13/2014
 .\"    Manual: Ncat Reference Guide
 .\"    Source: Ncat
 .\"  Language: English
 .\"
-.TH "NCAT" "1" "11/29/2012" "Ncat" "Ncat Reference Guide"
+.TH "NCAT" "1" "08/13/2014" "Ncat" "Ncat Reference Guide"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Among Ncat\*(Aqs vast number of features there is the ability to chain Ncats tog
 .RS 4
 .\}
 .nf
-Ncat 6\&.25 ( http://nmap\&.org/ncat )
+Ncat 6\&.47 ( http://nmap\&.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
 Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
@@ -56,6 +56,7 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
   \-C, \-\-crlf                 Use CRLF for EOL sequence
   \-c, \-\-sh\-exec <command>    Executes the given command via /bin/sh
   \-e, \-\-exec <command>       Executes the given command
+      \-\-lua\-exec <filename>  Executes the given Lua script
   \-g hop1[,hop2,\&.\&.\&.]         Loose source routing hop points (8 max)
   \-G <n>                     Loose source routing hop pointer (4, 8, 12, \&.\&.\&.)
   \-m, \-\-max\-conns <n>        Maximum <n> simultaneous connections
@@ -72,7 +73,7 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
   \-t, \-\-telnet               Answer Telnet negotiations
   \-u, \-\-udp                  Use UDP instead of default TCP
       \-\-sctp                 Use SCTP instead of default TCP
-  \-v, \-\-verbose              Set verbosity level (can be used up to 3 times)
+  \-v, \-\-verbose              Set verbosity level (can be used several times)
   \-w, \-\-wait <time>          Connect timeout
       \-\-append\-output        Append rather than clobber specified output files
       \-\-send\-only            Only send data, ignoring received; quit on EOF
@@ -84,7 +85,7 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
       \-\-broker               Enable Ncat\*(Aqs connection brokering mode
       \-\-chat                 Start a simple Ncat chat server
       \-\-proxy <addr[:port]>  Specify address of host to proxy through
-      \-\-proxy\-type <type>    Specify proxy type ("http" or "socks4")
+      \-\-proxy\-type <type>    Specify proxy type ("http" or "socks4" or "socks5")
       \-\-proxy\-auth <auth>    Authenticate with HTTP or SOCKS proxy server
       \-\-ssl                  Connect or listen with SSL
       \-\-ssl\-cert             Specify SSL certificate file (PEM) for listening
@@ -198,7 +199,7 @@ Listen for connections rather than connecting to a remote machine
 .PP
 \fB\-m \fR\fB\fInumconns\fR\fR, \fB\-\-max\-conns \fR\fB\fInumconns\fR\fR (Specify maximum number of connections) .\" --max-conns (Ncat option) .\" -m (Ncat option)
 .RS 4
-The maximum number of simultaneous connections accepted by an Ncat instance\&. 100 is the default\&.
+The maximum number of simultaneous connections accepted by an Ncat instance\&. 100 is the default (60 on Windows)\&.
 .RE
 .PP
 \fB\-k\fR, \fB\-\-keep\-open\fR (Accept multiple connections) .\" --keep-open (Ncat option) .\" -k (Ncat option)
@@ -307,7 +308,7 @@ In connect mode, gives the credentials that will be used to connect to the proxy
 Execute the specified command after a connection has been established\&. The command must be specified as a full pathname\&. All input from the remote client will be sent to the application and responses sent back to the remote client over the socket, thus making your command\-line application interactive over a socket\&. Combined with
 \fB\-\-keep\-open\fR, Ncat will handle multiple simultaneous connections to your specified port/application like inetd\&. Ncat will only accept a maximum, definable, number of simultaneous connections controlled by the
 \fB\-m\fR
-option\&. By default this is set to 100\&.
+option\&. By default this is set to 100 (60 on Windows)\&.
 .RE
 .PP
 \fB\-c \fR\fB\fIcommand\fR\fR, \fB\-\-sh\-exec \fR\fB\fIcommand\fR\fR (Execute command via sh) .\" --sh-exec (Ncat option) .\" -c (Ncat option)
@@ -315,6 +316,36 @@ option\&. By default this is set to 100\&.
 Same as
 \fB\-e\fR, except it tries to execute the command via
 /bin/sh\&. This means you don\*(Aqt have to specify the full path for the command, and shell facilities like environment variables are available\&.
+.RE
+.PP
+\fB\-\-lua\-exec \fR\fB\fIfile\fR\fR (Execute a \&.lua script) .\" --lua-exec (Ncat option)
+.RS 4
+Runs the specified file as a Lua script after a connection has been established, using a built\-in interpreter\&. Both the script\*(Aqs standard input and the standard output are redirected to the connection data streams\&.
+.RE
+.PP
+All exec options add the following variables to the child\*(Aqs environment:
+.PP
+\fBNCAT_REMOTE_ADDR\fR, \fBNCAT_REMOTE_PORT\fR
+.RS 4
+.\" NCAT_REMOTE_ADDR> environment variable
+.\" NCAT_REMOTE_PORT> environment variable
+The IP address and port number of the remote host\&. In connect mode, it\*(Aqs the target\*(Aqs address; in listen mode, it\*(Aqs the client\*(Aqs address\&.
+.RE
+.PP
+\fBNCAT_LOCAL_ADDR\fR, \fBNCAT_LOCAL_PORT\fR
+.RS 4
+.\" NCAT_LOCAL_ADDR> environment variable
+.\" NCAT_LOCAL_PORT> environment variable
+The IP address and port number of the local end of the connection\&.
+.RE
+.PP
+\fBNCAT_PROTO\fR
+.RS 4
+.\" NCAT_PROTO> environment variable
+The protocol in use: one of
+TCP,
+UDP, and
+SCTP\&.
 .RE
 .SH "ACCESS CONTROL OPTIONS"
 .PP
@@ -404,9 +435,7 @@ and it will append the resulted output rather than truncating the specified outp
 Issue Ncat with
 \fB\-v\fR
 and it will be verbose and display all kinds of useful connection based information\&. Use more than once (\fB\-vv\fR,
-\fB\-vvv\fR) for greater verbosity\&.
-\fB\-vvv\fR
-is the maximum level\&.
+\fB\-vvv\fR\&.\&.\&.) for greater verbosity\&.
 .RE
 .SH "MISC OPTIONS"
 .PP
@@ -533,7 +562,7 @@ archives at
 \m[blue]\fB\%http://seclists.org/\fR\m[]\&.
 .\" nmap-dev mailing list
 Read this full manual page as well\&. If nothing comes of this, mail a bug report to
-nmap\-dev@insecure\&.org\&. Please include everything you have learned about the problem, as well as what version of Ncat you are running and what operating system version it is running on\&. Problem reports and Ncat usage questions sent to nmap\-dev@insecure\&.org are far more likely to be answered than those sent to Fyodor directly\&.
+dev@nmap\&.org\&. Please include everything you have learned about the problem, as well as what version of Ncat you are running and what operating system version it is running on\&. Problem reports and Ncat usage questions sent to dev@nmap\&.org are far more likely to be answered than those sent to Fyodor directly\&.
 .PP
 Code patches to fix bugs are even better than bug reports\&. Basic instructions for creating patch files with your changes are available at
 \m[blue]\fB\%https://svn.nmap.org/nmap/HACKING\fR\m[]\&. Patches may be sent to
@@ -586,7 +615,7 @@ mixter@gmail\&.com
 .IP \(bu 2.3
 .\}
 Fyodor
-fyodor@insecure\&.org
+fyodor@nmap\&.org
 (\m[blue]\fB\%http://insecure.org\fR\m[])
 .RE
 .PP
@@ -612,7 +641,7 @@ is (C) 2005\(en2012 Insecure\&.Com LLC\&. It is hereby placed under version 3\&.
 Source is provided to this software because we believe users have a right to know exactly what a program is going to do before they run it\&. This also allows you to audit the software for security holes (none have been found so far)\&.
 .PP
 Source code also allows you to port Nmap (which includes Ncat) to new platforms, fix bugs, and add new features\&. You are highly encouraged to send your changes to
-nmap\-dev@insecure\&.org
+dev@nmap\&.org
 for possible incorporation into the main distribution\&. By sending these changes to Fyodor or one of the Insecure\&.Org development mailing lists, it is assumed that you are offering the Nmap Project (Insecure\&.Com LLC) the unlimited, non\-exclusive right to reuse, modify, and relicense the code\&. Nmap will always be available open source,.\" open source
 but this is important because the inability to relicense code has caused devastating problems for other Free Software projects (such as KDE and NASM)\&. We also occasionally relicense the code to third parties as discussed in the Nmap man page\&. If you wish to specify special license conditions of your contributions, just say so when you send them\&.
 .SS "No Warranty.\" warranty (lack of)"

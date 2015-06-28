@@ -1,4 +1,4 @@
-$Id: NMAP_MODIFICATIONS 30306 2012-11-29 03:19:52Z david $
+$Id: NMAP_MODIFICATIONS 30913 2013-06-01 16:28:44Z david $
 
 This is Dug Song's excellent Libdnet networking library version 1.12.
 It has been stripped down for inclusion within Nmap and modified as follows:
@@ -59,7 +59,7 @@ Index: configure.in
 --- configure.in	(revision 6317)
 +++ configure.in	(working copy)
 @@ -6,8 +6,6 @@
- dnl $Id: NMAP_MODIFICATIONS 30306 2012-11-29 03:19:52Z david $
+ dnl $Id: NMAP_MODIFICATIONS 30913 2013-06-01 16:28:44Z david $
  
  AC_INIT(include/dnet.h)
 -AC_CONFIG_AUX_DIR(config)
@@ -1658,3 +1658,255 @@ index ff86851..b4536b3 100644
  		ret = GetIpForwardTable(r->ipftable, &len, FALSE);
  		if (ret == NO_ERROR)
  			break;
+
+o Add metric to struct route_entry.
+
+diff --git a/libdnet-stripped/include/dnet/route.h b/libdnet-stripped/include/dnet/route.h
+index 7969772..b4bd4cc 100644
+--- a/libdnet-stripped/include/dnet/route.h
++++ b/libdnet-stripped/include/dnet/route.h
+@@ -18,6 +18,7 @@ struct route_entry {
+ 	char		intf_name[INTF_NAME_LEN];	/* interface name */
+ 	struct addr	route_dst;	/* destination address */
+ 	struct addr	route_gw;	/* gateway address */
++	int		metric;		/* per-route metric */
+ };
+ 
+ typedef struct route_handle route_t;
+diff --git a/libdnet-stripped/src/route-bsd.c b/libdnet-stripped/src/route-bsd.c
+index 33f2985..44e7dd2 100644
+--- a/libdnet-stripped/src/route-bsd.c
++++ b/libdnet-stripped/src/route-bsd.c
+@@ -224,6 +224,7 @@ route_get(route_t *r, struct route_entry *entry)
+ 	if (route_msg(r, RTM_GET, entry->intf_name, &entry->route_dst, &entry->route_gw) < 0)
+ 		return (-1);
+ 	entry->intf_name[0] = '\0';
++	entry->metric = 0;
+ 	
+ 	return (0);
+ }
+@@ -359,6 +360,8 @@ route_loop(route_t *r, route_handler callback, void *arg)
+ 				continue;
+ 		}
+ 
++		entry.metric = 0;
++
+ 		if ((ret = callback(&entry, arg)) != 0)
+ 			break;
+ 	}
+@@ -473,6 +476,8 @@ route_loop(route_t *r, route_handler callback, void *arg)
+ 				sin.sin_addr.s_addr = rt->ipRouteMask;
+ 				addr_stob((struct sockaddr *)&sin,
+ 				    &entry.route_dst.addr_bits);
++
++				entry.metric = 0;
+ 				
+ 				if ((ret = callback(&entry, arg)) != 0)
+ 					return (ret);
+@@ -608,6 +613,7 @@ _radix_walk(int fd, struct radix_node *rn, route_handler callback, void *arg)
+ 			}
+ 			_kread(fd, rt.rt_gateway, &sin, sizeof(sin));
+ 			addr_ston((struct sockaddr *)&sin, &entry.route_gw);
++			entry.metric = 0;
+ 			if ((ret = callback(&entry, arg)) != 0)
+ 				return (ret);
+ 		}
+diff --git a/libdnet-stripped/src/route-hpux.c b/libdnet-stripped/src/route-hpux.c
+index a542347..07e7f8c 100644
+--- a/libdnet-stripped/src/route-hpux.c
++++ b/libdnet-stripped/src/route-hpux.c
+@@ -120,6 +120,7 @@ route_get(route_t *r, struct route_entry *entry)
+ 	entry->route_gw.addr_type = ADDR_TYPE_IP;
+ 	entry->route_gw.addr_bits = IP_ADDR_BITS;
+ 	memcpy(&entry->route_gw.addr_ip, &rtr.rtr_gwayaddr, IP_ADDR_LEN);
++	entry->metric = 0;
+ 	
+ 	return (0);
+ }
+@@ -163,6 +164,7 @@ route_loop(route_t *r, route_handler callback, void *arg)
+ 		addr_mtob(&rtentries[i].Mask, IP_ADDR_LEN,
+ 		    &entry.route_dst.addr_bits);
+ 		entry.route_gw.addr_ip = rtentries[i].NextHop;
++		entry.metric = 0;
+ 
+ 		if ((ret = callback(&entry, arg)) != 0)
+ 			break;
+diff --git a/libdnet-stripped/src/route-linux.c b/libdnet-stripped/src/route-linux.c
+index a80b71b..b14c527 100644
+--- a/libdnet-stripped/src/route-linux.c
++++ b/libdnet-stripped/src/route-linux.c
+@@ -252,6 +252,7 @@ route_loop(route_t *r, route_handler callback, void *arg)
+ 				continue;
+ 			
+ 			entry.route_gw.addr_bits = IP_ADDR_BITS;
++			entry.metric = metric;
+ 			
+ 			if ((ret = callback(&entry, arg)) != 0)
+ 				break;
+@@ -260,17 +261,17 @@ route_loop(route_t *r, route_handler callback, void *arg)
+ 	}
+ 	if (ret == 0 && (fp = fopen(PROC_IPV6_ROUTE_FILE, "r")) != NULL) {
+ 		char s[33], d[8][5], n[8][5];
+-		int i, iflags;
++		int i, iflags, metric;
+ 		u_int slen, dlen;
+ 		
+ 		while (fgets(buf, sizeof(buf), fp) != NULL) {
+ 			i = sscanf(buf, "%04s%04s%04s%04s%04s%04s%04s%04s %02x "
+ 			    "%32s %02x %04s%04s%04s%04s%04s%04s%04s%04s "
+-			    "%*x %*x %*x %x %15s",
++			    "%x %*x %*x %x %15s",
+ 			    d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7],
+ 			    &dlen, s, &slen,
+ 			    n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7],
+-			    &iflags, ifbuf);
++			    &metric, &iflags, ifbuf);
+ 			
+ 			if (i < 21 || !(iflags & RTF_UP))
+ 				continue;
+@@ -285,6 +286,7 @@ route_loop(route_t *r, route_handler callback, void *arg)
+ 			    n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7],
+ 			    IP6_ADDR_BITS);
+ 			addr_aton(buf, &entry.route_gw);
++			entry.metric = metric;
+ 			
+ 			if ((ret = callback(&entry, arg)) != 0)
+ 				break;
+diff --git a/libdnet-stripped/src/route-win32.c b/libdnet-stripped/src/route-win32.c
+index b4536b3..c69b29b 100644
+--- a/libdnet-stripped/src/route-win32.c
++++ b/libdnet-stripped/src/route-win32.c
+@@ -122,6 +122,7 @@ route_get(route_t *route, struct route_entry *entry)
+ 	entry->route_gw.addr_type = ADDR_TYPE_IP;
+ 	entry->route_gw.addr_bits = IP_ADDR_BITS;
+ 	entry->route_gw.addr_ip = ipfrow.dwForwardNextHop;
++	entry->metric = ipfrow.dwForwardMetric1;
+ 
+ 	entry->intf_name[0] = '\0';
+ 	intf = intf_open();
+@@ -172,6 +173,7 @@ route_loop_getipforwardtable(route_t *r, route_handler callback, void *arg)
+ 		    &entry.route_dst.addr_bits);
+ 		entry.route_gw.addr_ip =
+ 		    r->ipftable->table[i].dwForwardNextHop;
++		entry.metric = r->ipftable->table[i].dwForwardMetric1;
+ 
+ 		/* Look up the interface name. */
+ 		entry.intf_name[0] = '\0';
+@@ -209,6 +211,8 @@ route_loop_getipforwardtable2(GETIPFORWARDTABLE2 GetIpForwardTable2,
+ 	for (i = 0; i < r->ipftable2->NumEntries; i++) {
+ 		struct intf_entry intf_entry;
+ 		MIB_IPFORWARD_ROW2 *row;
++		MIB_IPINTERFACE_ROW ifrow;
++		ULONG metric;
+ 
+ 		row = &r->ipftable2->Table[i];
+ 		addr_ston((struct sockaddr *) &row->DestinationPrefix.Prefix, &entry.route_dst);
+@@ -223,6 +227,18 @@ route_loop_getipforwardtable2(GETIPFORWARDTABLE2 GetIpForwardTable2,
+ 		    row->InterfaceIndex) == 0) {
+ 			strlcpy(entry.intf_name, intf_entry.intf_name, sizeof(entry.intf_name));
+ 		}
++
++		ifrow.Family = row->DestinationPrefix.Prefix.si_family;
++		ifrow.InterfaceLuid = row->InterfaceLuid;
++		ifrow.InterfaceIndex = row->InterfaceIndex;
++		if (GetIpInterfaceEntry(&ifrow) != NO_ERROR) {
++			return (-1);
++		}
++		metric = ifrow.Metric + row->Metric;
++		if (metric < INT_MAX)
++			entry.metric = metric;
++		else
++			entry.metric = INT_MAX;
+ 		
+ 		if ((ret = (*callback)(&entry, arg)) != 0)
+ 			break;
+
+o Support Appletalk devices and make addr_ston able to handle
+  them. However, this support is not complete since ipddp interfaces
+  use different size hardware addresses than Ethernet.
+  Nmap IP level scans should work without any
+  problem, please see Nmap's '--send-ip' switch.
+
+  For more information, please see this thread:
+  http://seclists.org/nmap-dev/2013/q1/214
+
+Index: libdnet-stripped/include/dnet/arp.h
+===================================================================
+--- libdnet-stripped/include/dnet/arp.h (revision 30609)
++++ libdnet-stripped/include/dnet/arp.h (working copy)
+@@ -40,6 +40,7 @@
+ #define ARP_HRD_IEEE802    0x0006  /* IEEE 802 hardware */
+ 
+ #define ARP_HRD_INFINIBAND 0x0020 /* InfiniBand */
++#define ARP_HRD_APPLETALK 0x0309 /* AppleTalk DDP */
+ #define ARP_HDR_IEEE80211 0x0321  /* IEEE 802.11 */
+ #define ARP_HRD_IEEE80211_RADIOTAP 0x0323  /* IEEE 802.11 + radiotap header */
+ #define ARP_HRD_VOID 0xFFFF            /* Void type, nothing is known */
+Index: libdnet-stripped/src/addr.c
+===================================================================
+--- libdnet-stripped/src/addr.c (revision 30609)
++++ libdnet-stripped/src/addr.c (working copy)
+@@ -318,6 +318,7 @@
+ #endif
+    case AF_UNSPEC:
+    case ARP_HRD_ETH:   /* XXX- Linux arp(7) */
++   case ARP_HRD_APPLETALK: /* AppleTalk DDP */
+    case ARP_HRD_INFINIBAND: /* InfiniBand */
+    case ARP_HDR_IEEE80211: /* IEEE 802.11 */
+    case ARP_HRD_IEEE80211_RADIOTAP: /* IEEE 802.11 + radiotap header */
+
+
+o Added compatibility patch for OpenBSD to not SIOCIFNETMASK before
+  SIOCIFADDR. (Giovanni Bechis)
+
+diff --git a/libdnet-stripped/src/intf.c b/libdnet-stripped/src/intf.c
+index 4fe059c..184c077 100644
+--- a/libdnet-stripped/src/intf.c
++++ b/libdnet-stripped/src/intf.c
+@@ -77,7 +77,13 @@
+ /* XXX - superset of ifreq, for portable SIOC{A,D}IFADDR */
+ struct dnet_ifaliasreq {
+ 	char		ifra_name[IFNAMSIZ];
+-	struct sockaddr ifra_addr;
++	union {
++		struct sockaddr ifrau_addr;
++		int             ifrau_align;
++	} ifra_ifrau;
++#ifndef ifra_addr
++#define ifra_addr      ifra_ifrau.ifrau_addr
++#endif
+ 	struct sockaddr ifra_brdaddr;
+ 	struct sockaddr ifra_mask;
+ 	int		ifra_cookie;	/* XXX - IRIX!@#$ */
+@@ -308,7 +314,7 @@ intf_set(intf_t *intf, const struct intf_entry *entry)
+ 	}
+ 	/* Set interface address. */
+ 	if (entry->intf_addr.addr_type == ADDR_TYPE_IP) {
+-#ifdef BSD
++#if defined(BSD) && !defined(__OPENBSD__)
+ 		/* XXX - why must this happen before SIOCSIFADDR? */
+ 		if (addr_btos(entry->intf_addr.addr_bits,
+ 		    &ifr.ifr_addr) == 0) {
+
+o Use the RT_ROUNDUP preprocessor macro for 64-bit rt_msghdr alignment
+  on NetBSD.
+
+diff --git a/libdnet-stripped/src/route-bsd.c b/libdnet-stripped/src/route-bsd.c
+index 44e7dd2..47f3705 100644
+--- a/libdnet-stripped/src/route-bsd.c
++++ b/libdnet-stripped/src/route-bsd.c
+@@ -47,8 +47,14 @@
+ 
+ #include "dnet.h"
+ 
++#ifdef RT_ROUNDUP
++/* NetBSD defines this macro rounding to 64-bit boundaries.
++   http://fxr.watson.org/fxr/ident?v=NETBSD;i=RT_ROUNDUP */
++#define ROUNDUP(a) RT_ROUNDUP(a)
++#else
+ #define ROUNDUP(a) \
+ 	((a) > 0 ? (1 + (((a) - 1) | (RT_MSGHDR_ALIGNMENT - 1))) : RT_MSGHDR_ALIGNMENT)
++#endif
+ 
+ #ifdef HAVE_SOCKADDR_SA_LEN
+ #define NEXTSA(s) \

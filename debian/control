@@ -1,0 +1,63 @@
+Source: nmap
+Section: net
+Priority: extra
+Maintainer: Hilko Bengen <bengen@debian.org>
+Build-Depends: debhelper (>=9), dh-autoreconf, autotools-dev,
+ binutils-dev,
+ bison,
+ flex,
+ libgtk2.0-dev,
+ liblinear-dev,
+ liblua5.2-dev,
+ libpcap0.8-dev,
+ libpcre3-dev,
+ libssl-dev,
+ python (>=2.3.5-7),
+ python-all-dev,
+Standards-Version: 3.9.6
+XS-Python-Version: all
+Homepage: http://nmap.org/
+Vcs-Git: git://anonscm.debian.org/users/bengen/nmap.git
+Vcs-Browser: http://anonscm.debian.org/cgit/users/bengen/nmap.git
+
+Package: nmap
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Recommends: ndiff
+Description: The Network Mapper
+ Nmap is a utility for network exploration or security auditing. It
+ supports ping scanning (determine which hosts are up), many port
+ scanning techniques, version detection (determine service protocols
+ and application versions listening behind ports), and TCP/IP
+ fingerprinting (remote host OS or device identification). Nmap also
+ offers flexible target and port specification, decoy/stealth scanning,
+ sunRPC scanning, and more. Most Unix and Windows platforms are
+ supported in both GUI and commandline modes. Several popular handheld
+ devices are also supported, including the Sharp Zaurus and the iPAQ.
+
+Package: zenmap
+Architecture: all
+Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
+ nmap,
+ python (>= 2.5) | python-pysqlite2,
+ python-gobject,
+ python-gtk2,
+Provides: ${python:Provides}, nmapfe
+Conflicts: nmapfe
+Replaces: nmapfe
+Recommends: gksu
+Description: The Network Mapper Front End
+ Zenmap is an Nmap frontend. It is meant to be useful for advanced users
+ and to make Nmap easy to use by beginners. It was originally derived
+ from Umit, an Nmap GUI created as part of the Google Summer of Code.
+
+Package: ndiff
+Architecture: all
+Recommends: nmap
+Conflicts: nmap (<< ${source:Version})
+Breaks: zenmap (<< 6.47-5~)
+Replaces: zenmap (<< 6.47-5~)
+Depends: ${python:Depends}, ${misc:Depends}, python-lxml,
+Description: The Network Mapper - result compare utility
+ Ndiff is a tool to aid in the comparison of Nmap scans. It takes two
+ Nmap XML output files and prints the differences between them.

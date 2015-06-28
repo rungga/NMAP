@@ -1,3 +1,5 @@
+local io = require "io"
+local string = require "string"
 local table = require "table"
 
 ---HTTP Fingerprint files, compiled by Ron Bowes with a special thanks to...
@@ -11,6 +13,18 @@ local table = require "table"
 --
 -- This file is released under the Nmap license; see:
 --  http://nmap.org/book/man-legal.html
+--
+-- @args http-fingerprints.nikto-db-path Looks at the given path for nikto database.
+--       It then converts the records in nikto's database into our Lua table format
+--       and adds them to our current fingerprints if they don't exist already.
+--       Unfortunately, our current implementation has some limitations:
+--          * It doesn't support records with more than one 'dontmatch' patterns for
+--            a probe.
+--          * It doesn't support logical AND for the 'match' patterns.
+--          * It doesn't support sending additional headers for a probe.
+--       That means, if a nikto fingerprint needs one of the above features, it
+--       won't be loaded. At the time of writing this, 6546 out of the 6573 Nikto
+--       fingerprints are being loaded successfully.  This runtime Nikto fingerprint integration was suggested by Nikto co-author Chris Sullo as described at http://seclists.org/nmap-dev/2013/q4/292
 --
 -- Although this format was originally modeled after the Nikto format, that ended
 -- up being too restrictive. The current format is a simple Lua table. There are many
@@ -63,11 +77,11 @@ local table = require "table"
 -- The text to output if this match happens. If the 'match' field contains captures, these
 -- captures can be used with \1, \2, etc.
 --
---
--- If you have any questions, feel free to email nmap-dev@insecure.org or contact Ron Bowes!
+-- If you have any questions, feel free to email dev@nmap.org or contact Ron Bowes!
 --
 -- CHANGELOG:
 -- Added 120 new signatures taken from exploit-db.com archives from July 2009 to July 2011 [Paulino Calderon]
+-- Added the option to read nikto's database and make use of its fingerprints. [George Chatzisofroniou]
 --
 
 fingerprints = {};
@@ -3415,6 +3429,31 @@ table.insert(fingerprints, {
     category = 'general',
     probes = {
       {
+        path = '/appServer/jvmReport.jsf?instanceName=server&pageTitle=JVM%20Report',
+        method = 'HEAD'
+      },
+      {
+        path = '/common/appServer/jvmReport.jsf?pageTitle=JVM%20Report',
+        method = 'HEAD'
+      },
+      {
+        path = '/common/appServer/jvmReport.jsf?reportType=summary&instanceName=server',
+        method = 'HEAD'
+      }
+   },
+    matches = {
+      {
+        match = '',
+        output = 'Oracle GlashFish Server Information'
+      }
+    }
+  });
+
+
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
         path = '/login_img.jpg',
         method = 'HEAD'
       }
@@ -4276,6 +4315,46 @@ table.insert(fingerprints, {
 ------------------------------------------------
 -- These checks will find specific installed software. If possible, it will also
 -- find versions, etc.
+
+table.insert(fingerprints, {
+    category = 'security',
+    probes = {
+    {
+        path = '/CSS/Miniweb.css',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = 'ad_header_form_sprachauswahl',
+        output = 'SCADA Siemens SIMATIC S7'
+      }
+    }
+  });
+
+table.insert(fingerprints, {
+    category = 'security',
+    probes = {
+      {
+        path = '/S7Web.css',
+        method = 'GET'
+      },
+      {
+        path = '/Portal0000.htm',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '<td class="Title_Area_Name">(.-)</td>',
+        output = 'SCADA Siemens PCS7: \\1'
+      },
+      {
+        match = '',
+        output = 'SCADA Siemens PCS7'
+      }
+    }
+  });
 
 table.insert(fingerprints, {
     category = 'security',
@@ -6702,6 +6781,79 @@ table.insert(fingerprints, {
       }
     }
   });
+
+table.insert(fingerprints, {
+    category = 'attacks',
+    probes = {
+      {
+        path = '/index.php?option=com_jce&task=plugin&plugin=imgmanager&file=imgmanager&version=1576&cid=20',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '2.0.11</title',
+        output = 'Joomla JCE Extension 2.0.11 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.12</title',
+        output = 'Joomla JCE Extension 2.0.12 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.13</title',
+        output = 'Joomla JCE Extension 2.0.13 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.14</title',
+        output = 'Joomla JCE Extension 2.0.14 Remote Code Execution vulnerability'
+      },
+      {
+        match = '2.0.15</title',
+        output = 'Joomla JCE Extension 2.0.11 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.10</title',
+        output = 'Joomla JCE Extension 1.5.7.10 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.10</title',
+        output = 'Joomla JCE Extension 1.5.7.10 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.11</title',
+        output = 'Joomla JCE Extension 1.5.7.11 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.12</title',
+        output = 'Joomla JCE Extension 1.5.7.12 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.13</title',
+        output = 'Joomla JCE Extension 1.5.7.13 Remote Code Execution vulnerability'
+      },
+      {
+        match = '1.5.7.14</title',
+        output = 'Joomla JCE Extension 1.5.7.14 Remote Code Execution vulnerability'
+      }
+   }
+  });
+
+table.insert(fingerprints, {
+    category = 'attacks',
+    probes = {
+      {
+        path = '/d41d8cd98f00b204e9800998ecf8427e.php',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '200',
+        output = 'Seagate BlackArmorNAS 110/220/440 Administrator Password Reset Vulnerability'
+      }
+    }
+  });
+
 ------------------------------------------------
 ----        Open Source CMS checks          ----
 ------------------------------------------------
@@ -7946,6 +8098,165 @@ table.insert(fingerprints, {
     }
   });
 
+-- Moodle
+table.insert(fingerprints, {
+    category = 'cms',
+    probes = {
+      {
+        path = '/pix/moodlelogo.gif',
+        method = 'HEAD'
+      },
+      {
+        path = '/admin/environment.xml',
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = '',
+        output = 'Moodle files'
+      }
+    }
+  });
+
+-- typo3
+table.insert(fingerprints, {
+    category = 'cms',
+    probes = {
+      {
+        path = '/typo3/index.php',
+        method = 'GET'
+      },
+      {
+        path = '/typo3/README.txt',
+        method = 'GET'
+      },
+      {
+        path = '/t3lib/README.txt',
+        method = 'GET'
+      },
+      {
+        path = '/typo3/sysext/t3skin/images/login/typo3logo-white-greyback.gif',
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = 'Login to the TYPO3',
+        output = 'Typo3 login page'
+      },
+      {
+        match = 'TYPO3 Backend Administration',
+        output = 'Typo3 readme file'
+      },
+      {
+        match = 'TYPO3 Library',
+        output = 'Typo3 Library readme'
+      },
+      {
+        match = '',
+        output = 'Typo3 Installation'
+      },
+    }
+  });
+
+------------------------------------------------
+----                 MAIL                   ----
+------------------------------------------------
+
+-- SquirrelMail
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/squirrelmail/src/login.php',  -- Might return login page with version info
+        method = 'GET'
+      },
+      {
+        path = '/webmail/src/login.php',  -- Might return login page with version info
+        method = 'GET'
+      },
+      {
+        path = '/src/login.php',  -- Might return login page with version info
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '<small>([^<]*)<br />',  -- version extraction (squirrelMail)
+        output = '\\1'
+      },
+      {
+        match = 'squirrelmail',
+        output = 'SquirrelMail'
+      }
+    }
+  });
+
+-- SquirrelMail files
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/squirrelmail/images/sm_logo.png',  -- Standard logo file
+        method = 'HEAD'
+      },
+      {
+        path = '/webmail/images/sm_logo.png',   -- Standard logo file
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = '',
+        output = 'SquirrelMail'
+      }
+    }
+  });
+
+-- RoundCube
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/',
+        method = 'GET'
+      },
+      {
+        path = '/program/',
+        method = 'GET'
+      }
+    },
+    matches = {
+      {
+        match = '<title>Index of /program</title>',
+        output = 'RoundCube (Directory listing)'
+      },
+      {
+        match = 'rcube_webmail', -- RoundCube
+        output = 'RoundCube'
+      },
+    }
+  });
+
+-- RoundCube file
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/skins/default/images/roundcube_logo.png',  -- Standard logo file
+        method = 'HEAD'
+      }
+    },
+    matches = {
+      {
+        match = '',
+        output = 'RoundCube'
+      }
+    }
+  });
+
+
 ------------------------------------------------
 ----           UNCATEGORIZED                ----
 ------------------------------------------------
@@ -8030,12 +8341,45 @@ table.insert(fingerprints, {
 ----    MISCELLANEOUS ITEMS OF INTEREST     ----
 ------------------------------------------------
 
+-- Moodle files
+table.insert(fingerprints, {
+    category = 'miscellaneous',
+    probes = {
+      {
+        path = '/lib/db/install.xml'
+      },
+      {
+        path = '/lib/thirdpartylibs.xml'
+      },
+      {
+        path = '/local/readme.txt'
+      }
+    },
+    matches = {
+      {
+        match = 'XMLDB file for core Moodle tables',
+        output = 'Moodle db installation file'
+      },
+      {
+        match = '<libraries>',
+        output = 'Moodle thirdpartylibs.xml'
+      },
+      {
+        match = 'This file is part of Moodle',
+        output = 'Moodle local/readme.txt'
+      }
+    }
+  });
+
 -- interesting README  files
 table.insert(fingerprints, {
     category = 'miscellaneous',
     probes = {
       {
         path = '/README'
+      },
+      {
+        path = '/README.txt'
       },
       {
         path = '/xoda/README'
@@ -11418,8 +11762,9 @@ table.insert(fingerprints, {
     }
   });
 
+-- Sitecore Version
 table.insert(fingerprints, {
-    category = 'general',
+    category = 'cms',
     probes = {
       {
         path = '/sitecore/shell/sitecore.version.xml',
@@ -11442,6 +11787,156 @@ table.insert(fingerprints, {
       {
         match = '<hr/>.*Sitecore version ([^<]*)</div>',
         output = '\\1'
+      },
+      {
+        match = '',
+        output = 'Sitecore.NET login page'
       }
     }
   });
+
+-- Sitecore
+table.insert(fingerprints, {
+    category = 'cms',
+    probes = {
+      {
+        path = '/sitecore/admin/stats.aspx', -- Removed in version 6.3.1 (rev. 110112)
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/admin/unlock_admin.aspx', -- disabled per default in 6.2.0 (rev.100507)
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/shell/Applications/shell.xml',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/admin/ShowConfig.aspx',
+        method = 'HEAD'
+      },
+      {
+        path = '/App_Config/Security/Domains.config.xml',
+        method = 'HEAD'
+      },
+      {
+        path = '/App_Config/Security/GlobalRoles.config.xml',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore%20modules/staging/service/api.asmx',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore%20modules/staging/workdir',
+        method = 'HEAD'
+      },
+      {
+        path = '/sitecore/system/Settings/Security/Profiles',
+        method = 'HEAD'
+      },
+
+    },
+    matches = {
+      {
+        match = '',
+        output = 'Sitecore.NET (CMS)'
+      }
+    },
+  });
+
+local stdnse = require "stdnse"
+local nmap = require "nmap"
+
+nikto_db_path = stdnse.get_script_args("http-fingerprints.nikto-db-path") or "db_tests"
+local f = nmap.fetchfile(nikto_db_path) or io.open(nikto_db_path, "r")
+
+if f then
+
+  stdnse.print_debug(1, "Found nikto db.")
+
+  local nikto_db = {}
+  for l in io.lines(nikto_db_path) do
+
+    -- Skip comments.
+    if not string.match(l, "^#.*") then
+
+      record = {}
+
+      for field in string.gmatch(l, "\"(.-)\",") do
+
+        -- Grab every attribute and create a record.
+        if field then
+          string.gsub(field, '%%', '%%%%')
+          table.insert(record, field)
+        end
+      end
+
+      -- Make sure this record doesn't exists already.
+      local exists = false
+      for _, f in pairs(fingerprints) do
+        if f.probes then
+          for __, p in pairs(f.probes) do
+            if p.path then
+              if p.path == record[4] then
+                exists = true
+                break
+              end
+            end
+          end
+        end
+      end
+
+      -- What we have right now, is the following record:
+      -- record[1]: Nikto test ID
+      -- record[2]: OSVDB-ID
+      -- record[3]: Server Type
+      -- record[4]: URI
+      -- record[5]: HTTP Method
+      -- record[6]: Match 1
+      -- record[7]: Match 1 (Or)
+      -- record[8]: Match1 (And)
+      -- record[9]: Fail 1
+      -- record[10]: Fail 2
+      -- record[11]: Summary
+      -- record[12]: HTTP Data
+      -- record[13]: Headers
+
+      -- Is this a valid record?  Atm, with our current format we need
+      -- to skip some nikto records. See NSEDoc for more info.
+
+      if not exists
+        and record[4]
+        and record[8] == "" and record[10] == "" and record[12] == ""
+        and (tonumber(record[4]) == nil or (tonumber(record[4]) and record[4] == "200")) then
+
+        -- Our current format does not support HTTP code matching.
+        if record[6] == "200" then record[6] = "" end
+
+        nikto_fingerprint = { category = "nikto",
+        probes = {
+          {
+            path = record[4],
+            method = record[5]
+          }
+        },
+        matches = {
+          {
+            dontmatch = record[9],
+            match = record[6],
+            output = record[11]
+          },
+        },
+      }
+
+      -- If there is a second match, add it.
+      if record[7] and record[7] ~= "" then
+        table.insert(nikto_fingerprint.matches, { match = record[7], output = record[11] })
+      end
+
+      table.insert(fingerprints, nikto_fingerprint)
+
+    end
+  end
+end
+end

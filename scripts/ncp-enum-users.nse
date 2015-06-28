@@ -12,7 +12,7 @@ Retrieves a list of all eDirectory users from the Novell NetWare Core Protocol (
 --@output
 -- PORT    STATE SERVICE REASON
 -- 524/tcp open  ncp     syn-ack
--- | ncp-enum-users: 
+-- | ncp-enum-users:
 -- |   CN=admin.O=cqure
 -- |   CN=cawi.OU=finance.O=cqure
 -- |   CN=linux-l84tadmin.O=cqure
@@ -35,20 +35,20 @@ categories = {"auth", "safe"}
 portrule = shortport.port_or_service(524, "ncp", "tcp")
 
 action = function(host, port)
-	local helper = ncp.Helper:new(host,port)
+  local helper = ncp.Helper:new(host,port)
 
-	local status, resp = helper:connect()
-	if ( not(status) ) then	return stdnse.format_output(false, resp) end
+  local status, resp = helper:connect()
+  if ( not(status) ) then return stdnse.format_output(false, resp) end
 
-	status, resp = helper:search("[Root]", "User", "*")
-	if ( not(status) ) then	return stdnse.format_output(false, resp) end
-	
-	local output = {}
-	
-	for _, entry in ipairs(resp) do
-		table.insert(output, entry.name)
-	end
+  status, resp = helper:search("[Root]", "User", "*")
+  if ( not(status) ) then return stdnse.format_output(false, resp) end
 
-	return stdnse.format_output(true, output)
+  local output = {}
+
+  for _, entry in ipairs(resp) do
+    table.insert(output, entry.name)
+  end
+
+  return stdnse.format_output(true, output)
 end
 

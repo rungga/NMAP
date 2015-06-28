@@ -26,9 +26,14 @@ if test "$user_localdirs" = 1; then
      LDFLAGS="$LDFLAGS -L/usr/local/lib"
      fi
    if test -d /usr/local/include; then
-     CFLAGS="$CFLAGS -I/usr/local/include"
-     CXXFLAGS="$CXXFLAGS -I/usr/local/include"
+     CPPFLAGS="$CPPFLAGS -I/usr/local/include"
    fi
+fi
+
+dnl Let subdirs configure scripts find the Nmap source dir
+if test "${top_nmap_srcdir+set}" != set; then
+  top_nmap_srcdir=`cd "$srcdir" && pwd`
+  export top_nmap_srcdir
 fi
 
 libpcapdir=libpcap
@@ -79,9 +84,6 @@ have_function=yes, have_function=no)
       AC_DEFINE(__func__, __FILE__)
    fi
 fi
-
-AC_SUBST(COMPAT_OBJS)
-AC_SUBST(COMPAT_SRCS)
 
 AC_PATH_TOOL([STRIP], [strip], [/bin/true])
 
@@ -222,17 +224,20 @@ fi
 if test "$with_ndiff" = "no"; then
   BUILDNDIFF=""
   INSTALLNDIFF=""
+  NDIFF_CHECK=""
   NDIFF_CLEAN=""
   NDIFF_DIST_CLEAN=""
 else
   BUILDNDIFF=build-ndiff
   INSTALLNDIFF=install-ndiff
+  NDIFF_CHECK="ndiff_check"
   NDIFF_CLEAN=ndiff_clean
   NDIFF_DIST_CLEAN=ndiff_dist_clean
 fi
 AC_SUBST(NDIFFDIR)
 AC_SUBST(BUILDNDIFF)
 AC_SUBST(INSTALLNDIFF)
+AC_SUBST(NDIFF_CHECK)
 AC_SUBST(NDIFF_CLEAN)
 AC_SUBST(NDIFF_DIST_CLEAN)
 
@@ -254,12 +259,14 @@ if test "$with_zenmap" = "no"; then
   BUILDZENMAP=""
   INSTALLZENMAP=""
   UNINSTALLZENMAP=""
+  ZENMAP_CHECK=""
   ZENMAP_CLEAN=""
   ZENMAP_DIST_CLEAN=""
 else
   BUILDZENMAP=build-zenmap
   INSTALLZENMAP=install-zenmap
   UNINSTALLZENMAP=uninstall-zenmap
+  ZENMAP_CHECK=zenmap_check
   ZENMAP_CLEAN=zenmap_clean
   ZENMAP_DIST_CLEAN=zenmap_dist_clean
 fi
@@ -267,6 +274,7 @@ AC_SUBST(ZENMAPDIR)
 AC_SUBST(BUILDZENMAP)
 AC_SUBST(INSTALLZENMAP)
 AC_SUBST(UNINSTALLZENMAP)
+AC_SUBST(ZENMAP_CHECK)
 AC_SUBST(ZENMAP_CLEAN)
 AC_SUBST(ZENMAP_DIST_CLEAN)
 
@@ -376,7 +384,7 @@ AC_HELP_STRING([--with-libpcap=included], [Always use version included with Nmap
     have_libpcap=no
    ;;
   *)
-    _cppflags=$CXXFLAGS
+    _cppflags=$CPPFLAGS
     _ldflags=$LDFLAGS
 
     CPPFLAGS="-I$with_libpcap/include $CPPFLAGS"
@@ -389,7 +397,7 @@ AC_HELP_STRING([--with-libpcap=included], [Always use version included with Nmap
 	LIBPCAP_LIB=$with_libpcap/lib])])
 
     LDFLAGS=$_ldflags
-    CXXFLAGS=$_cppflags
+    CPPFLAGS=$_cppflags
     ;;
   esac]
 )
@@ -400,9 +408,6 @@ fi
 
 if test $have_libpcap = yes; then
   if test "${LIBPCAP_INC+set}" = "set"; then
-    _cflags=$CXXFLAGS
-    _ldflags=$LDFLAGS
-
     CPPFLAGS="-I$LIBPCAP_INC $CPPFLAGS"
     LDFLAGS="-L$LIBPCAP_LIB $LDFLAGS"
   fi
@@ -641,6 +646,7 @@ else
   fi
 
   INSTALLNSE="install-nse"
+  NSE_CHECK="nse_check"
 fi
 
 AC_SUBST(LIBLUA_LIBS)
@@ -650,6 +656,7 @@ AC_SUBST(LUA_BUILD)
 AC_SUBST(LUA_CLEAN)
 AC_SUBST(LUA_DIST_CLEAN)
 AC_SUBST(INSTALLNSE)
+AC_SUBST(NSE_CHECK)
 AC_SUBST(CXXFLAGS)
 
 
@@ -811,6 +818,7 @@ AC_CONFIG_SUBDIRS(nbase)
 
 NSOCKDIR="nsock"
 NSOCK_BUILD="nsock_build"
+NSOCK_CHECK="nsock_check"
 AC_ARG_WITH(libnsock,
 AC_HELP_STRING([--with-libnsock=DIR], [Compile and link to libnsock in DIR]),
 [  case "$with_libnsock" in
@@ -819,6 +827,7 @@ AC_HELP_STRING([--with-libnsock=DIR], [Compile and link to libnsock in DIR]),
   *)
     NSOCKDIR="$with_libnsock"
     NSOCK_BUILD=""
+    NSOCK_CHECK=""
     ;;
   esac]
 )
@@ -829,6 +838,7 @@ LIBNSOCK_LIBS="-lnsock"
 
 AC_SUBST(NSOCKDIR)
 AC_SUBST(NSOCK_BUILD)
+AC_SUBST(NSOCK_CHECK)
 AC_SUBST(LIBNSOCK_LIBS)
 
 AC_CONFIG_SUBDIRS(nsock/src)
@@ -840,12 +850,14 @@ AC_ARG_WITH(ncat,
 
 if test "$with_ncat" = "no"; then
   NCAT_BUILD=""
+  NCAT_CHECK=""
   NCAT_INSTALL=""
   NCAT_UNINSTALL=""
   NCAT_CLEAN=""
   NCAT_DIST_CLEAN=""
 else
   NCAT_BUILD="ncat_build"
+  NCAT_CHECK="ncat_check"
   NCAT_INSTALL="install-ncat"
   NCAT_UNINSTALL="uninstall-ncat"
   NCAT_CLEAN="ncat_clean"
@@ -855,6 +867,7 @@ fi
 
 AC_SUBST(NCATDIR)
 AC_SUBST(NCAT_BUILD)
+AC_SUBST(NCAT_CHECK)
 AC_SUBST(NCAT_INSTALL)
 AC_SUBST(NCAT_UNINSTALL)
 AC_SUBST(NCAT_CLEAN)

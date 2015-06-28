@@ -3,7 +3,7 @@
  * connections from the nsock parallel socket event library                *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2012 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -32,17 +32,18 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
- * Insecure.Org development mailing lists, it is assumed that you are      *
- * offering the Nmap Project (Insecure.Com LLC) the unlimited,             *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because the *
- * inability to relicense code has caused devastating problems for other   *
- * Free Software projects (such as KDE and NASM).  We also occasionally    *
- * relicense the code to third parties as discussed above.  If you wish to *
- * specify special license conditions of your contributions, just say so   *
- * when you send them.                                                     *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
+ * Insecure.Org development mailing lists, or checking them into the Nmap  *
+ * source code repository, it is understood (unless you specify otherwise) *
+ * that you are offering the Nmap Project (Insecure.Com LLC) the           *
+ * unlimited, non-exclusive right to reuse, modify, and relicense the      *
+ * code.  Nmap will always be available Open Source, but this is important *
+ * because the inability to relicense code has caused devastating problems *
+ * for other Free Software projects (such as KDE and NASM).  We also       *
+ * occasionally relicense the code to third parties as discussed above.    *
+ * If you wish to specify special license conditions of your               *
+ * contributions, just say so when you send them.                          *
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
@@ -52,26 +53,100 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_connect.c 30313 2012-11-29 05:40:32Z david $ */
+/* $Id: nsock_connect.c 32400 2013-09-27 15:30:18Z david $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
+#include "nsock_log.h"
+#include "nsock_proxy.h"
 #include "netutils.h"
 
 #include <sys/types.h>
 #include <errno.h>
 #include <string.h>
 
+
+static int mksock_bind_addr(mspool *ms, msiod *iod) {
+  int rc;
+  int one = 1;
+
+  rc = setsockopt(iod->sd, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof(one));
+  if (rc == -1) {
+    int err = socket_errno();
+
+    nsock_log_error(ms, "Setting of SO_REUSEADDR failed (#%li): %s (%d)", iod->id,
+                    socket_strerror(err), err);
+  }
+
+  nsock_log_info(ms, "Binding to %s (IOD #%li)", get_localaddr_string(iod), iod->id);
+  rc = bind(iod->sd, (struct sockaddr *)&iod->local, (int) iod->locallen);
+  if (rc == -1) {
+    int err = socket_errno();
+
+    nsock_log_error(ms, "Bind to %s failed (IOD #%li): %s (%d)",
+                    get_localaddr_string(iod), iod->id,
+                    socket_strerror(err), err);
+  }
+  return 0;
+}
+
+static int mksock_set_ipopts(mspool *ms, msiod *iod) {
+  int rc;
+
+  errno = 0;
+  rc = setsockopt(iod->sd, IPPROTO_IP, IP_OPTIONS, (const char *)iod->ipopts,
+                  iod->ipoptslen);
+  if (rc == -1) {
+    int err = socket_errno();
+
+    nsock_log_error(ms, "Setting of IP options failed (IOD #%li): %s (%d)",
+                    iod->id, socket_strerror(err), err);
+  }
+  return 0;
+}
+
+static int mksock_bind_device(mspool *ms, msiod *iod) {
+  int rc;
+
+  rc = socket_bindtodevice(iod->sd, ms->device);
+  if (!rc) {
+    int err = socket_errno();
+
+    if (err != EPERM)
+      nsock_log_error(ms, "Setting of SO_BINDTODEVICE failed (IOD #%li): %s (%d)",
+                      iod->id, socket_strerror(err), err);
+    else
+      nsock_log_debug_all(ms, "Setting of SO_BINDTODEVICE failed (IOD #%li): %s (%d)",
+                          iod->id, socket_strerror(err), err);
+  }
+  return 0;
+}
+
+static int mksock_set_broadcast(mspool *ms, msiod *iod) {
+  int rc;
+  int one = 1;
+
+  rc = setsockopt(iod->sd, SOL_SOCKET, SO_BROADCAST,
+                  (const char *)&one, sizeof(one));
+  if (rc == -1) {
+    int err = socket_errno();
+
+    nsock_log_error(ms, "Setting of SO_BROADCAST failed (IOD #%li): %s (%d)",
+                    iod->id, socket_strerror(err), err);
+  }
+  return 0;
+}
 /* Create the actual socket (nse->iod->sd) underlying the iod. This unblocks the
  * socket, binds to the localaddr address, sets IP options, and sets the
  * broadcast flag. Trying to change these functions after making this call will
  * not have an effect. This function needs to be called before you try to read
  * or write on the iod. */
 static int nsock_make_socket(mspool *ms, msiod *iod, int family, int type, int proto) {
+
   /* inheritable_socket is from nbase */
   iod->sd = (int)inheritable_socket(family, type, proto);
   if (iod->sd == -1) {
-    perror("Socket troubles");
+    nsock_log_error(ms, "Socket trouble: %s", socket_strerror(socket_errno()));
     return -1;
   }
 
@@ -79,48 +154,20 @@ static int nsock_make_socket(mspool *ms, msiod *iod, int family, int type, int p
 
   iod->lastproto = proto;
 
-  if (iod->locallen) {
-    int one = 1;
+  if (iod->locallen)
+    mksock_bind_addr(ms, iod);
 
-    setsockopt(iod->sd, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof(one));
-    if (bind(iod->sd, (struct sockaddr *)&iod->local, (int) iod->locallen) == -1) {
-      if (ms->tracelevel > 0) {
-        const char *addrstr = NULL;
-#if HAVE_SYS_UN_H
-        if (iod->local.ss_family == AF_UNIX)
-          addrstr = get_unixsock_path(&iod->local);
-        else
-#endif
-          addrstr = inet_ntop_ez(&iod->local, iod->locallen);
+  if (iod->ipoptslen && family == AF_INET)
+    mksock_set_ipopts(ms, iod);
 
-        nsock_trace(ms, "Bind to %s failed (IOD #%li)", addrstr, iod->id);
-#if HAVE_SYS_UN_H
-        /* Failure to bind an AF_UNIX socket is an unrecoverable error. */
-        if (iod->local.ss_family == AF_UNIX)
-          return -1;
-#endif
-      }
-    }
-  }
-  if (iod->ipoptslen && family == AF_INET) {
-    if (setsockopt(iod->sd, IPPROTO_IP, IP_OPTIONS, (const char *)iod->ipopts, iod->ipoptslen) == -1) {
-      if (ms->tracelevel > 0)
-        nsock_trace(ms, "Setting of IP options failed (IOD #%li)", iod->id);
-    }
-  }
-  if (ms->device) {
-    errno = 0;
-    if (!socket_bindtodevice(iod->sd, ms->device)) {
-      if ((errno != EPERM && ms->tracelevel > 0) || ms->tracelevel > 5)
-        nsock_trace(ms, "Setting of SO_BINDTODEVICE failed (IOD #%li)", iod->id);
-    }
-  }
-  if (ms->broadcast) {
-    if (setsockopt(iod->sd, SOL_SOCKET, SO_BROADCAST, (const char *)&(ms->broadcast), sizeof(int)) == -1) {
-      if (ms->tracelevel > 0)
-        nsock_trace(ms, "Setting of SO_BROADCAST failed (IOD #%li)", iod->id);
-    }
-  }
+  if (ms->device)
+    mksock_bind_device(ms, iod);
+
+  if (ms->broadcast && type != SOCK_STREAM)
+    mksock_set_broadcast(ms, iod);
+
+  /* mksock_* functions can raise warnings/errors
+   * but we don't let them stop us for now. */
   return iod->sd;
 }
 
@@ -130,8 +177,7 @@ int nsock_setup_udp(nsock_pool nsp, nsock_iod ms_iod, int af) {
 
   assert(nsi->state == NSIOD_STATE_INITIAL || nsi->state == NSIOD_STATE_UNKNOWN);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "UDP unconnected socket (IOD #%li)", nsi->id);
+  nsock_log_info(ms, "UDP unconnected socket (IOD #%li)", nsi->id);
 
   if (nsock_make_socket(ms, nsi, af, SOCK_DGRAM, IPPROTO_UDP) == -1)
     return -1;
@@ -144,11 +190,42 @@ int nsock_setup_udp(nsock_pool nsp, nsock_iod ms_iod, int af) {
 void nsock_connect_internal(mspool *ms, msevent *nse, int type, int proto, struct sockaddr_storage *ss, size_t sslen,
                             unsigned short port) {
 
-  struct sockaddr_in *sin = (struct sockaddr_in *)ss;
+  struct sockaddr_in *sin;
 #if HAVE_IPV6
-  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ss;
+  struct sockaddr_in6 *sin6;
 #endif
   msiod *iod = nse->iod;
+
+  if (iod->px_ctx   /* proxy enabled */
+      && proto == IPPROTO_TCP   /* restrict proxying to TCP connections */
+      && (nse->handler != nsock_proxy_ev_dispatch)) {   /* for reentrancy */
+    struct proxy_node *current;
+
+    nsock_log_debug_all(ms, "TCP connection request (EID %lu) redirected through proxy chain",
+                        (long)nse->id);
+
+    current = iod->px_ctx->px_current;
+    assert(current != NULL);
+
+    memcpy(&iod->px_ctx->target_ss, ss, sslen);
+    iod->px_ctx->target_sslen = sslen;
+    iod->px_ctx->target_port  = port;
+
+    ss    = &current->ss;
+    sslen = current->sslen;
+    port  = current->port;
+
+    iod->px_ctx->target_handler = nse->handler;
+    nse->handler = nsock_proxy_ev_dispatch;
+
+    iod->px_ctx->target_ev_type = nse->type;
+    nse->type = NSE_TYPE_CONNECT;
+  }
+
+  sin = (struct sockaddr_in *)ss;
+#if HAVE_IPV6
+  sin6 = (struct sockaddr_in6 *)ss;
+#endif
 
   /* Now it is time to actually attempt the connection */
   if (nsock_make_socket(ms, iod, ss->ss_family, type, proto) == -1) {
@@ -208,9 +285,8 @@ nsock_event_id nsock_connect_unixsock_stream(nsock_pool nsp, nsock_iod nsiod, ns
   nse = msevent_new(ms, NSE_TYPE_CONNECT, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "UNIX domain socket (STREAM) connection requested to %s (IOD #%li) EID %li",
-                get_unixsock_path(ss), nsi->id, nse->id);
+  nsock_log_info(ms, "UNIX domain socket (STREAM) connection requested to %s (IOD #%li) EID %li",
+                 get_unixsock_path(ss), nsi->id, nse->id);
 
   nsock_connect_internal(ms, nse, SOCK_STREAM, 0, ss, sslen, 0);
   nsp_add_event(ms, nse);
@@ -235,9 +311,8 @@ nsock_event_id nsock_connect_unixsock_datagram(nsock_pool nsp, nsock_iod nsiod, 
   nse = msevent_new(ms, NSE_TYPE_CONNECT, nsi, -1, handler, userdata);
   assert(nse);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "UNIX domain socket (DGRAM) connection requested to %s (IOD #%li) EID %li",
-                get_unixsock_path(ss), nsi->id, nse->id);
+  nsock_log_info(ms, "UNIX domain socket (DGRAM) connection requested to %s (IOD #%li) EID %li",
+                 get_unixsock_path(ss), nsi->id, nse->id);
 
   nsock_connect_internal(ms, nse, SOCK_DGRAM, 0, ss, sslen, 0);
   nsp_add_event(ms, nse);
@@ -254,7 +329,6 @@ nsock_event_id nsock_connect_unixsock_datagram(nsock_pool nsp, nsock_iod nsiod, 
  * sizeof the structure you are passing in. */
 nsock_event_id nsock_connect_tcp(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_handler handler, int timeout_msecs,
                                  void *userdata, struct sockaddr *saddr, size_t sslen, unsigned short port) {
-
   msiod *nsi = (msiod *)ms_iod;
   mspool *ms = (mspool *)nsp;
   msevent *nse;
@@ -265,9 +339,8 @@ nsock_event_id nsock_connect_tcp(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_hand
   nse = msevent_new(ms, NSE_TYPE_CONNECT, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "TCP connection requested to %s:%hu (IOD #%li) EID %li",
-                inet_ntop_ez(ss, sslen), port, nsi->id, nse->id);
+  nsock_log_info(ms, "TCP connection requested to %s:%hu (IOD #%li) EID %li",
+                 inet_ntop_ez(ss, sslen), port, nsi->id, nse->id);
 
   /* Do the actual connect() */
   nsock_connect_internal(ms, nse, SOCK_STREAM, IPPROTO_TCP, ss, sslen, port);
@@ -294,9 +367,8 @@ nsock_event_id nsock_connect_sctp(nsock_pool nsp, nsock_iod ms_iod, nsock_ev_han
   nse = msevent_new(ms, NSE_TYPE_CONNECT, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "SCTP association requested to %s:%hu (IOD #%li) EID %li",
-                inet_ntop_ez(ss, sslen), port, nsi->id, nse->id);
+  nsock_log_info(ms, "SCTP association requested to %s:%hu (IOD #%li) EID %li",
+                 inet_ntop_ez(ss, sslen), port, nsi->id, nse->id);
 
   /* Do the actual connect() */
   nsock_connect_internal(ms, nse, SOCK_STREAM, IPPROTO_SCTP, ss, sslen, port);
@@ -336,9 +408,9 @@ nsock_event_id nsock_connect_ssl(nsock_pool nsp, nsock_iod nsiod, nsock_ev_handl
   /* Set our SSL_SESSION so we can benefit from session-id reuse. */
   nsi_set_ssl_session(nsi, (SSL_SESSION *)ssl_session);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "SSL connection requested to %s:%hu/%s (IOD #%li) EID %li",
-                inet_ntop_ez(ss, sslen), port, (proto == IPPROTO_TCP ? "tcp" : "sctp"), nsi->id, nse->id);
+  nsock_log_info(ms, "SSL connection requested to %s:%hu/%s (IOD #%li) EID %li",
+                 inet_ntop_ez(ss, sslen), port, (proto == IPPROTO_TCP ? "tcp" : "sctp"),
+                 nsi->id, nse->id);
 
   /* Do the actual connect() */
   nsock_connect_internal(ms, nse, SOCK_STREAM, proto, ss, sslen, port);
@@ -372,8 +444,8 @@ nsock_event_id nsock_reconnect_ssl(nsock_pool nsp, nsock_iod nsiod, nsock_ev_han
   /* Set our SSL_SESSION so we can benefit from session-id reuse. */
   nsi_set_ssl_session(nsi, (SSL_SESSION *)ssl_session);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "SSL reconnection requested (IOD #%li) EID %li", nsi->id, nse->id);
+  nsock_log_info(ms, "SSL reconnection requested (IOD #%li) EID %li",
+                 nsi->id, nse->id);
 
   /* Do the actual connect() */
   nse->event_done = 0;
@@ -411,8 +483,8 @@ nsock_event_id nsock_connect_udp(nsock_pool nsp, nsock_iod nsiod, nsock_ev_handl
   nse = msevent_new(ms, NSE_TYPE_CONNECT, nsi, -1, handler, userdata);
   assert(nse);
 
-  if (ms->tracelevel > 0)
-    nsock_trace(ms, "UDP connection requested to %s:%hu (IOD #%li) EID %li", inet_ntop_ez(ss, sslen), port, nsi->id, nse->id);
+  nsock_log_info(ms, "UDP connection requested to %s:%hu (IOD #%li) EID %li",
+                 inet_ntop_ez(ss, sslen), port, nsi->id, nse->id);
 
   nsock_connect_internal(ms, nse, SOCK_DGRAM, IPPROTO_UDP, ss, sslen, port);
   nsp_add_event(ms, nse);
@@ -459,7 +531,7 @@ int nsi_getlastcommunicationinfo(nsock_iod ms_iod, int *protocol, int *af, struc
           memset(local, 0, socklen);
           ret = 0;
         } else {
-          assert(slen > 0 );
+          assert(slen > 0);
           memcpy(local, &sock, MIN((unsigned)slen, socklen));
         }
       } else {

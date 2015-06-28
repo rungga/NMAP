@@ -3,62 +3,94 @@
  * to mode-specific functions.                                             *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2012 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
- * Foundation; Version 2 with the clarifications and exceptions described  *
- * below.  This guarantees your right to use, modify, and redistribute     *
- * this software under certain conditions.  If you wish to embed Nmap      *
- * technology into proprietary software, we sell alternative licenses      *
- * (contact sales@insecure.com).  Dozens of software vendors already       *
- * license Nmap technology such as host discovery, port scanning, OS       *
- * detection, version detection, and the Nmap Scripting Engine.            *
+ * Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE CLARIFICATIONS  *
+ * AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your right to use,    *
+ * modify, and redistribute this software under certain conditions.  If    *
+ * you wish to embed Nmap technology into proprietary software, we sell    *
+ * alternative licenses (contact sales@nmap.com).  Dozens of software      *
+ * vendors already license Nmap technology such as host discovery, port    *
+ * scanning, OS detection, version detection, and the Nmap Scripting       *
+ * Engine.                                                                 *
  *                                                                         *
- * Note that the GPL places important restrictions on "derived works", yet *
- * it does not provide a detailed definition of that term.  To avoid       *
+ * Note that the GPL places important restrictions on "derivative works",  *
+ * yet it does not provide a detailed definition of that term.  To avoid   *
  * misunderstandings, we interpret that term as broadly as copyright law   *
  * allows.  For example, we consider an application to constitute a        *
- * "derivative work" for the purpose of this license if it does any of the *
- * following:                                                              *
- * o Integrates source code from Nmap                                      *
- * o Reads or includes Nmap copyrighted data files, such as                *
- *   nmap-os-db or nmap-service-probes.                                    *
- * o Executes Nmap and parses the results (as opposed to typical shell or  *
- *   execution-menu apps, which simply display raw Nmap output and so are  *
- *   not derivative works.)                                                *
- * o Integrates/includes/aggregates Nmap into a proprietary executable     *
- *   installer, such as those produced by InstallShield.                   *
- * o Links to a library or executes a program that does any of the above   *
+ * derivative work for the purpose of this license if it does any of the   *
+ * following with any software or content covered by this license          *
+ * ("Covered Software"):                                                   *
  *                                                                         *
- * The term "Nmap" should be taken to also include any portions or derived *
- * works of Nmap, as well as other software we distribute under this       *
- * license such as Zenmap, Ncat, and Nping.  This list is not exclusive,   *
- * but is meant to clarify our interpretation of derived works with some   *
- * common examples.  Our interpretation applies only to Nmap--we don't     *
- * speak for other people's GPL works.                                     *
+ * o Integrates source code from Covered Software.                         *
  *                                                                         *
- * If you have any questions about the GPL licensing restrictions on using *
- * Nmap in non-GPL works, we would be happy to help.  As mentioned above,  *
- * we also offer alternative license to integrate Nmap into proprietary    *
- * applications and appliances.  These contracts have been sold to dozens  *
- * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@insecure.com for     *
- * further information.                                                    *
+ * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
+ * or nmap-service-probes.                                                 *
  *                                                                         *
- * As a special exception to the GPL terms, Insecure.Com LLC grants        *
+ * o Is designed specifically to execute Covered Software and parse the    *
+ * results (as opposed to typical shell or execution-menu apps, which will *
+ * execute anything you tell them to).                                     *
+ *                                                                         *
+ * o Includes Covered Software in a proprietary executable installer.  The *
+ * installers produced by InstallShield are an example of this.  Including *
+ * Nmap with other software in compressed or archival form does not        *
+ * trigger this provision, provided appropriate open source decompression  *
+ * or de-archiving software is widely available for no charge.  For the    *
+ * purposes of this license, an installer is considered to include Covered *
+ * Software even if it actually retrieves a copy of Covered Software from  *
+ * another source during runtime (such as by downloading it from the       *
+ * Internet).                                                              *
+ *                                                                         *
+ * o Links (statically or dynamically) to a library which does any of the  *
+ * above.                                                                  *
+ *                                                                         *
+ * o Executes a helper program, module, or script to do any of the above.  *
+ *                                                                         *
+ * This list is not exclusive, but is meant to clarify our interpretation  *
+ * of derived works with some common examples.  Other people may interpret *
+ * the plain GPL differently, so we consider this a special exception to   *
+ * the GPL that we apply to Covered Software.  Works which meet any of     *
+ * these conditions must conform to all of the terms of this license,      *
+ * particularly including the GPL Section 3 requirements of providing      *
+ * source code and allowing free redistribution of the work as a whole.    *
+ *                                                                         *
+ * As another special exception to the GPL terms, Insecure.Com LLC grants  *
  * permission to link the code of this program with any version of the     *
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two. You must obey the GNU GPL in all *
- * respects for all of the code used other than OpenSSL.  If you modify    *
- * this file, you may extend this exception to your version of the file,   *
- * but you are not obligated to do so.                                     *
+ * linked combinations including the two.                                  *
  *                                                                         *
- * If you received these files with a written license agreement or         *
- * contract stating terms other than the terms above, then that            *
- * alternative license agreement takes precedence over these comments.     *
+ * Any redistribution of Covered Software, including any derived works,    *
+ * must obey and carry forward all of the terms of this license, including *
+ * obeying all GPL rules and restrictions.  For example, source code of    *
+ * the whole work must be provided and free redistribution must be         *
+ * allowed.  All GPL references to "this License", are to be treated as    *
+ * including the terms and conditions of this license text as well.        *
+ *                                                                         *
+ * Because this license imposes special exceptions to the GPL, Covered     *
+ * Work may not be combined (even as part of a larger work) with plain GPL *
+ * software.  The terms, conditions, and exceptions of this license must   *
+ * be included as well.  This license is incompatible with some other open *
+ * source licenses as well.  In some cases we can relicense portions of    *
+ * Nmap or grant special permissions to use it in other open source        *
+ * software.  Please contact fyodor@nmap.org with any such requests.       *
+ * Similarly, we don't incorporate incompatible open source software into  *
+ * Covered Software without special permission from the copyright holders. *
+ *                                                                         *
+ * If you have any questions about the licensing restrictions on using     *
+ * Nmap in other works, are happy to help.  As mentioned above, we also    *
+ * offer alternative license to integrate Nmap into proprietary            *
+ * applications and appliances.  These contracts have been sold to dozens  *
+ * of software vendors, and generally include a perpetual license as well  *
+ * as providing for priority support and updates.  They also fund the      *
+ * continued development of Nmap.  Please email sales@nmap.com for further *
+ * information.                                                            *
+ *                                                                         *
+ * If you have received a written license agreement or contract for        *
+ * Covered Software stating terms other than these, you may choose to use  *
+ * and redistribute Covered Software under those terms instead of these.   *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
@@ -67,8 +99,8 @@
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
- * to nmap-dev@insecure.org for possible incorporation into the main       *
- * distribution.  By sending these changes to Fyodor or one of the         *
+ * to the dev@nmap.org mailing list for possible incorporation into the    *
+ * main distribution.  By sending these changes to Fyodor or one of the    *
  * Insecure.Org development mailing lists, or checking them into the Nmap  *
  * source code repository, it is understood (unless you specify otherwise) *
  * that you are offering the Nmap Project (Insecure.Com LLC) the           *
@@ -82,14 +114,13 @@
  *                                                                         *
  * This program is distributed in the hope that it will be useful, but     *
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU       *
- * General Public License v2.0 for more details at                         *
- * http://www.gnu.org/licenses/gpl-2.0.html , or in the COPYING file       *
- * included with Nmap.                                                     *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
+ * license file for more details (it's in a COPYING file included with     *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_main.c 30315 2012-11-29 18:44:46Z david $ */
+/* $Id: ncat_main.c 33540 2014-08-16 02:45:47Z dmiller $ */
 
 #include "nsock.h"
 #include "ncat.h"
@@ -115,16 +146,18 @@
 #include <openssl/err.h>
 #endif
 
+#ifdef HAVE_LUA
+#include "ncat_lua.h"
+#endif
+
 static int ncat_connect_mode(void);
 static int ncat_listen_mode(void);
 
 /* Determines if it's parsing HTTP or SOCKS by looking at defport */
-static void parseproxy(char *str, struct sockaddr_storage *ss, unsigned short defport)
+static size_t parseproxy(char *str, struct sockaddr_storage *ss,
+    size_t *sslen, unsigned short *portno)
 {
     char *c = strrchr(str, ':'), *ptr;
-    int httpproxy = (defport == DEFAULT_PROXY_PORT);
-    unsigned short portno;
-    size_t sslen;
     int rc;
 
     ptr = str;
@@ -133,17 +166,17 @@ static void parseproxy(char *str, struct sockaddr_storage *ss, unsigned short de
         *c = 0;
 
     if (c && strlen((c + 1)))
-        portno = (unsigned short) atoi(c + 1);
-    else
-        portno = defport;
+        *portno = (unsigned short) atoi(c + 1);
 
-    rc = resolve(ptr, portno, ss, &sslen, o.af);
+    rc = resolve(ptr, *portno, ss, sslen, o.af);
     if (rc != 0) {
         loguser("Could not resolve proxy \"%s\": %s.\n", ptr, gai_strerror(rc));
-        if (o.af == AF_INET6 && httpproxy)
+        if (o.af == AF_INET6 && *portno)
             loguser("Did you specify the port number? It's required for IPv6.\n");
         exit(EXIT_FAILURE);
     }
+
+    return *sslen;
 }
 
 /* These functions implement a simple linked list to hold allow/deny
@@ -222,9 +255,9 @@ int main(int argc, char *argv[])
     struct host_list_node *allow_host_list = NULL;
     struct host_list_node *deny_host_list = NULL;
 
+	unsigned short proxyport = DEFAULT_PROXY_PORT;
     int srcport = -1;
     char *source = NULL;
-    char *proxyaddr = NULL;
 
     struct option long_options[] = {
         {"4",               no_argument,        NULL,         '4'},
@@ -237,6 +270,10 @@ int main(int argc, char *argv[])
         {"G",               required_argument,  NULL,         'G'},
         {"exec",            required_argument,  NULL,         'e'},
         {"sh-exec",         required_argument,  NULL,         'c'},
+#ifdef HAVE_LUA
+        {"lua-exec",        required_argument,  NULL,         0},
+        {"lua-exec-internal",required_argument, NULL,         0},
+#endif
         {"max-conns",       required_argument,  NULL,         'm'},
         {"help",            no_argument,        NULL,         'h'},
         {"delay",           required_argument,  NULL,         'd'},
@@ -259,7 +296,7 @@ int main(int argc, char *argv[])
         {"allowfile",       required_argument,  NULL,         0},
         {"telnet",          no_argument,        NULL,         't'},
         {"udp",             no_argument,        NULL,         'u'},
-        {"sctp",            no_argument,        &o.sctp,      1},
+        {"sctp",            no_argument,        NULL,         0},
         {"version",         no_argument,        NULL,         0},
         {"verbose",         no_argument,        NULL,         'v'},
         {"wait",            required_argument,  NULL,         'w'},
@@ -268,6 +305,7 @@ int main(int argc, char *argv[])
         {"proxy-type",      required_argument,  NULL,         0},
         {"proxy-auth",      required_argument,  NULL,         0},
         {"nsock-engine",    required_argument,  NULL,         0},
+        {"test",            no_argument,        NULL,         0},
 #ifdef HAVE_OPENSSL
         {"ssl",             no_argument,        &o.ssl,       1},
         {"ssl-cert",        required_argument,  NULL,         0},
@@ -316,11 +354,16 @@ int main(int argc, char *argv[])
             o.crlf = 1;
             break;
         case 'c':
+            if (o.cmdexec != NULL)
+                bye("Only one of --exec, --sh-exec, and --lua-exec is allowed.");
             o.cmdexec = optarg;
-            o.shellexec = 1;
+            o.execmode = EXEC_SHELL;
             break;
         case 'e':
+            if (o.cmdexec != NULL)
+                bye("Only one of --exec, --sh-exec, and --lua-exec is allowed.");
             o.cmdexec = optarg;
+            o.execmode = EXEC_PLAIN;
             break;
         case 'g': {
             char *a = strtok(optarg, ",");
@@ -383,10 +426,10 @@ int main(int argc, char *argv[])
             o.listen = 1;
             break;
         case 'u':
-            o.udp = 1;
+            o.proto = IPPROTO_UDP;
             break;
         case 'v':
-            /* One -v activites verbose, after that it's debugging. */
+            /* One -v activates verbose, after that it's debugging. */
             if (o.verbose == 0)
                 o.verbose++;
             else
@@ -410,21 +453,23 @@ int main(int argc, char *argv[])
                 print_banner();
                 exit(EXIT_SUCCESS);
             } else if (strcmp(long_options[option_index].name, "proxy") == 0) {
-                if (proxyaddr)
+                if (o.proxyaddr)
                     bye("You can't specify more than one --proxy.");
-                proxyaddr = Strdup(optarg);
+                o.proxyaddr = optarg;
             } else if (strcmp(long_options[option_index].name, "proxy-type") == 0) {
                 if (o.proxytype)
                     bye("You can't specify more than one --proxy-type.");
-                o.proxytype = Strdup(optarg);
+                o.proxytype = optarg;
             } else if (strcmp(long_options[option_index].name, "proxy-auth") == 0) {
                 if (o.proxy_auth)
                     bye("You can't specify more than one --proxy-auth.");
-                o.proxy_auth = Strdup(optarg);
+                o.proxy_auth = optarg;
             } else if (strcmp(long_options[option_index].name, "nsock-engine") == 0) {
                 if (nsock_set_default_engine(optarg) < 0)
                     bye("Unknown or non-available engine: %s.", optarg);
                 o.nsock_engine = 1;
+            } else if (strcmp(long_options[option_index].name, "test") == 0) {
+                o.test = 1;
             } else if (strcmp(long_options[option_index].name, "broker") == 0) {
                 o.broker = 1;
                 /* --broker implies --listen. */
@@ -447,6 +492,8 @@ int main(int argc, char *argv[])
                 host_list_add_filename(&deny_host_list, optarg);
             } else if (strcmp(long_options[option_index].name, "append-output") == 0) {
                 o.append = 1;
+            } else if (strcmp(long_options[option_index].name, "sctp") == 0) {
+                o.proto = IPPROTO_SCTP;
             }
 #ifdef HAVE_OPENSSL
             else if (strcmp(long_options[option_index].name, "ssl-cert") == 0) {
@@ -468,6 +515,35 @@ int main(int argc, char *argv[])
                 o.sslverify = 1;
             }
 #endif
+#ifdef HAVE_LUA
+            else if (strcmp(long_options[option_index].name, "lua-exec") == 0) {
+                if (o.cmdexec != NULL)
+                    bye("Only one of --exec, --sh-exec, and --lua-exec is allowed.");
+                o.cmdexec = optarg;
+                o.execmode = EXEC_LUA;
+            } else if (strcmp(long_options[option_index].name, "lua-exec-internal") == 0) {
+                /* This command-line switch is undocumented on purpose. Do NOT use it
+                   explicitly as its behavior might differ between Ncat releases.
+
+                   Its goal is to switch the Ncat process to the Lua interpreter state
+                   so that its standard output and input can be redirected to
+                   particular connection's streams. Although it is implemented by
+                   forking in POSIX builds, Windows does not have the fork() system
+                   call and thus requires this workaround. More info here:
+                   http://seclists.org/nmap-dev/2013/q2/492 */
+#ifdef WIN32
+                if (o.debug)
+                    logdebug("Enabling binary stdout for the Lua output.\n");
+                int result = _setmode(_fileno(stdout), _O_BINARY);
+                if (result == -1)
+                    perror("Cannot set mode");
+#endif
+                ncat_assert(argc == 3);
+                o.cmdexec = argv[2];
+                lua_setup();
+                lua_run();
+            }
+#endif
             break;
         case 'h':
             printf("%s %s ( %s )\n", NCAT_NAME, NCAT_VERSION, NCAT_URL);
@@ -484,6 +560,9 @@ int main(int argc, char *argv[])
 "  -C, --crlf                 Use CRLF for EOL sequence\n"
 "  -c, --sh-exec <command>    Executes the given command via /bin/sh\n"
 "  -e, --exec <command>       Executes the given command\n"
+#ifdef HAVE_LUA
+"      --lua-exec <filename>  Executes the given Lua script\n"
+#endif
 "  -g hop1[,hop2,...]         Loose source routing hop points (8 max)\n"
 "  -G <n>                     Loose source routing hop pointer (4, 8, 12, ...)\n"
 "  -m, --max-conns <n>        Maximum <n> simultaneous connections\n"
@@ -500,7 +579,7 @@ int main(int argc, char *argv[])
 "  -t, --telnet               Answer Telnet negotiations\n"
 "  -u, --udp                  Use UDP instead of default TCP\n"
 "      --sctp                 Use SCTP instead of default TCP\n"
-"  -v, --verbose              Set verbosity level (can be used up to 3 times)\n"
+"  -v, --verbose              Set verbosity level (can be used several times)\n"
 "  -w, --wait <time>          Connect timeout\n"
 "      --append-output        Append rather than clobber specified output files\n"
 "      --send-only            Only send data, ignoring received; quit on EOF\n"
@@ -512,8 +591,9 @@ int main(int argc, char *argv[])
 "      --broker               Enable Ncat's connection brokering mode\n"
 "      --chat                 Start a simple Ncat chat server\n"
 "      --proxy <addr[:port]>  Specify address of host to proxy through\n"
-"      --proxy-type <type>    Specify proxy type (\"http\" or \"socks4\")\n"
+"      --proxy-type <type>    Specify proxy type (\"http\" or \"socks4\" or \"socks5\")\n"
 "      --proxy-auth <auth>    Authenticate with HTTP or SOCKS proxy server\n"
+
 #ifdef HAVE_OPENSSL
 "      --ssl                  Connect or listen with SSL\n"
 "      --ssl-cert             Specify SSL certificate file (PEM) for listening\n"
@@ -551,7 +631,7 @@ int main(int argc, char *argv[])
 #if HAVE_SYS_UN_H
     /* Using Unix domain sockets, so do the checks now */
     if (o.af == AF_UNIX) {
-        if (proxyaddr || o.proxytype)
+        if (o.proxyaddr || o.proxytype)
             bye("Proxy option not supported when using Unix domain sockets.");
 #ifdef HAVE_OPENSSL
         if (o.ssl)
@@ -569,7 +649,7 @@ int main(int argc, char *argv[])
     /* Will be AF_INET or AF_INET6 or AF_UNIX when valid */
     memset(&targetss.storage, 0, sizeof(targetss.storage));
     targetss.storage.ss_family = AF_UNSPEC;
-    httpconnect.storage = socksconnect.storage = srcaddr.storage = targetss.storage;
+    srcaddr.storage = targetss.storage;
 
     /* Clear the listenaddrs array */
     int i;
@@ -577,28 +657,32 @@ int main(int argc, char *argv[])
         listenaddrs[i].storage = targetss.storage;
     }
 
-    if (proxyaddr) {
+    if (o.proxyaddr) {
         if (!o.proxytype)
             o.proxytype = Strdup("http");
 
-        if (!strcmp(o.proxytype, "http")) {
-            /* Parse HTTP proxy address and temporarily store it in httpconnect.  If
-             * the proxy server is given as an IPv6 address (not hostname), the port
-             * number MUST be specified as well or parsing will break (due to the
-             * colons in the IPv6 address and host:port separator).
+        if (!strcmp(o.proxytype, "http") ||
+            !strcmp(o.proxytype, "socks4") || !strcmp(o.proxytype, "4") ||
+            !strcmp(o.proxytype, "socks5") || !strcmp(o.proxytype, "5")) {
+            /* Parse HTTP/SOCKS proxy address and store it in targetss.
+             * If the proxy server is given as an IPv6 address (not hostname),
+             * the port number MUST be specified as well or parsing will break
+             * (due to the colons in the IPv6 address and host:port separator).
              */
 
-            parseproxy(proxyaddr, &httpconnect.storage, DEFAULT_PROXY_PORT);
-        } else if (!strcmp(o.proxytype, "socks4") || !strcmp(o.proxytype, "4")) {
-            /* Parse SOCKS proxy address and temporarily store it in socksconnect */
-
-            parseproxy(proxyaddr, &socksconnect.storage, DEFAULT_SOCKS4_PORT);
+            targetsslen = parseproxy(o.proxyaddr,
+                &targetss.storage, &targetsslen, &proxyport);
+            if (o.af == AF_INET) {
+                targetss.in.sin_port = htons(proxyport);
+            } else { // might modify to else if and test AF_{INET6|UNIX|UNSPEC}
+                targetss.in6.sin6_port = htons(proxyport);
+            }
         } else {
             bye("Invalid proxy type \"%s\".", o.proxytype);
         }
 
-        free(o.proxytype);
-        free(proxyaddr);
+        if (o.listen)
+            bye("Invalid option combination: --proxy and -l.");
     } else {
         if (o.proxytype) {
             if (!o.listen)
@@ -609,7 +693,10 @@ int main(int argc, char *argv[])
     }
 
     /* Default port */
-    o.portno = DEFAULT_NCAT_PORT;
+    if (o.listen && o.proxytype && !o.portno && srcport == -1)
+        o.portno = DEFAULT_PROXY_PORT;
+    else
+        o.portno = DEFAULT_NCAT_PORT;
 
     /* Resolve the given source address */
     if (source) {
@@ -622,7 +709,7 @@ int main(int argc, char *argv[])
         /* if using UNIX sockets just copy the path.
          * If it's not valid, it will fail later! */
         if (o.af == AF_UNIX) {
-            if (o.udp) {
+            if (o.proto == IPPROTO_UDP) {
                 srcaddr.un.sun_family = AF_UNIX;
                 strncpy(srcaddr.un.sun_path, source, sizeof(srcaddr.un.sun_path));
                 srcaddrlen = SUN_LEN(&srcaddr.un);
@@ -670,9 +757,12 @@ int main(int argc, char *argv[])
             int rc;
 
             o.target = argv[optind];
-            /* resolve hostname */
-            rc = resolve(o.target, 0, &targetss.storage, &targetsslen, o.af);
-            if (rc != 0)
+            /* resolve hostname only if o.proxytype == NULL
+             * targetss contains data already and you don't want remove them
+             */
+            if( !o.proxytype
+                && (rc = resolve(o.target, 0, &targetss.storage, &targetsslen, o.af)) != 0)
+
                 bye("Could not resolve hostname \"%s\": %s.", o.target, gai_strerror(rc));
             optind++;
         } else {
@@ -707,7 +797,9 @@ int main(int argc, char *argv[])
         o.portno = (unsigned short) long_port;
     }
 
-    if (targetss.storage.ss_family == AF_INET)
+    if (o.proxytype && !o.listen)
+        ; /* Do nothing - port is already set to proxyport  */
+    else if (targetss.storage.ss_family == AF_INET)
         targetss.in.sin_port = htons(o.portno);
 #ifdef HAVE_IPV6
     else if (targetss.storage.ss_family == AF_INET6)
@@ -719,9 +811,9 @@ int main(int argc, char *argv[])
         ; /* Do nothing. */
 #endif
     else if (targetss.storage.ss_family == AF_UNSPEC)
-	; /* Leave unspecified. */
+        ; /* Leave unspecified. */
     else
-	bye("Unknown address family %d.", targetss.storage.ss_family);
+        bye("Unknown address family %d.", targetss.storage.ss_family);
 
     if (srcport != -1) {
         if (o.listen) {
@@ -748,20 +840,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* Since the host we're actually *connecting* to is the proxy server, we
-     * need to reverse these address structures to avoid any further confusion
-     */
-    if (httpconnect.storage.ss_family != AF_UNSPEC) {
-        union sockaddr_u tmp = targetss;
-        targetss = httpconnect;
-        httpconnect = tmp;
-    } else if (socksconnect.storage.ss_family != AF_UNSPEC) {
-        union sockaddr_u tmp = targetss;
-        targetss = socksconnect;
-        socksconnect = tmp;
-    }
-
-    if (o.udp) {
+    if (o.proto == IPPROTO_UDP) {
         /* Don't allow a false sense of security if someone tries SSL over UDP. */
         if (o.ssl)
             bye("UDP mode does not support SSL.");
@@ -769,7 +848,7 @@ int main(int argc, char *argv[])
             bye("UDP mode does not support the -k or --keep-open options, except with --exec or --sh-exec.");
         if (o.broker)
             bye("UDP mode does not support connection brokering.\n\
-If this feature is important to you, write nmap-dev@insecure.org with a\n\
+If this feature is important to you, write dev@nmap.org with a\n\
 description of how you intend to use it, as an aid to deciding how UDP\n\
 connection brokering should work.");
     }
@@ -777,6 +856,11 @@ connection brokering should work.");
     /* Do whatever is necessary to receive \n for line endings on input from
        the console. A no-op on Unix. */
     set_lf_mode();
+
+#ifdef HAVE_LUA
+    if (o.execmode == EXEC_LUA)
+        lua_setup();
+#endif
 
     if (o.listen)
         return ncat_listen_mode();
@@ -810,11 +894,8 @@ static int ncat_connect_mode(void)
 static int ncat_listen_mode(void)
 {
     /* Can't 'listen' AND 'connect' to a proxy server at the same time. */
-    if (httpconnect.storage.ss_family != AF_UNSPEC || socksconnect.storage.ss_family != AF_UNSPEC)
+    if (o.proxyaddr != NULL)
         bye("Invalid option combination: --proxy and -l.");
-
-    if (o.idletimeout != 0)
-        bye("An idle timeout only works in connect mode.");
 
     if (o.broker && o.cmdexec != NULL)
         bye("Invalid option combination: --broker and -e.");
@@ -832,7 +913,7 @@ static int ncat_listen_mode(void)
 
 #ifndef WIN32
     /* See if the shell is executable before we get deep into this */
-    if (o.shellexec && access("/bin/sh", X_OK) == -1)
+    if (o.execmode == EXEC_SHELL && access("/bin/sh", X_OK) == -1)
         bye("/bin/sh is not executable, so `-c' won't work.");
 #endif
 
@@ -849,9 +930,10 @@ static int ncat_listen_mode(void)
         if (o.af == AF_INET6 || o.af == AF_UNSPEC) {
             ss_len = sizeof(listenaddrs[num_listenaddrs]);
             rc = resolve("::", o.portno, &listenaddrs[num_listenaddrs].storage, &ss_len, AF_INET6);
-            if (rc != 0)
-                bye("Failed to resolve default IPv6 address: %s.", gai_strerror(rc));
-            num_listenaddrs++;
+            if (rc == 0)
+                num_listenaddrs++;
+            else if (o.debug > 0)
+                logdebug("Failed to resolve default IPv6 address: %s\n", gai_strerror(rc));
         }
 #endif
         if (o.af == AF_INET || o.af == AF_UNSPEC) {
