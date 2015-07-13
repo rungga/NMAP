@@ -4,6 +4,7 @@ nmap (6.49~BETA4-0kali1) kali-dev; urgency=medium
   * Drop patches 0003-Updated-German-translation-of-zenmap.patch and
     0004-Fail-early-when-unable-to-properly-resolve-proxy-nam.patch as they
     have been integrated upstream
+  * debian/rules: drop all uninstall files after auto_install
 
  -- Sophie Brun <sophie@freexian.com>  Mon, 13 Jul 2015 15:07:40 +0200
 
