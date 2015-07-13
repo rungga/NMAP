@@ -91,11 +91,11 @@ Driver =
     local status, data
     repeat
       if ( tries < MAX_RETRIES ) then
-        stdnse.print_debug(2, "%s: Attempting to re-connect (attempt %d of %d)", SCRIPT_NAME, MAX_RETRIES - tries, MAX_RETRIES)
+        stdnse.debug2("Attempting to re-connect (attempt %d of %d)", MAX_RETRIES - tries, MAX_RETRIES)
       end
       status, data = self.helper:Connect()
       if ( not(status) ) then
-        stdnse.print_debug(2, "%s: ERROR: An Oracle %s error occurred", SCRIPT_NAME, data)
+        stdnse.debug2("ERROR: An Oracle %s error occurred", data)
         self.helper:Close()
       else
         break
@@ -117,7 +117,7 @@ Driver =
   -- @param password string containing the login password
   -- @return status, true on success, false on failure
   -- @return brute.Error object on failure
-  --         brute.Account object on success
+  --         creds.Account object on success
   login = function( self, username, password )
     local status, data = self.helper:StealthLogin( username, password )
 
@@ -126,7 +126,7 @@ Driver =
       if ( johnfile ) then
         johnfile:write(("%s:%s\n"):format(username,hash))
       end
-      return true, brute.Account:new(username, hash, creds.State.HASHED)
+      return true, creds.Account:new(username, hash, creds.State.HASHED)
     else
       return false, brute.Error:new( data )
     end

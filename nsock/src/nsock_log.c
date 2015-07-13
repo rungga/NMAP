@@ -3,7 +3,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -27,8 +27,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -53,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_log.c 31562 2013-07-28 22:05:05Z fyodor $ */
+/* $Id: nsock_log.c 34646 2015-06-16 13:59:33Z dmiller $ */
 
 
 #define _GNU_SOURCE
@@ -71,20 +70,20 @@ extern struct timeval nsock_tod;
 
 
 void nsock_set_log_function(nsock_pool nsp, nsock_logger_t logger) {
-  mspool *ms = (mspool *)nsp;
+  struct npool *ms = (struct npool *)nsp;
 
   ms->logger = logger;
   nsock_log_debug(ms, "Registered external logging function: %p", logger);
 }
 
 nsock_loglevel_t nsock_get_loglevel(nsock_pool nsp) {
-  mspool *ms = (mspool *)nsp;
+  struct npool *ms = (struct npool *)nsp;
 
   return ms->loglevel;
 }
 
 void nsock_set_loglevel(nsock_pool nsp, nsock_loglevel_t loglevel) {
-  mspool *ms = (mspool *)nsp;
+  struct npool *ms = (struct npool *)nsp;
 
   ms->loglevel = loglevel;
 }
@@ -110,7 +109,7 @@ void __nsock_log_internal(nsock_pool nsp, nsock_loglevel_t loglevel,
 
   rc = vasprintf(&rec.msg, format, args);
   if (rc >= 0) {
-    mspool *ms = (mspool *)nsp;
+    struct npool *ms = (struct npool *)nsp;
 
     ms->logger(nsp, &rec);
     free(rec.msg);

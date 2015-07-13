@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -97,8 +97,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -119,7 +118,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
@@ -130,8 +129,8 @@
 #include "NmapOps.h"
 #include "nmap_error.h"
 #include "osscan.h"
-#include "libnetutil/npacket.h"
 #include "linear.h"
+#include "FPModel.h"
 extern NmapOps o;
 
 
@@ -464,7 +463,10 @@ void FPNetworkControl::probe_transmission_handler(nsock_pool nsp, nsock_event ns
       /* Send the packet*/
       assert(myprobe->host != NULL);
       if (send_ip_packet(this->rawsd, myprobe->getEthernet(), myprobe->host->getTargetAddress(), buf, len) == -1) {
-        pfatal("Unable to send packet in %s", __func__);
+        myprobe->setFailed();
+        this->cc_report_final_timeout();
+        myprobe->host->fail_one_probe();
+        gh_perror("Unable to send packet in %s", __func__);
       }
       myprobe->setTimeSent();
       free(buf);
@@ -602,7 +604,7 @@ void FPNetworkControl::response_reception_handler(nsock_pool nsp, nsock_event ns
   } else if (status == NSE_STATUS_EOF) {
     if (o.debugging)
       log_write(LOG_PLAIN, "response_reception_handler(): EOF\n");
-  } else if (status == NSE_STATUS_ERROR || NSE_STATUS_PROXYERROR) {
+  } else if (status == NSE_STATUS_ERROR || status == NSE_STATUS_PROXYERROR) {
     if (o.debugging)
       log_write(LOG_PLAIN, "response_reception_handler(): %s failed: %s\n", nse_type2str(type), strerror(socket_errno()));
   } else if (status == NSE_STATUS_TIMEOUT) {
@@ -696,14 +698,6 @@ FPEngine6::~FPEngine6() {
 
 }
 
-
-/* From FPModel.cc. */
-extern struct model FPModel;
-extern double FPscale[][2];
-extern double FPmean[][659];
-extern double FPvariance[][659];
-extern FingerMatch FPmatches[];
-
 /* Not all operating systems allow setting the flow label in outgoing packets;
    notably all Unixes other than Linux when using raw sockets. This function
    finds out whether the flow labels we set are likely really being sent.
@@ -744,6 +738,9 @@ void FPHost6::fill_FPR(FingerPrintResultsIPv6 *FPR) {
       break;
     }
   }
+
+  /* Did we fail to send some probe? */
+  FPR->incomplete = this->incomplete_fp;
 }
 
 static const IPv6Header *find_ipv6(const PacketElement *pe) {
@@ -778,6 +775,43 @@ static double vectorize_tc(const PacketElement *pe) {
     return -1;
   else
     return ipv6->getTrafficClass();
+}
+
+/* For reference, the dev@nmap.org email thread which contains the explanations for the
+ * design decisions of this vectorization method:
+ * http://seclists.org/nmap-dev/2015/q1/218
+ */
+static int vectorize_hlim(const PacketElement *pe, int target_distance, enum dist_calc_method method) {
+  const IPv6Header *ipv6;
+  int hlim;
+  int er_lim;
+
+  ipv6 = find_ipv6(pe);
+  if (ipv6 == NULL)
+    return -1;
+  hlim = ipv6->getHopLimit();
+
+  if (method != DIST_METHOD_NONE) {
+      if (method == DIST_METHOD_TRACEROUTE || method == DIST_METHOD_ICMP) {
+        if (target_distance > 0)
+          hlim += target_distance - 1;
+      }
+      er_lim = 5;
+  } else
+    er_lim = 20;
+
+  if (32 - er_lim <= hlim && hlim <= 32+ 5 )
+    hlim = 32;
+  else if (64 - er_lim <= hlim && hlim <= 64+ 5 )
+    hlim = 64;
+  else if (128 - er_lim <= hlim && hlim <= 128+ 5 )
+    hlim = 128;
+  else if (255 - er_lim <= hlim && hlim <= 255+ 5 )
+    hlim = 255;
+  else
+    hlim = -1;
+
+  return hlim;
 }
 
 static double vectorize_isr(std::map<std::string, FPPacket>& resps) {
@@ -853,6 +887,7 @@ static struct feature_node *vectorize(const FingerPrintResultsIPv6 *FPR) {
     probe_name = IPV6_PROBE_NAMES[i];
     features[idx++].value = vectorize_plen(resps[probe_name].getPacket());
     features[idx++].value = vectorize_tc(resps[probe_name].getPacket());
+    features[idx++].value = vectorize_hlim(resps[probe_name].getPacket(), FPR->distance, FPR->distance_calculation_method);
   }
   /* TCP features */
   features[idx++].value = vectorize_isr(resps);
@@ -1213,6 +1248,7 @@ void FPHost::__reset() {
   this->probes_sent = 0;
   this->probes_answered = 0;
   this->probes_unanswered = 0;
+  this->incomplete_fp = false;
   this->detection_done = false;
   this->timedprobes_sent = false;
   this->target_host = NULL;
@@ -1245,6 +1281,12 @@ const struct sockaddr_storage *FPHost::getTargetAddress() {
   return this->target_host->TargetSockAddr();
 }
 
+/* Marks one probe as unanswerable, making the fingerprint incomplete and
+ * ineligible for submission */
+void FPHost::fail_one_probe() {
+  this->probes_unanswered++;
+  this->incomplete_fp = true;
+}
 
 /* Accesses the Target object associated with the FPHost to extract the port
  * numbers to be used in OS detection. In particular it extracts:
@@ -1280,7 +1322,7 @@ int FPHost::choose_osscan_ports() {
 
   /* Choose a closed TCP port. */
   if (this->target_host->FPR != NULL && this->target_host->FPR->osscan_closedtcpport > 0) {
-     this->closed_port_tcp =this->target_host->FPR->osscan_closedtcpport;
+     this->closed_port_tcp = this->target_host->FPR->osscan_closedtcpport;
   } else if ((tport = this->target_host->ports.nextPort(NULL, &port, IPPROTO_TCP, PORT_CLOSED))) {
     this->closed_port_tcp = tport->portno;
     /* If it is zero, let's try another one if there is one */
@@ -1293,7 +1335,7 @@ int FPHost::choose_osscan_ports() {
     this->closed_port_tcp = tport->portno;
     /* But again we'd prefer not to have zero */
     if (tport->portno == 0)
-      if ((tport =this->target_host->ports.nextPort(tport, &port, IPPROTO_TCP, PORT_UNFILTERED)))
+      if ((tport = this->target_host->ports.nextPort(tport, &port, IPPROTO_TCP, PORT_UNFILTERED)))
         this->closed_port_tcp = tport->portno;
   } else {
     /* If we don't have a closed port, set it to -1 so we don't send probes that
@@ -1528,7 +1570,9 @@ void FPHost6::finish() {
   }
 
   this->target_host->distance = this->target_host->FPR->distance = distance;
-  this->target_host->distance_calculation_method = distance_calculation_method;
+  this->target_host->distance_calculation_method =
+    this->target_host->FPR->distance_calculation_method =
+    distance_calculation_method;
 }
 
 struct tcp_desc {
@@ -1848,7 +1892,7 @@ int FPHost6::build_probe_list() {
   i++;
 
   /* Set untimed TCP probes */
-  for ( ; i < NUM_FP_PROBES_IPv6_TCP; i++) {
+  for (; i < NUM_FP_PROBES_IPv6_TCP; i++) {
     /* If the probe is targeted to a TCP port and we don't have
      * any port number for that particular state, skip the probe. */
     if (TCP_DESCS[i].dstport == OPEN && this->open_port_tcp < 0)

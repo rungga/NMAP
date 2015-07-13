@@ -37,6 +37,16 @@ The script needs to be run as a privileged user, typically root.
 -- |   Domain Name Server: 192.168.1.1
 -- |_  Domain Name: localdomain
 --
+-- @xmloutput
+-- <elem key="IP Offered">192.168.1.114</elem>
+-- <elem key="DHCP Message Type">DHCPOFFER</elem>
+-- <elem key="Server Identifier">192.168.1.1</elem>
+-- <elem key="IP Address Lease Time">1 day, 0:00:00</elem>
+-- <elem key="Subnet Mask">255.255.255.0</elem>
+-- <elem key="Router">192.168.1.1</elem>
+-- <elem key="Domain Name Server">192.168.1.1</elem>
+-- <elem key="Domain Name">localdomain</elem>
+--
 -- @args broadcast-dhcp-discover.timeout time in seconds to wait for a response
 --       (default: 10s)
 --
@@ -52,12 +62,12 @@ categories = {"broadcast", "safe"}
 
 prerule = function()
   if not nmap.is_privileged() then
-    stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+    stdnse.verbose1("not running for lack of privileges.")
     return false
   end
 
   if nmap.address_family() ~= 'inet' then
-    stdnse.print_debug("%s is IPv4 compatible only.", SCRIPT_NAME)
+    stdnse.debug1("is IPv4 compatible only.")
     return false
   end
   return true
@@ -67,11 +77,11 @@ end
 --
 -- @return mac_addr string containing a random MAC
 local function randomizeMAC()
-  local mac_addr = ""
+  local mac_addr = {}
   for j=1, 6 do
-    mac_addr = mac_addr .. string.char(math.random(1, 255))
+    mac_addr[j] = string.char(math.random(1, 255))
   end
-  return mac_addr
+  return table.concat(mac_addr)
 end
 
 -- Gets a list of available interfaces based on link and up filters
@@ -133,6 +143,11 @@ local function dhcp_listener(sock, timeout, xid, result)
   condvar "signal"
 end
 
+local commasep = {
+  __tostring = function (t)
+    return table.concat(t, ", ")
+  end
+}
 
 action = function()
 
@@ -143,7 +158,7 @@ action = function()
   -- randomizing the MAC could exhaust dhcp servers with small scopes
   -- if ran multiple times, so we should probably refrain from doing
   -- this?
-  local mac = string.char(0xDE,0xAD,0xC0,0xDE,0xCA,0xFE)--randomizeMAC()
+  local mac = "\xDE\xAD\xC0\xDE\xCA\xFE" --randomizeMAC()
 
   local interfaces
 
@@ -197,17 +212,21 @@ action = function()
     end
   until next(threads) == nil
 
-  local response = {}
+  local response = stdnse.output_table()
   -- Display the results
   for i, r in ipairs(result) do
-    table.insert(response, string.format("IP Offered: %s", r.yiaddr_str))
+    local result_table = stdnse.output_table()
+
+    result_table["IP Offered"] = r.yiaddr_str
     for _, v in ipairs(r.options) do
-      if(type(v['value']) == 'table') then
-        table.insert(response, string.format("%s: %s", v['name'], stdnse.strjoin(", ", v['value'])))
-      else
-        table.insert(response, string.format("%s: %s\n", v['name'], v['value']))
+      if(type(v.value) == 'table') then
+        setmetatable(v.value, commasep)
       end
+      result_table[ v.name ] = v.value
     end
+
+    response[string.format("Response %d of %d", i, #result)] = result_table
   end
-  return stdnse.format_output(true, response)
+
+  return response
 end

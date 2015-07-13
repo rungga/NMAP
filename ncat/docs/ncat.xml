@@ -327,7 +327,7 @@
           <option>--ssl</option> except that it also requires verification of
           the server certificate. Ncat comes with a default set of trusted
           certificates in the file
-          <filename>ca-bundle.crt</filename><indexterm><primary><filename>ca-bundle.crt</filename></primary></indexterm>.
+          <filename>ca-bundle.crt</filename>.<indexterm><primary><filename>ca-bundle.crt</filename></primary></indexterm>
           Some operating systems provide a default list of
           trusted certificates; these will also be used if available. Use
           <option>--ssl-trustfile</option> to give a custom list. Use
@@ -335,7 +335,7 @@
           verification failures.</para>
 	  <indexterm><primary>revoked certificates</primary><see>certificate revocation</see></indexterm>
 	  <para>Ncat does not check for revoked
-	  certificates<indexterm><primary>certification revocation</primary></indexterm>.</para>
+	  certificates.<indexterm><primary>certification revocation</primary></indexterm></para>
           <para>This option has no effect in server mode.</para>
         </listitem>
       </varlistentry>
@@ -379,6 +379,20 @@
           certificates of certification authorities, though it may also contain
           server certificates directly. When this option is used, Ncat does not
           use its default certificates.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>
+          <option>--ssl-ciphers <replaceable>cipherlist</replaceable></option> (Specify SSL ciphersuites)
+          <indexterm><primary><option>--ssl-ciphers</option> (Ncat option)</primary></indexterm>
+        </term>
+        <listitem>
+          <para>This option sets the list of ciphersuites that Ncat will use
+            when connecting to servers or when accepting SSL connections from
+            clients. The syntax is described in the OpenSSL ciphers(1) man
+            page, and defaults to
+            <literal>ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH</literal></para>
         </listitem>
       </varlistentry>
     </variablelist>

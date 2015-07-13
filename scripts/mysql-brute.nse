@@ -65,7 +65,7 @@ Driver = {
     if(not(status)) then
       return false,brute.Error:new(response)
     end
-    stdnse.print_debug( "Trying %s/%s ...", user, pass )
+    stdnse.debug1( "Trying %s/%s ...", user, pass )
     status, response = mysql.loginRequest( self.socket, { authversion = "post41", charset = response.charset }, user, pass, response.salt )
     if status then
       -- Add credentials for other mysql scripts to use
@@ -73,7 +73,7 @@ Driver = {
         nmap.registry.mysqlusers = {}
       end
       nmap.registry.mysqlusers[user]=pass
-      return true, brute.Account:new( user, pass, creds.State.VALID)
+      return true, creds.Account:new( user, pass, creds.State.VALID)
     end
     return false,brute.Error:new( "Incorrect password" )
   end,

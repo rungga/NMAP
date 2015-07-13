@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -97,8 +97,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -119,11 +118,11 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: tcpip.cc 33540 2014-08-16 02:45:47Z dmiller $ */
+/* $Id: tcpip.cc 34646 2015-06-16 13:59:33Z dmiller $ */
 #ifdef WIN32
 #include "nmap_winconfig.h"
 #endif
@@ -1405,6 +1404,15 @@ static bool validateTCPhdr(u8 *tcpc, unsigned len) {
       optlen -= 10;
       tcpc += 10;
       break;
+    case 14: /* Alternate checksum */
+      /* Sometimes used for hardware checksum offloading
+       * ftp://ftp.ucsd.edu/pub/csl/fastnet/faq.txt
+       */
+      if (optlen < 3)
+        return false;
+      optlen -= 3;
+      tcpc += 3;
+      break;
     default:
       optlen--;
       tcpc++;
@@ -2025,9 +2033,10 @@ pcap_if_t *getpcapinterfaces() {
   return NULL;
 #endif
   pcap_if_t *p_ifaces;
+  char errbuf[PCAP_ERRBUF_SIZE];
 
-  if ((pcap_findalldevs(&p_ifaces, NULL)) == -1) {
-    fatal("pcap_findalldevs() : Cannot retrieve pcap interfaces");
+  if ((pcap_findalldevs(&p_ifaces, errbuf)) == -1) {
+    fatal("pcap_findalldevs(): Cannot retrieve pcap interfaces: %s", errbuf);
     return NULL;
   }
   return p_ifaces;

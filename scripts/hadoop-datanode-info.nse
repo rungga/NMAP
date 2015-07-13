@@ -2,7 +2,6 @@ local http = require "http"
 local nmap = require "nmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
-local table = require "table"
 
 description = [[
 Discovers information such as log directories from an Apache Hadoop DataNode HTTP status page.
@@ -25,7 +24,9 @@ For more information about hadoop, see:
 -- 50075/tcp open  hadoop-datanode syn-ack
 -- | hadoop-datanode-info:
 -- |_  Logs: /logs/
----
+--
+-- @xmloutput
+-- <elem key="Logs">/logs/</elem>
 
 
 author = "John R. Bond"
@@ -42,22 +43,22 @@ end
 
 action = function( host, port )
 
-  local result = {}
+  local result = stdnse.output_table()
   local uri = "/browseDirectory.jsp"
-  stdnse.print_debug(1, "%s:HTTP GET %s:%s%s", SCRIPT_NAME, host.targetname or host.ip, port.number, uri)
+  stdnse.debug1("HTTP GET %s:%s%s", host.targetname or host.ip, port.number, uri)
   local response = http.get( host, port, uri )
-  stdnse.print_debug(1, "%s: Status %s", SCRIPT_NAME,response['status-line'] or "No Response")
+  stdnse.debug1("Status %s",response['status-line'] or "No Response")
   if response['status-line'] and response['status-line']:match("200%s+OK") and response['body']  then
     local body = response['body']:gsub("%%","%%%%")
-    stdnse.print_debug(2, "%s: Body %s\n", SCRIPT_NAME,body)
+    stdnse.debug2("Body %s\n",body)
     if body:match("([^][\"]+)\">Log") then
       port.version.name = "hadoop-datanode"
       port.version.product = "Apache Hadoop"
       nmap.set_port_version(host, port)
       local logs = body:match("([^][\"]+)\">Log")
-      stdnse.print_debug(1, "%s: Logs %s", SCRIPT_NAME,logs)
-      table.insert(result, ("Logs: %s"):format(logs))
+      stdnse.debug1("Logs %s",logs)
+      result["Logs"] = logs
     end
-    return stdnse.format_output(true, result)
+    return result
   end
 end

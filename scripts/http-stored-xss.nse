@@ -101,9 +101,9 @@ local makeRequests = function(host, port, submission, fields, fieldvalues)
       end
     end
 
-    stdnse.print_debug(2, "Making a POST request to " .. submission .. ": ")
+    stdnse.debug2("Making a POST request to " .. submission .. ": ")
     for i, content in pairs(postdata) do
-      stdnse.print_debug(2, i .. ": " .. content)
+      stdnse.debug2(i .. ": " .. content)
     end
     local response = http.post(host, port, submission, { no_cache = true }, nil, postdata)
   end
@@ -202,7 +202,7 @@ action = function(host, port)
 
         form = http.parse_form(form)
 
-        if form then
+        if form and form.action then
 
           local action_absolute = string.find(form["action"], "https*://")
 

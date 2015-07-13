@@ -116,11 +116,11 @@ function action(host,port)
   local saveFile = stdnse.get_script_args('ldap.savesearch')
   local accounts
   local objCount = 0
-  local maxObjects = stdnse.get_script_args('ldap.maxobjects') and tonumber(stdnse.get_script_args('ldap.maxobjects')) or 20
+  local maxObjects = tonumber(stdnse.get_script_args('ldap.maxobjects')) or 20
 
   -- In order to discover what protocol to use (SSL/TCP) we need to send a few bytes to the server
   -- An anonymous bind should do it
-  local ldap_anonymous_bind = string.char( 0x30, 0x0c, 0x02, 0x01, 0x01, 0x60, 0x07, 0x02, 0x01, 0x03, 0x04, 0x00, 0x80, 0x00 )
+  local ldap_anonymous_bind = "\x30\x0c\x02\x01\x01\x60\x07\x02\x01\x03\x04\x00\x80\x00"
   local _
   socket, _, opt = comm.tryssl( host, port, ldap_anonymous_bind, nil )
 
@@ -164,7 +164,7 @@ function action(host,port)
   end
 
   if ( not(contexts) or #contexts == 0 ) then
-    stdnse.print_debug( "Failed to retrieve namingContexts" )
+    stdnse.debug1( "Failed to retrieve namingContexts" )
     contexts = {""}
   end
 
@@ -174,7 +174,7 @@ function action(host,port)
     local status, errmsg = ldap.bindRequest( socket, bindParam )
 
     if not status then
-      stdnse.print_debug("ldap-search failed to bind: %s", errmsg)
+      stdnse.debug1("ldap-search failed to bind: %s", errmsg)
       return "  \n  ERROR: Authentication failed"
     end
   -- or if ldap-brute found us something
@@ -240,7 +240,7 @@ function action(host,port)
       if ( searchResEntries:match("DSID[-]0C090627") and not(username) ) then
         return "ERROR: Failed to bind as the anonymous user"
       else
-        stdnse.print_debug("ldap.searchRequest returned: %s", searchResEntries)
+        stdnse.debug1("ldap.searchRequest returned: %s", searchResEntries)
         return
       end
     end
@@ -251,7 +251,7 @@ function action(host,port)
       local output_file = saveFile .. "_" .. host.ip .. "_" .. port.number .. ".csv"
       local save_status, save_err = ldap.searchResultToFile(searchResEntries,output_file)
       if not save_status then
-        stdnse.print_debug(save_err)
+        stdnse.debug1("%s", save_err)
       end
     end
 

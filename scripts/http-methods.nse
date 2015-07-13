@@ -72,12 +72,12 @@ action = function(host, port)
 
   response = http.generic_request(host, port, "OPTIONS", url_path)
   if not response.status then
-    stdnse.print_debug("http-methods: OPTIONS %s failed.", url_path)
+    stdnse.debug1("OPTIONS %s failed.", url_path)
     return
   end
   -- Cache in case retest is requested.
   options_status_line = response["status-line"]
-  stdnse.print_debug("http-methods.nse: HTTP Status for OPTIONS is " .. response.status)
+  stdnse.debug1("HTTP Status for OPTIONS is " .. response.status)
 
   if not (response.header["allow"] or response.header["public"]) then
     return string.format("No Allow or Public header in OPTIONS response (status code %d)", response.status)

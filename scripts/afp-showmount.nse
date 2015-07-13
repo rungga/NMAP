@@ -60,7 +60,7 @@ action = function(host, port)
 
     status, response = afpHelper:OpenSession(host, port)
     if ( not status ) then
-      stdnse.print_debug(response)
+      stdnse.debug1("%s", response)
       return
     end
 
@@ -73,8 +73,8 @@ action = function(host, port)
     end
 
     if ( not status ) then
-      stdnse.print_debug("afp-showmount: Login failed", response)
-      stdnse.print_debug(3, "afp-showmount: Login error: %s", response)
+      stdnse.debug1("Login failed", response)
+      stdnse.debug3("Login error: %s", response)
       return
     end
 

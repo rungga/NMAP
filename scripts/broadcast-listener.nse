@@ -87,7 +87,7 @@ categories = {"broadcast", "safe"}
 
 prerule = function()
   if not nmap.is_privileged() then
-    stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+    stdnse.verbose1("not running for lack of privileges.")
     return false
   end
   return true
@@ -111,7 +111,7 @@ loadDecoders = function(fname)
   local env = setmetatable({Decoders = {}}, {__index = _G});
   local file = loadfile(abs_fname, "t", env)
   if(not(file)) then
-    stdnse.print_debug("%s: Couldn't load decoder file: %s", SCRIPT_NAME, fname)
+    stdnse.debug1("Couldn't load decoder file: %s", fname)
     return false, "ERROR: Couldn't load decoder file: " .. fname
   end
 
@@ -161,7 +161,7 @@ sniffInterface = function(iface, Decoders, decodertab)
         -- The packet was decoded successfully but we don't have a valid decoder
         -- Report this
       elseif ( p and p.udp_dport ) then
-        stdnse.print_debug(2, "No decoder for dst port %d", p.udp_dport)
+        stdnse.debug2("No decoder for dst port %d", p.udp_dport)
         -- we don't have a packet, so this is most likely something layer2 based
         -- in that case, check the ether Decoder table for pattern matches
       else
@@ -184,7 +184,7 @@ sniffInterface = function(iface, Decoders, decodertab)
         end
         -- no decoder was found for this layer2 packet
         if ( not(decoded) and #data > 10 ) then
-          stdnse.print_debug(1, "No decoder for packet hex: %s", select(2, bin.unpack("H10", data) ) )
+          stdnse.debug1("No decoder for packet hex: %s", select(2, bin.unpack("H10", data) ) )
         end
       end
     end

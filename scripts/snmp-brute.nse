@@ -48,7 +48,7 @@ No output is reported if no valid account is found.
 -- |   dragon - Valid credentials
 -- |_  jordan - Valid credentials
 
-author = "Philip Pickering, Gorjan Petrovski, Patrik Karlsson"
+author = "Philip Pickering, Gorjan Petrovski, Patrik Karlsson, Gioacchino Mazzurco"
 
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
 
@@ -113,8 +113,7 @@ local communities = function()
   nmap.fetchfile("nselib/data/snmpcommunities.lst")
 
   if communities_file then
-    stdnse.print_debug(1, "%s: Using the %s as the communities file",
-    SCRIPT_NAME, communities_file)
+    stdnse.debug1("Using the %s as the communities file", communities_file)
 
     local status, iterator = communities_raw(communities_file)
 
@@ -131,8 +130,7 @@ local communities = function()
 
     return true, unpwdb.limited_iterator(iterator, time_limit, count_limit)
   else
-    stdnse.print_debug(1, "%s: Cannot read the communities file, using the nmap username/password database instead",
-      SCRIPT_NAME)
+    stdnse.debug1("Cannot read the communities file, using the nmap username/password database instead")
 
     return unpwdb.passwords()
   end
@@ -170,12 +168,10 @@ end
 
 local sniff_snmp_responses = function(host, port, lport, result)
   local condvar = nmap.condvar(result)
-
   local pcap = nmap.new_socket()
   pcap:set_timeout(host.times.timeout * 1000 * 3)
-  local ip = host.bin_ip_src
-  ip = string.format("%d.%d.%d.%d",ip:byte(1),ip:byte(2),ip:byte(3),ip:byte(4))
-  pcap:pcap_open(host.interface, 104, false,"dst host " .. ip .. " and udp and src port 161 and dst port " .. lport)
+  pcap:pcap_open(host.interface, 300, false, "src host ".. host.ip .." and udp and src port 161 and dst port "..lport)
+
 
   -- last_run indicated whether there will be only one more receive
   local last_run = false
@@ -194,7 +190,7 @@ local sniff_snmp_responses = function(host, port, lport, result)
         return
       end
 
-      local response = p:raw(28, #p.buf)
+      local response = p:raw(p.udp_offset + 8, #p.buf)
       local res
       _, res = snmp.decode(response)
 
@@ -285,9 +281,9 @@ action = function(host, port)
     end
 
     -- return output
-    return tostring(c)
+    return c:getTable()
   else
-    stdnse.print_debug("An error occurred: "..result.msg)
+    stdnse.debug1("An error occurred: "..result.msg)
   end
 end
 

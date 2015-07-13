@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -95,8 +95,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -117,7 +116,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
@@ -306,8 +305,8 @@ static int time_to_tm(const ASN1_TIME *t, struct tm *result)
     else
       result->tm_year = 1900 + year;
     p = t->data + 2;
-  } else if (t->length == 14) {
-    /* yyyymmddhhmmss */
+  } else if (t->length == 15 && t->data[t->length - 1] == 'Z') {
+    /* yyyymmddhhmmssZ */
     result->tm_year = parse_int(t->data, 4);
     if (result->tm_year < 0)
       return -1;
@@ -427,13 +426,32 @@ static const char *pkey_type_to_string(int type)
   }
 }
 
+static int parse_ssl_cert(lua_State *L, X509 *cert);
+
+int l_parse_ssl_certificate(lua_State *L)
+{
+  X509 *cert;
+  size_t l;
+  const char *der;
+
+  der = luaL_checklstring(L, 1, &l);
+  if (der == NULL) {
+    lua_pushnil(L);
+    return 1;
+  }
+
+  cert = d2i_X509(NULL, (const unsigned char **) &der, l);
+  if (cert == NULL) {
+    lua_pushnil(L);
+    return 1;
+  }
+  return parse_ssl_cert(L, cert);
+}
+
 int l_get_ssl_certificate(lua_State *L)
 {
   SSL *ssl;
-  struct cert_userdata *udata;
   X509 *cert;
-  X509_NAME *subject, *issuer;
-  EVP_PKEY *pubkey;
 
   ssl = nse_nsock_get_ssl(L);
   cert = SSL_get_peer_certificate(ssl);
@@ -441,6 +459,14 @@ int l_get_ssl_certificate(lua_State *L)
     lua_pushnil(L);
     return 1;
   }
+  return parse_ssl_cert(L, cert);
+}
+
+static int parse_ssl_cert(lua_State *L, X509 *cert)
+{
+  struct cert_userdata *udata;
+  X509_NAME *subject, *issuer;
+  EVP_PKEY *pubkey;
 
   udata = (struct cert_userdata *) lua_newuserdata(L, sizeof(*udata));
   udata->cert = cert;
@@ -452,6 +478,10 @@ int l_get_ssl_certificate(lua_State *L)
     x509_name_to_table(L, subject);
     lua_setfield(L, -2, "subject");
   }
+
+  const char *sig_algo = OBJ_nid2ln(OBJ_obj2nid(cert->sig_alg->algorithm));
+  lua_pushstring(L, sig_algo);
+  lua_setfield(L, -2, "sig_algorithm");
 
   issuer = X509_get_issuer_name(cert);
   if (issuer != NULL) {
@@ -491,7 +521,7 @@ int l_get_ssl_certificate(lua_State *L)
 static int l_ssl_cert_index(lua_State *L)
 {
   struct cert_userdata *udata;
-  
+
   udata = (struct cert_userdata *) luaL_checkudata(L, 1, "SSL_CERT");
   lua_rawgeti(L, LUA_REGISTRYINDEX, udata->attributes_table);
   /* The key. */
@@ -505,7 +535,7 @@ static int l_ssl_cert_index(lua_State *L)
 static int l_ssl_cert_gc(lua_State *L)
 {
   struct cert_userdata *udata;
-  
+
   udata = (struct cert_userdata *) luaL_checkudata(L, 1, "SSL_CERT");
   X509_free(udata->cert);
   luaL_unref(L, LUA_REGISTRYINDEX, udata->attributes_table);

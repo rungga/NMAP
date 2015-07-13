@@ -97,14 +97,6 @@ local function generate_safe_postdata(form)
   return postdata
 end
 
-local function generate_get_string(data)
-  local get_str = {"?"}
-  for name,value in pairs(data) do
-    get_str[#get_str+1]=url.escape(name).."="..url.escape(value).."&"
-  end
-  return table.concat(get_str)
-end
-
 -- generate a charset of characters with ascii codes from 33 to 126
 -- you can use http://www.asciitable.com/ to see which characters those actually are
 local charset = generate_charset(33,126)
@@ -156,7 +148,7 @@ local function fuzz_form(form, minlen, maxlen, host, port, path)
   if form["method"]=="post" then
     sending_function = function(data) return http.post(host, port, form_submission_path, nil, nil, data) end
   else
-    sending_function = function(data) return http.get(host, port, form_submission_path..generate_get_string(data), {no_cache=true, bypass_cache=true}) end
+    sending_function = function(data) return http.get(host, port, form_submission_path.."?"..url.build_query(data), {no_cache=true, bypass_cache=true}) end
   end
 
   for _,field in ipairs(form["fields"]) do
@@ -186,7 +178,7 @@ function action(host, port)
   local return_table = {}
 
   for _,target in ipairs(targets) do
-    stdnse.print_debug(2, "http-form-fuzzer: testing path: "..target["path"])
+    stdnse.debug2("testing path: "..target["path"])
     local path = target["path"]
     if path then
       local response = http.get( host, port, path )
@@ -195,7 +187,7 @@ function action(host, port)
       local maxlen = target["maxlength"] or maxlen_global
       for _,form_plain in ipairs(all_forms) do
         local form = http.parse_form(form_plain)
-        if form then
+        if form and form.action then
           local affected_fields = fuzz_form(form, minlen, maxlen, host, port, path)
           if #affected_fields > 0 then
             affected_fields["name"] = "Path: "..path.." Action: "..form["action"]

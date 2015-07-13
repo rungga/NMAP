@@ -76,11 +76,11 @@ categories = {"discovery", "broadcast", "safe"}
 
 prerule = function()
   if nmap.address_family() ~= 'inet' then
-    stdnse.print_verbose("%s is IPv4 only.", SCRIPT_NAME)
+    stdnse.verbose1("is IPv4 only.")
     return false
   end
   if not nmap.is_privileged() then
-    stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+    stdnse.verbose1("not running for lack of privileges.")
     return false
   end
   return true
@@ -224,7 +224,7 @@ action = function()
       return ("\n ERROR: Failed to retrieve %s interface information."):format(interface)
     end
     interfaces = {interface}
-    stdnse.print_debug("%s: Will use %s interface.", SCRIPT_NAME, interface.shortname)
+    stdnse.debug1("Will use %s interface.", interface.shortname)
   else
     local ifacelist = nmap.list_interfaces()
     for _, iface in ipairs(ifacelist) do
@@ -232,7 +232,7 @@ action = function()
       if iface.address and iface.link=="ethernet" and
         iface.address:match("%d+%.%d+%.%d+%.%d+") then
 
-        stdnse.print_debug("%s: Will use %s interface.", SCRIPT_NAME, iface.shortname)
+        stdnse.debug1("Will use %s interface.", iface.shortname)
         table.insert(interfaces, iface)
       end
     end
@@ -243,7 +243,7 @@ action = function()
   if not as then
     -- We use a table for condvar
     local astab = {}
-    stdnse.print_debug("%s: No A.S value provided, will sniff for one.", SCRIPT_NAME)
+    stdnse.debug1("No A.S value provided, will sniff for one.")
     -- We should iterate over interfaces
     for _, interface in pairs(interfaces) do
       local co = stdnse.new_thread(asListener, interface, timeout, astab)
@@ -261,7 +261,7 @@ action = function()
     until next(lthreads) == nil;
 
     if #astab > 0 then
-      stdnse.print_debug("Will use %s A.S value.", astab[1])
+      stdnse.debug1("Will use %s A.S value.", astab[1])
       as = astab[1]
     else
       return "\n ERROR: Couldn't get an A.S value."

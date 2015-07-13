@@ -1,7 +1,6 @@
 local bin = require "bin"
 local brute = require "brute"
 local creds = require "creds"
-local math = require "math"
 local nmap = require "nmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
@@ -33,14 +32,6 @@ categories = {"brute", "intrusive"}
 
 
 portrule = shortport.port_or_service(9929, "nping-echo")
-
-local function randombytes(x)
-  local bytes = ""
-  for i = 1, x do
-    bytes = bytes .. bin.pack("C", math.random(0x00, 0xff))
-  end
-  return bytes
-end
 
 local function readmessage(socket, length)
   local msg = ""
@@ -103,8 +94,8 @@ Driver =
     local NEP_CLIENT_MAC_ID = "NEPkeyforMACClient2Server"
 
     local now = nmap.clock()
-    local seqb = randombytes(4)
-    local cnonce = randombytes(32)
+    local seqb = openssl.rand_bytes(4)
+    local cnonce = openssl.rand_bytes(32)
     local nonce = snonce .. cnonce
     local enckey = self:nepkey(password, nonce, NEP_CLIENT_CIPHER_ID)
     local mackey = self:nepkey(password, nonce, NEP_CLIENT_MAC_ID)
@@ -141,7 +132,7 @@ Driver =
 
   login = function(self, _, password)
     if self:testpass(password) then
-      return true, brute.Account:new("", password, creds.State.VALID)
+      return true, creds.Account:new("", password, creds.State.VALID)
     end
     return false, brute.Error:new("Incorrect password")
   end,

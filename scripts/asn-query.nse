@@ -10,7 +10,8 @@ Maps IP addresses to autonomous system (AS) numbers.
 
 The script works by sending DNS TXT queries to a DNS server which in
 turn queries a third-party service provided by Team Cymru
-(team-cymru.org) using an in-addr.arpa style zone set up especially for
+(https://www.team-cymru.org/Services/ip-to-asn.html) using an in-addr.arpa
+style zone set up especially for
 use by Nmap. The responses to these queries contain both Origin and Peer
 ASNs and their descriptions, displayed along with the BGP Prefix and
 Country Code. The script caches results to reduce the number of queries
@@ -212,7 +213,7 @@ function ip_to_asn( query )
   local status, decoded_response = dns.query( query, options)
 
   if not status then
-    stdnse.print_debug( "%s Error from dns.query(): %s", SCRIPT_NAME, decoded_response )
+    stdnse.debug1("Error from dns.query(): %s", decoded_response )
   end
 
   return status, decoded_response

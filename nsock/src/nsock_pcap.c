@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -28,8 +28,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -54,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_pcap.c 32741 2014-02-20 18:44:12Z dmiller $ */
+/* $Id: nsock_pcap.c 34646 2015-06-16 13:59:33Z dmiller $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -103,12 +102,12 @@ extern struct timeval nsock_tod;
     "You can probably use \"-PN -sT localhost\" though.\n\n"
 
 
-static int nsock_pcap_set_filter(mspool *nsp, pcap_t *pt, const char *device,
+static int nsock_pcap_set_filter(struct npool *nsp, pcap_t *pt, const char *device,
                                  const char *bpf) {
   struct bpf_program fcode;
   int rc;
 
-  rc = pcap_compile(pt, &fcode, (char *)bpf, 1, 0);
+  rc = pcap_compile(pt, &fcode, (char *)bpf, 1, PCAP_NETMASK_UNKNOWN);
   if (rc) {
     nsock_log_error(nsp, "Error compiling pcap filter: %s", pcap_geterr(pt));
     return rc;
@@ -198,7 +197,7 @@ static int nsock_pcap_get_l3_offset(pcap_t *pt, int *dl) {
   return (offset);
 }
 
-static int nsock_pcap_try_open(mspool *nsp, mspcap *mp, const char *dev,
+static int nsock_pcap_try_open(struct npool *nsp, mspcap *mp, const char *dev,
                                int snaplen, int promisc, int timeout_ms,
                                char *errbuf) {
     mp->pt = pcap_open_live(dev, snaplen, promisc, timeout_ms, errbuf);
@@ -220,8 +219,8 @@ static int nsock_pcap_try_open(mspool *nsp, mspcap *mp, const char *dev,
  * if error occurred. */
 int nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device,
                     int snaplen, int promisc, const char *bpf_fmt, ...) {
-  msiod *nsi = (msiod *)nsiod;
-  mspool *ms = (mspool *)nsp;
+  struct niod *nsi = (struct niod *)nsiod;
+  struct npool *ms = (struct npool *)nsp;
   mspcap *mp = (mspcap *)nsi->pcap;
   char errbuf[PCAP_ERRBUF_SIZE];
   char bpf[4096];
@@ -362,11 +361,11 @@ int nsock_pcap_open(nsock_pool nsp, nsock_iod nsiod, const char *pcap_device,
 nsock_event_id nsock_pcap_read_packet(nsock_pool nsp, nsock_iod nsiod,
                                       nsock_ev_handler handler,
                                       int timeout_msecs, void *userdata) {
-  msiod *nsi = (msiod *)nsiod;
-  mspool *ms = (mspool *)nsp;
-  msevent *nse;
+  struct niod *nsi = (struct niod *)nsiod;
+  struct npool *ms = (struct npool *)nsp;
+  struct nevent *nse;
 
-  nse = msevent_new(ms, NSE_TYPE_PCAP_READ, nsi, timeout_msecs, handler, userdata);
+  nse = event_new(ms, NSE_TYPE_PCAP_READ, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
   nsock_log_info(ms, "Pcap read request from IOD #%li  EID %li", nsi->id, nse->id);
@@ -377,7 +376,7 @@ nsock_event_id nsock_pcap_read_packet(nsock_pool nsp, nsock_iod nsiod,
 }
 
 /* Remember that pcap descriptor is in nonblocking state. */
-int do_actual_pcap_read(msevent *nse) {
+int do_actual_pcap_read(struct nevent *nse) {
   mspcap *mp = (mspcap *)nse->iod->pcap;
   nsock_pcap npp;
   nsock_pcap *n;
@@ -437,8 +436,8 @@ int do_actual_pcap_read(msevent *nse) {
 void nse_readpcap(nsock_event nsev, const unsigned char **l2_data, size_t *l2_len,
                   const unsigned char **l3_data, size_t *l3_len,
                   size_t *packet_len, struct timeval *ts) {
-  msevent *nse = (msevent *)nsev;
-  msiod  *iod = nse->iod;
+  struct nevent *nse = (struct nevent *)nsev;
+  struct niod  *iod = nse->iod;
   mspcap *mp = (mspcap *)iod->pcap;
   nsock_pcap *n;
   size_t l2l;
@@ -478,7 +477,7 @@ void nse_readpcap(nsock_event nsev, const unsigned char **l2_data, size_t *l2_le
 }
 
 int nsi_pcap_linktype(nsock_iod nsiod) {
-  msiod *nsi = (msiod *)nsiod;
+  struct niod *nsi = (struct niod *)nsiod;
   mspcap *mp = (mspcap *)nsi->pcap;
 
   assert(mp);
@@ -486,7 +485,7 @@ int nsi_pcap_linktype(nsock_iod nsiod) {
 }
 
 int nsi_is_pcap(nsock_iod nsiod) {
-  msiod *nsi = (msiod *)nsiod;
+  struct niod *nsi = (struct niod *)nsiod;
   mspcap *mp = (mspcap *)nsi->pcap;
 
   return (mp != NULL);

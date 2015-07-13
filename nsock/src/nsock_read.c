@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -28,8 +28,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -54,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_read.c 32741 2014-02-20 18:44:12Z dmiller $ */
+/* $Id: nsock_read.c 34646 2015-06-16 13:59:33Z dmiller $ */
 
 #include "nsock_internal.h"
 #include "nsock_log.h"
@@ -69,11 +68,11 @@
 nsock_event_id nsock_readlines(nsock_pool nsp, nsock_iod ms_iod,
                                nsock_ev_handler handler, int timeout_msecs,
                                void *userdata, int nlines) {
-  msiod *nsi = (msiod *)ms_iod;
-  mspool *ms = (mspool *)nsp;
-  msevent *nse;
+  struct niod *nsi = (struct niod *)ms_iod;
+  struct npool *ms = (struct npool *)nsp;
+  struct nevent *nse;
 
-  nse = msevent_new(ms, NSE_TYPE_READ, nsi, timeout_msecs, handler, userdata);
+  nse = event_new(ms, NSE_TYPE_READ, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
   nsock_log_info(ms, "Read request for %d lines from IOD #%li [%s] EID %li",
@@ -92,11 +91,11 @@ nsock_event_id nsock_readbytes(nsock_pool nsp, nsock_iod ms_iod,
                                nsock_ev_handler handler, int timeout_msecs,
                                void *userdata, int nbytes) {
 
-  msiod *nsi = (msiod *)ms_iod;
-  mspool *ms = (mspool *)nsp;
-  msevent *nse;
+  struct niod *nsi = (struct niod *)ms_iod;
+  struct npool *ms = (struct npool *)nsp;
+  struct nevent *nse;
 
-  nse = msevent_new(ms, NSE_TYPE_READ, nsi, timeout_msecs, handler, userdata);
+  nse = event_new(ms, NSE_TYPE_READ, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
   nsock_log_info(ms, "Read request for %d bytes from IOD #%li [%s] EID %li",
@@ -116,11 +115,11 @@ nsock_event_id nsock_readbytes(nsock_pool nsp, nsock_iod ms_iod,
 nsock_event_id nsock_read(nsock_pool nsp, nsock_iod ms_iod,
                           nsock_ev_handler handler, int timeout_msecs,
                           void *userdata) {
-  msiod *nsi = (msiod *)ms_iod;
-  mspool *ms = (mspool *)nsp;
-  msevent *nse;
+  struct niod *nsi = (struct niod *)ms_iod;
+  struct npool *ms = (struct npool *)nsp;
+  struct nevent *nse;
 
-  nse = msevent_new(ms, NSE_TYPE_READ, nsi, timeout_msecs, handler, userdata);
+  nse = event_new(ms, NSE_TYPE_READ, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
   nsock_log_info(ms, "Read request from IOD #%li [%s] (timeout: %dms) EID %li",

@@ -25,15 +25,15 @@
 # environment. You need to have installed the packages py26-gtk and
 # py26-py2app.
 
-LIBPREFIX=$HOME/macports-10.5
-PYTHON=$LIBPREFIX/bin/python2.6
+LIBPREFIX=$HOME/macports-10.8
+PYTHON=$LIBPREFIX/bin/python2.7
 PKG_CONFIG=$LIBPREFIX/bin/pkg-config
 APP_NAME=Zenmap
 BASE=dist/$APP_NAME.app/Contents
 SCRIPT_DIR=`dirname "$0"`
 
 CC=${CC:-gcc}
-CFLAGS=${CFLAGS:--Wall}
+CFLAGS=${CFLAGS:--Wall -arch i386}
 
 echo "Running $0."
 
@@ -41,7 +41,7 @@ echo "Removing old build."
 rm -rf build dist
 
 echo "Compiling using py2app."
-$PYTHON setup.py py2app --no-strip
+$PYTHON setup.py py2app --arch=i386 --no-strip
 
 # Delete a library that causes compatibility problems with OS X 10.9.
 # http://seclists.org/nmap-dev/2013/q4/85

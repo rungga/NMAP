@@ -1,8 +1,10 @@
+local creds = require "creds"
 local http = require "http"
 local io = require "io"
 local nmap = require "nmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
+local string = require "string"
 local table = require "table"
 
 description = [[
@@ -81,10 +83,11 @@ also download any Domino ID Files attached to the Person document.
 -- @args domino-enum-passwords.password Password for HTTP auth, if required
 
 --
--- Version 0.2
+-- Version 0.4
 -- Created 07/30/2010 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 -- Revised 07/31/2010 - v0.2 - add support for downloading ID files
 -- Revised 11/25/2010 - v0.3 - added support for separating hash-type <martin@swende.se>
+-- Revised 04/16/2015 - v0.4 - switched to 'creds' credential repository <nnposter>
 
 author = "Patrik Karlsson"
 license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
@@ -219,45 +222,41 @@ action = function(host, port)
   local vhost= stdnse.get_script_args('domino-enum-passwords.hostname')
   local user = stdnse.get_script_args('domino-enum-passwords.username')
   local pass = stdnse.get_script_args('domino-enum-passwords.password')
-  local creds, pos, pager
+  local pos, pager
   local links, result, hashes,legacyHashes, id_files = {}, {}, {}, {},{}
   local chunk_size = 30
-  local max_fetch = stdnse.get_script_args('domino-enum-passwords.count') and tonumber(stdnse.get_script_args('domino-enum-passwords.count')) or 10
+  local max_fetch = tonumber(stdnse.get_script_args('domino-enum-passwords.count')) or 10
   local http_response
-
-  if ( nmap.registry['credentials'] and nmap.registry['credentials']['http'] ) then
-    creds = nmap.registry['credentials']['http']
-  end
-
+  local has_creds = false
   -- authentication required?
   if ( requiresAuth( vhost or host, port, path ) ) then
-    if ( not(user) and not(creds) ) then
-      return "  \n  ERROR: No credentials supplied (see domino-enum-passwords.username and domino-enum-passwords.password)"
-    end
-
-    -- A user was provided, attempt to authenticate
+   -- A user was provided, attempt to authenticate
     if ( user ) then
       if (not(isValidCredential( vhost or host, port, path, user, pass )) ) then
         return "  \n  ERROR: The provided credentials where invalid"
       end
-    elseif ( creds ) then
-      for _, cred in pairs(creds) do
-        if ( isValidCredential( vhost or host, port, path, cred.username, cred.password ) ) then
-          user = cred.username
-          pass = cred.password
+    else
+      local c = creds.Credentials:new(creds.ALL_DATA, host, port)
+      for cred in c:getCredentials(creds.State.VALID) do
+        has_creds = true
+        if (isValidCredential(vhost or host, port, path, cred.user, cred.pass)) then
+          user = cred.user
+          pass = cred.pass
           break
         end
+      end
+      if not pass then
+        local msg = has_creds and "No valid credentials were found" or "No credentials supplied"
+        return string.format("  \n  ERROR: %s (see domino-enum-passwords.username and domino-enum-passwords.password)", msg)
       end
     end
   end
 
-  if ( not(user) and not(pass) ) then
-    return "  \n  ERROR: No valid credentials were found (see domino-enum-passwords.username and domino-enum-passwords.password)"
-  end
-
   path = "/names.nsf/People?OpenView"
   http_response = http.get( vhost or host, port, path, { auth = { username = user, password = pass }, no_cache = true })
-  pager = getPager( http_response.body )
+  if http_response.status and http_response.status ==200 then
+    pager = getPager( http_response.body )
+  end
   if ( not(pager) ) then
     if ( http_response.body and
       http_response.body:match(".*<input type=\"submit\".* value=\"Sign In\">.*" ) ) then
@@ -290,7 +289,7 @@ action = function(host, port)
   end
 
   for _, link in ipairs(links) do
-    stdnse.print_debug(2, "Fetching link: %s", link)
+    stdnse.debug2("Fetching link: %s", link)
     http_response = http.get( vhost or host, port, link, { auth = { username = user, password = pass }, no_cache = true })
     local u_details = getUserDetails( http_response.body )
 
@@ -299,7 +298,7 @@ action = function(host, port)
     end
 
     if ( u_details.fullname and u_details.passwd and #u_details.passwd > 0 ) then
-      stdnse.print_debug(2, "Found Internet hash for: %s:%s", u_details.fullname, u_details.passwd)
+      stdnse.debug2("Found Internet hash for: %s:%s", u_details.fullname, u_details.passwd)
       -- Old type are 32 bytes, new are 20
       if #u_details.passwd == 32 then
         table.insert( legacyHashes, ("%s:%s"):format(u_details.fullname, u_details.passwd))
@@ -309,9 +308,9 @@ action = function(host, port)
     end
 
     if ( u_details.idfile ) then
-      stdnse.print_debug(2, "Found ID file for user: %s", u_details.fullname)
+      stdnse.debug2("Found ID file for user: %s", u_details.fullname)
       if ( download_path ) then
-        stdnse.print_debug(2, "Downloading ID file for user: %s", u_details.full_name)
+        stdnse.debug2("Downloading ID file for user: %s", u_details.full_name)
         http_response = http.get( vhost or host, port, u_details.idfile, { auth = { username = user, password = pass }, no_cache = true })
 
         if ( http_response.status == 200 ) then

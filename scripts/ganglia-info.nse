@@ -25,9 +25,7 @@ For more information about Ganglia, see:
 -- nmap --script ganglia-info --script-args ganglia-info.timeout=60,ganglia-info.bytes=1000000 -p <port> <target>
 --
 -- @args ganglia-info.timeout
---       Set the timeout in seconds. The default value is 60.
---       This should be enough for a grid of more than 100 hosts at 200Kb/s.
---       About 5KB-10KB of data is returned for each host in the cluster.
+--       Set the timeout in seconds. The default value is 30.
 -- @args ganglia-info.bytes
 --       Set the number of bytes to retrieve. The default value is 1000000.
 --       This should be enough for a grid of more than 100 hosts.
@@ -92,32 +90,24 @@ action = function( host, port )
   local result = {}
 
   -- Set timeout
-  local timeout = nmap.registry.args[SCRIPT_NAME .. '.timeout']
-  if not timeout then
-    timeout = 30
-  else
-    tonumber(timeout)
-  end
+  local timeout = stdnse.parse_timespec(stdnse.get_script_args(SCRIPT_NAME .. '.timeout'))
+  timeout = timeout or 30
 
   -- Set bytes
-  local bytes = nmap.registry.args[SCRIPT_NAME .. '.bytes']
-  if not bytes then
-    bytes = 1000000
-  else
-    tonumber(bytes)
-  end
+  local bytes = stdnse.get_script_args(SCRIPT_NAME .. '.bytes')
+  bytes = tonumber(bytes) or 1000000
 
   -- Retrieve grid data in XML format over TCP
-  stdnse.print_debug(1, "%s: Connecting to %s:%s", SCRIPT_NAME, host.targetname or host.ip, port.number)
-  local status, data = comm.get_banner(host, port, {timeout=timeout*1000,bytes=bytes})
+  stdnse.debug1("Connecting to %s:%s", host.targetname or host.ip, port.number)
+  local status, data = comm.get_banner(host, port, {request_timeout=timeout*1000,bytes=bytes})
   if not status then
-    stdnse.print_debug(1, "%s: Timeout exceeded for %s:%s (Timeout: %ss).", SCRIPT_NAME, host.targetname or host.ip, port.number, timeout)
+    stdnse.debug1("Timeout exceeded for %s:%s (Timeout: %ss).", host.targetname or host.ip, port.number, timeout)
     return
   end
 
   -- Parse daemon info
   if not string.match(data, "<!DOCTYPE GANGLIA_XML") then
-    stdnse.print_debug(1, "%s: %s:%s is not a Ganglia Daemon.", SCRIPT_NAME, host.targetname or host.ip, port.number)
+    stdnse.debug1("%s:%s is not a Ganglia Daemon.", host.targetname or host.ip, port.number)
     return
   elseif string.match(data, '<GANGLIA_XML VERSION="([^"]*)" SOURCE="gmond"') then
     table.insert(result, "Service: Ganglia Monitoring Daemon")
@@ -130,7 +120,7 @@ action = function( host, port )
     local grid = string.match(data, '<GRID NAME="([^"]*)" ')
     if grid then table.insert(result, string.format("Grid Name: %s", grid)) end
   else
-    stdnse.print_debug(1, "%s: %s:%s did not supply Ganglia daemon details.", SCRIPT_NAME, host.targetname or host.ip, port.number)
+    stdnse.debug1("%s:%s did not supply Ganglia daemon details.", host.targetname or host.ip, port.number)
     return
   end
 

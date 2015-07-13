@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -97,8 +97,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -119,11 +118,11 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: tcpip.h 33540 2014-08-16 02:45:47Z dmiller $ */
+/* $Id: tcpip.h 34646 2015-06-16 13:59:33Z dmiller $ */
 
 
 #ifndef TCPIP_H
@@ -356,7 +355,7 @@ u8 *build_tcp_raw_ipv6(const struct in6_addr *source,
 
 /* Build and send a raw tcp packet.  If TTL is -1, a partially random
    (but likely large enough) one is chosen */
-int send_tcp_raw( int sd, const struct eth_nfo *eth,
+int send_tcp_raw(int sd, const struct eth_nfo *eth,
                   const struct in_addr *source, const struct in_addr *victim,
                   int ttl, bool df,
                   u8* ipopt, int ipoptlen,
@@ -365,7 +364,7 @@ int send_tcp_raw( int sd, const struct eth_nfo *eth,
                   u8 *options, int optlen,
                   const char *data, u16 datalen);
 
-int send_tcp_raw_decoys( int sd, const struct eth_nfo *eth,
+int send_tcp_raw_decoys(int sd, const struct eth_nfo *eth,
                          const struct in_addr *victim,
                          int ttl, bool df,
                          u8* ipopt, int ipoptlen,
@@ -392,14 +391,14 @@ u8 *build_udp_raw_ipv6(const struct in6_addr *source,
                        u8 hoplimit, u16 sport, u16 dport,
                        const char *data, u16 datalen, u32 *packetlen);
 
-int send_udp_raw( int sd, const struct eth_nfo *eth,
+int send_udp_raw(int sd, const struct eth_nfo *eth,
                   struct in_addr *source, const struct in_addr *victim,
                   int ttl, u16 ipid,
                   u8* ipopt, int ipoptlen,
                   u16 sport, u16 dport,
                   const char *data, u16 datalen);
 
-int send_udp_raw_decoys( int sd, const struct eth_nfo *eth,
+int send_udp_raw_decoys(int sd, const struct eth_nfo *eth,
                          const struct in_addr *victim,
                          int ttl, u16 ipid,
                          u8* ipops, int ip,

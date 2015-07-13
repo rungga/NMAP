@@ -107,11 +107,11 @@ Driver =
     local status, data
     repeat
       if ( tries < MAX_RETRIES ) then
-        stdnse.print_debug(2, "%s: Attempting to re-connect (attempt %d of %d)", SCRIPT_NAME, MAX_RETRIES - tries, MAX_RETRIES)
+        stdnse.debug2("Attempting to re-connect (attempt %d of %d)", MAX_RETRIES - tries, MAX_RETRIES)
       end
       status, data = self.helper:Connect()
       if ( not(status) ) then
-        stdnse.print_debug(2, "%s: ERROR: An Oracle %s error occurred", SCRIPT_NAME, data)
+        stdnse.debug2("ERROR: An Oracle %s error occurred", data)
         self.helper:Close()
       else
         break
@@ -133,7 +133,7 @@ Driver =
   -- @param password string containing the login password
   -- @return status, true on success, false on failure
   -- @return brute.Error object on failure
-  --         brute.Account object on success
+  --         creds.Account object on success
   login = function( self, username, password )
     local status, data = self.helper:Login( username, password )
 
@@ -144,17 +144,17 @@ Driver =
     if ( status ) then
       self.helper:Close()
       ConnectionPool[coroutine.running()] = nil
-      return true, brute.Account:new(username, password, creds.State.VALID)
+      return true, creds.Account:new(username, password, creds.State.VALID)
     -- Check for account locked message
     elseif ( data:match("ORA[-]28000") ) then
-      return true, brute.Account:new(username, password, creds.State.LOCKED)
+      return true, creds.Account:new(username, password, creds.State.LOCKED)
     -- Check for account is SYSDBA message
     elseif ( data:match("ORA[-]28009") ) then
       sysdba[username] = true
-      return true, brute.Account:new(username .. " as sysdba", password, creds.State.VALID)
+      return true, creds.Account:new(username .. " as sysdba", password, creds.State.VALID)
     -- check for any other message
     elseif ( data:match("ORA[-]%d+")) then
-      stdnse.print_debug(3, "username: %s, password: %s, error: %s", username, password, data )
+      stdnse.debug3("username: %s, password: %s, error: %s", username, password, data )
       return false, brute.Error:new(data)
     -- any other errors are likely communication related, attempt to re-try
     else

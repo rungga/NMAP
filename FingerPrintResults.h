@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -96,8 +96,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -118,11 +117,11 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: FingerPrintResults.h 33540 2014-08-16 02:45:47Z dmiller $ */
+/* $Id: FingerPrintResults.h 34646 2015-06-16 13:59:33Z dmiller $ */
 
 #ifndef FINGERPRINTRESULTS_H
 #define FINGERPRINTRESULTS_H
@@ -142,6 +141,16 @@ struct OS_Classification_Results {
   int OSC_num_perfect_matches; // Number of perfect matches in OSC[\]
   int OSC_num_matches; // Number of matches total in OSC[] (and, of course, _accuracy[])
   int overall_results; /* OSSCAN_TOOMANYMATCHES, OSSCAN_NOMATCHES, OSSCAN_SUCCESS, etc */
+};
+
+/* The method used to calculate the Target::distance, included in OS
+   fingerprints. */
+enum dist_calc_method {
+        DIST_METHOD_NONE,
+        DIST_METHOD_LOCALHOST,
+        DIST_METHOD_DIRECT,
+        DIST_METHOD_ICMP,
+        DIST_METHOD_TRACEROUTE
 };
 
 class FingerPrintResults {
@@ -174,6 +183,7 @@ class FingerPrintResults {
                             otherwise -1) */
   int distance; /* How "far" is this FP gotten from? */
   int distance_guess; /* How "far" is this FP gotten from? by guessing based on ttl. */
+  enum dist_calc_method distance_calculation_method;
 
   /* The largest ratio we have seen of time taken vs. target time
      between sending 1st tseq probe and sending first ICMP echo probe.
@@ -181,6 +191,8 @@ class FingerPrintResults {
      sent), 1 is ideal, and larger values are undesirable from a
      consistency standpoint. */
   double maxTimingRatio;
+
+  bool incomplete; /* Were we unable to send all necessary probes? */
 
 /* If the fingerprint is of potentially poor quality, we don't want to
    print it and ask the user to submit it.  In that case, the reason
@@ -223,3 +235,4 @@ public:
 };
 
 #endif /* FINGERPRINTRESULTS_H */
+

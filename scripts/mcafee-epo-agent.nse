@@ -31,10 +31,12 @@ local string = require "string"
 
 portrule = function(host, port)
   if port.version ~= nil and port.version.product ~= nil then
-    return (port.version.product:find("[eE][pP]olicy Orch")
+    return ((port.version.product:find("[eE][pP]olicy Orch")
           or port.version.product:find("[eE]PO [aA]gent"))
+          and nmap.version_intensity() >= 7)
   else
-    return (port.number == 8081 and port.protocol == "tcp")
+    return ((port.number == 8081 and port.protocol == "tcp")
+            and nmap.version_intensity() >= 7)
   end
 end
 
@@ -55,7 +57,7 @@ action = function(host, port)
   data = http.get(host, port, '/', options)
 
   if data.body then
-    stdnse.print_debug(2, "mcafee-epo-agent: data.body:sub = %s", data.body:sub(1, 80))
+    stdnse.debug2("data.body:sub = %s", data.body:sub(1, 80))
 
     if data.body:StartsWith('<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="FrameworkLog.xsl"?><naLog>') then
       port.version.hostname = ExtractXMLElement(data.body, "ComputerName")

@@ -55,31 +55,31 @@ local get_prefix = function(data)
   if string.len(data) <= 31 then
     return bin.pack("C",0xa0 + string.len(data))
   else
-    return bin.pack("C",0xda)  .. bin.pack("s",string.len(data))
+    return "\xda"  .. bin.pack("s",string.len(data))
   end
 
 end
 
 -- returns a msgpacked data for console.read
 local encode_console_read = function(method,token, console_id)
-  return bin.pack("C",0x93) .. get_prefix(method) .. method .. bin.pack("H","da0020") .. token .. get_prefix(console_id) .. console_id
+  return "\x93" .. get_prefix(method) .. method .. "\xda\x00\x20" .. token .. get_prefix(console_id) .. console_id
 end
 
 -- returns a msgpacked data for console.write
 local encode_console_write = function(method, token, console_id, command)
-  return bin.pack("C",0x94) .. get_prefix(method) .. method .. bin.pack("H","da0020") .. token .. get_prefix(console_id) .. console_id .. get_prefix(command) .. command
+  return "\x94" .. get_prefix(method) .. method .. "\xda\x00\x20" .. token .. get_prefix(console_id) .. console_id .. get_prefix(command) .. command
 end
 
 -- returns a msgpacked data for auth.login
 local encode_auth = function(username, password)
   local method = "auth.login"
-  return bin.pack("C",0x93) .. bin.pack("C",0xaa) .. method .. get_prefix(username) .. username .. get_prefix(password) .. password
+  return "\x93\xaa" .. method .. get_prefix(username) .. username .. get_prefix(password) .. password
 end
 
 -- returns a msgpacked data for any method without extra parameters
 local encode_noparam = function(token,method)
   -- token is always the same length
-  return bin.pack("C",0x92) .. get_prefix(method) .. method .. bin.pack("H","da0020") .. token
+  return "\x92" .. get_prefix(method) .. method .. "\xda\x00\x20" .. token
 end
 
 -- does the actual call with specified, pre-packed data
@@ -113,7 +113,7 @@ local login = function(username, password,host,port)
       return false, nil
     end
   end
-  stdnse.print_debug("something is wrong:" .. data )
+  stdnse.debug1("something is wrong:" .. data )
   return false, nil
 end
 
@@ -153,7 +153,7 @@ local get_version = function(host, port, token)
       else -- mingw compiler means it's a windows build
         os_type = "windows"
       end
-      stdnse.print_debug(info)
+      stdnse.debug1("%s", info)
       return info
     end
   end
@@ -235,7 +235,7 @@ end
 
 action = function( host, port )
   if not arg_username or not arg_password then
-    stdnse.print_debug("This script requires username and password supplied as arguments")
+    stdnse.debug1("This script requires username and password supplied as arguments")
     return false
   end
 
@@ -247,7 +247,7 @@ action = function( host, port )
     local console_id = create_console(host,port,token)
     if console_id then
       local read_data = read_console(host,port,token,console_id) -- first read the banner/ascii art
-      stdnse.print_debug(2,read_data) -- print the nice looking banner if dbg level high enough :)
+      stdnse.debug2("%s", read_data) -- print the nice looking banner if dbg level high enough :)
       if read_data then
         if os_type == "linux" then
           read_data = write_read_console(host,port,token,console_id, "uname -a")
@@ -261,7 +261,7 @@ action = function( host, port )
         elseif os_type == "windows" then
           read_data = write_read_console(host,port,token,console_id, "systeminfo")
           if read_data then
-            stdnse.print_debug(2,read_data) -- print whole info if dbg level high enough
+            stdnse.debug2("%s", read_data) -- print whole info if dbg level high enough
             local stop = string.find(read_data,"Hotfix") -- trim data down , systeminfo return A LOT
             read_data = string.sub(read_data,1,stop-2)
             info = info .. "\nAdditional info: \n" ..  read_data

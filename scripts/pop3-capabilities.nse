@@ -1,7 +1,6 @@
 local pop3 = require "pop3"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
-local string = require "string"
 local table = require "table"
 
 description = [[
@@ -40,7 +39,7 @@ action = function(host, port)
     end
     return stdnse.strjoin(" ", capstrings)
   elseif type(err) == "string" then
-    stdnse.print_debug(1, "%s: '%s' for %s", SCRIPT_NAME, err, host.ip)
+    stdnse.debug1("'%s' for %s", err, host.ip)
     return
   else
     return "server doesn't support CAPA"
