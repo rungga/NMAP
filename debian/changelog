@@ -1,14 +1,90 @@
+nmap (6.47-7) unstable; urgency=medium
+
+  * Replaced versioned Conflicts with Breaks/Replaces (Closes: #789897).
+    Thanks to Michael Biebl for pointing this out.
+
+ -- Hilko Bengen <bengen@debian.org>  Sun, 28 Jun 2015 12:42:32 +0200
+
+nmap (6.47-6) unstable; urgency=medium
+
+  * ndiff: Added versioned Conflicts (Closes: #789897)
+
+ -- Hilko Bengen <bengen@debian.org>  Thu, 25 Jun 2015 18:03:40 +0200
+
+nmap (6.47-5) unstable; urgency=medium
+
+  * Added option to debian/watch to recognize beta, test tags
+  * Moved ndiff.py to ndiff (Closes: #789776)
+
+ -- Hilko Bengen <bengen@debian.org>  Wed, 24 Jun 2015 22:44:05 +0200
+
+nmap (6.47-4) unstable; urgency=medium
+
+  * Updated Vcs-* links, added Homepage field
+  * Added upstream patch to deal with unuseable socks proxy (Closes:
+    #773817)
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 27 Apr 2015 00:10:58 +0200
+
+nmap (6.47-3) unstable; urgency=medium
+
+  * Updated German translation of zenmap, thanks to Chris Leick (Closes:
+    #764653)
+  * Bumped Standards-Version
+
+ -- Hilko Bengen <bengen@debian.org>  Sat, 11 Oct 2014 19:37:08 +0200
+
+nmap (6.47-2) unstable; urgency=medium
+
+  * Added updated German zenmap translation (Closes: #687982)
+
+ -- Hilko Bengen <bengen@debian.org>  Sun, 21 Sep 2014 17:08:11 +0200
+
 nmap (6.47-1kali1) kali; urgency=low
 
   * Upstream update
 
  -- Mati Aharoni <muts@kali.org>  Sat, 23 Aug 2014 06:31:30 -0400
 
+nmap (6.47-1) unstable; urgency=medium
+
+  * New upstream version
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 25 Aug 2014 12:04:15 +0200
+
+nmap (6.46-3) unstable; urgency=medium
+
+  * Use autotools-dev to work around broken upstream autofoo. Thanks to
+    Matthias Klose. Closes: #757456
+
+ -- Hilko Bengen <bengen@debian.org>  Sun, 24 Aug 2014 10:57:49 +0200
+
+nmap (6.46-2) unstable; urgency=medium
+
+  * Removed obsolete debian/pycompat file
+  * Fixed typo in package description (Closes: #748629)
+  * Updated Vcs-* fields
+  * Use Debian's ca-certificates instead of ca-bundle.crt provided in
+    upstream tarball (Closes: #748958)
+
+ -- Hilko Bengen <bengen@debian.org>  Fri, 30 May 2014 21:39:24 +0200
+
 nmap (6.46-1kali1) kali; urgency=low
 
   * Upstream import
 
  -- Mati Aharoni <muts@kali.org>  Fri, 23 May 2014 05:33:14 -0400
+
+nmap (6.46-1) unstable; urgency=medium
+
+  * New upstream version
+  * Adopted the package with previous maintainer's blessing.
+  * Updated watch file
+  * Switched to source format 3.0 (quilt)
+  * Split off ndiff into its own package (Closes: #691774)
+  * No longer suppress pcap compatibility check
+
+ -- Hilko Bengen <bengen@debian.org>  Fri, 25 Apr 2014 19:45:22 +0200
 
 nmap (6.45-0kali1) kali; urgency=low
 
@@ -34,6 +110,25 @@ nmap (6.40-1kali1) kali; urgency=low
 
  -- Mati Aharoni <muts@kali.org>  Sun, 11 Aug 2013 11:21:32 -0400
 
+nmap (6.40-0.2) unstable; urgency=low
+
+  * Yet another non-maintainer upload.
+  * Modernize Debian build
+    - Use Debhelper 9, with --parallel
+    - Use dh-autoreconf (Closes: #727283)
+    - Bump Standards-Version
+    - Update git URL
+
+ -- Hilko Bengen <bengen@debian.org>  Tue, 21 Jan 2014 23:12:31 +0100
+
+nmap (6.40-0.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * New upstream version
+    - Contains fix for CVE-2013-4885 (Closes:  #719289)
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 12 Aug 2013 21:36:10 +0200
+
 nmap (6.25-1kali3) kali; urgency=low
 
   * Version bump test
@@ -58,11 +153,45 @@ nmap (6.25-1kali0) kali; urgency=low
 
  -- Mati Aharoni <muts@kali.org>  Thu, 13 Dec 2012 16:50:47 -0500
 
+nmap (6.25-0.2) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * debian/rules: Make sure zenmap is built again (tabs vs. spaces), other cleanups
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 27 May 2013 22:02:16 +0200
+
+nmap (6.25-0.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * New upstream version (Closes: #705762)
+  * Lua 5.2 is now needed to build the NSE
+  * Use upstream's desktop files and icons
+  * Removed calls to dh_desktop, dh_undocumented
+  * Made zenmap Architecture: all since it does not contain any
+    architectue-specific files
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 20 May 2013 18:27:15 +0200
+
+nmap (6.00-0.3) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Apply upstream fix for interfaces in monitor mode (Closes: #696446).
+
+ -- Hilko Bengen <bengen@debian.org>  Sat, 29 Dec 2012 18:43:12 +0100
+
 nmap (6.00-0.2kali1) kali; urgency=low
 
   * Version bump and desktop fixes
 
  -- Mati Aharoni <muts@kali.org>  Sat, 01 Dec 2012 11:12:17 -0500
+
+nmap (6.00-0.2) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Enable xz compression for all binaries to save some space on CD
+    images (Closes: #688708).
+
+ -- Cyril Brulebois <kibi@debian.org>  Tue, 25 Sep 2012 00:35:36 +0200
 
 nmap (6.00-0.1kali3) kali; urgency=low
 
@@ -89,6 +218,23 @@ nmap (6.00-0kali1) kali; urgency=low
   * Add a desktop file for nmap.
 
  -- Raphaël Hertzog <hertzog@debian.org>  Thu, 31 May 2012 09:13:54 +0200
+
+nmap (6.00-0.1) unstable; urgency=low
+
+  * Non-maintainer upload
+  * New upstream version (Closes: #674573)
+  * set CFLAGS etc. via dpkg-buildflags. This enables building with
+    hardening flags
+  * Do not use included liblinear
+
+ -- Hilko Bengen <bengen@debian.org>  Tue, 19 Jun 2012 23:40:43 +0200
+
+nmap (5.51.6-0.3) unstable; urgency=low
+
+  * Non-maintainer upload
+  * Disable pcap compatibility check, second take. (Closes: #671064)
+
+ -- Hilko Bengen <bengen@debian.org>  Wed, 30 May 2012 20:51:53 +0200
 
 nmap (5.51.6-0.2) unstable; urgency=low
 
@@ -126,14 +272,6 @@ nmap (5.51.6-0.1) unstable; urgency=low
 
  -- Hilko Bengen <bengen@debian.org>  Wed, 18 Apr 2012 21:54:53 +0200
 
-nmap (5.51-0kali1) kali; urgency=low
-
-  * New upstream release.
-  * Update debian/name.files and debian/zenmap.files to install all the
-    new files and drop references to removed files.
-
- -- Raphaël Hertzog <hertzog@debian.org>  Mon, 19 Mar 2012 21:27:44 +0000
-
 nmap (5.21-1.1) unstable; urgency=low
 
   * Non-maintainer upload.
@@ -162,6 +300,14 @@ nmap (5.21-1~0) unstable; urgency=low
   * new upstream
 
  -- LaMont Jones <lamont@debian.org>  Wed, 03 Feb 2010 18:26:28 -0700
+
+nmap (5.51-0kali1) kali; urgency=low
+
+  * New upstream release.
+  * Update debian/name.files and debian/zenmap.files to install all the
+    new files and drop references to removed files.
+
+ -- Raphaël Hertzog <hertzog@debian.org>  Mon, 19 Mar 2012 21:27:44 +0000
 
 nmap (5.20-0) unstable; urgency=low
 
@@ -792,4 +938,3 @@ nmap (1.30-1) unstable; urgency=low
   * initial release
 
  -- Bdale Garbee <bdale@gag.com>  Tue, 16 Dec 1997 00:40:01 -0700
-

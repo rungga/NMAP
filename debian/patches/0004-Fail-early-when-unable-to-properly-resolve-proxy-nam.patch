@@ -1,0 +1,31 @@
+From: Hilko Bengen <bengen@debian.org>
+Date: Mon, 27 Apr 2015 00:05:21 +0200
+Subject: Fail early when unable to properly resolve proxy names.
+
+This is a backported patch from r33198 from upstream SVN.
+---
+ nsock/src/nsock_proxy.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/nsock/src/nsock_proxy.c b/nsock/src/nsock_proxy.c
+index 4850869..8b19ef2 100644
+--- a/nsock/src/nsock_proxy.c
++++ b/nsock/src/nsock_proxy.c
+@@ -368,7 +368,7 @@ static struct proxy_node *proxy_node_new(char *proxystr) {
+         break;
+ 
+       if (pspec->ops->node_new(&proxy, &uri) < 0)
+-        proxy = NULL;
++        fatal("Cannot initialize proxy node %s", proxystr);
+ 
+       uri_free(&uri);
+ 
+@@ -455,7 +455,7 @@ int proxy_resolve(const char *host, struct sockaddr *addr, size_t *addrlen) {
+ 
+   rc = getaddrinfo(host, NULL, NULL, &res);
+   if (rc)
+-    return -rc;
++    return -abs(rc);
+ 
+   *addr = *res->ai_addr;
+   *addrlen = res->ai_addrlen;

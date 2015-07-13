@@ -1,2 +1,3 @@
 version=3
-http://nmap.org/dist/nmap-((?:\d+\.)+\d+)\.tgz
+opts=",uversionmangle=s/(beta|test)/~\\1/i" \
+    http://nmap.org/dist/nmap-(\d+\..*)\.tar.*
