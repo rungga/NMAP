@@ -10,15 +10,14 @@ categories = {"default","safe","discovery","version"}
 
 portrule = function(host, port)
   if type(port.version) == "table" and port.version.name_confidence > 3 and port.version.product ~= nil then
-    return string.find(port.version.product, "WebLogic", 1, true)
+    return string.find(port.version.product, "WebLogic", 1, true) and nmap.version_intensity() >= 7
   end
   return shortport.version_port_or_service({7001,7002,7003},"http")(host,port)
 end
 
 action = function(host, port)
   local status, result = comm.exchange(host, port,
-    "t3 12.1.2\nAS:2048\nHL:19\n\n",
-    {proto=port.protocol, timeout=5000})
+    "t3 12.1.2\nAS:2048\nHL:19\n\n")
 
   if (not status) then
     return nil

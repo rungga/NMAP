@@ -62,7 +62,7 @@ local probes = {}
 --@param response Response table
 --@return True if attack vector is found in response's body
 local function check_probe_response(response)
-  stdnse.print_debug(3, "Probe response:\n%s", response.body)
+  stdnse.debug3("Probe response:\n%s", response.body)
   if string.find(response.body, "'\"/><script>alert(1)</script>", 1, true) ~= nil then
     return true
   end
@@ -83,7 +83,7 @@ local function launch_probe(host, port, uri)
     return false
   end
 
-  stdnse.print_debug(1, "%s:HTTP GET %s%s", SCRIPT_NAME, uri, PHP_SELF_PROBE)
+  stdnse.debug1("HTTP GET %s%s", uri, PHP_SELF_PROBE)
   probe_response = http.get(host, port, uri .. PHP_SELF_PROBE)
 
   --save probe in list to avoid repeating it

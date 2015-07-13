@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -97,8 +97,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -119,7 +118,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
@@ -700,7 +699,7 @@ int ProbeMode::createIPv6(IPv6Header *i, PacketElement *next_element, const char
     i->setNextHeader(next_proto);
     i->setPayloadLength();
     i->setDestinationAddress( target->getIPv6Address_u8() );
-    
+
     /* Hop Limit */
     if ( o.issetTraceroute() ){
         i->setHopLimit( o.getCurrentRound() );
@@ -760,7 +759,7 @@ int ProbeMode::doIPv6ThroughSocket(int rawfd){
     /* Transport layer checksum */
     /* This is totally crazy. We have to tell the kernel EXPLICITLY that we
      * want it to set the TCP/UDP checksum for us. Why the hell is this the
-     * default behavior if it's so fucking difficult to get the IPv6 source
+     * default behavior if it's so incredibly difficult to get the IPv6 source
      * address?
      * Additionally, we have to be very careful not to set this option when
      * dealing with ICMPv6 because in that case the kernel computes the
@@ -1689,7 +1688,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
 
             /* Read a packet */
             nse_readpcap(nse, &link, &linklen, &packet, &packetlen, NULL, &pcaptime);
-            
+
             /* If we are on a Ethernet network, extract the next packet protocol
              * from the Ethernet frame. */
             if( nsi_pcap_linktype(nsi) == DLT_EN10MB ){
@@ -1726,7 +1725,7 @@ void ProbeMode::probe_nping_event_handler(nsock_pool nsp, nsock_event nse, void 
                     return;
                 }
             }
-                
+
             /* Packet is IP */
             if(ip){
                 getPacketStrInfo("IP",(const u8*)packet, packetlen, buffer, 512);

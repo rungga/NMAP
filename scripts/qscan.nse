@@ -1,4 +1,5 @@
 local bin = require "bin"
+local ipOps = require "ipOps"
 local math = require "math"
 local nmap = require "nmap"
 local packet = require "packet"
@@ -365,7 +366,7 @@ hostrule = function(host)
   if not nmap.is_privileged() then
     nmap.registry[SCRIPT_NAME] = nmap.registry[SCRIPT_NAME] or {}
     if not nmap.registry[SCRIPT_NAME].rootfail then
-      stdnse.print_verbose("%s not running for lack of privileges.", SCRIPT_NAME)
+      stdnse.verbose1("not running for lack of privileges.")
     end
     nmap.registry[SCRIPT_NAME].rootfail = true
     return nil
@@ -374,7 +375,7 @@ hostrule = function(host)
   local numopen, numclosed = NUMOPEN, NUMCLOSED
 
   if nmap.address_family() ~= 'inet' then
-    stdnse.print_debug("%s is IPv4 compatible only.", SCRIPT_NAME)
+    stdnse.debug1("is IPv4 compatible only.")
     return false
   end
   if not host.interface then
@@ -402,8 +403,8 @@ end
 action = function(host)
   local sock = nmap.new_dnet()
   local pcap = nmap.new_socket()
-  local saddr = packet.toip(host.bin_ip_src)
-  local daddr = packet.toip(host.bin_ip)
+  local saddr = ipOps.str_to_ip(host.bin_ip_src)
+  local daddr = ipOps.str_to_ip(host.bin_ip)
   local start
   local rtt
   local stats = {}

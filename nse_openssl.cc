@@ -97,7 +97,6 @@ static int l_bignum_mod_exp( lua_State *L ) /** bignum_mod_exp( BIGNUM a, BIGNUM
   bignum_data_t * m = (bignum_data_t *) luaL_checkudata(L, 3, "BIGNUM");
   BIGNUM * result = BN_new();
   BN_CTX * ctx = BN_CTX_new();
-  BN_CTX_init( ctx );
   BN_mod_exp( result, a->bn, p->bn, m->bn, ctx );
   BN_CTX_free( ctx );
   bignum_data_t * data = (bignum_data_t *) lua_newuserdata( L, sizeof(bignum_data_t));
@@ -459,7 +458,7 @@ static int l_DES_string_to_key(lua_State *L) /** DES_string_to_key( string data 
 {
   size_t len;
   const unsigned char *data = (unsigned char *) luaL_checklstring( L, 1, &len );
-  if ( len != 7 )
+  if (len != 7 )
     return luaL_error( L, "String must have length of 7 bytes." );
 
   DES_cblock key;
@@ -572,4 +571,3 @@ LUALIB_API int luaopen_openssl(lua_State *L) {
 
   return 1;
 }
-

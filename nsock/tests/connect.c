@@ -9,7 +9,7 @@
 struct connect_test_data {
   nsock_pool nsp;
   nsock_iod  nsi;
-  enum nse_status connect_result;
+  int connect_result;
 };
 
 
@@ -80,10 +80,34 @@ static int connect_tcp(void *tdata) {
   return ctd->connect_result;
 }
 
+static int connect_tcp_failure(void *tdata) {
+  struct connect_test_data *ctd = (struct connect_test_data *)tdata;
+  struct sockaddr_in peer;
+
+  memset(&peer, 0, sizeof(peer));
+  peer.sin_family = AF_INET;
+  inet_aton("127.0.0.1", &peer.sin_addr);
+
+  /* pass in addrlen == 0 to force connect(2) to fail */
+  nsock_connect_tcp(ctd->nsp, ctd->nsi, connect_handler, 4000, NULL,
+                    (struct sockaddr *)&peer, 0, PORT_TCP);
+
+  nsock_loop(ctd->nsp, 4000);
+  AssertEqual(ctd->connect_result, -EINVAL);
+  return 0;
+}
+
 
 const struct test_case TestConnectTCP = {
   .t_name     = "simple tcp connection",
   .t_setup    = connect_setup,
   .t_run      = connect_tcp,
+  .t_teardown = connect_teardown
+};
+
+const struct test_case TestConnectFailure = {
+  .t_name     = "tcp connection failure case",
+  .t_setup    = connect_setup,
+  .t_run      = connect_tcp_failure,
   .t_teardown = connect_teardown
 };

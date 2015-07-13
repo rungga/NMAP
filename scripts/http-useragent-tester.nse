@@ -69,7 +69,7 @@ getLastLoc = function(host, port, useragent)
 
   options['header']['User-Agent'] = useragent
 
-  stdnse.print_debug(2, "Making a request with User-Agent: " .. useragent)
+  stdnse.debug2("Making a request with User-Agent: " .. useragent)
 
   local response = http.get(host, port, '/', options)
 
@@ -91,7 +91,9 @@ action = function(host, port)
   -- We don't crawl any site. We initialize a crawler to use its iswithinhost method.
   local crawler = httpspider.Crawler:new(host, port, '/', { scriptname = SCRIPT_NAME } )
 
-  local HTTPlibs = {"libwww",
+  local HTTPlibs = {
+    http.USER_AGENT,
+    "libwww",
     "lwp-trivial",
     "libcurl-agent/1.0",
     "PHP/",

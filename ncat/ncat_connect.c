@@ -2,7 +2,7 @@
  * ncat_connect.c -- Ncat connect mode.                                    *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -93,8 +93,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -115,11 +114,11 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_connect.c 33540 2014-08-16 02:45:47Z dmiller $ */
+/* $Id: ncat_connect.c 34729 2015-06-23 21:44:24Z dmiller $ */
 
 #include "base64.h"
 #include "nsock.h"
@@ -211,20 +210,22 @@ static int verify_callback(int ok, X509_STORE_CTX *store)
 
 static void set_ssl_ctx_options(SSL_CTX *ctx)
 {
+    if (o.ssltrustfile == NULL) {
+        ssl_load_default_ca_certs(ctx);
+    } else {
+        if (o.debug)
+            logdebug("Using trusted CA certificates from %s.\n", o.ssltrustfile);
+        if (SSL_CTX_load_verify_locations(ctx, o.ssltrustfile, NULL) != 1) {
+            bye("Could not load trusted certificates from %s.\n%s",
+                o.ssltrustfile, ERR_error_string(ERR_get_error(), NULL));
+        }
+    }
+
     if (o.sslverify) {
         SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
-
-        if (o.ssltrustfile == NULL) {
-            ssl_load_default_ca_certs(ctx);
-        } else {
-            if (o.debug)
-                logdebug("Using trusted CA certificates from %s.\n", o.ssltrustfile);
-            if (SSL_CTX_load_verify_locations(ctx, o.ssltrustfile, NULL) != 1) {
-                bye("Could not load trusted certificates from %s.\n%s",
-                    o.ssltrustfile, ERR_error_string(ERR_get_error(), NULL));
-            }
-        }
     } else {
+        /* Still check verification status and report it */
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, verify_callback);
         if (o.ssl && o.debug)
             logdebug("Not doing certificate verification.\n");
     }
@@ -418,7 +419,8 @@ static int do_proxy_http(void)
         goto bail;
     }
     code = http_parse_status_line_code(status_line);
-    logdebug("Proxy returned status code %d.\n", code);
+    if (o.debug)
+      logdebug("Proxy returned status code %d.\n", code);
     free(status_line);
     status_line = NULL;
     if (http_read_header(&sockbuf, &header) != 0) {
@@ -459,7 +461,8 @@ static int do_proxy_http(void)
             http_challenge_free(&challenge);
             goto bail;
         }
-        logdebug("Reconnection header:\n%s", request);
+        if (o.debug)
+          logdebug("Reconnection header:\n%s", request);
         if (send(sd, request, n, 0) < 0) {
             loguser("Error sending proxy request: %s.\n", socket_strerror(socket_errno()));
             free(request);
@@ -476,7 +479,8 @@ static int do_proxy_http(void)
             goto bail;
         }
         code = http_parse_status_line_code(status_line);
-        logdebug("Proxy returned status code %d.\n", code);
+        if (o.debug)
+          logdebug("Proxy returned status code %d.\n", code);
         free(status_line);
         status_line = NULL;
         if (http_read_header(&sockbuf, &header) != 0) {
@@ -918,8 +922,26 @@ int ncat_connect(void)
         }
         else
 #endif
-        if (srcaddr.storage.ss_family != AF_UNSPEC)
+        switch (srcaddr.storage.ss_family) {
+          case AF_UNSPEC:
+            break;
+          case AF_INET:
+            nsi_set_localaddr(cs.sock_nsi, &srcaddr.storage, sizeof(srcaddr.in));
+            break;
+#ifdef AF_INET6
+          case AF_INET6:
+            nsi_set_localaddr(cs.sock_nsi, &srcaddr.storage, sizeof(srcaddr.in6));
+            break;
+#endif
+#if HAVE_SYS_UN_H
+          case AF_UNIX:
+            nsi_set_localaddr(cs.sock_nsi, &srcaddr.storage, SUN_LEN((struct sockaddr_un *)&srcaddr.storage));
+            break;
+#endif
+          default:
             nsi_set_localaddr(cs.sock_nsi, &srcaddr.storage, sizeof(srcaddr.storage));
+            break;
+        }
 
         if (o.numsrcrtes) {
             unsigned char *ipopts = NULL;

@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -97,8 +97,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -119,11 +118,11 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.h 33540 2014-08-16 02:45:47Z dmiller $ */
+/* $Id: nmap.h 34849 2015-07-06 01:59:51Z dmiller $ */
 
 #ifndef NMAP_H
 #define NMAP_H
@@ -262,13 +261,13 @@ void *realloc();
 #ifndef NMAP_VERSION
 /* Edit this definition only within the quotes, because it is read from this
    file by the makefiles. */
-#define NMAP_VERSION "6.47"
-#define NMAP_NUM_VERSION "6.0.47.0"
+#define NMAP_VERSION "6.49BETA4"
+#define NMAP_NUM_VERSION "6.0.49.4"
 #endif
 /* The version number of updates retrieved by the nmap-update
    program. It can be different (but should always be the same or
    earlier) than NMAP_VERSION. */
-#define NMAP_UPDATE_CHANNEL "6.00"
+#define NMAP_UPDATE_CHANNEL "6.49"
 
 #define NMAP_XMLOUTPUTVERSION "1.04"
 
@@ -436,6 +435,7 @@ void printinteractiveusage();
 void getpts(const char *expr, struct scan_lists * ports); /* someone stole the name getports()! */
 void getpts_simple(const char *origexpr, int range_type,
                    unsigned short **list, int *count);
+void removepts(const char *expr, struct scan_lists * ports);
 void free_scan_lists(struct scan_lists *ports);
 
 /* Renamed main so that interactive mode could preprocess when necessary */
@@ -459,3 +459,4 @@ int nmap_fileexistsandisreadable(const char* pathname);
 int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv);
 
 #endif /* NMAP_H */
+

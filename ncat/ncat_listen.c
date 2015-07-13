@@ -2,7 +2,7 @@
  * ncat_listen.c -- --listen mode.                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -93,8 +93,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -115,11 +114,11 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.c 33540 2014-08-16 02:45:47Z dmiller $ */
+/* $Id: ncat_listen.c 34646 2015-06-16 13:59:33Z dmiller $ */
 
 #include "ncat.h"
 
@@ -355,7 +354,6 @@ static int ncat_listen_stream(int proto)
                 case NCAT_SSL_HANDSHAKE_COMPLETED:
                     /* Clear from sslpending_fds once ssl is established */
                     FD_CLR(i, &sslpending_fds);
-                    rm_fd(&client_fdlist, i);
                     post_handle_connection(*fdi);
                     break;
                 case NCAT_SSL_HANDSHAKE_PENDING_WRITE:
@@ -530,6 +528,10 @@ static void post_handle_connection(struct fdinfo sinfo)
             /* add to our lists */
             FD_SET(sinfo.fd, &master_readfds);
             /* add it to our list of fds for maintaining maxfd */
+#ifdef HAVE_OPENSSL
+            /* Don't add it twice (see handle_connection above) */
+            if (!o.ssl)
+#endif
             if (add_fdinfo(&client_fdlist, &sinfo) < 0)
                 bye("add_fdinfo() failed.");
         }

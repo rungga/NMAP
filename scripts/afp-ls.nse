@@ -97,7 +97,7 @@ action = function(host, port)
 
     local status, response = afpHelper:OpenSession(host, port)
     if ( not status ) then
-      stdnse.print_debug(response)
+      stdnse.debug1("%s", response)
       return
     end
 
@@ -110,8 +110,8 @@ action = function(host, port)
     end
 
     if ( not status ) then
-      stdnse.print_debug("afp-showmount: Login failed", response)
-      stdnse.print_debug(3, "afp-showmount: Login error: %s", response)
+      stdnse.debug1("Login failed", response)
+      stdnse.debug3("Login error: %s", response)
       return
     end
 
@@ -122,34 +122,41 @@ action = function(host, port)
       for _, vol in ipairs( vols ) do
         local status, tbl = afpHelper:Dir( vol )
         if ( not(status) ) then
-          return ("\n\nERROR: Failed to list the contents of %s"):format(vol)
-        end
-
-        local file_tab = createFileTable()
-        local counter = maxfiles or 10
-        for _, item in ipairs(tbl[1]) do
-          if ( item and item.name ) then
-            local status, result = afpHelper:GetFileUnixPermissions( vol, item.name )
-            if ( status ) then
-              local status, fsize = afpHelper:GetFileSize( vol, item.name)
-              if ( not(status) ) then
-                return ("\n\nERROR: Failed to retrieve file size for %/%s"):format(vol, item.name)
+          table.insert(
+            output,
+            ("ERROR: Failed to list the contents of %s"):format(vol))
+        else
+          local file_tab = createFileTable()
+          local counter = maxfiles or 10
+          for _, item in ipairs(tbl[1]) do
+            if ( item and item.name ) then
+              local status, result = afpHelper:GetFileUnixPermissions(
+                vol, item.name)
+              if ( status ) then
+                local status, fsize = afpHelper:GetFileSize( vol, item.name)
+                if ( not(status) ) then
+                  table.insert(
+                    output,
+                    ("\n\nERROR: Failed to retrieve file size for %/%s"):format(vol, item.name))
+                else
+                  local status, date = afpHelper:GetFileDates( vol, item.name)
+                  if ( not(status) ) then
+                    table.insert(
+                      output,
+                      ("\n\nERROR: Failed to retrieve file dates for %/%s"):format(vol, item.name))
+                  else
+                    tab.addrow(file_tab, result.privs, result.uid, result.gid, fsize, date.create, item.name)
+                    counter = counter - 1
+                  end
+                end
               end
-              local status, date = afpHelper:GetFileDates( vol, item.name)
-              if ( not(status) ) then
-                return ("\n\nERROR: Failed to retrieve file dates for %/%s"):format(vol, item.name)
-              end
-
-              tab.addrow(file_tab, result.privs, result.uid, result.gid, fsize, date.create, item.name)
-
-              counter = counter - 1
             end
+            if ( counter == 0 ) then break end
           end
-          if ( counter == 0 ) then break end
+          local result_part = { name = vol }
+          table.insert(result_part, tab.dump(file_tab))
+          table.insert(output, result_part)
         end
-        local result_part = { name = vol }
-        table.insert(result_part, tab.dump(file_tab))
-        table.insert(output, result_part)
       end
     end
 

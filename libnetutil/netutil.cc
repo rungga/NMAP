@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -95,8 +95,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -117,7 +116,7 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
@@ -3961,6 +3960,11 @@ int DnetName2PcapName(const char *dnetdev, char *pcapdev, int pcapdevlen) {
   } *NCC = NULL;
   static int NCCsz = 0;
   static int NCCcapacity = 0;
+  static struct NameNotFoundCache {
+    char dnetd[64];
+  } *NNFC = NULL;
+  static int NNFCsz = 0;
+  static int NNFCcapacity = 0;
   int i;
   char tmpdev[128];
 
@@ -3972,6 +3976,13 @@ int DnetName2PcapName(const char *dnetdev, char *pcapdev, int pcapdevlen) {
                                                     sizeof(*NCC));
     NCCsz = 0;
   }
+  if (!NNFC) {
+    NNFCcapacity = 5;
+    NNFC =
+        (struct NameNotFoundCache *) safe_zalloc(NNFCcapacity *
+                                                    sizeof(*NNFC));
+    NNFCsz = 0;
+  }
   // First check if the name is already in the cache
   for (i = 0; i < NCCsz; i++) {
     if (strcmp(NCC[i].dnetd, dnetdev) == 0) {
@@ -3979,12 +3990,28 @@ int DnetName2PcapName(const char *dnetdev, char *pcapdev, int pcapdevlen) {
       return 1;
     }
   }
-
+  // Check if the name is already in the name not found cache
+  for (i = 0; i < NNFCsz; i++) {
+    if (strcmp(NNFC[i].dnetd, dnetdev) == 0) {
+      return 0;
+    }
+  }
   // OK, so it isn't in the cache.  Let's ask dnet for it.
-/* Converts a dnet interface name (ifname) to its pcap equivalent, which is stored in
-pcapdev (up to a length of pcapdevlen).  Returns 0 and fills in pcapdev if successful. */
-  if (eth_get_pcap_devname(dnetdev, tmpdev, sizeof(tmpdev)) != 0)
-    return 0;
+  /* Converts a dnet interface name (ifname) to its pcap equivalent, which is stored in
+  pcapdev (up to a length of pcapdevlen).  Returns 1 and fills in pcapdev if successful. */
+  if (eth_get_pcap_devname(dnetdev, tmpdev, sizeof(tmpdev)) != 0) {
+      // We've got it.  Let's add it to the not found cache
+      if (NNFCsz >= NNFCcapacity) {
+        NNFCcapacity <<= 2;
+        NNFC =
+            (struct NameNotFoundCache *) safe_realloc(NNFC,
+                                                         NNFCcapacity *
+                                                         sizeof(*NNFC));
+      }
+      Strncpy(NNFC[NNFCsz].dnetd, dnetdev, sizeof(NNFC[0].dnetd));
+      NNFCsz++;
+      return 0;
+  }
 
   // We've got it.  Let's add it to the cache
   if (NCCsz >= NCCcapacity) {
@@ -4070,7 +4097,7 @@ void set_pcap_filter(const char *device, pcap_t *pd, const char *bpf, ...) {
     netutil_fatal("%s called with too-large filter arg\n", __func__);
   va_end(ap);
 
-  if (pcap_compile(pd, &fcode, buf, 0, 0) < 0)
+  if (pcap_compile(pd, &fcode, buf, 1, PCAP_NETMASK_UNKNOWN) < 0)
     netutil_fatal("Error compiling our pcap filter: %s", pcap_geterr(pd));
   if (pcap_setfilter(pd, &fcode) < 0)
     netutil_fatal("Failed to set the pcap filter: %s\n", pcap_geterr(pd));

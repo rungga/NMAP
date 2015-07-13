@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2014 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -97,8 +97,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -119,11 +118,11 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of              *
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
  * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING         *
+ * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: service_scan.cc 33540 2014-08-16 02:45:47Z dmiller $ */
+/* $Id: service_scan.cc 34646 2015-06-16 13:59:33Z dmiller $ */
 
 
 #include "service_scan.h"
@@ -219,6 +218,9 @@ public:
   // when SSL is detected -- we redo all probes through SSL.  If freeFP, any
   // service fingerprint is freed too.
   void resetProbes(bool freefp);
+  // Number of milliseconds used so far to complete the present probe.  Timeval
+  // can omitted, it is just there as an optimization in case you have it handy.
+  int probe_timemsused(const ServiceProbe *probe, const struct timeval *now = NULL);
   // Number of milliseconds left to complete the present probe, or 0 if
   // the probe is already expired.  Timeval can omitted, it is just there
   // as an optimization in case you have it handy.
@@ -236,6 +238,9 @@ public:
   // INVALIDATED if you call appendtocurrentproberesponse() or nextProbe()
   u8 *getcurrentproberesponse(int *respstrlen);
   AllProbes *AP;
+  // Is it possible this service is tcpwrapped? Not if a probe times out or
+  // gets a real response.
+  bool tcpwrap_possible;
 
 private:
   // Adds a character to servicefp.  Takes care of word wrapping if
@@ -822,6 +827,7 @@ static char *substvar(char *tmplvar, char **tmplvarend,
 // matches in ovector.  The NUL-terminated newly composted string is
 // placed into 'newstr', as long as it doesn't exceed 'newstrlen'
 // bytes.  Trailing whitespace and commas are removed.  Returns zero for success
+// FIXME: The newstrlen argument is not actually checked, is it?
 //
 // The transform argument is a function pointer. If not NULL, the given
 // function is applied to all substitutions before they are inserted
@@ -837,7 +843,7 @@ static int dotmplsubst(const u8 *subject, int subjectlen,
   char *subst;
 
   if (!newstr || !tmpl) return -1;
-  if (newstrlen < 3) return -1; // fuck this!
+  if (newstrlen < 3) return -1; // Have a nice day!
 
   while(*srcstart) {
     // First do any literal text before '$'
@@ -1044,6 +1050,7 @@ ServiceProbe::ServiceProbe() {
   probename = NULL;
   probestring = NULL;
   totalwaitms = DEFAULT_SERVICEWAITMS;
+  tcpwrappedms = DEFAULT_TCPWRAPPEDMS;
   probestringlen = 0; probeprotocol = -1;
   // The default rarity level for a probe without a rarity
   // directive - should almost never have to be relied upon.
@@ -1314,6 +1321,11 @@ void parse_nmap_service_probe_file(AllProbes *AP, char *filename) {
         if (waitms < 100 || waitms > 300000)
           fatal("Error on line %d of nmap-service-probes file (%s): bad totalwaitms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
         newProbe->totalwaitms = waitms;
+      } else if (strncmp(line, "tcpwrappedms ", 12) == 0) {
+        long waitms = strtol(line + 12, NULL, 10);
+        if (waitms < 100 || waitms > 300000)
+          fatal("Error on line %d of nmap-service-probes file (%s): bad tcpwrappedms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
+        newProbe->tcpwrappedms = waitms;
       } else if (strncmp(line, "match ", 6) == 0 || strncmp(line, "softmatch ", 10) == 0) {
         newProbe->addMatch(line, lineno);
       } else if (strncmp(line, "Exclude ", 8) == 0) {
@@ -1564,6 +1576,7 @@ ServiceNFO::ServiceNFO(AllProbes *newAP) {
   softMatchFound = false;
   servicefplen = servicefpalloc = 0;
   servicefp = NULL;
+  tcpwrap_possible = true;
   memset(&currentprobe_exec_time, 0, sizeof(currentprobe_exec_time));
 }
 
@@ -1650,7 +1663,7 @@ void ServiceNFO::addToServiceFingerprint(const char *probeName, const u8 *resp,
   // Now for the probe response itself ...
   for(srcidx=0; srcidx < respused; srcidx++) {
     // A run of this can take up to 8 chars: "\n  \x20"
-    assert( servicefpalloc - servicefplen > 8);
+    assert(servicefpalloc - servicefplen > 8);
 
     if (isalnum((int)resp[srcidx]))
       addServiceChar((char) resp[srcidx], servicewrap);
@@ -1816,9 +1829,8 @@ void ServiceNFO::resetProbes(bool freefp) {
   probe_state = PROBESTATE_INITIAL;
 }
 
-
-int ServiceNFO::probe_timemsleft(const ServiceProbe *probe, const struct timeval *now) {
-  int timeused, timeleft;
+int ServiceNFO::probe_timemsused(const ServiceProbe *probe, const struct timeval *now) {
+  int timeused;
 
   if (now)
     timeused = TIMEVAL_MSEC_SUBTRACT(*now, currentprobe_exec_time);
@@ -1832,7 +1844,16 @@ int ServiceNFO::probe_timemsleft(const ServiceProbe *probe, const struct timeval
   // probe == currentProbe(). Check that this remains the case.
   assert(probe == currentProbe());
 
-  timeleft = probe->totalwaitms - timeused;
+  return timeused;
+}
+
+int ServiceNFO::probe_timemsleft(const ServiceProbe *probe, const struct timeval *now) {
+
+  // Historically this function was always called with the assumption that
+  // probe == currentProbe(). Check that this remains the case.
+  assert(probe == currentProbe());
+
+  int timeleft = probe->totalwaitms - probe_timemsused(probe, now);
   return (timeleft < 0)? 0 : timeleft;
 }
 
@@ -2154,7 +2175,7 @@ static void end_svcprobe(nsock_pool nsp, enum serviceprobestate probe_state, Ser
   std::list<ServiceNFO *>::iterator member;
   Target *target = svc->target;
 
-  svc->probe_state = probe_state;
+  svc->probe_state = svc->tcpwrap_possible ? PROBESTATE_FINISHED_TCPWRAPPED : probe_state;
   member = find(SG->services_in_progress.begin(), SG->services_in_progress.end(),
                   svc);
   if (member != SG->services_in_progress.end()) {
@@ -2262,7 +2283,7 @@ static void servicescan_connect_handler(nsock_pool nsp, nsock_event nse, void *m
 #if HAVE_OPENSSL
     // Snag our SSL_SESSION from the nsi for use in subsequent connections.
     if (nsi_checkssl(nsi)) {
-      if ( svc->ssl_session ) {
+      if (svc->ssl_session ) {
         if (svc->ssl_session == (SSL_SESSION *)(nsi_get0_ssl_session(nsi))) {
           //nada
         } else {
@@ -2378,9 +2399,11 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
   assert(type == NSE_TYPE_READ);
 
   if (svc->target->timedOut(nsock_gettimeofday())) {
+    svc->tcpwrap_possible = false;
     end_svcprobe(nsp, PROBESTATE_INCOMPLETE, SG, svc, nsi);
   } else if (status == NSE_STATUS_SUCCESS) {
     // w00p, w00p, we read something back from the port.
+    svc->tcpwrap_possible = false;
     readstr = (u8 *) nse_readbuf(nse, &readstrlen);
     adjustPortStateIfNecessary(svc); /* A response means PORT_OPENFILTERED is really PORT_OPEN */
     svc->appendtocurrentproberesponse(readstr, readstrlen);
@@ -2466,6 +2489,7 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
     // move on to the next probe.  If this was a NULL probe, we can simply
     // send the new probe text immediately.  Otherwise we make a new connection.
 
+    svc->tcpwrap_possible = false;
     readstr = svc->getcurrentproberesponse(&readstrlen);
     if (readstrlen > 0)
       svc->addToServiceFingerprint(svc->currentProbe()->getName(), readstr,
@@ -2477,14 +2501,15 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
     // If this was during the NULL probe, let's (for now) assume
     // the port is TCP wrapped.  Otherwise, we'll treat it as a nomatch
     readstr = svc->getcurrentproberesponse(&readstrlen);
-    if (readstrlen > 0)
+    if (readstrlen > 0) {
       svc->addToServiceFingerprint(svc->currentProbe()->getName(), readstr,
                                    readstrlen);
-    if (probe->isNullProbe() && readstrlen == 0) {
+      svc->tcpwrap_possible = false;
+    }
+    if (svc->tcpwrap_possible && probe->isNullProbe() && readstrlen == 0 && svc->probe_timemsused(probe) < probe->tcpwrappedms) {
       // TODO:  Perhaps should do further verification before making this assumption
       end_svcprobe(nsp, PROBESTATE_FINISHED_TCPWRAPPED, SG, svc, nsi);
     } else {
-
       // Perhaps this service didn't like the particular probe text.
       // We'll try the next one
       startNextProbe(nsp, nsi, SG, svc, true);
@@ -2498,7 +2523,7 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
                        // BSD sometimes gives it
     case ECONNABORTED:
       // Jerk hung up on us.  Probably didn't like our probe.  We treat it as with EOF above.
-      if (probe->isNullProbe()) {
+      if (svc->tcpwrap_possible && probe->isNullProbe() && svc->probe_timemsused(probe) < probe->tcpwrappedms) {
         // TODO:  Perhaps should do further verification before making this assumption
         end_svcprobe(nsp, PROBESTATE_FINISHED_TCPWRAPPED, SG, svc, nsi);
       } else {
@@ -2507,12 +2532,32 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
         startNextProbe(nsp, nsi, SG, svc, true);
       }
       break;
+#ifdef EHOSTDOWN
+    case EHOSTDOWN: // ICMP_HOST_UNKNOWN
+#endif
+#ifdef ENONET
+    case ENONET: // ICMP_HOST_ISOLATED
+#endif
+    /* EHOSTDOWN and ENONET can be the result of forged ICMP responses.
+     * We should probably give up on this port.
+     */
     case ENETUNREACH:
     case EHOSTUNREACH:
       // That is funny.  The port scanner listed the port as open.  Maybe it got unplugged, or firewalled us, or did
       // something else nasty during the scan.  Shrug.  I'll give up on this port
+      svc->tcpwrap_possible = false;
       end_svcprobe(nsp, PROBESTATE_INCOMPLETE, SG, svc, nsi);
       break;
+#ifdef ENOPROTOOPT
+    case ENOPROTOOPT: // ICMP_PROT_UNREACH
+#endif
+    case EMSGSIZE: // ICMP_FRAG_NEEDED
+    case EOPNOTSUPP: // ICMP_SR_FAILED
+    /* EPROTOOPT has been reported in the wild. EMSGSIZE and EOPNOTSUPP are theoretically
+     * possible responses due to forged ICMP responses.
+     * These seem packet-specific, not a result of the host shutting us out completely.
+     * We'll try some other probes.
+     */
 #ifndef WIN32
     case EPIPE:
 
@@ -2540,6 +2585,7 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
   } else if (status == NSE_STATUS_KILL) {
     /* User probably specified host_timeout and so the service scan is
        shutting down */
+    svc->tcpwrap_possible = false;
     end_svcprobe(nsp, PROBESTATE_INCOMPLETE, SG, svc, nsi);
     return;
   } else {
@@ -2760,4 +2806,3 @@ int service_scan(std::vector<Target *> &Targets) {
 
   return 0;
 }
-

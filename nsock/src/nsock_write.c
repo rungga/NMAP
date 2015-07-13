@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -28,8 +28,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -54,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_write.c 31562 2013-07-28 22:05:05Z fyodor $ */
+/* $Id: nsock_write.c 34646 2015-06-16 13:59:33Z dmiller $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -67,16 +66,16 @@
 
 nsock_event_id nsock_sendto(nsock_pool ms_pool, nsock_iod ms_iod, nsock_ev_handler handler, int timeout_msecs,
                             void *userdata, struct sockaddr *saddr, size_t sslen, unsigned short port, const char *data, int datalen) {
-  mspool *nsp = (mspool *)ms_pool;
-  msiod *nsi = (msiod *)ms_iod;
-  msevent *nse;
+  struct npool *nsp = (struct npool *)ms_pool;
+  struct niod *nsi = (struct niod *)ms_iod;
+  struct nevent *nse;
   char displaystr[256];
   struct sockaddr_in *sin = (struct sockaddr_in *)saddr;
 #if HAVE_IPV6
   struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)saddr;
 #endif
 
-  nse = msevent_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler, userdata);
+  nse = event_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
   if (saddr->sa_family == AF_INET) {
@@ -129,12 +128,12 @@ nsock_event_id nsock_sendto(nsock_pool ms_pool, nsock_iod ms_iod, nsock_ev_handl
  * will figure out the length itself */
 nsock_event_id nsock_write(nsock_pool ms_pool, nsock_iod ms_iod,
           nsock_ev_handler handler, int timeout_msecs, void *userdata, const char *data, int datalen) {
-  mspool *nsp = (mspool *)ms_pool;
-  msiod *nsi = (msiod *)ms_iod;
-  msevent *nse;
+  struct npool *nsp = (struct npool *)ms_pool;
+  struct niod *nsi = (struct niod *)ms_iod;
+  struct nevent *nse;
   char displaystr[256];
 
-  nse = msevent_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler, userdata);
+  nse = event_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
   nse->writeinfo.dest.ss_family = AF_UNSPEC;
@@ -164,9 +163,9 @@ nsock_event_id nsock_write(nsock_pool ms_pool, nsock_iod ms_iod,
 /* Same as nsock_write except you can use a printf-style format and you can only use this for ASCII strings */
 nsock_event_id nsock_printf(nsock_pool ms_pool, nsock_iod ms_iod,
           nsock_ev_handler handler, int timeout_msecs, void *userdata, char *format, ...) {
-  mspool *nsp = (mspool *)ms_pool;
-  msiod *nsi = (msiod *)ms_iod;
-  msevent *nse;
+  struct npool *nsp = (struct npool *)ms_pool;
+  struct niod *nsi = (struct niod *)ms_iod;
+  struct nevent *nse;
   char buf[4096];
   char *buf2 = NULL;
   int res, res2;
@@ -176,7 +175,7 @@ nsock_event_id nsock_printf(nsock_pool ms_pool, nsock_iod ms_iod,
   va_list ap;
   va_start(ap,format);
 
-  nse = msevent_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler, userdata);
+  nse = event_new(nsp, NSE_TYPE_WRITE, nsi, timeout_msecs, handler, userdata);
   assert(nse);
 
   res = Vsnprintf(buf, sizeof(buf), format, ap);

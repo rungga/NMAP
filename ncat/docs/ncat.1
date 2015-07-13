@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: Ncat
 .\"    Author: [see the "Authors" section]
-.\" Generator: DocBook XSL Stylesheets v1.76.1 <http://docbook.sf.net/>
-.\"      Date: 08/13/2014
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 07/05/2015
 .\"    Manual: Ncat Reference Guide
 .\"    Source: Ncat
 .\"  Language: English
 .\"
-.TH "NCAT" "1" "08/13/2014" "Ncat" "Ncat Reference Guide"
+.TH "NCAT" "1" "07/05/2015" "Ncat" "Ncat Reference Guide"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -39,13 +39,11 @@ Ncat is a feature\-packed networking utility which reads and writes data across 
 Among Ncat\*(Aqs vast number of features there is the ability to chain Ncats together; redirection of TCP, UDP, and SCTP ports to other sites; SSL support; and proxy connections via SOCKS4 or HTTP proxies (with optional proxy authentication as well)\&. Some general principles apply to most applications and thus give you the capability of instantly adding networking support to software that would normally never support it\&.
 .SH "OPTIONS SUMMARY"
 .PP
-
-.sp
 .if n \{\
 .RS 4
 .\}
 .nf
-Ncat 6\&.47 ( http://nmap\&.org/ncat )
+Ncat 6\&.49BETA4 ( http://nmap\&.org/ncat )
 Usage: ncat [options] [hostname] [port]
 
 Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
@@ -92,6 +90,7 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
       \-\-ssl\-key              Specify SSL private key (PEM) for listening
       \-\-ssl\-verify           Verify trust and domain name of certificates
       \-\-ssl\-trustfile        PEM file containing trusted SSL certificates
+      \-\-ssl\-ciphers          Cipherlist containing SSL ciphers to use
       \-\-version              Display Ncat\*(Aqs version information and exit
 
 See the ncat(1) manpage for full options, descriptions and usage examples
@@ -238,13 +237,14 @@ In client mode,
 is like
 \fB\-\-ssl\fR
 except that it also requires verification of the server certificate\&. Ncat comes with a default set of trusted certificates in the file
-ca\-bundle\&.crt.\" ca-bundle.crt\&. Some operating systems provide a default list of trusted certificates; these will also be used if available\&. Use
+ca\-bundle\&.crt\&..\" ca-bundle.crt
+Some operating systems provide a default list of trusted certificates; these will also be used if available\&. Use
 \fB\-\-ssl\-trustfile\fR
 to give a custom list\&. Use
 \fB\-v\fR
 one or more times to get details about verification failures\&.
 .\" revoked certificates
-Ncat does not check for revoked certificates.\" certification revocation\&.
+Ncat does not check for revoked certificates\&..\" certification revocation
 .sp
 This option has no effect in server mode\&.
 .RE
@@ -266,6 +266,12 @@ This option gives the location of the PEM\-encoded private key file that goes wi
 This option sets a list of certificates that are trusted for purposes of certificate verification\&. It has no effect unless combined with
 \fB\-\-ssl\-verify\fR\&. The argument to this option is the name of a PEM.\" PEM (Privacy Enhanced Mail)
 file containing trusted certificates\&. Typically, the file will contain certificates of certification authorities, though it may also contain server certificates directly\&. When this option is used, Ncat does not use its default certificates\&.
+.RE
+.PP
+\fB\-\-ssl\-ciphers \fR\fB\fIcipherlist\fR\fR (Specify SSL ciphersuites) .\" --ssl-ciphers (Ncat option)
+.RS 4
+This option sets the list of ciphersuites that Ncat will use when connecting to servers or when accepting SSL connections from clients\&. The syntax is described in the OpenSSL ciphers(1) man page, and defaults to
+ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH
 .RE
 .SH "PROXY OPTIONS"
 .PP
@@ -562,7 +568,7 @@ archives at
 \m[blue]\fB\%http://seclists.org/\fR\m[]\&.
 .\" nmap-dev mailing list
 Read this full manual page as well\&. If nothing comes of this, mail a bug report to
-dev@nmap\&.org\&. Please include everything you have learned about the problem, as well as what version of Ncat you are running and what operating system version it is running on\&. Problem reports and Ncat usage questions sent to dev@nmap\&.org are far more likely to be answered than those sent to Fyodor directly\&.
+<dev@nmap\&.org>\&. Please include everything you have learned about the problem, as well as what version of Ncat you are running and what operating system version it is running on\&. Problem reports and Ncat usage questions sent to dev@nmap\&.org are far more likely to be answered than those sent to Fyodor directly\&.
 .PP
 Code patches to fix bugs are even better than bug reports\&. Basic instructions for creating patch files with your changes are available at
 \m[blue]\fB\%https://svn.nmap.org/nmap/HACKING\fR\m[]\&. Patches may be sent to
@@ -579,7 +585,7 @@ nmap\-dev
 .IP \(bu 2.3
 .\}
 Chris Gibson
-chris@linuxops\&.net
+<chris@linuxops\&.net>
 .RE
 .sp
 .RS 4
@@ -591,7 +597,7 @@ chris@linuxops\&.net
 .IP \(bu 2.3
 .\}
 Kris Katterjohn
-katterjohn@gmail\&.com
+<katterjohn@gmail\&.com>
 .RE
 .sp
 .RS 4
@@ -603,7 +609,7 @@ katterjohn@gmail\&.com
 .IP \(bu 2.3
 .\}
 Mixter
-mixter@gmail\&.com
+<mixter@gmail\&.com>
 .RE
 .sp
 .RS 4
@@ -615,12 +621,12 @@ mixter@gmail\&.com
 .IP \(bu 2.3
 .\}
 Fyodor
-fyodor@nmap\&.org
+<fyodor@nmap\&.org>
 (\m[blue]\fB\%http://insecure.org\fR\m[])
 .RE
 .PP
 The original Netcat was written by *Hobbit*
-hobbit@avian\&.org\&. While Ncat isn\*(Aqt built on any code from the
+<hobbit@avian\&.org>\&. While Ncat isn\*(Aqt built on any code from the
 \(lqtraditional\(rq
 Netcat (or any other implementation), Ncat is most definitely based on Netcat in spirit and functionality\&.
 .SH "LEGAL NOTICES"
@@ -641,7 +647,7 @@ is (C) 2005\(en2012 Insecure\&.Com LLC\&. It is hereby placed under version 3\&.
 Source is provided to this software because we believe users have a right to know exactly what a program is going to do before they run it\&. This also allows you to audit the software for security holes (none have been found so far)\&.
 .PP
 Source code also allows you to port Nmap (which includes Ncat) to new platforms, fix bugs, and add new features\&. You are highly encouraged to send your changes to
-dev@nmap\&.org
+<dev@nmap\&.org>
 for possible incorporation into the main distribution\&. By sending these changes to Fyodor or one of the Insecure\&.Org development mailing lists, it is assumed that you are offering the Nmap Project (Insecure\&.Com LLC) the unlimited, non\-exclusive right to reuse, modify, and relicense the code\&. Nmap will always be available open source,.\" open source
 but this is important because the inability to relicense code has caused devastating problems for other Free Software projects (such as KDE and NASM)\&. We also occasionally relicense the code to third parties as discussed in the Nmap man page\&. If you wish to specify special license conditions of your contributions, just say so when you send them\&.
 .SS "No Warranty.\" warranty (lack of)"

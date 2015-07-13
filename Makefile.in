@@ -2,8 +2,9 @@
 export NMAP_VERSION := $(shell grep '^\#[ \t]*define[ \t]\+NMAP_VERSION' nmap.h | sed -e 's/.*"\(.*\)".*/\1/' -e 'q')
 export NMAP_UPDATE_CHANNEL := $(shell grep '^\#[ \t]*define[ \t]\+NMAP_UPDATE_CHANNEL' nmap.h | sed -e 's/.*"\(.*\)".*/\1/' -e 'q')
 NMAP_NAME= Nmap
-NMAP_URL= http://nmap.org
+NMAP_URL= https://nmap.org
 NMAP_PLATFORM=@host@
+datarootdir = @datarootdir@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
@@ -50,7 +51,7 @@ export CFLAGS = $(CXXFLAGS)
 # CFLAGS = $(DEFS) $(INCLS)
 STATIC =
 LDFLAGS = @LDFLAGS@ $(DBGFLAGS) $(STATIC)
-LIBS =  @LIBNBASE_LIBS@ @LIBNSOCK_LIBS@ @LIBPCRE_LIBS@ @LIBPCAP_LIBS@ $(OPENSSL_LIBS) libnetutil/libnetutil.a @LIBDNET_LIBS@ @LIBLUA_LIBS@ @LIBLINEAR_LIBS@ @LIBS@
+LIBS =  @LIBNSOCK_LIBS@ @LIBNBASE_LIBS@ @LIBPCRE_LIBS@ @LIBPCAP_LIBS@ $(OPENSSL_LIBS) libnetutil/libnetutil.a @LIBDNET_LIBS@ @LIBLUA_LIBS@ @LIBLINEAR_LIBS@ @LIBS@
 OPENSSL_LIBS = @OPENSSL_LIBS@
 # LIBS =  -lefence @LIBS@
 # LIBS =  -lrmalloc @LIBS@
@@ -83,12 +84,13 @@ INSTALLZENMAP=@INSTALLZENMAP@
 INSTALLNDIFF=@INSTALLNDIFF@
 INSTALLNPING=@INSTALLNPING@
 UNINSTALLZENMAP=@UNINSTALLZENMAP@
+UNINSTALLNDIFF=@UNINSTALLNDIFF@
 UNINSTALLNPING=@UNINSTALLNPING@
 
 ifneq (@LIBLUA_LIBS@,)
-NSE_SRC=nse_main.cc nse_utility.cc nse_nsock.cc nse_dnet.cc nse_fs.cc nse_nmaplib.cc nse_debug.cc nse_pcrelib.cc nse_binlib.cc nse_bit.cc
-NSE_HDRS=nse_main.h nse_utility.h nse_nsock.h nse_dnet.h nse_fs.h nse_nmaplib.h nse_debug.h nse_pcrelib.h nse_binlib.h nse_bit.h
-NSE_OBJS=nse_main.o nse_utility.o nse_nsock.o nse_dnet.o nse_fs.o nse_nmaplib.o nse_debug.o nse_pcrelib.o nse_binlib.o nse_bit.o
+NSE_SRC=nse_main.cc nse_utility.cc nse_nsock.cc nse_dnet.cc nse_fs.cc nse_nmaplib.cc nse_debug.cc nse_pcrelib.cc nse_binlib.cc nse_bit.cc nse_lpeg.cc
+NSE_HDRS=nse_main.h nse_utility.h nse_nsock.h nse_dnet.h nse_fs.h nse_nmaplib.h nse_debug.h nse_pcrelib.h nse_binlib.h nse_bit.h nse_lpeg.h
+NSE_OBJS=nse_main.o nse_utility.o nse_nsock.o nse_dnet.o nse_fs.o nse_nmaplib.o nse_debug.o nse_pcrelib.o nse_binlib.o nse_bit.o nse_lpeg.o
 ifneq (@OPENSSL_LIBS@,)
 NSE_SRC+=nse_openssl.cc nse_ssl_cert.cc
 NSE_HDRS+=nse_openssl.h nse_ssl_cert.h
@@ -96,11 +98,11 @@ NSE_OBJS+=nse_openssl.o nse_ssl_cert.o
 endif
 endif
 
-export SRCS = charpool.cc FingerPrintResults.cc FPEngine.cc FPModel.cc idle_scan.cc MACLookup.cc main.cc nmap.cc nmap_dns.cc nmap_error.cc nmap_ftp.cc NmapOps.cc NmapOutputTable.cc nmap_tty.cc osscan2.cc osscan.cc output.cc payload.cc portlist.cc portreasons.cc protocols.cc scan_engine.cc service_scan.cc services.cc Target.cc TargetGroup.cc targets.cc tcpip.cc timing.cc traceroute.cc utils.cc xml.cc $(NSE_SRC)
+export SRCS = charpool.cc FingerPrintResults.cc FPEngine.cc FPModel.cc idle_scan.cc MACLookup.cc main.cc nmap.cc nmap_dns.cc nmap_error.cc nmap_ftp.cc NmapOps.cc NmapOutputTable.cc nmap_tty.cc osscan2.cc osscan.cc output.cc payload.cc portlist.cc portreasons.cc protocols.cc scan_engine.cc scan_engine_connect.cc scan_engine_raw.cc service_scan.cc services.cc Target.cc TargetGroup.cc targets.cc tcpip.cc timing.cc traceroute.cc utils.cc xml.cc $(NSE_SRC)
 
-export HDRS = charpool.h FingerPrintResults.h FPEngine.h global_structures.h idle_scan.h MACLookup.h nmap_amigaos.h nmap_dns.h nmap_error.h nmap.h nmap_ftp.h NmapOps.h NmapOutputTable.h nmap_tty.h nmap_winconfig.h osscan2.h osscan.h output.h payload.h portlist.h portreasons.h protocols.h scan_engine.h service_scan.h services.h TargetGroup.h Target.h targets.h tcpip.h timing.h traceroute.h utils.h xml.h $(NSE_HDRS)
+export HDRS = charpool.h FingerPrintResults.h FPEngine.h global_structures.h idle_scan.h MACLookup.h nmap_amigaos.h nmap_dns.h nmap_error.h nmap.h nmap_ftp.h NmapOps.h NmapOutputTable.h nmap_tty.h nmap_winconfig.h osscan2.h osscan.h output.h payload.h portlist.h portreasons.h protocols.h scan_engine.h scan_engine_connect.h scan_engine_raw.h service_scan.h services.h TargetGroup.h Target.h targets.h tcpip.h timing.h traceroute.h utils.h xml.h $(NSE_HDRS)
 
-OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLookup.o main.o nmap_dns.o nmap_error.o nmap.o nmap_ftp.o NmapOps.o NmapOutputTable.o nmap_tty.o osscan2.o osscan.o output.o payload.o portlist.o portreasons.o protocols.o scan_engine.o service_scan.o services.o TargetGroup.o Target.o targets.o tcpip.o timing.o traceroute.o utils.o xml.o $(NSE_OBJS)
+OBJS = charpool.o FingerPrintResults.o FPEngine.o FPModel.o idle_scan.o MACLookup.o main.o nmap_dns.o nmap_error.o nmap.o nmap_ftp.o NmapOps.o NmapOutputTable.o nmap_tty.o osscan2.o osscan.o output.o payload.o portlist.o portreasons.o protocols.o scan_engine.o scan_engine_connect.o scan_engine_raw.o service_scan.o services.o TargetGroup.o Target.o targets.o tcpip.o timing.o traceroute.o utils.o xml.o $(NSE_OBJS)
 
 # %.o : %.cc -- nope this is a GNU extension
 .cc.o:
@@ -247,7 +249,7 @@ nping_dist_clean:
 debugclean:
 	rm -f *.gcov *.gcda *.gcno gmon.out
 
-distclean: my_clean my_distclean @LUA_DIST_CLEAN@ @LIBLINEAR_DIST_CLEAN@ @PCAP_DIST_CLEAN@ @PCRE_DIST_CLEAN@ @DNET_DIST_CLEAN@ @NPING_DIST_CLEAN@ @ZENMAP_DIST_CLEAN@ @NCAT_DIST_CLEAN@ @NMAP_UPDATE_DIST_CLEAN@ nsock_dist_clean nbase_dist_clean netutil_dist_clean @NDIFF_DIST_CLEAN@
+distclean: @LUA_DIST_CLEAN@ @LIBLINEAR_DIST_CLEAN@ @PCAP_DIST_CLEAN@ @PCRE_DIST_CLEAN@ @DNET_DIST_CLEAN@ @NPING_DIST_CLEAN@ @ZENMAP_DIST_CLEAN@ @NCAT_DIST_CLEAN@ @NMAP_UPDATE_DIST_CLEAN@ netutil_dist_clean nsock_dist_clean nbase_dist_clean @NDIFF_DIST_CLEAN@ my_clean my_distclean
 
 my_distclean:
 	rm -f Makefile Makefile.bak makefile.dep nmap_config.h stamp-h stamp-h.in \
@@ -365,7 +367,7 @@ install-nping: $(NPINGDIR)/nping
 install: install-nmap $(INSTALLNSE) $(INSTALLZENMAP) @NCAT_INSTALL@ @NMAP_UPDATE_INSTALL@ $(INSTALLNDIFF) $(INSTALLNPING)
 	@echo "NMAP SUCCESSFULLY INSTALLED"
 
-uninstall: uninstall-nmap $(UNINSTALLZENMAP) @NCAT_UNINSTALL@ @NMAP_UPDATE_UNINSTALL@ $(UNINSTALLNPING)
+uninstall: uninstall-nmap $(UNINSTALLZENMAP) @NCAT_UNINSTALL@ @NMAP_UPDATE_UNINSTALL@ $(UNINSTALLNDIFF) $(UNINSTALLNPING)
 
 uninstall-nmap:
 	rm -f $(DESTDIR)$(bindir)/$(TARGET)
@@ -381,6 +383,9 @@ uninstall-zenmap:
 		rm -f $(DESTDIR)$(bindir)/nmapfe; \
 	fi
 	rm -f $(DESTDIR)$(bindir)/xnmap
+
+uninstall-ndiff:
+	cd $(NDIFFDIR) && $(PYTHON) setup.py uninstall
 
 uninstall-ncat:
 	@cd $(NCATDIR) && $(MAKE) uninstall
@@ -425,6 +430,20 @@ Makefile: Makefile.in config.status
 config.status: configure
 	./config.status --recheck
 
+config.guess:
+	wget -O $@ 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD'
+
+%/config.guess: config.guess
+	cp $^ $@
+
+config.sub:
+	wget -O $@ 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD'
+
+%/config.sub: config.sub
+	cp $^ $@
+
+configfiles-update: config.guess config.sub nping/config.guess nping/config.sub ncat/config.guess ncat/config.sub
+
 # Run the lua-format program to fix formatting of NSE files.
 lua-format:
 	./docs/style/lua-format -i scripts/*.nse
@@ -450,6 +469,7 @@ smb-serverstats smb-systeminfo SMTPcommands SMTP_openrelay_test \
 smtp-check-vulns SNMPcommunitybrute SNMPsysdescr SQLInject SSH-hostkey \
 SSHv1-support SSLv2-support strangeSMTPport UPnP-info xamppDefaultPass \
 zoneTrans db2-info db2-brute html-title robots.txt xmpp sql-injection \
-http-robtex-reverse-ip )
+http-robtex-reverse-ip http-vuln-zimbra-lfi http-vuln-0-day-lfi-zimbra \
+whois db2-discover )
 
-.PHONY: lua-format
+.PHONY: all clean install uninstall check static debug prerelease release-tarballs release-rpms web my_clean distclean lua-format

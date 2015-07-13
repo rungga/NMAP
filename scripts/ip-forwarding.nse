@@ -39,7 +39,7 @@ local arg_target = stdnse.get_script_args(SCRIPT_NAME .. ".target")
 
 hostrule = function(host)
   if ( not(host.mac_addr) ) then
-    stdnse.print_debug( "%s: Failed to determine hosts remote MAC address", SCRIPT_NAME )
+    stdnse.debug1("Failed to determine hosts remote MAC address" )
   end
   return (arg_target ~= nil and host.mac_addr ~= nil)
 end
@@ -56,8 +56,8 @@ icmpEchoRequest = function(ifname, host, addr)
   local probe = packet.Frame:new()
   probe.mac_src = iface.mac
   probe.mac_dst = host.mac_addr
-  probe.ip_bin_src = packet.iptobin(iface.address)
-  probe.ip_bin_dst = packet.iptobin(addr)
+  probe.ip_bin_src = ipOps.ip_to_str(iface.address)
+  probe.ip_bin_dst = ipOps.ip_to_str(addr)
   probe.echo_id = 0x1234
   probe.echo_seq = 6
   probe.echo_data = "Nmap host discovery."

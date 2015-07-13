@@ -107,11 +107,11 @@ RIPng = {
     -- Converts the whole request to a string
     __tostring = function(self)
       local RESERVED = 0
-      local str = bin.pack(">CCS", self.command, self.version, RESERVED)
+      local str = {bin.pack(">CCS", self.command, self.version, RESERVED)}
       for _, rte in ipairs(self.entries) do
-        str = str .. tostring(rte)
+        str[#str+1] = tostring(rte)
       end
-      return str
+      return table.concat(str)
     end,
 
   },
@@ -209,7 +209,7 @@ action = function()
 
   local result = {}
   for ip, resp in pairs(responses) do
-    stdnse.print_debug(ip, resp)
+    stdnse.debug1(ip, resp)
     table.insert(result, { name = ip, parse_response(resp) } )
   end
   return stdnse.format_output(true, result)

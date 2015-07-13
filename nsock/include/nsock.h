@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2013 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -28,8 +28,7 @@
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
- * This also allows you to audit the software for security holes (none     *
- * have been found so far).                                                *
+ * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
  * and add new features.  You are highly encouraged to send your changes   *
@@ -54,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock.h 32741 2014-02-20 18:44:12Z dmiller $ */
+/* $Id: nsock.h 34646 2015-06-16 13:59:33Z dmiller $ */
 
 #ifndef NSOCK_H
 #define NSOCK_H
@@ -99,6 +98,10 @@ extern "C" {
  * can always initiate another read request to ask for more. */
 #define NSOCK_READ_CHUNK_SIZE 0x8FFFF
 
+struct npool;
+struct niod;
+struct nevent;
+struct proxy_chain;
 
 /* ------------------- TYPEDEFS ------------------- */
 
@@ -106,7 +109,7 @@ extern "C" {
  * only be accessed using the appropriate accessor functions (described below). */
 
 /* An nsock_pool aggregates and manages events and i/o descriptors */
-typedef void *nsock_pool;
+typedef struct npool *nsock_pool;
 
 /* nsock_iod is an I/O descriptor -- you create it and then use it to
  * make calls to do connect()s, read()s, write()s, etc. A single IOD can handle
@@ -115,12 +118,12 @@ typedef void *nsock_pool;
  * followed by a bunch of nsock_read* and nsock_write* calls.  Then you either
  * destroy the iod for good with nsi_delete() and allocate a new one via nsi_new
  * for your next connection. */
-typedef void *nsock_iod;
+typedef struct niod *nsock_iod;
 
 /* An event is created when you do various calls (for reading, writing,
  * connecting, timers, etc) and is provided back to you in the callback when the
  * call completes/fails. It is automatically destroyed after the callback */
-typedef void *nsock_event;
+typedef struct nevent *nsock_event;
 
 /* Provided by calls which (internally) create an nsock_event.  This allows you
  * to cancel the event */
@@ -131,7 +134,7 @@ typedef void *nsock_ssl_session;
 typedef void *nsock_ssl_ctx;
 typedef void *nsock_ssl;
 
-typedef void *nsock_proxychain;
+typedef struct proxy_chain *nsock_proxychain;
 
 
 /* Logging-related data structures */

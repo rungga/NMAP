@@ -3449,6 +3449,21 @@ table.insert(fingerprints, {
     }
   });
 
+table.insert(fingerprints, {
+    category = 'general',
+    probes = {
+      {
+        path = '/console/login/loginForm.jsp',
+        method = 'HEAD'
+      }
+   },
+    matches = {
+      {
+        match = '',
+        output = 'Oracle WebLogic Server Administration Console'
+      }
+    }
+  });
 
 table.insert(fingerprints, {
     category = 'general',
@@ -4601,6 +4616,44 @@ table.insert(fingerprints, {
       }
     }
   });
+
+-- http://www.rapid7.com/db/modules/payload/windows/meterpreter/reverse_hop_http
+-- "GET /hop.php?/control" will grab all pending messages, but is unreliable if
+-- there are no pending messages.
+table.insert(fingerprints, {
+    category = 'security',
+    probes = {
+      {
+        path = '/hop.php?/12345',
+        method = 'GET'
+      },
+    },
+    matches = {
+      {
+        -- TODO: this only works for Meterpreter payloads. Find a more generic means?
+        match = 'METERPRETER_TRANSPORT_HTTP',
+        output = 'Metasploit reverse_hop_http hop point'
+      },
+    }
+  });
+
+-- http://carnal0wnage.attackresearch.com/2015/02/cisco-asa-version-grabber-cve-2014-3398.html
+table.insert(fingerprints, {
+    category = 'security',
+    probes = {
+      {
+        path = '/CSCOSSLC/config-auth',
+        method = 'GET'
+      },
+    },
+    matches = {
+      {
+        match = '<version who="sg">([^<]+)</version>',
+        output = 'Cisco ASA, firmware \\1'
+      },
+    }
+  });
+
 ------------------------------------------------
 ----        MANAGEMENT SOFTWARE             ----
 ------------------------------------------------
@@ -5078,6 +5131,22 @@ table.insert(fingerprints, {
       {
         match = '',
         output = 'XAMPP'
+      }
+    }
+  });
+
+table.insert(fingerprints, {
+    category = 'management',
+    probes = {
+      {
+        path = '/lc/system/console',
+        method = 'HEAD'
+      },
+    },
+    matches = {
+      {
+        match = 'OSGi Management Console',
+        output = 'Adobe LiveCycle Management Console'
       }
     }
   });
@@ -6469,6 +6538,9 @@ table.insert(fingerprints, {
       {
         path = '/_vti_txt/',
         method = 'GET'
+      },
+      {
+        path = '/postinfo.html'
       },
       {
         path = '/_vti_bin/_vti_aut/author.dll'
@@ -11853,7 +11925,7 @@ local f = nmap.fetchfile(nikto_db_path) or io.open(nikto_db_path, "r")
 
 if f then
 
-  stdnse.print_debug(1, "Found nikto db.")
+  stdnse.debug1("Found nikto db.")
 
   local nikto_db = {}
   for l in io.lines(nikto_db_path) do

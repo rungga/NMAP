@@ -26,16 +26,6 @@
  *
  **/
 
-#ifndef _WIN32
-#ifndef _AIX
-#define _FILE_OFFSET_BITS 64 /* Linux, Solaris and HP-UX */
-#else
-#define _LARGE_FILES 1 /* AIX */
-#endif
-#endif
-
-#define _LARGEFILE64_SOURCE
-
 extern "C" {
   #include "lauxlib.h"
   #include "lua.h"
@@ -320,4 +310,3 @@ LUALIB_API int luaopen_lfs(lua_State *L) {
   set_info (L);
   return 1;
 }
-

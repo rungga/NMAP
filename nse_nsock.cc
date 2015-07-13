@@ -478,7 +478,18 @@ static int l_connect (lua_State *L)
     return nseU_safeerror(L, "sorry, you don't have OpenSSL");
 #endif
 
-  error_id = getaddrinfo(addr, NULL, NULL, &dest);
+  /* If we're connecting by name, we should use the same AF as our scan */
+  struct addrinfo hints = {0};
+  /* First check if it's a numeric address */
+  hints.ai_flags = AI_NUMERICHOST;
+  error_id = getaddrinfo(addr, NULL, &hints, &dest);
+  if (error_id == EAI_NONAME) {
+    /* Nope, let's resolve it for the proper AF */
+    hints.ai_flags = 0;
+    hints.ai_family = o.af();
+    error_id = getaddrinfo(addr, NULL, &hints, &dest);
+  }
+
   if (error_id)
     return nseU_safeerror(L, gai_strerror(error_id));
 
@@ -770,8 +781,13 @@ SSL *nse_nsock_get_ssl (lua_State *L)
   return (SSL *) nsi_getssl(nu->nsiod);
 }
 #else
-/* If HAVE_OPENSSL is defined, this comes from nse_ssl_cert.cc. */
+/* If HAVE_OPENSSL is defined, these come from nse_ssl_cert.cc. */
 int l_get_ssl_certificate (lua_State *L)
+{
+  return luaL_error(L, "SSL is not available");
+}
+
+int l_parse_ssl_certificate(lua_State *L)
 {
   return luaL_error(L, "SSL is not available");
 }
@@ -818,6 +834,7 @@ static int l_bind (lua_State *L)
   nu->source_addrlen = results->ai_addrlen;
   memcpy(&nu->source_addr, results->ai_addr, nu->source_addrlen);
 
+  freeaddrinfo(results);
   return nseU_success(L);
 }
 
@@ -1047,6 +1064,7 @@ LUALIB_API int luaopen_nsock (lua_State *L)
     {"loop", l_loop},
     {"new", l_new},
     {"sleep", l_sleep},
+    {"parse_ssl_certificate", l_parse_ssl_certificate},
     {NULL, NULL}
   };
 

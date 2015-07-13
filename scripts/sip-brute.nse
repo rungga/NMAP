@@ -65,7 +65,7 @@ Driver = {
       end
       return false, brute.Error:new( "Incorrect password" )
     end
-    return true, brute.Account:new(username, password, creds.State.VALID)
+    return true, creds.Account:new(username, password, creds.State.VALID)
   end,
 
   disconnect = function(self) return self.helper:close() end,
@@ -81,7 +81,7 @@ local function checkBadUser(host, port)
   local pass = "badpass-" .. math.random(10000)
   local helper = sip.Helper:new(host, port, { expires = 0 })
 
-  stdnse.print_debug(2, "Checking bad user: %s/%s", user, pass)
+  stdnse.debug2("Checking bad user: %s/%s", user, pass)
   local status, err = helper:connect()
   if ( not(status) ) then return false, "ERROR: Failed to connect" end
 
