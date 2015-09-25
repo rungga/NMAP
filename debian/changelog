@@ -1,4 +1,4 @@
-nmap (6.49~BETA5-0kali1) kali-dev; urgency=medium
+nmap (6.49~BETA5-0kali1~r1u1) sana; urgency=medium
 
   * Import new upstream release (closes kali bug:0002680)
   * debian/rules: dh_auto_configure -- --with-libpcap=included. It can be
