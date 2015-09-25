@@ -1,6 +1,10 @@
 nmap (6.49~BETA5-0kali1) kali-dev; urgency=medium
 
-  * Import new upstream release (closes 0002680)
+  * Import new upstream release (closes kali bug:0002680)
+  * debian/rules: dh_auto_configure -- --with-libpcap=included. It can be
+    dropped when https://github.com/nmap/nmap/issues/34 or
+    https://github.com/nmap/nmap/issues/153 are fixed
+  * Add a patch to build with liblua5.2-dev new version 5.2.4-1
 
  -- Sophie Brun <sophie@freexian.com>  Fri, 25 Sep 2015 08:44:50 +0200
 

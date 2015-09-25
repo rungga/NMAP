@@ -1,0 +1,21 @@
+Description: Fix the build with liblua5.2-dev version 5.2.4
+ With new version liblua5.2-dev version 5.2.4 there is an error during the
+ build (problem with C and C++ symbols)
+ nse_main.o:(.rodata+0x258): undefined reference to `luaopen_lpeg'
+Author: Sophie Brun <sophie@freexian.com>
+Last-Update: 2015-09-25
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/lpeg.c
++++ b/lpeg.c
+@@ -3340,8 +3340,8 @@ static struct luaL_Reg metareg[] = {
+ };
+ 
+ 
+-int luaopen_lpeg (lua_State *L);
+-int luaopen_lpeg (lua_State *L) {
++LUALIB_API int luaopen_lpeg (lua_State *L);
++LUALIB_API int luaopen_lpeg (lua_State *L) {
+   luaL_newmetatable(L, PATTERN_T);
+   lua_pushnumber(L, MAXBACK);  /* initialize maximum backtracking */
+   lua_setfield(L, LUA_REGISTRYINDEX, MAXSTACKIDX);
