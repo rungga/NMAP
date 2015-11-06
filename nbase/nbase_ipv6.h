@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_ipv6.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nbase_ipv6.h 35015 2015-07-30 06:27:13Z gio $ */
 
 #ifndef NBASE_IPV6_H
 #define NBASE_IPV6_H
@@ -177,13 +177,10 @@ const char *inet_ntop(int af, const void *src, char *dst, size_t size);
 #endif /* HAVE_INET_NTOP */
 
 #ifndef HAVE_SOCKADDR_STORAGE
-     /* Just needs to be big enough to hold sockaddr_in or
-        sockaddr_in6.  I should really align it at 64 bits, but 32 is
-        probably fine as hosts that actually want to store a
-        sockaddr_in6 in here should already have this defined (see
-        RFC2355). */
 struct sockaddr_storage {
-    u32 padding[32];
+  u16 ss_family;
+  u16 __align_to_64[3];
+  u64 __padding[16];
 };
 #endif /* SOCKADDR_STORAGE */
 
@@ -274,5 +271,7 @@ int getaddrinfo(const char *node, const char *service,
 const char *gai_strerror(int errcode);
 #endif
 
+int sockaddr_storage_inet_pton(const char * ip_str, struct sockaddr_storage * addr);
+const char *sockaddr_storage_iptop(const struct sockaddr_storage * addr, char * dst);
 
 #endif /* NBASE_IPV6_H */

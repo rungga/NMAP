@@ -52,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: engine_select.c 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: engine_select.c 34756 2015-06-27 08:21:53Z henri $ */
 
 #ifndef WIN32
 #include <sys/select.h>
@@ -205,7 +205,7 @@ int select_iod_modify(struct npool *nsp, struct niod *iod, int ev_set, int ev_cl
   iod->watched_events |= ev_set;
   iod->watched_events &= ~ev_clr;
 
-  sd = nsi_getsd(iod);
+  sd = nsock_iod_get_sd(iod);
 
   /* -- set events -- */
   if (ev_set & EV_READ)
@@ -254,7 +254,7 @@ int select_loop(struct npool *nsp, int msec_timeout) {
   do {
     struct nevent *nse;
 
-    nsock_log_debug_all(nsp, "wait for events");
+    nsock_log_debug_all("wait for events");
 
     nse = next_expirable_event(nsp);
     if (!nse)
@@ -316,7 +316,7 @@ int select_loop(struct npool *nsp, int msec_timeout) {
   } while (results_left == -1 && sock_err == EINTR); /* repeat only if signal occurred */
 
   if (results_left == -1 && sock_err != EINTR) {
-    nsock_log_error(nsp, "nsock_loop error %d: %s", sock_err, socket_strerror(sock_err));
+    nsock_log_error("nsock_loop error %d: %s", sock_err, socket_strerror(sock_err));
     nsp->errnum = sock_err;
     return -1;
   }

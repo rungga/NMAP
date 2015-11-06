@@ -121,16 +121,20 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOps.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: NmapOps.h 35347 2015-10-26 16:16:02Z dmiller $ */
 
 #ifndef NMAP_OPS_H
 #define NMAP_OPS_H
 
 #include "nmap.h"
-#include "global_structures.h"
 #include "output.h"
 #include <nsock.h>
 #include <string>
+#include <map>
+#include <vector>
+
+struct FingerPrintDB;
+struct FingerMatch;
 
 class NmapOps {
  public:

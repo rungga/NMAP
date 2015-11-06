@@ -356,19 +356,19 @@ CIPHERS = {
 ["TLS_DHE_RSA_WITH_AES_256_CBC_SHA256"]            =  0x006B,
 ["TLS_DH_anon_WITH_AES_128_CBC_SHA256"]            =  0x006C,
 ["TLS_DH_anon_WITH_AES_256_CBC_SHA256"]            =  0x006D,
-["TLS_DHE_DSS_WITH_3DES_EDE_CBC_RMD"]       =  0x0072,  --draft-ietf-tls-openpgp-keys-05
-["TLS_DHE_DSS_WITH_AES_128_CBC_RMD"]        =  0x0073,  --draft-ietf-tls-openpgp-keys-05
-["TLS_DHE_DSS_WITH_AES_256_CBC_RMD"]        =  0x0074,  --draft-ietf-tls-openpgp-keys-05
-["TLS_DHE_RSA_WITH_3DES_EDE_CBC_RMD"]       =  0x0077,  --draft-ietf-tls-openpgp-keys-05
-["TLS_DHE_RSA_WITH_AES_128_CBC_RMD"]        =  0x0078,  --draft-ietf-tls-openpgp-keys-05
-["TLS_DHE_RSA_WITH_AES_256_CBC_RMD"]        =  0x0079,  --draft-ietf-tls-openpgp-keys-05
-["TLS_RSA_WITH_3DES_EDE_CBC_RMD"]           =  0x007C,  --draft-ietf-tls-openpgp-keys-05
-["TLS_RSA_WITH_AES_128_CBC_RMD"]            =  0x007D,  --draft-ietf-tls-openpgp-keys-05
-["TLS_RSA_WITH_AES_256_CBC_RMD"]            =  0x007E,  --draft-ietf-tls-openpgp-keys-05
-["TLS_GOSTR341094_WITH_28147_CNT_IMIT"]     =  0x0080,  --draft-chudov-cryptopro-cptls-04
-["TLS_GOSTR341001_WITH_28147_CNT_IMIT"]     =  0x0081,  --draft-chudov-cryptopro-cptls-04
-["TLS_GOSTR341094_WITH_NULL_GOSTR3411"]     =  0x0082,  --draft-chudov-cryptopro-cptls-04
-["TLS_GOSTR341001_WITH_NULL_GOSTR3411"]     =  0x0083,  --draft-chudov-cryptopro-cptls-04
+["TLS_DHE_DSS_WITH_3DES_EDE_CBC_RMD-draft"]       =  0x0072,  --draft-ietf-tls-openpgp-keys-05
+["TLS_DHE_DSS_WITH_AES_128_CBC_RMD-draft"]        =  0x0073,  --draft-ietf-tls-openpgp-keys-05
+["TLS_DHE_DSS_WITH_AES_256_CBC_RMD-draft"]        =  0x0074,  --draft-ietf-tls-openpgp-keys-05
+["TLS_DHE_RSA_WITH_3DES_EDE_CBC_RMD-draft"]       =  0x0077,  --draft-ietf-tls-openpgp-keys-05
+["TLS_DHE_RSA_WITH_AES_128_CBC_RMD-draft"]        =  0x0078,  --draft-ietf-tls-openpgp-keys-05
+["TLS_DHE_RSA_WITH_AES_256_CBC_RMD-draft"]        =  0x0079,  --draft-ietf-tls-openpgp-keys-05
+["TLS_RSA_WITH_3DES_EDE_CBC_RMD-draft"]           =  0x007C,  --draft-ietf-tls-openpgp-keys-05
+["TLS_RSA_WITH_AES_128_CBC_RMD-draft"]            =  0x007D,  --draft-ietf-tls-openpgp-keys-05
+["TLS_RSA_WITH_AES_256_CBC_RMD-draft"]            =  0x007E,  --draft-ietf-tls-openpgp-keys-05
+["TLS_GOSTR341094_WITH_28147_CNT_IMIT-draft"]     =  0x0080,  --draft-chudov-cryptopro-cptls-04
+["TLS_GOSTR341001_WITH_28147_CNT_IMIT-draft"]     =  0x0081,  --draft-chudov-cryptopro-cptls-04
+["TLS_GOSTR341094_WITH_NULL_GOSTR3411-draft"]     =  0x0082,  --draft-chudov-cryptopro-cptls-04
+["TLS_GOSTR341001_WITH_NULL_GOSTR3411-draft"]     =  0x0083,  --draft-chudov-cryptopro-cptls-04
 ["TLS_RSA_WITH_CAMELLIA_256_CBC_SHA"]              =  0x0084,
 ["TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA"]           =  0x0085,
 ["TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA"]           =  0x0086,
@@ -657,28 +657,28 @@ local cipher_info_cache = {
     hash = "SHA",
     draft = true
   },
-  ["TLS_GOSTR341094_WITH_28147_CNT_IMIT"] = {
+  ["TLS_GOSTR341094_WITH_28147_CNT_IMIT-draft"] = {
     kex = "GOSTR341094",
     server_auth = "GOSTR341094",
     cipher = "GOST28147",
     hash = "IMIT_GOST28147",
     draft = true
   },
-  ["TLS_GOSTR341001_WITH_28147_CNT_IMIT"] = {
+  ["TLS_GOSTR341001_WITH_28147_CNT_IMIT-draft"] = {
     kex = "GOSTR341001",
     server_auth = "GOSTR341001",
     cipher = "GOST28147",
     hash = "IMIT_GOST28147",
     draft = true
   },
-  ["TLS_GOSTR341094_WITH_NULL_GOSTR3411"] = {
+  ["TLS_GOSTR341094_WITH_NULL_GOSTR3411-draft"] = {
     kex = "GOSTR341094",
     server_auth = "GOSTR341094",
     cipher = "NULL",
     hash = "HMAC_GOSTR3411",
     draft = true
   },
-  ["TLS_GOSTR341001_WITH_NULL_GOSTR3411"] = {
+  ["TLS_GOSTR341001_WITH_NULL_GOSTR3411-draft"] = {
     kex = "GOSTR341001",
     server_auth = "GOSTR341001",
     cipher = "NULL",
@@ -1108,12 +1108,14 @@ end
 
 ---
 -- Read a SSL/TLS record
--- @param buffer The read buffer
--- @param i      The position in the buffer to start reading
+-- @param buffer   The read buffer
+-- @param i        The position in the buffer to start reading
+-- @param fragment Message fragment left over from previous record (nil if none)
 -- @return The current position in the buffer
 -- @return The record that was read, as a table
-function record_read(buffer, i)
+function record_read(buffer, i, fragment)
   local b, h, len
+  local add = 0
 
   ------------
   -- Header --
@@ -1148,6 +1150,14 @@ function record_read(buffer, i)
     return i, nil
   end
 
+  -- Adjust buffer and length to account for message fragment left over
+  -- from last record.
+  if fragment then
+    add = #fragment
+    len = len + add
+    buffer = buffer:sub(1, j - 1) .. fragment .. buffer:sub(j, -1)
+  end
+
   -- Convert to human-readable form.
 
   ----------
@@ -1155,12 +1165,11 @@ function record_read(buffer, i)
   ----------
 
   h["body"] = {}
-  while j < len do
+
+  while j <= len do
     -- RFC 2246, 6.2.1 "multiple client messages of the same ContentType may
     -- be coalesced into a single TLSPlaintext record"
-    -- TODO: implement reading of fragmented records
     b = {}
-    table.insert(h["body"], b)
     if h["type"] == "alert" then
       -- Parse body.
       j, b["level"] = bin.unpack("C", buffer, j)
@@ -1169,7 +1178,16 @@ function record_read(buffer, i)
       -- Convert to human-readable form.
       b["level"] = find_key(TLS_ALERT_LEVELS, b["level"])
       b["description"] = find_key(TLS_ALERT_REGISTRY, b["description"])
+
+      table.insert(h["body"], b)
     elseif h["type"] == "handshake" then
+
+      -- Check for message fragmentation.
+      if len - j < 3 then
+        h.fragment = buffer:sub(j, len)
+        return len + 1 - add, h
+      end
+
       -- Parse body.
       j, b["type"] = bin.unpack("C", buffer, j)
       local msg_end
@@ -1178,6 +1196,12 @@ function record_read(buffer, i)
 
       -- Convert to human-readable form.
       b["type"] = find_key(TLS_HANDSHAKETYPE_REGISTRY, b["type"])
+
+      -- Check for message fragmentation.
+      if msg_end > len + 1 then
+        h.fragment = buffer:sub(j - 4, len)
+        return len + 1 - add, h
+      end
 
       if b["type"] == "server_hello" then
         -- Parse body.
@@ -1226,18 +1250,21 @@ function record_read(buffer, i)
         stdnse.debug2("Unknown handshake message type: %s", b["type"])
         j, b["data"] = bin.unpack("A" .. msg_end - j, buffer, j)
       end
+
+      table.insert(h["body"], b)
     elseif h["type"] == "heartbeat" then
       j, b["type"], b["payload_length"] = bin.unpack("C>S", buffer, j)
       j, b["payload"], b["padding"] = bin.unpack("PP", buffer, j)
+      table.insert(h["body"], b)
     else
       stdnse.debug1("Unknown message type: %s", h["type"])
     end
   end
 
   -- Ignore unparsed bytes.
-  j = len+1
+  j = len + 1
 
-  return j, h
+  return j - add, h
 end
 
 ---

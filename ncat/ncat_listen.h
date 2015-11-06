@@ -118,7 +118,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: ncat_listen.h 34574 2015-06-03 13:01:29Z dmiller $ */
 #ifndef NCAT_LISTEN_H
 #define NCAT_LISTEN_H
 

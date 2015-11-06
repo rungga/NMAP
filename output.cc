@@ -125,16 +125,18 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: output.cc 34798 2015-06-30 04:04:51Z dmiller $ */
 
 #include "nmap.h"
 #include "output.h"
 #include "osscan.h"
+#include "osscan2.h"
 #include "NmapOps.h"
 #include "NmapOutputTable.h"
 #include "MACLookup.h"
 #include "portreasons.h"
 #include "protocols.h"
+#include "FingerPrintResults.h"
 #include "Target.h"
 #include "utils.h"
 #include "xml.h"
@@ -2030,7 +2032,7 @@ void printosscanoutput(Target *currenths) {
     xml_close_empty_tag();
     xml_newline();
     if (o.verbose)
-      log_write(LOG_PLAIN, "%s", seqreport(&(currenths->seq)));
+      log_write(LOG_PLAIN, "TCP Sequence Prediction: Difficulty=%d (%s)\n", currenths->seq.index, seqidx2difficultystr(currenths->seq.index));
 
     log_write(LOG_MACHINE, "\tSeq Index: %d", currenths->seq.index);
   }
@@ -2676,7 +2678,7 @@ static inline const char *nslog2str(nsock_loglevel_t loglevel) {
   };
 }
 
-void nmap_adjust_loglevel(nsock_pool nsp, bool trace) {
+void nmap_adjust_loglevel(bool trace) {
   nsock_loglevel_t nsock_loglevel;
 
   if (o.debugging >= 7)
@@ -2688,10 +2690,10 @@ void nmap_adjust_loglevel(nsock_pool nsp, bool trace) {
   else
     nsock_loglevel = NSOCK_LOG_ERROR;
 
-  nsock_set_loglevel(nsp, nsock_loglevel);
+  nsock_set_loglevel(nsock_loglevel);
 }
 
-void nmap_nsock_stderr_logger(nsock_pool nsp, const struct nsock_log_rec *rec) {
+void nmap_nsock_stderr_logger(const struct nsock_log_rec *rec) {
   int elapsed_time;
 
   elapsed_time = TIMEVAL_MSEC_SUBTRACT(rec->time, *(o.getStartTime()));

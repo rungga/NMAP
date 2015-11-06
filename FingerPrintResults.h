@@ -121,16 +121,15 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: FingerPrintResults.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: FingerPrintResults.h 34816 2015-07-02 04:14:51Z dmiller $ */
 
 #ifndef FINGERPRINTRESULTS_H
 #define FINGERPRINTRESULTS_H
 
 class FingerPrintResults;
 
-#include "nmap.h"
-#include "global_structures.h"
 #include "FPEngine.h"
+#include "osscan.h"
 
 /* Maximum number of results allowed in one of these things ... */
 #define MAX_FP_RESULTS 36
@@ -141,16 +140,6 @@ struct OS_Classification_Results {
   int OSC_num_perfect_matches; // Number of perfect matches in OSC[\]
   int OSC_num_matches; // Number of matches total in OSC[] (and, of course, _accuracy[])
   int overall_results; /* OSSCAN_TOOMANYMATCHES, OSSCAN_NOMATCHES, OSSCAN_SUCCESS, etc */
-};
-
-/* The method used to calculate the Target::distance, included in OS
-   fingerprints. */
-enum dist_calc_method {
-        DIST_METHOD_NONE,
-        DIST_METHOD_LOCALHOST,
-        DIST_METHOD_DIRECT,
-        DIST_METHOD_ICMP,
-        DIST_METHOD_TRACEROUTE
 };
 
 class FingerPrintResults {

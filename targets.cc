@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.cc 34847 2015-07-05 22:06:09Z dmiller $ */
+/* $Id: targets.cc 35347 2015-10-26 16:16:02Z dmiller $ */
 
 
 #include "nbase/nbase_addrset.h"
@@ -340,6 +340,11 @@ static bool target_needs_new_hostgroup(const HostGroupState *hs, const Target *t
   return false;
 }
 
+TargetGroup::~TargetGroup() {
+  if (this->netblock != NULL)
+    delete this->netblock;
+}
+
 /* Initializes (or reinitializes) the object with a new expression, such
    as 192.168.0.0/16 , 10.1.0-5.1-254 , or fe80::202:e3ff:fe14:1102 .
    Returns 0 for success */
@@ -458,8 +463,6 @@ void HostGroupState::undefer() {
 }
 
 const char *HostGroupState::next_expression() {
-  static char buf[1024];
-
   if (o.max_ips_to_scan == 0 || o.numhosts_scanned + this->current_batch_sz < o.max_ips_to_scan) {
     const char *expr;
     expr = grab_next_host_spec(o.inputfd, o.generate_random_ips, this->argc, this->argv);
@@ -469,6 +472,7 @@ const char *HostGroupState::next_expression() {
 
 #ifndef NOLUA
   /* Add any new NSE discovered targets to the scan queue */
+  static char buf[1024];
 
   NewTargets *new_targets = NewTargets::get();
   if (o.script && new_targets != NULL) {

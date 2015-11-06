@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_amigaos.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nmap_amigaos.h 34574 2015-06-03 13:01:29Z dmiller $ */
 
 #ifndef _NMAP_AMIGAOS_H_
 #define _NMAP_AMIGAOS_H_

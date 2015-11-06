@@ -123,16 +123,17 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: TargetGroup.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: TargetGroup.cc 34815 2015-07-02 03:09:29Z dmiller $ */
 
 #include "tcpip.h"
 #include "TargetGroup.h"
 #include "NmapOps.h"
 #include "nmap_error.h"
-#include "global_structures.h"
+#include "nmap.h"
 #include "libnetutil/netutil.h"
 
 #include <sstream>
+#include <errno.h>
 
 #define BITVECTOR_BITS (sizeof(bitvector_t) * CHAR_BIT)
 #define BIT_SET(v, n) ((v)[(n) / BITVECTOR_BITS] |= 1UL << ((n) % BITVECTOR_BITS))

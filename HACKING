@@ -1,4 +1,4 @@
-$Id: HACKING 30349 2012-12-06 02:34:28Z david $
+$Id: HACKING 35340 2015-10-21 13:40:47Z dmiller $
 
 Nmap HACKING
 ------------
@@ -46,6 +46,9 @@ some ideas of contributions that might be particularly useful are listed in
 the todo file, available in todo/nmap.txt or online at
 https://svn.nmap.org/nmap/todo/nmap.txt
 
+o Bug reports and feature requests at http://issues.nmap.org/ are a good place
+  to look for ideas.
+
 o Script ideas page. Writing NSE scripts is an excellent way to contribute to
   the project. You can add your script ideas to our wiki page, or pick one and
   implement it. See: https://secwiki.org/w/Nmap_Script_Ideas
@@ -81,26 +84,23 @@ Then make a unified diff, by issuing the following command:
 If you've added several features, it's best to send them as several independent
 patches if you can.
 
+We also accept Github Pull Requests at https://github.org/nmap/nmap
+
 Style
 -----
 
-When contributing new code, we suggest using two-space indents with no
-tabs.  This is generally the default in emacs, and Vim users can
-achieve it by adding rules such as the following to .vimrc:
+Code style guidelines and quality checking tools are documented at
+https://secwiki.org/w/Nmap/Code_Standards . The short version is:
 
-if getcwd() =~ '/nmap'
-    set nocindent
-    set expandtab
-    set softtabstop=2
-    set shiftwidth=2
-    set copyindent
-endif
-
+* Indent with 2 spaces, not tabs
+* No trailing whitespace
+* Be consistent
+* Use comments
 
 Credits
 -------
 
-I got the idea for this HACKING file from GNet 
+I got the idea for this HACKING file from GNet
 (http://www.gnetlibrary.org/) and followed the
 general structure of their HACKING file.
 

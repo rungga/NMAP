@@ -120,7 +120,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: portlist.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: portlist.h 35347 2015-10-26 16:16:02Z dmiller $ */
 
 #ifndef PORTLIST_H
 #define PORTLIST_H
@@ -131,6 +131,8 @@
 #endif
 
 #include "portreasons.h"
+
+#include <vector>
 
 /* port states */
 #define PORT_UNKNOWN 0
