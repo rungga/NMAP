@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: TargetGroup.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: TargetGroup.h 34710 2015-06-23 00:09:05Z dmiller $ */
 
 #ifndef TARGETGROUP_H
 #define TARGETGROUP_H
@@ -134,8 +134,6 @@
 #include <queue>
 #include <set>
 #include <string>
-
-#include "nmap.h"
 
 /* We use bit vectors to represent what values are allowed in an IPv4 octet.
    Each vector is built up of an array of bitvector_t (any convenient integer

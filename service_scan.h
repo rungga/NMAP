@@ -122,14 +122,13 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: service_scan.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: service_scan.h 35347 2015-10-26 16:16:02Z dmiller $ */
 
 #ifndef SERVICE_SCAN_H
 #define SERVICE_SCAN_H
 
-#include "nmap.h"
-#include "global_structures.h"
 #include "portlist.h"
+#include "nmap.h"
 
 #include <vector>
 

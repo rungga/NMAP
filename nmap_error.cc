@@ -120,12 +120,14 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_error.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nmap_error.cc 34812 2015-07-01 21:25:39Z dmiller $ */
 
 #include "nmap_error.h"
 #include "output.h"
 #include "NmapOps.h"
 #include "xml.h"
+
+#include <errno.h>
 
 extern NmapOps o;
 

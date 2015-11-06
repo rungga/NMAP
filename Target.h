@@ -122,13 +122,13 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: Target.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: Target.h 34816 2015-07-02 04:14:51Z dmiller $ */
 
 #ifndef TARGET_H
 #define TARGET_H
 
-#include "nmap.h"
-#include "FingerPrintResults.h"
+#include "nbase.h"
+
 #include "libnetutil/netutil.h"
 
 #ifndef NOLUA
@@ -137,8 +137,10 @@
 
 #include "portreasons.h"
 #include "portlist.h"
-#include "tcpip.h"
 #include "scan_engine.h"
+#include "osscan.h"
+#include "osscan2.h"
+class FingerPrintResults;
 
 #include <list>
 #include <string>

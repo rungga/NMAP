@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: service_scan.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: service_scan.cc 34812 2015-07-01 21:25:39Z dmiller $ */
 
 
 #include "service_scan.h"
@@ -134,6 +134,8 @@
 #include "protocols.h"
 
 #include "nmap_tty.h"
+
+#include <errno.h>
 
 #if HAVE_OPENSSL
 /* OpenSSL 1.0.0 needs _WINSOCKAPI_ to be defined, otherwise it loads
@@ -1321,8 +1323,8 @@ void parse_nmap_service_probe_file(AllProbes *AP, char *filename) {
         if (waitms < 100 || waitms > 300000)
           fatal("Error on line %d of nmap-service-probes file (%s): bad totalwaitms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
         newProbe->totalwaitms = waitms;
-      } else if (strncmp(line, "tcpwrappedms ", 12) == 0) {
-        long waitms = strtol(line + 12, NULL, 10);
+      } else if (strncmp(line, "tcpwrappedms ", 13) == 0) {
+        long waitms = strtol(line + 13, NULL, 10);
         if (waitms < 100 || waitms > 300000)
           fatal("Error on line %d of nmap-service-probes file (%s): bad tcpwrappedms value.  Must be between 100 and 300000 milliseconds", lineno, filename);
         newProbe->tcpwrappedms = waitms;
@@ -2025,19 +2027,20 @@ static void startNextProbe(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
     if (probe) {
       // For a TCP probe, we start by requesting a new connection to the target
       if (svc->proto == IPPROTO_TCP) {
-        nsi_delete(nsi, NSOCK_PENDING_SILENT);
-        if ((svc->niod = nsi_new(nsp, svc)) == NULL) {
+        nsock_iod_delete(nsi, NSOCK_PENDING_SILENT);
+        if ((svc->niod = nsock_iod_new(nsp, svc)) == NULL) {
           fatal("Failed to allocate Nsock I/O descriptor in %s()", __func__);
         }
         if (o.spoofsource) {
           o.SourceSockAddr(&ss, &ss_len);
-          nsi_set_localaddr(svc->niod, &ss, ss_len);
+          nsock_iod_set_localaddr(svc->niod, &ss, ss_len);
         }
         if (o.ipoptionslen)
-          nsi_set_ipoptions(svc->niod, o.ipoptions, o.ipoptionslen);
+          nsock_iod_set_ipoptions(svc->niod, o.ipoptions, o.ipoptionslen);
         if (svc->target->TargetName()) {
-          if (nsi_set_hostname(svc->niod, svc->target->TargetName()) == -1)
-            fatal("nsi_set_hostname(\"%s\" failed in %s()", svc->target->TargetName(), __func__);
+          if (nsock_iod_set_hostname(svc->niod, svc->target->TargetName()) == -1)
+            fatal("nsock_iod_set_hostname(\"%s\" failed in %s()",
+                  svc->target->TargetName(), __func__);
         }
         svc->target->TargetSockAddr(&ss, &ss_len);
         if (svc->tunnel == SERVICE_TUNNEL_NONE) {
@@ -2063,8 +2066,10 @@ static void startNextProbe(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
       }
     } else {
       // No more probes remaining!  Failed to match
-      nsi_delete(nsi, NSOCK_PENDING_SILENT);
-      end_svcprobe(nsp, (svc->softMatchFound)? PROBESTATE_FINISHED_SOFTMATCHED : PROBESTATE_FINISHED_NOMATCH, SG, svc, NULL);
+      nsock_iod_delete(nsi, NSOCK_PENDING_SILENT);
+      end_svcprobe(nsp, (svc->softMatchFound)? PROBESTATE_FINISHED_SOFTMATCHED :
+                                               PROBESTATE_FINISHED_NOMATCH,
+                   SG, svc, NULL);
     }
   }
   return;
@@ -2124,7 +2129,7 @@ static int scanThroughTunnel(nsock_pool nsp, nsock_iod nsi, ServiceGroup *SG,
 static void considerPrintingStats(nsock_pool nsp, ServiceGroup *SG) {
    /* Check for status requests */
    if (keyWasPressed()) {
-      nmap_adjust_loglevel(nsp, o.versionTrace());
+      nmap_adjust_loglevel(o.versionTrace());
       SG->SPM->printStats(SG->services_finished.size() /
                           ((double)SG->services_remaining.size() + SG->services_in_progress.size() +
                            SG->services_finished.size()), nsock_gettimeofday());
@@ -2195,9 +2200,8 @@ static void end_svcprobe(nsock_pool nsp, enum serviceprobestate probe_state, Ser
 
   considerPrintingStats(nsp, SG);
 
-  if (nsi) {
-    nsi_delete(nsi, NSOCK_PENDING_SILENT);
-  }
+  if (nsi)
+    nsock_iod_delete(nsi, NSOCK_PENDING_SILENT);
 
   handleHostIfDone(SG, target);
   return;
@@ -2233,7 +2237,7 @@ static int launchSomeServiceProbes(nsock_pool nsp, ServiceGroup *SG) {
     }
 
     // We start by requesting a connection to the target
-    if ((svc->niod = nsi_new(nsp, svc)) == NULL) {
+    if ((svc->niod = nsock_iod_new(nsp, svc)) == NULL) {
       fatal("Failed to allocate Nsock I/O descriptor in %s()", __func__);
     }
     if (o.debugging > 1) {
@@ -2241,10 +2245,10 @@ static int launchSomeServiceProbes(nsock_pool nsp, ServiceGroup *SG) {
     }
     if (o.spoofsource) {
       o.SourceSockAddr(&ss, &ss_len);
-      nsi_set_localaddr(svc->niod, &ss, ss_len);
+      nsock_iod_set_localaddr(svc->niod, &ss, ss_len);
     }
     if (o.ipoptionslen)
-      nsi_set_ipoptions(svc->niod, o.ipoptions, o.ipoptionslen);
+      nsock_iod_set_ipoptions(svc->niod, o.ipoptions, o.ipoptionslen);
     svc->target->TargetSockAddr(&ss, &ss_len);
     if (svc->proto == IPPROTO_TCP)
       nsock_connect_tcp(nsp, svc->niod, servicescan_connect_handler,
@@ -2272,7 +2276,7 @@ static void servicescan_connect_handler(nsock_pool nsp, nsock_event nse, void *m
   enum nse_type type = nse_type(nse);
   ServiceNFO *svc = (ServiceNFO *) mydata;
   ServiceProbe *probe = svc->currentProbe();
-  ServiceGroup *SG = (ServiceGroup *) nsp_getud(nsp);
+  ServiceGroup *SG = (ServiceGroup *) nsock_pool_get_udata(nsp);
 
   assert(type == NSE_TYPE_CONNECT || type == NSE_TYPE_CONNECT_SSL);
 
@@ -2282,16 +2286,16 @@ static void servicescan_connect_handler(nsock_pool nsp, nsock_event nse, void *m
 
 #if HAVE_OPENSSL
     // Snag our SSL_SESSION from the nsi for use in subsequent connections.
-    if (nsi_checkssl(nsi)) {
-      if (svc->ssl_session ) {
-        if (svc->ssl_session == (SSL_SESSION *)(nsi_get0_ssl_session(nsi))) {
+    if (nsock_iod_check_ssl(nsi)) {
+      if (svc->ssl_session) {
+        if (svc->ssl_session == (SSL_SESSION *)(nsock_iod_get_ssl_session(nsi, 0))) {
           //nada
         } else {
           SSL_SESSION_free((SSL_SESSION*)svc->ssl_session);
-          svc->ssl_session = (SSL_SESSION *)(nsi_get1_ssl_session(nsi));
+          svc->ssl_session = (SSL_SESSION *)(nsock_iod_get_ssl_session(nsi, 1));
         }
       } else {
-        svc->ssl_session = (SSL_SESSION *)(nsi_get1_ssl_session(nsi));
+        svc->ssl_session = (SSL_SESSION *)(nsock_iod_get_ssl_session(nsi, 1));
       }
     }
 #endif
@@ -2341,7 +2345,7 @@ static void servicescan_write_handler(nsock_pool nsp, nsock_event nse, void *myd
   ServiceGroup *SG;
   int err;
 
-  SG = (ServiceGroup *) nsp_getud(nsp);
+  SG = (ServiceGroup *) nsock_pool_get_udata(nsp);
   nsi = nse_iod(nse);
 
   // Check if a status message was requested
@@ -2390,7 +2394,7 @@ static void servicescan_read_handler(nsock_pool nsp, nsock_event nse, void *myda
   enum nse_type type = nse_type(nse);
   ServiceNFO *svc = (ServiceNFO *) mydata;
   ServiceProbe *probe = svc->currentProbe();
-  ServiceGroup *SG = (ServiceGroup *) nsp_getud(nsp);
+  ServiceGroup *SG = (ServiceGroup *) nsock_pool_get_udata(nsp);
   const u8 *readstr;
   int readstrlen;
   const struct MatchDetails *MD;
@@ -2752,21 +2756,21 @@ int service_scan(std::vector<Target *> &Targets) {
 
   // Lets create a nsock pool for managing all the concurrent probes
   // Store the servicegroup in there for availability in callbacks
-  if ((nsp = nsp_new(SG)) == NULL) {
+  if ((nsp = nsock_pool_new(SG)) == NULL) {
     fatal("%s() failed to create new nsock pool.", __func__);
   }
-  nsock_set_log_function(nsp, nmap_nsock_stderr_logger);
-  nmap_adjust_loglevel(nsp, o.versionTrace());
+  nsock_set_log_function(nmap_nsock_stderr_logger);
+  nmap_adjust_loglevel(o.versionTrace());
 
-  nsp_setdevice(nsp, o.device);
+  nsock_pool_set_device(nsp, o.device);
 
   if (o.proxy_chain) {
-    nsp_set_proxychain(nsp, o.proxy_chain);
+    nsock_pool_set_proxychain(nsp, o.proxy_chain);
   }
 
 #if HAVE_OPENSSL
   /* We don't care about connection security in version detection. */
-  nsp_ssl_init_max_speed(nsp);
+  nsock_pool_ssl_init(nsp, NSOCK_SSL_MAX_SPEED);
 #endif
 
   launchSomeServiceProbes(nsp, SG);
@@ -2778,11 +2782,11 @@ int service_scan(std::vector<Target *> &Targets) {
   // OK!  Lets start our main loop!
   looprc = nsock_loop(nsp, timeout);
   if (looprc == NSOCK_LOOP_ERROR) {
-    int err = nsp_geterrorcode(nsp);
+    int err = nsock_pool_get_error(nsp);
     fatal("Unexpected nsock_loop error.  Error code %d (%s)", err, socket_strerror(err));
   }
 
-  nsp_delete(nsp);
+  nsock_pool_delete(nsp);
 
   if (o.verbose) {
     char additional_info[128];

@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_winconfig.h 34730 2015-06-23 21:46:12Z dmiller $ */
+/* $Id: nmap_winconfig.h 34685 2015-06-20 02:56:02Z fyodor $ */
 
 #ifndef NMAP_WINCONFIG_H
 #define NMAP_WINCONFIG_H

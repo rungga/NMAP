@@ -122,13 +122,14 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: Target.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: Target.cc 34798 2015-06-30 04:04:51Z dmiller $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
 #endif
 
 #include "Target.h"
+#include "FingerPrintResults.h" /* for ~FingerPrintResults() */
 #include <dnet.h>
 #include "nbase.h"
 #include "NmapOps.h"

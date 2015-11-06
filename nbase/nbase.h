@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nbase.h 35020 2015-07-30 06:27:30Z gio $ */
 
 #ifndef NBASE_H
 #define NBASE_H
@@ -224,6 +224,7 @@
 #undef NDEBUG
 
 /* Integer types */
+#include <stdint.h>
 typedef uint8_t u8;
 typedef int8_t s8;
 typedef uint16_t u16;

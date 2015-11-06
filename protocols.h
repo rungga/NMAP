@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: protocols.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: protocols.h 34710 2015-06-23 00:09:05Z dmiller $ */
 
 #ifndef PROTOCOLS_H
 #define PROTOCOLS_H
@@ -130,8 +130,6 @@
 #include <netdb.h>
 #endif
 
-#include "nmap.h"
-#include "global_structures.h"
 #include "nbase.h"
 
 #define PROTOCOL_TABLE_SIZE 256

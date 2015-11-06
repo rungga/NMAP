@@ -122,13 +122,15 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: scan_engine.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: scan_engine.h 34806 2015-06-30 18:34:28Z dmiller $ */
 
 #ifndef SCAN_ENGINE_H
 #define SCAN_ENGINE_H
 
-#include "nmap.h"
-#include "global_structures.h"
+#include "nmap.h" /* stype */
+
+#include <dnet.h>
+
 #include "timing.h"
 #include "tcpip.h"
 #include <list>
