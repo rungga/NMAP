@@ -1,3 +1,9 @@
+nmap (6.49~BETA6-0kali1) kali-dev; urgency=medium
+
+  * Import new upstream release
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 06 Nov 2015 10:02:21 +0100
+
 nmap (6.49~BETA5-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release (closes kali bug:0002680)
