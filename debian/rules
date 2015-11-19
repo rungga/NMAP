@@ -16,5 +16,5 @@ override_dh_autoreconf:
 	dh_autoreconf autoconf
 
 override_dh_install:
-	dh_install --fail-missing -Xuninstall_zenmap -Xca-bundle.crt
+	dh_install --fail-missing -X/usr/bin/uninstall_ -Xca-bundle.crt
 	rm -f debian/zenmap/usr/lib/python2.7/*/ndiff.py
