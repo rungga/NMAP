@@ -118,7 +118,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 35355 2015-10-28 17:40:25Z dmiller $ */
+/* $Id: ncat_core.c 35432 2015-11-15 14:08:02Z dmiller $ */
 
 #include "ncat.h"
 #include "util.h"
@@ -168,6 +168,7 @@ void options_init(void)
     o.keepopen = 0;
     o.sendonly = 0;
     o.recvonly = 0;
+    o.noshutdown = 0;
     o.telnet = 0;
     o.linedelay = 0;
     o.chat = 0;

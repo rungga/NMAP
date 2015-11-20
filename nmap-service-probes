@@ -1,28 +1,28 @@
 # Nmap service detection probe list -*- mode: fundamental; -*-
-# $Id: nmap-service-probes 35356 2015-10-29 15:05:08Z dmiller $
+# $Id: nmap-service-probes 35414 2015-11-10 16:58:39Z dmiller $
 #
 # This is a database of custom probes and expected responses that the
-# Nmap Security Scanner ( http://nmap.org ) uses to
+# Nmap Security Scanner ( https://nmap.org ) uses to
 # identify what services (eg http, smtp, dns, etc.) are listening on
 # open ports.  Contributions to this database are welcome.
 # Instructions for obtaining and submitting service detection fingerprints can
 # be found in the Nmap Network Scanning book and online at
-# http://nmap.org/book/vscan-community.html
+# https://nmap.org/book/vscan-community.html
 #
 # This collection of probe data is (C) 1998-2010 by Insecure.Com
 # LLC.  It is distributed under the Nmap Open Source license as
 # provided in the COPYING file of the source distribution or at
-# http://nmap.org/data/COPYING .  Note that this license
+# https://nmap.org/data/COPYING .  Note that this license
 # requires you to license your own work under a compatible open source
 # license.  If you wish to embed Nmap technology into proprietary
 # software, we sell alternative licenses (contact sales@insecure.com).
 # Dozens of software vendors already license Nmap technology such as
 # host discovery, port scanning, OS detection, and version detection.
-# For more details, see http://nmap.org/book/man-legal.html
+# For more details, see https://nmap.org/book/man-legal.html
 #
 # For details on how Nmap version detection works, why it was added,
 # the grammar of this file, and how to detect and contribute new
-# services, see http://nmap.org/book/vscan.html.
+# services, see https://nmap.org/book/vscan.html.
 
 # The Exclude directive takes a comma separated list of ports.
 # The format is exactly the same as the -p switch.
@@ -3625,8 +3625,6 @@ match telnet m|^\xff\xfb\x01\r\r\nUser Access Verification\r\r\n\r\r\nUsername:|
 match telnet m|^\xff\xfb\x01\xff\xfb\x03\xff\xfd\x01\r\n\r\nCisco Systems Console\r\n| p/Cisco Catalyst switch telnetd/ d/switch/ o/IOS/ cpe:/a:cisco:telnet/ cpe:/o:cisco:ios/a
 match telnet m|^\xff\xfb\x01\xff\xfb\x03\xff\xfd\x18\xff\xfd\x1f\r\n\r\nPassword required, but none set\r\n| p/Cisco router telnetd/ i/password required but not set/ d/router/ cpe:/a:cisco:telnet/
 match telnet m|^Access not permitted\. Closing connection\.\.\.\n$|s p/Cisco Catalyst switch telnetd/ i/access denied/ d/switch/ cpe:/a:cisco:telnet/
-# The match below matches Cisco microswitch devices and also Edge-core ES3526XA
-match telnet m|^\xff\xfd\x18$| p/Cisco or Edge-core switch telnetd/ d/switch/
 # OpenBSD 2.3
 # FreeBSD 5.1
 match telnet m|^\xff\xfd%$| p/BSD-derived telnetd/
@@ -4513,6 +4511,9 @@ match telnet-proxy m|^\xff\xfc\x01\xff\xfd\"ixProxy V([\d.]+), Copyright \(C\) \
 match telnet-proxy m|^\xff\xfb\x01\xff\xfb\x03Blue Coat Shell proxy\r\nShell-proxy>| p/Blue Coat Shell proxy/ o/SGOS/ cpe:/o:bluecoat:sgos/a
 match telnet-proxy m|^Welcome to kingate ([\w._-]+)-win32 telnet proxy\.\r\nPlease enter host and port\r\nexample: abc\.com 23\r\nkingate >| p/kingate telnet proxy/ v/$1/ o/Windows/ cpe:/o:microsoft:windows/a
 
+match tn3270 m|^\xff\xfd\x1d| p/IBM Telnet TN3270/ i/3270-REGIME/
+match tn3270 m|^\xff\xfd\x28| p/IBM Telnet TN3270/ i/TN3270E/
+
 match textui m|^\r\nHi, my name is : *(\w.*)\r\nHere is what I know about myself:\r\nModel: *(\w.*)\r\nSerial Number: *(\w+)\r\nSoftware Version: *([\d.]+)\r\nBuild Information: *\d+\r\nTime In Last Call: *[\d:]+\r\nTotal Time In Calls: *[\d:]+\r\nTotal Calls: *\d+\r\nSNTP Time Service: *\w+ \r\nLocal Time is: .* ([-+]\d\d\d\d)\r\n| p/Polycom videoconferencing system control port/ v/$4/ i/name: $1; model: $2; serial: $3; timezone: $5/ cpe:/h:polycom:$2/
 
 match terraria m|^0\0\0\0\x02Client sent invalid network message \(168626705\)| p/Terraria Dedicated Server Mod/ i/Terraria game server/
@@ -4806,6 +4807,8 @@ match landesk-rc m|^(?!HTTP).{264}$|s p/LANDesk remote management/ cpe:/a:landes
 # Specific vendor telnet options that should be matched more accurately by prompt, etc.
 softmatch telnet m|^\xff\xfb\x01\xff\xfb\x01\xff\xfb\x01\xff\xfb\x03\xff\xfd\x18\xff\xfd\x1f| p/Huawei telnetd/
 
+# Matches lots of devices that require a terminal type to be sent
+softmatch telnet m|^\xff\xfd\x18$|
 # General-purpose telnet softmatch
 softmatch telnet m=^(?:\xff(?:[\xfb-\xfe].|\xf0|\xfa..))+[\0-\x7f]=
 # Null probe hack; these seem to come in response to random probes
@@ -11807,7 +11810,7 @@ softmatch ftp m|^220[\s-].*ftp[^\r]*\r\n214[\s-]|i
 # TLSv1-only servers, based on a failed handshake alert.
 Probe TCP SSLSessionReq q|\x16\x03\0\0S\x01\0\0O\x03\0?G\xd7\xf7\xba,\xee\xea\xb2`~\xf3\0\xfd\x82{\xb9\xd5\x96\xc8w\x9b\xe6\xc4\xdb<=\xdbo\xef\x10n\0\0(\0\x16\0\x13\0\x0a\0f\0\x05\0\x04\0e\0d\0c\0b\0a\0`\0\x15\0\x12\0\x09\0\x14\0\x11\0\x08\0\x06\0\x03\x01\0|
 rarity 1
-ports 443,444,465,548,636,989,990,992,993,994,995,1241,1311,1443,2000,2443,3443,4443,4444,5061,5443,5550,6443,7210,7272,7443,8009,8181,8194,8443,9001,9443,10443,14443,44443,60443
+ports 443,444,465,548,636,989,990,992,993,994,995,1241,1311,1443,2000,2252,2443,3443,4443,4444,5061,5443,5550,6443,7210,7272,7443,8009,8181,8194,8443,9001,9443,10443,14443,44443,60443
 fallback GetRequest
 
 match adabas m|^,\0,\0\x03\x02\0\0G\xd7\xf7\xbaO\x03\0\?\x05\0\0\0\0\x02\x18\0\xfd\x0b\0\0<=\xdbo\xef\x10n \xd5\x96\xc8w\x9b\xe6\xc4\xdb$| p/ADABAS database/
@@ -11985,7 +11988,7 @@ match xamarin m|^ERROR: Another instance is running\n| p/Xamarin MonoTouch/
 # in the match lines)
 Probe TCP TLSSessionReq q|\x16\x03\0\0\x69\x01\0\0\x65\x03\x03U\x1c\xa7\xe4random1random2random3random4\0\0\x0c\0/\0\x0a\0\x13\x009\0\x04\0\xff\x01\0\0\x30\0\x0d\0,\0*\0\x01\0\x03\0\x02\x06\x01\x06\x03\x06\x02\x02\x01\x02\x03\x02\x02\x03\x01\x03\x03\x03\x02\x04\x01\x04\x03\x04\x02\x01\x01\x01\x03\x01\x02\x05\x01\x05\x03\x05\x02|
 rarity 1
-ports 443,444,465,636,989,990,992,993,994,995,1241,1311,3389,4444,5061,6679,6697,8443,9001
+ports 443,444,465,636,989,990,992,993,994,995,1241,1311,2252,3389,4444,5061,6679,6697,8443,9001
 fallback GetRequest
 
 # SSLv3 - TLSv1.2 ServerHello
@@ -14273,3 +14276,34 @@ match ssl m=^\x16\x03[\0-\x03]..\x02\0\0.\x03[\0-\x03].*\x16\x03[\0-\x03]\0.\x0c
 
 # SSLv3 - TLSv1.2 Alert
 match ssl m|^\x15\x03[\0-\x03]\0\x02[\x01\x02].$|s
+
+##############################NEXT PROBE##############################
+# Queries z/OS Network Job Entry
+# Sends an NJE Probe with the following information (text is converted to EBCDIC):
+# TYPE        = OPEN
+# OHOST       = FAKE
+# RHOST       = FAKE
+# RIP and OIP = 0.0.0.0
+# R           = 0
+# Based on http://www-01.ibm.com/support/knowledgecenter/SSLTBW_2.1.0/com.ibm.zos.v2r1.hasa600/init.htm
+Probe TCP NJE q|\xd6\xd7\xc5\xd5@@@@\xc6\xc1\xd2\xc5@@@@\0\0\0\0\xc6\xc1\xd2\xc5@@@@\0\0\0\0\0|
+rarity 9
+ports 175
+sslports 2252
+# If the port supports NJE it will respond with either a 'NAK' or 'ACK' in EBCDIC
+match nje m|^\xd5\xc1\xd2| p/IBM Network Job Entry (JES)/
+match nje m|^\xc1\xc3\xd2| p/IBM Network Job Entry (JES)/
+
+##############################NEXT PROBE##############################
+# Detects TN3270 Servers which send IAC DO TTYPE on initial connection
+# instead of IAC DO TN3270E
+Probe TCP tn3270 q|\xff\xfb\x18\xff\xfa\x18\x00IBM-3279-4-E\xff\xf0|
+rarity 8
+ports 23,2323,2023,623
+sslports 992
+
+# IAC DO TERMINAL TYPE, IAC SB TERMINAL TYPE SEND SE, .*, IAC DO EOR
+match tn3270 m|^\xff\xfd\x18\xff\xfa\x18\x01\xff\xf0.*?\xff\xfd\x19| p/IBM Telnet TN3270/ i/traditional tn3270/
+
+# Hack to force the softmatch in NULL probe to allow this probe to be sent as a followup. Don't expect this will really match anything.
+softmatch telnet m|^\xff\xfd\x18$|

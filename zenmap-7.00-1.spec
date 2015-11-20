@@ -3,7 +3,7 @@
 #     --define "__python /usr/bin/python2.5"
 
 %define name zenmap
-%define version 6.49BETA6
+%define version 7.00
 %define release 1
 %define _prefix /usr
 
@@ -16,10 +16,10 @@ Name: %{name}
 Version: %{version}
 Release: %{release}
 Epoch: 2
-License: http://nmap.org/man/man-legal.html
+License: https://nmap.org/man/man-legal.html
 Group: Applications/System
-Source0: http://nmap.org/dist/nmap-%{version}.tgz
-URL: http://nmap.org
+Source0: https://nmap.org/dist/nmap-%{version}.tgz
+URL: https://nmap.org
 BuildArch: noarch
 
 # Disable automatic dependency calculation because we want to provide
