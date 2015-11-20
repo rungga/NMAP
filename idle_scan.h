@@ -125,13 +125,11 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: idle_scan.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: idle_scan.h 34710 2015-06-23 00:09:05Z dmiller $ */
 
 #ifndef IDLE_SCAN_H
 #define IDLE_SCAN_H
 
-#include "nmap.h"
-#include "global_structures.h"
 #include <nbase.h>
 
 class Target;

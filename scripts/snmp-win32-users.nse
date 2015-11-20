@@ -34,7 +34,7 @@ Attempts to enumerate Windows user accounts through SNMP
 
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"default", "auth", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -66,18 +66,14 @@ end
 
 action = function(host, port)
 
-  local socket = nmap.new_socket()
-  local catch = function() socket:close() end
-  local try = nmap.new_try(catch)
   local snmpoid = "1.3.6.1.4.1.77.1.2.25"
   local users = {}
   local status
 
-  socket:set_timeout(5000)
-  try(socket:connect(host, port))
+  local snmpHelper = snmp.Helper:new(host, port)
+  snmpHelper:connect()
 
-  status, users = snmp.snmpWalk( socket, snmpoid )
-  socket:close()
+  status, users = snmpHelper:walk( snmpoid )
 
   if( not(status) ) then
     return

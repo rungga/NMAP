@@ -19,13 +19,13 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -192,7 +192,6 @@
     <ClInclude Include="..\charpool.h" />
     <ClInclude Include="..\FingerPrintResults.h" />
     <ClInclude Include="..\FPEngine.h" />
-    <ClInclude Include="..\global_structures.h" />
     <ClInclude Include="..\idle_scan.h" />
     <ClInclude Include="..\MACLookup.h" />
     <ClInclude Include="..\nmap.h" />

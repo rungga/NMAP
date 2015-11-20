@@ -53,7 +53,7 @@ Attempts to enumerate installed software through SNMP.
 -- </table>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe"}
 dependencies = {"snmp-brute"}
 
@@ -140,18 +140,14 @@ end
 
 action = function(host, port)
 
-  local socket = nmap.new_socket()
-  local catch = function() socket:close() end
-  local try = nmap.new_try(catch)
   local data, snmpoid = nil, "1.3.6.1.2.1.25.6.3.1"
   local sw = {}
   local status
 
-  socket:set_timeout(5000)
-  try(socket:connect(host, port))
+  local snmpHelper = snmp.Helper:new(host, port)
+  snmpHelper:connect()
 
-  status, sw = snmp.snmpWalk( socket, snmpoid )
-  socket:close()
+  status, sw = snmpHelper:walk( snmpoid )
 
   if ( not(status) ) or ( sw == nil ) or ( #sw == 0 ) then
     return

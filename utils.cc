@@ -120,11 +120,14 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: utils.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: utils.cc 34812 2015-07-01 21:25:39Z dmiller $ */
 
 #include "nmap.h"
 #include "utils.h"
 #include "NmapOps.h"
+
+#include <fcntl.h>
+#include <errno.h>
 
 extern NmapOps o;
 

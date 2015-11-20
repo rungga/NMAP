@@ -745,8 +745,8 @@ public:
     ack = 0;
     if ((pspec.pd.tcp.flags & TH_SYN) == TH_SYN) {
       /* MSS 1460 bytes. */
-      tcpopts = "\x02\x04\x05\xb4";
-      tcpoptslen = 4;
+      tcpopts = TCP_SYN_PROBE_OPTIONS;
+      tcpoptslen = TCP_SYN_PROBE_OPTIONS_LEN;
     } else if ((pspec.pd.tcp.flags & TH_ACK) == TH_ACK) {
       ack = get_random_u32();
     }
@@ -1014,6 +1014,7 @@ void traceroute_hop_cache_clear() {
   for (map_iter = hop_cache.begin(); map_iter != hop_cache.end(); map_iter++)
     delete map_iter->second;
   hop_cache.clear();
+  if (!timedout_hops) return;
   for (list_iter = timedout_hops->begin(); list_iter != timedout_hops->end(); list_iter++)
     delete *list_iter;
   timedout_hops->clear();

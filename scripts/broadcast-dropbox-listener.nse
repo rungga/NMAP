@@ -5,9 +5,13 @@ local tab = require "tab"
 local target = require "target"
 
 description = [[
-Listens for the LAN sync information broadcasts that the Dropbox.com client broadcasts every 20 seconds, then prints all the discovered client IP addresses, port numbers, version numbers, display names, and more.
+Listens for the LAN sync information broadcasts that the Dropbox.com client
+broadcasts every 20 seconds, then prints all the discovered client IP
+addresses, port numbers, version numbers, display names, and more.
 
-If the <code>newtargets</code> script argument is given, all discovered Dropbox clients will be added to the Nmap target list rather than just listed in the output.
+If the <code>newtargets</code> script argument is given, all discovered Dropbox
+clients will be added to the Nmap target list rather than just listed in the
+output.
 ]]
 
 ---
@@ -33,7 +37,7 @@ If the <code>newtargets</code> script argument is given, all discovered Dropbox 
 -- 1047/tcp open  neod1
 
 author = "Ron Bowes, Mak Kolybabi, Andrew Orr, Russ Tait Milne"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"broadcast", "safe"}
 
 

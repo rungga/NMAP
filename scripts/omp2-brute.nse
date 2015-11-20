@@ -14,13 +14,13 @@ Performs brute force password auditing against the OpenVAS manager using OMPv2.
 -- @output
 -- PORT     STATE SERVICE REASON
 -- 9390/tcp open  openvas syn-ack
--- | svn-brute:
+-- | omp2-brute:
 -- |   Accounts
 -- |_    admin:secret => Valid credentials
 --
 
 author = "Henri Doreau"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"brute", "intrusive"}
 
 

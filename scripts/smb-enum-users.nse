@@ -94,7 +94,9 @@ doesn't hurt to add more.
 The names and details from both of these techniques are merged and displayed.
 If the output is verbose, then extra details are shown. The output is ordered alphabetically.
 
-Credit goes out to the <code>enum.exe</code>, <code>sid2user.exe</code>, and <code>user2sid.exe</code> programs for pioneering some of the techniques used in this script.
+Credit goes out to the <code>enum.exe</code>, <code>sid2user.exe</code>, and
+<code>user2sid.exe</code> programs for pioneering some of the techniques used
+in this script.
 ]]
 
 ---
@@ -140,7 +142,7 @@ Credit goes out to the <code>enum.exe</code>, <code>sid2user.exe</code>, and <co
 
 author = "Ron Bowes"
 copyright = "Ron Bowes"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"auth","intrusive"}
 dependencies = {"smb-brute"}
 

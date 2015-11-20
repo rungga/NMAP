@@ -7,14 +7,9 @@ description = [[
 Retrieves information from an Apache Hadoop TaskTracker HTTP status page.
 
 Information gathered:
- * Hadoop version
- * Hadoop Compile date
- * Log directory (relative to http://host:port/)
-
-For more information about Hadoop, see:
- * http://hadoop.apache.org/
- * http://en.wikipedia.org/wiki/Apache_Hadoop
- * http://wiki.apache.org/hadoop/TaskTracker
+* Hadoop version
+* Hadoop Compile date
+* Log directory (relative to http://host:port/)
 ]]
 
 ---
@@ -36,7 +31,7 @@ For more information about Hadoop, see:
 
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See http://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
 

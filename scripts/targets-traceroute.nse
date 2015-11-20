@@ -3,7 +3,9 @@ local string = require "string"
 local target = require "target"
 
 description = [[
-Inserts traceroute hops into the Nmap scanning queue. It only functions if Nmap's <code>--traceroute</code> option is used and the <code>newtargets</code> script argument is given.
+Inserts traceroute hops into the Nmap scanning queue. It only functions if
+Nmap's <code>--traceroute</code> option is used and the <code>newtargets</code>
+script argument is given.
 ]]
 
 ---
@@ -21,7 +23,7 @@ Inserts traceroute hops into the Nmap scanning queue. It only functions if Nmap'
 -- 09/02/2010
 author = "Henri Doreau"
 
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 
 categories = {"safe", "discovery"}
 

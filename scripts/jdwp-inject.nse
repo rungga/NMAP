@@ -7,7 +7,9 @@ local shortport = require "shortport"
 local string = require "string"
 
 description = [[
-Attempts to exploit java's remote debugging port.  When remote debugging port is left open, it is possible to inject  java bytecode and achieve remote code execution.  This script allows injection of arbitrary class files.
+Attempts to exploit java's remote debugging port.  When remote debugging port
+is left open, it is possible to inject  java bytecode and achieve remote code
+execution.  This script allows injection of arbitrary class files.
 
 After injection, class' run() method is executed.
 Method run() has no parameters, and is expected to return a string.
@@ -27,7 +29,7 @@ See nselib/data/jdwp-class/README for more.
 -- |_  Hello world from the remote machine!
 
 author = "Aleksandar Nikolic"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"exploit","intrusive"}
 
 portrule = function(host, port)

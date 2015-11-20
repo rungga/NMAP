@@ -121,12 +121,16 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOutputTable.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: NmapOutputTable.h 34711 2015-06-23 00:09:07Z dmiller $ */
 
 #ifndef NMAPOUTPUTTABLE_H
 #define NMAPOUTPUTTABLE_H
 
-#include "nmap.h"
+/* Keep assert() defined for security reasons */
+#undef NDEBUG
+#include <assert.h>
+
+#include "nbase.h" /* __attribute__ */
 
 /**********************  DEFINES/ENUMS ***********************************/
 

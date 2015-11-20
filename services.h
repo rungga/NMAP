@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: services.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: services.h 34710 2015-06-23 00:09:05Z dmiller $ */
 
 
 #ifndef SERVICES_H
@@ -132,8 +132,6 @@
 #else
 #include <netdb.h>
 #endif
-#include "nmap.h"
-#include "global_structures.h"
 
 #include "nbase.h"
 

@@ -120,7 +120,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_error.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nmap_error.h 34704 2015-06-22 14:12:36Z dmiller $ */
 
 #ifndef NMAP_ERROR_H
 #define NMAP_ERROR_H
@@ -144,7 +144,6 @@
 #endif
 
 #include <stdarg.h>
-#include <stdio.h>
 
 #if HAVE_UNISTD_H
 #include <unistd.h>

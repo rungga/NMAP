@@ -1,5 +1,9 @@
 description = [[
-Attempts to exploit an authentication bypass vulnerability in Adobe Coldfusion servers (APSA13-01: http://www.adobe.com/support/security/advisories/apsa13-01.html) to retrieve a valid administrator's session cookie.
+Attempts to exploit an authentication bypass vulnerability in Adobe Coldfusion
+servers to retrieve a valid administrator's session cookie.
+
+Reference:
+* APSA13-01: http://www.adobe.com/support/security/advisories/apsa13-01.html
 ]]
 
 ---
@@ -17,7 +21,7 @@ Attempts to exploit an authentication bypass vulnerability in Adobe Coldfusion s
 ---
 
 author = "Paulino Calderon <calderon@websec.mx>"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"exploit", "vuln"}
 
 local http = require "http"

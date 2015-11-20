@@ -123,12 +123,14 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: timing.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: timing.cc 34709 2015-06-23 00:09:01Z dmiller $ */
 
 #include "timing.h"
 #include "NmapOps.h"
 #include "utils.h"
 #include "xml.h"
+
+#include <math.h>
 
 extern NmapOps o;
 

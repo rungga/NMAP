@@ -5,7 +5,7 @@
  * using libnbase can guarantee the availability of functions like         *
  * (v)snprintf and inet_pton.  This library also provides consistency and  *
  * extended features for some functions.  It was originally written for    *
- * use in the Nmap Security Scanner ( http://nmap.org ).                   *
+ * use in the Nmap Security Scanner ( https://nmap.org ).                   *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nbase.h 35407 2015-11-10 04:26:26Z dmiller $ */
 
 #ifndef NBASE_H
 #define NBASE_H
@@ -224,6 +224,7 @@
 #undef NDEBUG
 
 /* Integer types */
+#include <stdint.h>
 typedef uint8_t u8;
 typedef int8_t s8;
 typedef uint16_t u16;

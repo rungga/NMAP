@@ -121,12 +121,13 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 35268 2015-09-21 13:49:51Z dmiller $ */
+/* $Id: nmap.cc 35407 2015-11-10 04:26:26Z dmiller $ */
 
 #include "nmap.h"
 #include "osscan.h"
 #include "osscan2.h"
 #include "scan_engine.h"
+#include "FPEngine.h"
 #include "idle_scan.h"
 #include "timing.h"
 #include "NmapOps.h"
@@ -139,6 +140,7 @@
 #include "protocols.h"
 #include "targets.h"
 #include "TargetGroup.h"
+#include "Target.h"
 #include "service_scan.h"
 #include "charpool.h"
 #include "nmap_error.h"
@@ -147,6 +149,16 @@
 
 #ifndef NOLUA
 #include "nse_main.h"
+#endif
+
+#ifdef HAVE_SIGNAL
+#include <signal.h>
+#endif
+
+#include <fcntl.h>
+
+#ifdef HAVE_PWD_H
+#include <pwd.h>
 #endif
 
 #ifdef WIN32
@@ -587,7 +599,7 @@ void parse_options(int argc, char **argv) {
     {"oS", required_argument, 0, 0},
     {"oH", required_argument, 0, 0},
     {"oX", required_argument, 0, 0},
-    {"iL", required_argument, 0, 'i'},
+    {"iL", required_argument, 0, 0},
     {"iR", required_argument, 0, 0},
     {"sI", required_argument, 0, 0},
     {"source_port", required_argument, 0, 'g'},
@@ -892,7 +904,7 @@ void parse_options(int argc, char **argv) {
         } else if (optcmp(long_options[option_index].name, "dns-servers") == 0) {
           o.dns_servers = strdup(optarg);
         } else if (optcmp(long_options[option_index].name, "log-errors") == 0) {
-          /*Nmap Log errors is depreciated and is now always enabled by default.
+          /*Nmap Log errors is deprecated and is now always enabled by default.
           This option is left in so as to not break anybody's scanning scripts.
           However it does nothing*/
         } else if (optcmp(long_options[option_index].name, "deprecated-xml-osclass") == 0) {
@@ -930,6 +942,18 @@ void parse_options(int argc, char **argv) {
           exit(0);
         } else if (strcmp(long_options[option_index].name, "badsum") == 0) {
           o.badsum = 1;
+        } else if (strcmp(long_options[option_index].name, "iL") == 0) {
+          if (o.inputfd) {
+            fatal("Only one input filename allowed");
+          }
+          if (!strcmp(optarg, "-")) {
+            o.inputfd = stdin;
+          } else {
+            o.inputfd = fopen(optarg, "r");
+            if (!o.inputfd) {
+              fatal("Failed to open input file %s for reading", optarg);
+            }
+          }
         } else if (strcmp(long_options[option_index].name, "iR") == 0) {
           o.generate_random_ips = 1;
           o.max_ips_to_scan = strtoul(optarg, &endptr, 10);
@@ -1515,7 +1539,7 @@ void  apply_delayed_options() {
     if (local_time->tm_mon == 8 && local_time->tm_mday == 1) {
       log_write(LOG_STDOUT | LOG_SKID, "Happy %dth Birthday to Nmap, may it live to be %d!\n", local_time->tm_year - 97, local_time->tm_year + 3);
     } else if (local_time->tm_mon == 11 && local_time->tm_mday == 25) {
-      log_write(LOG_STDOUT | LOG_SKID, "Nmap wishes you a merry Christmas! Specify -sX for Xmas Scan (http://nmap.org/book/man-port-scanning-techniques.html).\n");
+      log_write(LOG_STDOUT | LOG_SKID, "Nmap wishes you a merry Christmas! Specify -sX for Xmas Scan (https://nmap.org/book/man-port-scanning-techniques.html).\n");
     }
   }
 
@@ -2822,63 +2846,6 @@ void free_scan_lists(struct scan_lists *ports) {
     free(ports->udp_ping_ports);
   if (ports->proto_ping_ports)
     free(ports->proto_ping_ports);
-}
-
-char *seqreport(struct seq_info *seq) {
-  static char report[512];
-
-  Snprintf(report, sizeof(report), "TCP Sequence Prediction: Difficulty=%d (%s)\n", seq->index, seqidx2difficultystr(seq->index));
-  return report;
-}
-
-/* Convert a TCP sequence prediction difficulty index like 1264386
-   into a difficulty string like "Worthy Challenge */
-const char *seqidx2difficultystr(unsigned long idx) {
-  return  (idx < 3) ? "Trivial joke" : (idx < 6) ? "Easy" : (idx < 11) ? "Medium" : (idx < 12) ? "Formidable" : (idx < 16) ? "Worthy challenge" : "Good luck!";
-}
-
-const char *ipidclass2ascii(int seqclass) {
-  switch (seqclass) {
-  case IPID_SEQ_CONSTANT:
-    return "Duplicated ipid (!)";
-  case IPID_SEQ_INCR:
-    return "Incremental";
-  case IPID_SEQ_INCR_BY_2:
-    return "Incrementing by 2";
-  case IPID_SEQ_BROKEN_INCR:
-    return "Broken little-endian incremental";
-  case IPID_SEQ_RD:
-    return "Randomized";
-  case IPID_SEQ_RPI:
-    return "Random positive increments";
-  case IPID_SEQ_ZERO:
-    return "All zeros";
-  case IPID_SEQ_UNKNOWN:
-    return "Busy server or unknown class";
-  default:
-    return "ERROR, WTF?";
-  }
-}
-
-const char *tsseqclass2ascii(int seqclass) {
-  switch (seqclass) {
-  case TS_SEQ_ZERO:
-    return "zero timestamp";
-  case TS_SEQ_2HZ:
-    return "2HZ";
-  case TS_SEQ_100HZ:
-    return "100HZ";
-  case TS_SEQ_1000HZ:
-    return "1000HZ";
-  case TS_SEQ_OTHER_NUM:
-    return "other";
-  case TS_SEQ_UNSUPPORTED:
-    return "none returned (unsupported)";
-  case TS_SEQ_UNKNOWN:
-    return "unknown class";
-  default:
-    return "ERROR, WTF?";
-  }
 }
 
 

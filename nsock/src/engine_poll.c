@@ -52,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: engine_poll.c 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: engine_poll.c 34756 2015-06-27 08:21:53Z henri $ */
 
 #ifndef WIN32
 /* Allow the use of POLLRDHUP, if available. */
@@ -220,7 +220,7 @@ int poll_iod_register(struct npool *nsp, struct niod *iod, int ev) {
 
   iod->watched_events = ev;
 
-  sd = nsi_getsd(iod);
+  sd = nsock_iod_get_sd(iod);
   while (pinfo->capacity < sd + 1)
     evlist_grow(pinfo);
 
@@ -252,7 +252,7 @@ int poll_iod_unregister(struct npool *nsp, struct niod *iod) {
     struct poll_engine_info *pinfo = (struct poll_engine_info *)nsp->engine_data;
     int sd;
 
-    sd = nsi_getsd(iod);
+    sd = nsock_iod_get_sd(iod);
     pinfo->events[sd].fd = -1;
     pinfo->events[sd].events = 0;
     pinfo->events[sd].revents = 0;
@@ -282,7 +282,7 @@ int poll_iod_modify(struct npool *nsp, struct niod *iod, int ev_set, int ev_clr)
 
   iod->watched_events = new_events;
 
-  sd = nsi_getsd(iod);
+  sd = nsock_iod_get_sd(iod);
 
   pinfo->events[sd].fd = sd;
   pinfo->events[sd].events = 0;
@@ -315,7 +315,7 @@ int poll_loop(struct npool *nsp, int msec_timeout) {
   do {
     struct nevent *nse;
 
-    nsock_log_debug_all(nsp, "wait for events");
+    nsock_log_debug_all("wait for events");
 
     nse = next_expirable_event(nsp);
     if (!nse)
@@ -356,7 +356,7 @@ int poll_loop(struct npool *nsp, int msec_timeout) {
   } while (results_left == -1 && sock_err == EINTR); /* repeat only if signal occurred */
 
   if (results_left == -1 && sock_err != EINTR) {
-    nsock_log_error(nsp, "nsock_loop error %d: %s", sock_err, socket_strerror(sock_err));
+    nsock_log_error("nsock_loop error %d: %s", sock_err, socket_strerror(sock_err));
     nsp->errnum = sock_err;
     return -1;
   }

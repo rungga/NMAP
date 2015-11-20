@@ -121,14 +121,14 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: NmapOutputTable.cc 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: NmapOutputTable.cc 34717 2015-06-23 15:52:55Z dmiller $ */
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
 #endif
 
 #include "NmapOutputTable.h"
-#include "utils.h"
+#include "nmap_error.h"
 
 #include <stdlib.h>
 

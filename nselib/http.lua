@@ -65,14 +65,10 @@
 -- * <code>timeout</code>: A timeout used for socket operations.
 -- * <code>header</code>: A table containing additional headers to be used for the request. For example, <code>options['header']['Content-Type'] = 'text/xml'</code>
 -- * <code>content</code>: The content of the message (content-length will be added -- set header['Content-Length'] to override). This can be either a string, which will be directly added as the body of the message, or a table, which will have each key=value pair added (like a normal POST request).
--- * <code>cookies</code>: A list of cookies as either a string, which will be directly sent, or a table. If it's a table, the following fields are recognized:
--- ** <code>name</code>
--- ** <code>value</code>
--- ** <code>path</code>
--- ** <code>expires</code>
---   Only <code>name</code> and <code>value</code> fields are required.
+-- * <code>cookies</code>: A list of cookies as either a string, which will be directly sent, or a table. If it's a table, the following fields are recognized: <code>name</code>, <code>value</code>, <code>path</code>, <code>expires</code>. Only <code>name</code> and <code>value</code> fields are required.
 -- * <code>auth</code>: A table containing the keys <code>username</code> and <code>password</code>, which will be used for HTTP Basic authentication.
 --   If a server requires HTTP Digest authentication, then there must also be a key <code>digest</code>, with value <code>true</code>.
+--   If a server requires NTLM authentication, then there must also be a key <code>ntlm</code>, with value <code>true</code>.
 -- * <code>bypass_cache</code>: Do not perform a lookup in the local HTTP cache.
 -- * <code>no_cache</code>: Do not save the result of this request to the local HTTP cache.
 -- * <code>no_cache_body</code>: Do not save the body of the response to the local HTTP cache.
@@ -93,7 +89,7 @@
 --
 -- @args http.useragent The value of the User-Agent header field sent with
 -- requests. By default it is
--- <code>"Mozilla/5.0 (compatible; Nmap Scripting Engine; http://nmap.org/book/nse.html)"</code>.
+-- <code>"Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)"</code>.
 -- A value of the empty string disables sending the User-Agent header field.
 --
 -- @args http.pipeline If set, it represents the number of HTTP requests that'll be
@@ -109,6 +105,8 @@
 
 
 local base64 = require "base64"
+local bin = require "bin"
+local bit = require "bit"
 local comm = require "comm"
 local coroutine = require "coroutine"
 local nmap = require "nmap"
@@ -118,12 +116,14 @@ local stdnse = require "stdnse"
 local string = require "string"
 local table = require "table"
 local url = require "url"
+local smbauth = require "smbauth"
+local unicode = require "unicode"
 _ENV = stdnse.module("http", stdnse.seeall)
 
 ---Use ssl if we have it
 local have_ssl, openssl = pcall(require,'openssl')
 
-USER_AGENT = stdnse.get_script_args('http.useragent') or "Mozilla/5.0 (compatible; Nmap Scripting Engine; http://nmap.org/book/nse.html)"
+USER_AGENT = stdnse.get_script_args('http.useragent') or "Mozilla/5.0 (compatible; Nmap Scripting Engine; https://nmap.org/book/nse.html)"
 local MAX_REDIRECT_COUNT = 5
 
 -- Recursively copy a table.
@@ -338,6 +338,8 @@ local function validate_options(options)
         bad = true
         stdnse.debug1("http: options.digestauth should be a table")
       end
+    elseif (key == 'ntlmauth') then
+      stdnse.debug1("Proceeding with ntlm message")
     elseif(key == 'bypass_cache' or key == 'no_cache' or key == 'no_cache_body') then
       if(type(value) ~= 'boolean') then
         stdnse.debug1("http: options.bypass_cache, options.no_cache, and options.no_cache_body must be boolean values")
@@ -649,6 +651,8 @@ local function parse_status_line(status_line, response)
   return true
 end
 
+local parse_set_cookie -- defined farther down
+
 -- Sets response.header and response.rawheader.
 local function parse_header(header, response)
   local pos
@@ -682,10 +686,22 @@ local function parse_header(header, response)
 
     -- Set it in our table.
     name = string.lower(name)
+    local value = table.concat(words, " ")
     if response.header[name] then
-      response.header[name] = response.header[name] .. ", " .. table.concat(words, " ")
+      -- TODO: delay concatenation until return to avoid resource exhaustion
+      response.header[name] = response.header[name] .. ", " .. value
     else
-      response.header[name] = table.concat(words, " ")
+      response.header[name] = value
+    end
+
+    -- Update the cookie table if this is a Set-Cookie header
+    if name == "set-cookie" then
+      local cookie, err = parse_set_cookie(value)
+      if cookie then
+        response.cookies[#response.cookies + 1] = cookie
+      else
+        -- Ignore any cookie parsing error
+      end
     end
 
     -- Next field, or end of string. (If not it's an error.)
@@ -699,8 +715,8 @@ local function parse_header(header, response)
   return true
 end
 
--- Parse the contents of a Set-Cookie header field. The result is an array
--- containing tables of the form
+-- Parse the contents of a Set-Cookie header field.
+-- The result is a table of the form
 --
 -- { name = "NAME", value = "VALUE", Comment = "...", Domain = "...", ... }
 --
@@ -710,97 +726,65 @@ end
 -- along with the backwards-compatibility suggestions from its section 10,
 -- "HISTORICAL". Values need not be quoted, but if they start with a quote they
 -- will be interpreted as a quoted string.
-local function parse_set_cookie(s)
-  local cookies
+parse_set_cookie = function (s)
   local name, value
-  local _, pos
+  local _
 
-  cookies = {}
+  local cookie = {}
 
-  pos = 1
-  while true do
-    local cookie = {}
+  -- Get the NAME=VALUE part.
+  local pos = skip_space(s, 1)
+  pos, cookie.name = get_token(s, pos)
+  if not cookie.name then
+    return nil, "Can't get cookie name."
+  end
+  pos = skip_space(s, pos)
+  if s:sub(pos, pos) ~= "=" then
+    return nil, string.format("Expected '=' after cookie name \"%s\".", cookie.name)
+  end
+  pos = pos + 1
+  pos = skip_space(s, pos)
+  if s:sub(pos, pos) == "\"" then
+    pos, cookie.value = get_quoted_string(s, pos)
+  else
+    _, pos, cookie.value = s:find("([^; \t]*)", pos)
+    pos = pos + 1
+  end
+  if not cookie.value then
+    return nil, string.format("Can't get value of cookie named \"%s\".", cookie.name)
+  end
+  pos = skip_space(s, pos)
 
-    -- Get the NAME=VALUE part.
-    pos = skip_space(s, pos)
-    pos, cookie.name = get_token(s, pos)
-    if not cookie.name then
-      return nil, "Can't get cookie name."
-    end
-    pos = skip_space(s, pos)
-    if pos > #s or string.sub(s, pos, pos) ~= "=" then
-      return nil, string.format("Expected '=' after cookie name \"%s\".", cookie.name)
-    end
+  -- Loop over the attributes.
+  while s:sub(pos, pos) == ";" do
     pos = pos + 1
     pos = skip_space(s, pos)
-    if string.sub(s, pos, pos) == "\"" then
-      pos, cookie.value = get_quoted_string(s, pos)
-    else
-      _, pos, cookie.value = string.find(s, "([^;]*)[ \t]*", pos)
-      pos = pos + 1
-    end
-    if not cookie.value then
-      return nil, string.format("Can't get value of cookie named \"%s\".", cookie.name)
+    pos, name = get_token(s, pos)
+    if not name then
+      return nil, string.format("Can't get attribute name of cookie \"%s\".", cookie.name)
     end
     pos = skip_space(s, pos)
-
-    -- Loop over the attributes.
-    while pos <= #s and string.sub(s, pos, pos) == ";" do
+    if s:sub(pos, pos) == "=" then
       pos = pos + 1
       pos = skip_space(s, pos)
-      pos, name = get_token(s, pos)
-      if not name then
-        return nil, string.format("Can't get attribute name of cookie \"%s\".", cookie.name)
-      end
-      pos = skip_space(s, pos)
-      if pos <= #s and string.sub(s, pos, pos) == "=" then
-        pos = pos + 1
-        pos = skip_space(s, pos)
-        if string.sub(s, pos, pos) == "\"" then
-          pos, value = get_quoted_string(s, pos)
-        else
-          -- account for the possibility of the expires attribute being empty or improperly formatted
-          local last_pos = pos
-
-         if string.lower(name) == "expires" then
-            -- For version 0 cookies we must allow one comma for "expires".
-            _, pos, value = string.find(s, "([^,]*,[^;,]*)[ \t]*", pos)
-          else
-            _, pos, value = string.find(s, "([^;,]*)[ \t]*", pos)
-          end
-
-          -- account for the possibility of the expires attribute being empty or improperly formatted
-          if ( not(pos) ) then
-            _, pos, value = s:find("([^;]*)", last_pos)
-          end
-
-          pos = pos + 1
-        end
-        if not value then
-          return nil, string.format("Can't get value of cookie attribute \"%s\".", name)
-        end
+      if s:sub(pos, pos) == "\"" then
+        pos, value = get_quoted_string(s, pos)
       else
-        value = true
+        _, pos, value = s:find("([^;]*)", pos)
+        value = value:match("(.-)[ \t]*$")
+        pos = pos + 1
       end
-      cookie[name:lower()] = value
-      pos = skip_space(s, pos)
+      if not value then
+        return nil, string.format("Can't get value of cookie attribute \"%s\".", name)
+      end
+    else
+      value = true
     end
-
-    cookies[#cookies + 1] = cookie
-
-    if pos > #s then
-      break
-    end
-
-    if string.sub(s, pos, pos) ~= "," then
-      return nil, string.format("Syntax error after cookie named \"%s\".", cookie.name)
-    end
-
-    pos = pos + 1
+    cookie[name:lower()] = value
     pos = skip_space(s, pos)
   end
 
-  return cookies
+  return cookie
 end
 
 -- Read one response from the socket <code>s</code> and return it after
@@ -816,6 +800,7 @@ local function next_response(s, method, partial)
     ["status-line"]=nil,
     header={},
     rawheader={},
+    cookies={},
     body=""
   }
 
@@ -842,17 +827,6 @@ local function next_response(s, method, partial)
     return nil, partial
   end
   response.body = body
-
-  -- We have the Status-Line, header, and body; now do any postprocessing.
-
-  response.cookies = {}
-  if response.header["set-cookie"] then
-    response.cookies, err = parse_set_cookie(response.header["set-cookie"])
-    if not response.cookies then
-      -- Ignore a cookie parsing error.
-      response.cookies = {}
-    end
-  end
 
   return response, partial
 end
@@ -1116,7 +1090,7 @@ local function build_request(host, port, method, path, options)
     end
   end
 
-  if options.auth and not options.auth.digest then
+  if options.auth and not (options.auth.digest or options.auth.ntlm) then
     local username = options.auth.username
     local password = options.auth.password
     local credentials = "Basic " .. base64.enc(username .. ":" .. password)
@@ -1144,6 +1118,11 @@ local function build_request(host, port, method, path, options)
     local credentials = "Digest "..table.concat(creds, ", ")
     mod_options.header["Authorization"] = credentials
   end
+
+  if options.ntlmauth then
+    mod_options.header["Authorization"] = "NTLM " .. base64.enc(options.ntlmauth)
+  end
+
 
   local body
   -- Build a form submission from a table, like "k1=v1&k2=v2".
@@ -1255,9 +1234,10 @@ function generic_request(host, port, method, path, options)
   end
 
   local digest_auth = options and options.auth and options.auth.digest
+  local ntlm_auth = options and options.auth and options.auth.ntlm
 
-  if digest_auth and not have_ssl then
-    stdnse.debug1("http: digest auth requires openssl.")
+  if (digest_auth or ntlm_auth) and not have_ssl then
+    stdnse.debug1("http: digest and ntlm auth require openssl.")
   end
 
   if digest_auth and have_ssl then
@@ -1275,6 +1255,148 @@ function generic_request(host, port, method, path, options)
     local dmd5 = sasl.DigestMD5:new(h, options.auth.username, options.auth.password, method, path)
     local _, digest_table = dmd5:calcDigest()
     options.digestauth = digest_table
+  end
+
+  if ntlm_auth and have_ssl then
+
+    local custom_options = tcopy(options) -- to be sent with the type 1 request
+    custom_options["auth"] = nil -- removing the auth options
+    -- let's check if the target supports ntlm with a simple get request.
+    -- Setting a timeout here other than nil messes up the authentication if this is the first device sending
+    -- a request to the server. Don't know why.
+    custom_options.timeout = nil
+    local response = generic_request(host, port, method, path, custom_options)
+    local authentication_header = response.header['www-authenticate']
+    -- get back the timeout option.
+    custom_options.timeout = options.timeout
+    custom_options.header = options.header or {}
+    custom_options.header["Connection"] = "Keep-Alive" -- Keep-Alive headers are needed for authentication.
+
+    if (not authentication_header) or (not response.status) or (not string.find(authentication_header:lower(), "ntlm")) then
+      stdnse.debug1("http: the target doesn't support NTLM or there was an error during request.")
+      return http_error("The target doesn't support NTLM or there was an error during request.")
+    end
+
+    -- ntlm works with three messages. we send a request, it sends
+    -- a challenge, we respond to the challenge.
+    local hostname = options.auth.hostname or "localhost" -- the hostname to be sent
+    local workstation_name = options.auth.workstation_name or "NMAP" -- the workstation name to be sent
+    local username = options.auth.username -- the username as specified
+
+    local auth_blob = "NTLMSSP\x00" .. -- NTLM signature
+    "\x01\x00\x00\x00" .. -- NTLM Type 1 message
+    bin.pack("<I", 0xa208b207) .. -- flags 56, 128, Version, Extended Security, Always Sign, Workstation supplied, Domain Supplied, NTLM Key, OEM, Unicode 
+    bin.pack("<SSISSI",#workstation_name, #workstation_name, 40 + #hostname, #hostname, #hostname, 40) .. -- Supplied Domain and Workstation
+    bin.pack("CC<S", -- OS version info
+    5, 1, 2600) .. -- 5.1.2600
+    "\x00\x00\x00\x0f" .. -- OS version info end (static 0x0000000f)
+    hostname.. -- HOST NAME
+    workstation_name --WORKSTATION name
+
+    custom_options.ntlmauth = auth_blob
+
+    -- check if the protocol is tcp
+    if type(port) == 'table' then
+      if port.protocol and port.protocol ~= 'tcp' then
+        stdnse.debug1("NTLM authentication supports the TCP protocol only, your request to %s cannot be completed.", host)
+        return http_error("Unsupported protocol.")
+      end
+    end
+
+    -- tryssl uses ssl if needed. sends the type 1 message.
+    local socket, partial, opts = comm.tryssl(host, port, build_request(host, port, method, path, custom_options), { timeout = options.timeout })
+
+    if not socket then
+      return http_error("Could not create socket to send type 1 message.")
+    end
+
+    repeat
+      response, partial = next_response(socket, method, partial)
+      if not response then
+        return http_error("There was error in receiving response of type 1 message.")
+      end
+    until not (response.status >= 100 and response.status <= 199)
+
+    authentication_header = response.header['www-authenticate']
+    -- take out the challenge
+    local type2_response = authentication_header:sub(authentication_header:find(' ')+1, -1)
+    local _, _, message_type, _, _, _, flags_received, challenge= bin.unpack("<A8ISSIIA8", base64.dec(type2_response))
+    -- check if the response is a type 2 message.
+    if message_type ~= 0x02 then
+      stdnse.debug1("Expected type 2 message as response.")
+      return
+    end
+
+    local is_unicode  = (bit.band(flags_received, 0x00000001) == 0x00000001) -- 0x00000001 UNICODE Flag
+    local is_extended = (bit.band(flags_received, 0x00080000) == 0x00080000) -- 0x00080000 Extended Security Flag
+    local type_3_flags = 0xa2888206 -- flags 56, 128, Version, Target Info, Extended Security, Always Sign, NTLM Key, OEM
+
+    local lanman, ntlm
+    if is_extended then
+    -- this essentially calls the new ntlmv2_session_response function in smbauth.lua and returns whatever it returns
+      lanman, ntlm = smbauth.get_password_response(nil, username, "", options.auth.password, nil, "ntlmv2_session", challenge, true)
+    else
+      lanman, ntlm = smbauth.get_password_response(nil, username, "", options.auth.password, nil, "ntlm", challenge, false)
+      type_3_flags = type_3_flags - 0x00080000 -- Removing the Extended Security Flag as server doesn't support it.
+    end
+
+    local domain = ""
+    local session_key = ""
+
+    -- if server supports unicode, then strings are sent in unicode format.
+    if is_unicode then
+      username = unicode.utf8to16(username)
+      hostname = unicode.utf8to16(hostname)
+      type_3_flags = type_3_flags - 0x00000001 -- OEM flag is 0x00000002. removing 0x00000001 results in UNICODE flag.
+    end
+
+    local BASE_OFFSET = 72 -- Version 3 -- The Session Key<empty in our case>, flags, and OS Version structure are all present.
+
+    auth_blob = bin.pack("<zISSISSISSISSISSISSIICCSAAAAA",
+      "NTLMSSP",
+      0x00000003,
+      #lanman,
+      #lanman,
+      BASE_OFFSET + #username + #hostname,
+      ( #ntlm ),
+      ( #ntlm ),
+      BASE_OFFSET + #username + #hostname + #lanman,
+      #domain,
+      #domain,
+      BASE_OFFSET,
+      #username,
+      #username,
+      BASE_OFFSET,
+      #hostname,
+      #hostname,
+      BASE_OFFSET + #username,
+      #session_key,
+      #session_key,
+      BASE_OFFSET + #username + #hostname + #lanman + #ntlm,
+      type_3_flags,
+      5,
+      1,
+      2600,
+      "\x00\x00\x00\x0f",
+      username,
+      hostname,
+      lanman,
+      ntlm)
+
+    custom_options.ntlmauth = auth_blob
+    socket:send(build_request(host, port, method, path, custom_options))
+
+    repeat
+      response, partial = next_response(socket, method, partial)
+      if not response then
+        return http_error("There was error in receiving response of type 3 message.")
+      end
+    until not (response.status >= 100 and response.status <= 199)
+
+    socket:close()
+    response.ssl = ( opts == 'ssl' )
+
+    return response
   end
 
   return request(host, port, build_request(host, port, method, path, options), options)

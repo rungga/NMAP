@@ -6,9 +6,9 @@ local ike = require "ike"
 
 
 description=[[
-
-Obtains information (such as vendor and device type where available) from an IKE service by sending four packets to the host.  This scripts tests with both Main and Aggressive Mode and sends multiple transforms per request.
-
+Obtains information (such as vendor and device type where available) from an
+IKE service by sending four packets to the host.  This scripts tests with both
+Main and Aggressive Mode and sends multiple transforms per request.
 ]]
 
 
@@ -25,7 +25,7 @@ Obtains information (such as vendor and device type where available) from an IKE
 
 
 author = "Jesper Kueckelhahn"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"default", "discovery", "safe", "version"}
 
 portrule = shortport.version_port_or_service(500, "isakmp", "udp")

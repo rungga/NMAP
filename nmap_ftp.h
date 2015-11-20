@@ -120,12 +120,13 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_ftp.h 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nmap_ftp.h 34719 2015-06-23 15:52:58Z dmiller $ */
 
 #ifndef NMAP_FTP_H
 #define NMAP_FTP_H
 
-#include "nmap.h" /* u16 */
+#include "nbase.h" /* u16 */
+class Target;
 
 /* How do we want to log into ftp sites for */
 #define FTPUSER "anonymous"

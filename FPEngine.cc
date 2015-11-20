@@ -2,7 +2,7 @@
 /***************************************************************************
  * FPEngine.cc -- Routines used for IPv6 OS detection via TCP/IP           *
  * fingerprinting.  * For more information on how this works in Nmap, see  *
- * http://nmap.org/osdetect/                                               *
+ * https://nmap.org/osdetect/                                               *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
@@ -126,12 +126,15 @@
 
 #include "FPEngine.h"
 #include "Target.h"
+#include "FingerPrintResults.h"
 #include "NmapOps.h"
 #include "nmap_error.h"
 #include "osscan.h"
 #include "linear.h"
 #include "FPModel.h"
 extern NmapOps o;
+
+#include <math.h>
 
 
 /******************************************************************************
@@ -163,7 +166,7 @@ FPNetworkControl::FPNetworkControl() {
 FPNetworkControl::~FPNetworkControl() {
   if (this->nsock_init) {
     nsock_event_cancel(this->nsp, this->pcap_ev_id, 0);
-    nsp_delete(this->nsp);
+    nsock_pool_delete(this->nsp);
     this->nsock_init = false;
   }
 }
@@ -178,30 +181,30 @@ void FPNetworkControl::init(const char *ifname, devtype iftype) {
 
    /* If there was a previous nsock pool, delete it */
   if (this->pcap_nsi) {
-    nsi_delete(this->pcap_nsi, NSOCK_PENDING_SILENT);
+    nsock_iod_delete(this->pcap_nsi, NSOCK_PENDING_SILENT);
   }
   if (this->nsock_init) {
     nsock_event_cancel(this->nsp, this->pcap_ev_id, 0);
-    nsp_delete(this->nsp);
+    nsock_pool_delete(this->nsp);
   }
 
   /* Create a new nsock pool */
-  if ((this->nsp = nsp_new(NULL)) == NULL)
+  if ((this->nsp = nsock_pool_new(NULL)) == NULL)
     fatal("Unable to obtain an Nsock pool");
 
-  nsock_set_log_function(this->nsp, nmap_nsock_stderr_logger);
-  nmap_adjust_loglevel(this->nsp, o.packetTrace());
+  nsock_set_log_function(nmap_nsock_stderr_logger);
+  nmap_adjust_loglevel(o.packetTrace());
 
-  nsp_setdevice(nsp, o.device);
+  nsock_pool_set_device(nsp, o.device);
 
   if (o.proxy_chain)
-    nsp_set_proxychain(this->nsp, o.proxy_chain);
+    nsock_pool_set_proxychain(this->nsp, o.proxy_chain);
 
   /* Allow broadcast addresses */
-  nsp_setbroadcast(this->nsp, 1);
+  nsock_pool_set_broadcast(this->nsp, 1);
 
   /* Allocate an NSI for packet capture */
-  this->pcap_nsi = nsi_new(this->nsp, NULL);
+  this->pcap_nsi = nsock_iod_new(this->nsp, NULL);
   this->first_pcap_scheduled = false;
 
   /* Flag it as already initialized so we free this nsp next time */
@@ -409,7 +412,7 @@ int FPNetworkControl::setup_sniffer(const char *iface, const char *bpf_filter) {
     fatal("Error opening capture device %s\n", pcapdev);
 
   /* Store the pcap NSI inside the pool so we can retrieve it inside a callback */
-  nsp_setud(this->nsp, (void *)&(this->pcap_nsi));
+  nsock_pool_set_udata(this->nsp, (void *)&(this->pcap_nsi));
 
   return OP_SUCCESS;
 }
@@ -418,7 +421,7 @@ int FPNetworkControl::setup_sniffer(const char *iface, const char *bpf_filter) {
 /* This method makes the controller process pending events (like packet
  * transmissions or packet captures). */
 void FPNetworkControl::handle_events() {
-  nmap_adjust_loglevel(nsp, o.packetTrace());
+  nmap_adjust_loglevel(o.packetTrace());
   nsock_loop(nsp, 50);
 }
 
@@ -438,8 +441,8 @@ int FPNetworkControl::scheduleProbe(FPProbe *pkt, int in_msecs_time) {
  * The reason for that is because C++ does not allow to use class methods as callback
  * functions, so this is a small hack to make that happen. */
 void FPNetworkControl::probe_transmission_handler(nsock_pool nsp, nsock_event nse, void *arg) {
-  assert(nsp_getud(nsp) != NULL);
-  nsock_iod nsi_pcap = *((nsock_iod *)nsp_getud(nsp));
+  assert(nsock_pool_get_udata(nsp) != NULL);
+  nsock_iod nsi_pcap = *((nsock_iod *)nsock_pool_get_udata(nsp));
   enum nse_status status = nse_status(nse);
   enum nse_type type = nse_type(nse);
   FPProbe *myprobe = (FPProbe *)arg;
@@ -757,6 +760,13 @@ static const TCPHeader *find_tcp(const PacketElement *pe) {
   return (TCPHeader *) pe;
 }
 
+static const ICMPv6Header *find_icmpv6(const PacketElement *pe) {
+  while (pe != NULL && pe->protocol_id() != HEADER_TYPE_ICMPv6)
+    pe = pe->getNextElement();
+
+  return (ICMPv6Header *) pe;
+}
+
 static double vectorize_plen(const PacketElement *pe) {
   const IPv6Header *ipv6;
 
@@ -854,9 +864,31 @@ static double vectorize_isr(std::map<std::string, FPPacket>& resps) {
   return sum / t;
 }
 
+static int vectorize_icmpv6_type(const PacketElement *pe) {
+  const ICMPv6Header *icmpv6;
+
+  icmpv6 = find_icmpv6(pe);
+  if (icmpv6 == NULL)
+    return -1;
+
+  return icmpv6->getType();
+}
+
+static int vectorize_icmpv6_code(const PacketElement *pe) {
+  const ICMPv6Header *icmpv6;
+
+  icmpv6 = find_icmpv6(pe);
+  if (icmpv6 == NULL)
+    return -1;
+
+  return icmpv6->getCode();
+}
+
 static struct feature_node *vectorize(const FingerPrintResultsIPv6 *FPR) {
   const char * const IPV6_PROBE_NAMES[] = {"S1", "S2", "S3", "S4", "S5", "S6", "IE1", "IE2", "NS", "U1", "TECN", "T2", "T3", "T4", "T5", "T6", "T7"};
   const char * const TCP_PROBE_NAMES[] = {"S1", "S2", "S3", "S4", "S5", "S6", "TECN", "T2", "T3", "T4", "T5", "T6", "T7"};
+  const char * const ICMPV6_PROBE_NAMES[] = {"IE1", "IE2", "NS"};
+
   unsigned int nr_feature, i, idx;
   struct feature_node *features;
   std::map<std::string, FPPacket> resps;
@@ -909,8 +941,8 @@ static struct feature_node *vectorize(const FingerPrintResultsIPv6 *FPR) {
 
     tcp = find_tcp(resps[probe_name].getPacket());
     if (tcp == NULL) {
-      /* 48 TCP features. */
-      idx += 48;
+      /* 49 TCP features. */
+      idx += 49;
       continue;
     }
     features[idx++].value = tcp->getWindow();
@@ -948,7 +980,20 @@ static struct feature_node *vectorize(const FingerPrintResultsIPv6 *FPR) {
     features[idx++].value = mss;
     features[idx++].value = sackok;
     features[idx++].value = wscale;
+    if (mss != 0 && mss != -1)
+      features[idx++].value = (float)tcp->getWindow() / mss;
+    else
+      features[idx++].value = -1;
   }
+  /* ICMPv6 features */
+  for (i = 0; i < NELEMS(ICMPV6_PROBE_NAMES); i++) {
+    const char *probe_name;
+
+    probe_name = ICMPV6_PROBE_NAMES[i];
+    features[idx++].value = vectorize_icmpv6_type(resps[probe_name].getPacket());
+    features[idx++].value = vectorize_icmpv6_code(resps[probe_name].getPacket());
+  }
+
   assert(idx == nr_feature);
 
   if (o.debugging > 2) {
@@ -1504,7 +1549,7 @@ static int get_encapsulated_hoplimit(const PacketElement *pe) {
 void FPHost6::finish() {
   /* These probes are likely to get an ICMPv6 error (allowing us to calculate
      distance. */
-  const char * const DISTANCE_PROBE_NAMES[] = { "IE2", "NI", "U1" };
+  const char * const DISTANCE_PROBE_NAMES[] = { "IE2", "U1" };
   int distance = -1;
   int hoplimit_distance = -1;
   enum dist_calc_method distance_calculation_method = DIST_METHOD_NONE;
@@ -1791,33 +1836,7 @@ int FPHost6::build_probe_list() {
   this->fp_probes[this->total_probes].setEthernet(this->target_host->SrcMACAddress(), this->target_host->NextHopMACAddress(), this->target_host->deviceName());
   this->total_probes++;
 
-  /* ICMP Probe #3: Node Info Query (IPv4 addresses) */
-  ip6 = new IPv6Header();
-  icmp6 = new ICMPv6Header();
-  this->target_host->SourceSockAddr(&ss, &slen);
-  ip6->setSourceAddress(ss6->sin6_addr);
-  this->target_host->TargetSockAddr(&ss, &slen);
-  ip6->setDestinationAddress(ss6->sin6_addr);
-  ip6->setFlowLabel(OSDETECT_FLOW_LABEL);
-  ip6->setHopLimit(get_hoplimit());
-  ip6->setNextHeader("ICMPv6");
-  ip6->setNextElement(icmp6);
-  icmp6->setNextElement(payload);
-  payload->store((u8 *) &ss6->sin6_addr, IP6_ADDR_LEN);
-  icmp6->setType(ICMPv6_NODEINFOQUERY);
-  icmp6->setCode(ICMPv6_NODEINFOQUERY_IPv6ADDR);
-  icmp6->setQtype(NI_QTYPE_IPv4ADDRS);
-  icmp6->setA();
-  icmp6->setNonce((u8 *) "\x01\x02\x03\x04\x05\x06\x07\x0a");
-  icmp6->setSum();
-  ip6->setPayloadLength();
-  this->fp_probes[this->total_probes].host = this;
-  this->fp_probes[this->total_probes].setPacket(ip6);
-  this->fp_probes[this->total_probes].setProbeID("NI");
-  this->fp_probes[this->total_probes].setEthernet(this->target_host->SrcMACAddress(), this->target_host->NextHopMACAddress(), this->target_host->deviceName());
-  this->total_probes++;
-
-  /* ICMP Probe #4: Neighbor Solicitation. (only sent to on-link targets) */
+  /* ICMP Probe #3: Neighbor Solicitation. (only sent to on-link targets) */
   if (this->target_host->directlyConnected()) {
     ip6 = new IPv6Header();
     icmp6 = new ICMPv6Header();
@@ -2596,7 +2615,11 @@ bool FPProbe::isResponse(PacketElement *rcvd) {
   if (this->pkt_time.tv_sec == 0 && this->pkt_time.tv_usec == 0)
     return false;
 
-  return PacketParser::is_response(this->pkt, rcvd);
+  bool is_response = PacketParser::is_response(this->pkt, rcvd);
+  if (o.debugging > 2 && is_response)
+    printf("Received response to probe %s\n", this->getProbeID());
+
+  return is_response;
 }
 
 

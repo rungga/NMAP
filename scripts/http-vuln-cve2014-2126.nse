@@ -2,9 +2,11 @@ local anyconnect = require('anyconnect')
 local shortport = require('shortport')
 local vulns = require('vulns')
 local sslcert = require('sslcert')
+local stdnse = require "stdnse"
 
 description = [[
-Detects whether the Cisco ASA appliance is vulnerable to the Cisco ASA ASDM Privilege Escalation Vulnerability (CVE-2014-2126).
+Detects whether the Cisco ASA appliance is vulnerable to the Cisco ASA ASDM
+Privilege Escalation Vulnerability (CVE-2014-2126).
 ]]
 
 ---
@@ -28,7 +30,7 @@ Detects whether the Cisco ASA appliance is vulnerable to the Cisco ASA ASDM Priv
 
 
 author = "Patrik Karlsson <patrik@cqure.net>"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"vuln", "safe"}
 
 portrule = function(host, port)
@@ -69,7 +71,7 @@ Cisco Adaptive Security Appliance (ASA) Software 8.2 before 8.2(5.47), 8.4 befor
   local ac = anyconnect.Cisco.AnyConnect:new(host, port)
   local status, err = ac:connect()
   if not status then
-    return ("\n  ERROR: %s"):format(err)
+    return stdnse.format_output(false, err)
   else
     local ver = ac:get_version()
     if vuln_versions[ver['major']] and vuln_versions[ver['major']][ver['minor']] then

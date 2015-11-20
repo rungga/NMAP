@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_timers.c 34646 2015-06-16 13:59:33Z dmiller $ */
+/* $Id: nsock_timers.c 34756 2015-06-27 08:21:53Z henri $ */
 
 #include "nsock_internal.h"
 #include "nsock_log.h"
@@ -70,10 +70,10 @@ nsock_event_id nsock_timer_create(nsock_pool ms_pool, nsock_ev_handler handler,
   nse = event_new(nsp, NSE_TYPE_TIMER, NULL, timeout_msecs, handler, userdata);
   assert(nse);
 
-  nsock_log_info(nsp, "Timer created - %dms from now.  EID %li", timeout_msecs,
+  nsock_log_info("Timer created - %dms from now.  EID %li", timeout_msecs,
                  nse->id);
 
-  nsp_add_event(nsp, nse);
+  nsock_pool_add_event(nsp, nse);
   
   return nse->id;
 }

@@ -10,19 +10,14 @@ description = [[
 Retrieves information from an Apache Hadoop secondary NameNode HTTP status page.
 
 Information gathered:
- * Date/time the service was started
- * Hadoop version
- * Hadoop compile date
- * Hostname or IP address and port of the master NameNode server
- * Last time a checkpoint was taken
- * How often checkpoints are taken (in seconds)
- * Log directory (relative to http://host:port/)
- * File size of current checkpoint
-
-For more information about Hadoop, see:
- * http://hadoop.apache.org/
- * http://en.wikipedia.org/wiki/Apache_Hadoop
- * http://wiki.apache.org/hadoop/NameNode
+* Date/time the service was started
+* Hadoop version
+* Hadoop compile date
+* Hostname or IP address and port of the master NameNode server
+* Last time a checkpoint was taken
+* How often checkpoints are taken (in seconds)
+* Log directory (relative to http://host:port/)
+* File size of current checkpoint
 ]]
 
 ---
@@ -53,7 +48,7 @@ For more information about Hadoop, see:
 -- <elem key="Checkpoint Size">12345678 MB</elem>
 
 author = "John R. Bond"
-license = "Simplified (2-clause) BSD license--See http://nmap.org/svn/docs/licenses/BSD-simplified"
+license = "Simplified (2-clause) BSD license--See https://nmap.org/svn/docs/licenses/BSD-simplified"
 categories = {"default", "discovery", "safe"}
 
 

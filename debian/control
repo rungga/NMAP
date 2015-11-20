@@ -16,7 +16,7 @@ Build-Depends: debhelper (>=9), dh-autoreconf, autotools-dev,
  python-all-dev,
 Standards-Version: 3.9.6
 XS-Python-Version: all
-Homepage: http://nmap.org/
+Homepage: https://nmap.org/
 Vcs-Git: git://anonscm.debian.org/users/bengen/nmap.git
 Vcs-Browser: http://anonscm.debian.org/cgit/users/bengen/nmap.git
 

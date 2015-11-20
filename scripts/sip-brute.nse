@@ -6,7 +6,8 @@ local sip = require "sip"
 local stdnse = require "stdnse"
 
 description = [[
-Performs brute force password auditing against Session Initiation Protocol (SIP - http://en.wikipedia.org/wiki/Session_Initiation_Protocol) accounts.  This protocol is most commonly associated with VoIP sessions.
+Performs brute force password auditing against Session Initiation Protocol
+(SIP) accounts. This protocol is most commonly associated with VoIP sessions.
 ]]
 
 ---
@@ -25,7 +26,7 @@ Performs brute force password auditing against Session Initiation Protocol (SIP 
 -- Created 04/03/2011 - v0.1 - created by Patrik Karlsson <patrik@cqure.net>
 
 author = "Patrik Karlsson"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
 categories = {"intrusive", "brute"}
 
 

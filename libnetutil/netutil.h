@@ -4,7 +4,7 @@
  * libnetutil, a library that provides network-related functions or        *
  * classes that make it easier to handle things like network interfaces,   *
  * routing tables, raw packet manipulation, etc. The lib was originally    *
- * written for use in the Nmap Security Scanner ( http://nmap.org ).       *
+ * written for use in the Nmap Security Scanner ( https://nmap.org ).       *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
@@ -138,7 +138,7 @@ extern "C" {
 #endif
 
 #include "dnet.h"
-
+#include <nbase.h>
 
 /* It is VERY important to never change the value of these two constants. 
  * Specially, OP_FAILURE should never be positive, as some pieces of code take
