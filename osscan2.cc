@@ -2,7 +2,7 @@
 /***************************************************************************
  * osscan2.cc -- Routines used for 2nd Generation OS detection via         *
  * TCP/IP fingerprinting.  * For more information on how this works in     *
- * Nmap, see http://nmap.org/osdetect/                                     *
+ * Nmap, see https://nmap.org/osdetect/                                     *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: osscan2.cc 34798 2015-06-30 04:04:51Z dmiller $ */
+/* $Id: osscan2.cc 35407 2015-11-10 04:26:26Z dmiller $ */
 
 #include "osscan.h"
 #include "osscan2.h"

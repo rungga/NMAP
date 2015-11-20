@@ -2,7 +2,7 @@
 /***************************************************************************
  * osscan.cc -- Routines used for OS detection via TCP/IP fingerprinting.  *
  * For more information on how this works in Nmap, see my paper at         *
- * http://nmap.org/osdetect/                                               *
+ * https://nmap.org/osdetect/                                               *
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: osscan.cc 34812 2015-07-01 21:25:39Z dmiller $ */
+/* $Id: osscan.cc 35407 2015-11-10 04:26:26Z dmiller $ */
 
 #include "osscan.h"
 #include "timing.h"

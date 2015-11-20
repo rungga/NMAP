@@ -46,6 +46,7 @@ Entry { filename = "broadcast-ping.nse", categories = { "broadcast", "discovery"
 Entry { filename = "broadcast-pppoe-discover.nse", categories = { "broadcast", "safe", } }
 Entry { filename = "broadcast-rip-discover.nse", categories = { "broadcast", "safe", } }
 Entry { filename = "broadcast-ripng-discover.nse", categories = { "broadcast", "safe", } }
+Entry { filename = "broadcast-sonicwall-discover.nse", categories = { "broadcast", "safe", } }
 Entry { filename = "broadcast-sybase-asa-discover.nse", categories = { "broadcast", "safe", } }
 Entry { filename = "broadcast-tellstick-discover.nse", categories = { "broadcast", "safe", } }
 Entry { filename = "broadcast-upnp-info.nse", categories = { "broadcast", "safe", } }
@@ -240,6 +241,7 @@ Entry { filename = "http-vuln-cve2014-2126.nse", categories = { "safe", "vuln", 
 Entry { filename = "http-vuln-cve2014-2127.nse", categories = { "safe", "vuln", } }
 Entry { filename = "http-vuln-cve2014-2128.nse", categories = { "safe", "vuln", } }
 Entry { filename = "http-vuln-cve2014-2129.nse", categories = { "safe", "vuln", } }
+Entry { filename = "http-vuln-cve2014-8877.nse", categories = { "exploit", "intrusive", "vuln", } }
 Entry { filename = "http-vuln-cve2015-1427.nse", categories = { "intrusive", "vuln", } }
 Entry { filename = "http-vuln-cve2015-1635.nse", categories = { "safe", "vuln", } }
 Entry { filename = "http-vuln-misfortune-cookie.nse", categories = { "intrusive", "vuln", } }
@@ -265,6 +267,7 @@ Entry { filename = "ip-geolocation-geobytes.nse", categories = { "discovery", "e
 Entry { filename = "ip-geolocation-geoplugin.nse", categories = { "discovery", "external", "safe", } }
 Entry { filename = "ip-geolocation-ipinfodb.nse", categories = { "discovery", "external", "safe", } }
 Entry { filename = "ip-geolocation-maxmind.nse", categories = { "discovery", "external", "safe", } }
+Entry { filename = "ip-https-discover.nse", categories = { "default", "discovery", "safe", } }
 Entry { filename = "ipidseq.nse", categories = { "discovery", "safe", } }
 Entry { filename = "ipv6-node-info.nse", categories = { "default", "discovery", "safe", } }
 Entry { filename = "ipv6-ra-flood.nse", categories = { "dos", "intrusive", } }
@@ -347,6 +350,7 @@ Entry { filename = "nexpose-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "nfs-ls.nse", categories = { "discovery", "safe", } }
 Entry { filename = "nfs-showmount.nse", categories = { "discovery", "safe", } }
 Entry { filename = "nfs-statfs.nse", categories = { "discovery", "safe", } }
+Entry { filename = "nje-node-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "nping-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "nrpe-enum.nse", categories = { "discovery", "intrusive", } }
 Entry { filename = "ntp-info.nse", categories = { "default", "discovery", "safe", } }
@@ -458,6 +462,7 @@ Entry { filename = "sshv1.nse", categories = { "default", "safe", } }
 Entry { filename = "ssl-ccs-injection.nse", categories = { "safe", "vuln", } }
 Entry { filename = "ssl-cert.nse", categories = { "default", "discovery", "safe", } }
 Entry { filename = "ssl-date.nse", categories = { "default", "discovery", "safe", } }
+Entry { filename = "ssl-dh-params.nse", categories = { "safe", "vuln", } }
 Entry { filename = "ssl-enum-ciphers.nse", categories = { "discovery", "intrusive", } }
 Entry { filename = "ssl-google-cert-catalog.nse", categories = { "discovery", "external", "safe", } }
 Entry { filename = "ssl-heartbleed.nse", categories = { "safe", "vuln", } }
@@ -479,6 +484,7 @@ Entry { filename = "targets-ipv6-multicast-slaac.nse", categories = { "broadcast
 Entry { filename = "targets-ipv6-wordlist.nse", categories = { "discovery", } }
 Entry { filename = "targets-sniffer.nse", categories = { "broadcast", "discovery", "safe", } }
 Entry { filename = "targets-traceroute.nse", categories = { "discovery", "safe", } }
+Entry { filename = "targets-xml.nse", categories = { "safe", } }
 Entry { filename = "teamspeak2-version.nse", categories = { "version", } }
 Entry { filename = "telnet-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "telnet-encryption.nse", categories = { "discovery", "safe", } }

@@ -118,7 +118,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.h 34574 2015-06-03 13:01:29Z dmiller $ */
+/* $Id: ncat_core.h 35432 2015-11-15 14:08:02Z dmiller $ */
 
 #ifndef NCAT_CORE_H
 #define NCAT_CORE_H
@@ -161,6 +161,7 @@ struct options {
     int keepopen;
     int sendonly;
     int recvonly;
+    int noshutdown;
     int telnet;
     int linedelay;
     int chat;
