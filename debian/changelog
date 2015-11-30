@@ -1,3 +1,12 @@
+nmap (7.00-1) unstable; urgency=medium
+
+  * New upstream version
+  * Drop patches that are no longer needed
+  * Don't install any uninstall_* scripts
+  * Link nmap against lua-lpeg
+
+ -- Hilko Bengen <bengen@debian.org>  Thu, 19 Nov 2015 23:11:41 +0100
+
 nmap (7.00-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release

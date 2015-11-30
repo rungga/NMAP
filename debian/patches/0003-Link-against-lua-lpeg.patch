@@ -1,0 +1,21 @@
+From: Hilko Bengen <bengen@debian.org>
+Date: Thu, 19 Nov 2015 23:10:17 +0100
+Subject: Link against lua-lpeg
+
+---
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index 8d5959b..9a9965a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -638,7 +638,7 @@ else
+     AC_CHECK_HEADERS([lua.h lua/lua.h lua5.2/lua.h],
+       AC_CHECK_LIB(lua, lua_yieldk, [have_lua=yes; LIBLUA_LIBS="-llua"; CPPFLAGS="-I/usr/include/lua $CPPFLAGS"; break],, [-lm])
+       AC_CHECK_LIB(lua52, lua_yieldk, [have_lua=yes; LIBLUA_LIBS="-llua52"; CPPFLAGS="-I/usr/include/lua52 $CPPFLAGS"; break],, [-lm])
+-      AC_CHECK_LIB(lua5.2, lua_yieldk, [have_lua=yes; LIBLUA_LIBS="-llua5.2"; CPPFLAGS="-I/usr/include/lua5.2 $CPPFLAGS"; break],, [-lm])
++      AC_CHECK_LIB(lua5.2, lua_yieldk, [have_lua=yes; LIBLUA_LIBS="-llua5.2 -llua5.2-lpeg"; CPPFLAGS="-I/usr/include/lua5.2 $CPPFLAGS"; break],, [-lm])
+     )
+ 
+     AC_LANG_PUSH(C++)
