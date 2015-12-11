@@ -1,3 +1,9 @@
+nmap (7.01-0kali1~r1u1) sana; urgency=medium
+
+  * Rebuild for sana
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 11 Dec 2015 12:17:11 +0100
+
 nmap (7.01-0kali1) kali-dev; urgency=medium
 
   * New upstream release
