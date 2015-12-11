@@ -1,3 +1,28 @@
+nmap (7.01-0kali1) kali-dev; urgency=medium
+
+  * New upstream release
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 11 Dec 2015 11:50:47 +0100
+
+nmap (7.00-1kali1) kali-dev; urgency=medium
+
+  * Import from debian
+  * Drop unused files: debian/nmap.dirs, debian/nmap.files, debian/pycompat,
+    debian/source/options, debian/zenmap.dirs, debian/zenmap.files,
+    debian/zenmap.manpages, debian/zenmap.postinst, debian/zenmap.prerm
+  * keep the debian/rules with libpcap included for kali
+
+ -- Sophie Brun <sophie@freexian.com>  Mon, 30 Nov 2015 10:21:29 +0100
+
+nmap (7.00-1) unstable; urgency=medium
+
+  * New upstream version
+  * Drop patches that are no longer needed
+  * Don't install any uninstall_* scripts
+  * Link nmap against lua-lpeg
+
+ -- Hilko Bengen <bengen@debian.org>  Thu, 19 Nov 2015 23:11:41 +0100
+
 nmap (7.00-0kali1~r1u1) sana; urgency=medium
 
   * Import new upstream release
