@@ -4,4 +4,5 @@ usr/bin/zenmap
 usr/share/applications/zenmap*
 usr/share/man/man1/zenmap.1
 usr/share/zenmap
-usr/lib/python*
+usr/lib/python2.7/site-packages/zenmap*
+usr/lib/python2.7/site-packages/radialnet
