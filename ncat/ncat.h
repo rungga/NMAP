@@ -118,7 +118,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat.h 35509 2015-12-09 16:31:37Z dmiller $ */
+/* $Id: ncat.h 35699 2016-03-16 15:34:59Z dmiller $ */
 
 #ifndef NCAT_H_
 #define NCAT_H_
@@ -145,7 +145,7 @@
 /* Ncat information for output, etc. */
 #define NCAT_NAME "Ncat"
 #define NCAT_URL "https://nmap.org/ncat"
-#define NCAT_VERSION "7.01"
+#define NCAT_VERSION "7.10"
 
 #ifndef __GNUC__
 #ifndef __attribute__
