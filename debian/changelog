@@ -1,3 +1,9 @@
+nmap (7.10-0kali1) kali-dev; urgency=medium
+
+  * Import new upstream release
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 18 Mar 2016 11:25:07 +0100
+
 nmap (7.01-2) unstable; urgency=medium
 
   * Remove unneeded build-dependencies; add dh-python
