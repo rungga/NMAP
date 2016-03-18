@@ -1,6 +1,8 @@
 nmap (7.10-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release
+  * Keep the debian/rules with libpcap included for kali
+  * Drop fix-undefined-reference.patch (included upstream)
 
  -- Sophie Brun <sophie@freexian.com>  Fri, 18 Mar 2016 11:25:07 +0100
 
