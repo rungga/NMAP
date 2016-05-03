@@ -1,0 +1,32 @@
+From: Jan Christoph Nordholz <jnordholz@sec.t-labs.tu-berlin.de>
+Subject: Ignore errors when enumerating interfaces
+
+When _intf_get_noalias() or _intf_get_aliases() fail, that usually means
+that addr_ston() failed to grab the address for a certain family. As new
+address families pop up all the time it seems ridiculous that failing to
+parse a single address type should render the whole interface scan empty.
+Instead the interface should just be skipped and the other interfaces
+reported properly.
+---
+ libdnet-stripped/src/intf.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/libdnet-stripped/src/intf.c b/libdnet-stripped/src/intf.c
+index b71fb82..6266a9f 100644
+--- a/libdnet-stripped/src/intf.c
++++ b/libdnet-stripped/src/intf.c
+@@ -928,12 +928,10 @@ intf_loop(intf_t *intf, intf_handler callback, void *arg)
+ 		entry->intf_len = sizeof(ebuf);
+ 		
+ 		if (_intf_get_noalias(intf, entry) < 0) {
+-			ret = -1;
+-			break;
++			continue;
+ 		}
+ 		if (_intf_get_aliases(intf, entry) < 0) {
+-			ret = -1;
+-			break;
++			continue;
+ 		}
+ 		if ((ret = (*callback)(entry, arg)) != 0)
+ 			break;
