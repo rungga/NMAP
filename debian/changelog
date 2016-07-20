@@ -1,3 +1,10 @@
+nmap (7.12-1) unstable; urgency=medium
+
+  * New upstream version
+  * Bump Standards-Version
+
+ -- Hilko Bengen <bengen@debian.org>  Tue, 03 May 2016 07:47:15 +0200
+
 nmap (7.12-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release
@@ -18,6 +25,13 @@ nmap (7.10-0kali1) kali-dev; urgency=medium
   * Drop fix-undefined-reference.patch (included upstream)
 
  -- Sophie Brun <sophie@freexian.com>  Fri, 18 Mar 2016 11:25:07 +0100
+
+nmap (7.01-3) unstable; urgency=medium
+
+  * Apply patch by Jan Nordholz to ignore unenumerable interfaces
+    (Closes: #821913)
+
+ -- Hilko Bengen <bengen@debian.org>  Sat, 23 Apr 2016 14:41:43 +0200
 
 nmap (7.01-2) unstable; urgency=medium
 
