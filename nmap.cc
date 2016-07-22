@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 35683 2016-03-14 23:54:51Z dmiller $ */
+/* $Id: nmap.cc 35864 2016-06-14 14:16:47Z dmiller $ */
 
 #include "nmap.h"
 #include "osscan.h"
@@ -1430,6 +1430,11 @@ void parse_options(int argc, char **argv) {
       }
       break;
     case 'V':
+#ifdef WIN32
+      /* For pcap_get_version, since we need to get the correct Npcap/WinPcap
+       * DLL loaded */
+      win_init();
+#endif
       display_nmap_version();
       exit(0);
       break;
@@ -3252,10 +3257,11 @@ static void display_nmap_version() {
   with.push_back(std::string("libpcre-") + get_word_or_quote(pcre_version(), 0));
 #endif
 
+  const char *pcap_version = pcap_lib_version();
 #ifdef PCAP_INCLUDED
-  with.push_back(std::string("nmap-libpcap-") + get_word_or_quote(pcap_lib_version(), 2));
+  with.push_back(std::string("nmap-") + get_word_or_quote(pcap_version, 0) + std::string("-") + get_word_or_quote(pcap_version, 2));
 #else
-  with.push_back(std::string("libpcap-") + get_word_or_quote(pcap_lib_version(), 2));
+  with.push_back(get_word_or_quote(pcap_version, 0) + std::string("-") + get_word_or_quote(pcap_version, 2));
 #endif
 
 #ifdef DNET_INCLUDED

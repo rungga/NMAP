@@ -71,6 +71,8 @@ if test -n "$GXX"; then
   CXXFLAGS="$CXXFLAGS -Wall -fno-strict-aliasing"
 fi
 
+CFLAGS="$CFLAGS -Wall"
+
 # Remember that all following tests will run with this CXXFLAGS by default
 AC_MSG_CHECKING(for __func__)
 AH_TEMPLATE(__func__, [C99-specified function identifier])
@@ -680,6 +682,7 @@ AC_SUBST(LUA_DIST_CLEAN)
 AC_SUBST(INSTALLNSE)
 AC_SUBST(NSE_CHECK)
 AC_SUBST(CXXFLAGS)
+AC_SUBST(CFLAGS)
 
 
 LIBLINEARDIR=liblinear
@@ -921,16 +924,15 @@ case "$with_subversion" in
 
 if test "$with_nmap_update" != "no"; then
   have_libsvn=yes
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $($apr_config --cppflags --includes)"
+  AC_CHECK_HEADER([svn_client.h], [], [
+                   AC_CHECK_HEADER([subversion-1/svn_client.h], [], [have_libsvn=no])
+                   ])
+  CPPFLAGS="$old_CPPFLAGS"
   if test "$have_libsvn" = "yes"; then
-    old_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CPPFLAGS $($apr_config --cppflags --includes)"
-    AC_CHECK_HEADER([svn_client.h], [], [
-      AC_CHECK_HEADER([subversion-1/svn_client.h], [], [have_libsvn=no])
-    ])
-    CPPFLAGS="$old_CPPFLAGS"
-  fi
-  if test "$have_libsvn" = "yes"; then
-    AC_CHECK_LIB([svn_client-1], [svn_client_create_context], [], [have_libsvn=no])
+    dnl Avoid appending to LIBS here by providing non-default action-if-found
+    AC_CHECK_LIB([svn_client-1], [svn_client_create_context], [have_libsvn=yes], [have_libsvn=no])
   fi
   if test "$have_libsvn" != "yes"; then
     if test "$with_nmap_update" = "check"; then

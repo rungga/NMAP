@@ -2,6 +2,7 @@ MAKENSIS="/cygdrive/c/Program Files/NSIS/makensis.exe"
 VCEXPRESS := $(shell reg query "HKEY_CLASSES_ROOT\\Applications\\devenv.exe\\shell\\edit\\command" | egrep -i '[A-Z]:\\' | cut -d\" -f2 | sed 's%\\%/%g' | tr -d '\n')
 export NMAP_VERSION := $(shell grep '^\#[ \t]*define[ \t]\+NMAP_VERSION' ../nmap.h | sed -e 's/.*"\(.*\)".*/\1/' -e 'q')
 export NMAP_NUM_VERSION := $(shell grep '^\#[ \t]*define[ \t]\+NMAP_NUM_VERSION' ../nmap.h | sed -e 's/.*"\(.*\)".*/\1/' -e 'q')
+export NPCAP_VERSION := $(shell ls npcap-*.exe | sed -e 's/npcap-\([-r0-9.]*\)\.exe/\1/' -e 'q')
 COMMA_VERSION=$(shell echo $(NMAP_NUM_VERSION) | tr '.' ',')
 LOGLOC=c:nmapbuild.log
 NSE_FILES = scripts/script.db scripts/*.nse
@@ -12,7 +13,6 @@ winbuild: nmap.rc nsis/Nmap.nsi LICENSE
 
 	"$(VCEXPRESS)" nmap.sln /build release /out $(LOGLOC)
 	"$(VCEXPRESS)" nmap.sln /build release /project nmap-update /out $(LOGLOC)
-	$(MAKENSIS) winpcap/winpcap-nmap.nsi
 	rm -rf nmap-$(NMAP_VERSION)
 	rm -f nmap-$(NMAP_VERSION)-win32.zip
 	mkdir nmap-$(NMAP_VERSION)
@@ -31,8 +31,9 @@ winbuild: nmap.rc nsis/Nmap.nsi LICENSE
 	done
 	cd Release && cp -r ../../docs/licenses ../nmap-$(NMAP_VERSION)/
 	rm -rf nmap-$(NMAP_VERSION)/licenses/.svn
-	cp winpcap/winpcap-nmap-*.exe nmap-$(NMAP_VERSION)
+	cp npcap-$(NPCAP_VERSION).exe nmap-$(NMAP_VERSION)
 	cp $(NMAP_MSWIN32_AUX)/vcredist_x86.exe nmap-$(NMAP_VERSION)
+	cp $(NMAP_MSWIN32_AUX)/vcredist2008_x86.exe nmap-$(NMAP_VERSION)
 	cp ../ncat/Release/ncat.exe nmap-$(NMAP_VERSION)
 	cp ../ncat/Release/ca-bundle.crt nmap-$(NMAP_VERSION)
 	cp ../nping/Release/nping.exe nmap-$(NMAP_VERSION)
@@ -43,8 +44,6 @@ winbuild: nmap.rc nsis/Nmap.nsi LICENSE
 	zip -r nmap-$(NMAP_VERSION)-win32.zip nmap-$(NMAP_VERSION)
 # Remove ndiff.py and ndiff.bat for the installer because it has ndiff.exe.
 	rm -f nmap-$(NMAP_VERSION)/ndiff.py nmap-$(NMAP_VERSION)/ndiff.bat
-# add vcredist2008 because Python.exe needs it
-	cp $(NMAP_MSWIN32_AUX)/vcredist2008_x86.exe nmap-$(NMAP_VERSION)
 	cd ../zenmap && install_scripts/windows/copy_and_compile.bat
 	cp -R ../zenmap/dist/* nmap-$(NMAP_VERSION)/
 	cp ../zenmap/README nmap-$(NMAP_VERSION)/ZENMAP_README
@@ -64,6 +63,7 @@ nsis/Nmap.nsi: nsis/Nmap.nsi.in
 	sed -e '1i; Automatically generated from $<.' \
 	     -e 's/@@VIPRODUCTVERSION@@/"$(NMAP_NUM_VERSION)"/' \
 	     -e 's/@@VERSION@@/"$(NMAP_VERSION)"/' \
+	     -e 's/@@NPCAP_VERSION@@/$(NPCAP_VERSION)/' \
 	     "$<" > "$@"
 
 LICENSE: ../COPYING

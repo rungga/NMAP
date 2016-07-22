@@ -60,7 +60,8 @@
 
 #define caddr_t char*
 
-#if _MSC_VER < 1500
+// We must enable these macros for MSVC 2013, otherwise Wireshark will crash with the built wpcap.dll.
+#if _MSC_VER < 1900
 #define snprintf _snprintf
 #define vsnprintf _vsnprintf
 #define strdup _strdup
