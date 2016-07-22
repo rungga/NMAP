@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2015 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2016 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -53,7 +53,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_core.c 35674 2016-03-12 23:26:26Z dmiller $ */
+/* $Id: nsock_core.c 35831 2016-06-01 16:51:50Z dmiller $ */
 
 #include "nsock_internal.h"
 #include "gh_list.h"
@@ -644,7 +644,11 @@ static int do_actual_read(struct npool *ms, struct nevent *nse) {
         err = socket_errno();
         break;
       }
-      if (peerlen > 0) {
+      /* Windows will ignore src_addr and addrlen arguments to recvfrom on TCP
+       * sockets, so peerlen is still sizeof(peer) and peer is junk. Instead,
+       * only set this if it's not already set.
+       */
+      if (peerlen > 0 && iod->peerlen == 0) {
         assert(peerlen <= sizeof(iod->peer));
         memcpy(&iod->peer, &peer, peerlen);
         iod->peerlen = peerlen;
@@ -999,9 +1003,9 @@ void process_event(struct npool *nsp, gh_list_t *evlist, struct nevent *nse, int
           if (!nse->iod->ssl && match_w)
             handle_write_result(nsp, nse, NSE_STATUS_SUCCESS);
 
-          if (event_timedout(nse))
-            handle_write_result(nsp, nse, NSE_STATUS_TIMEOUT);
-          break;
+        if (event_timedout(nse))
+          handle_write_result(nsp, nse, NSE_STATUS_TIMEOUT);
+        break;
 
       case NSE_TYPE_TIMER:
         if (event_timedout(nse))

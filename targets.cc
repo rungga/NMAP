@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.cc 35347 2015-10-26 16:16:02Z dmiller $ */
+/* $Id: targets.cc 35863 2016-06-14 14:16:46Z dmiller $ */
 
 
 #include "nbase/nbase_addrset.h"
@@ -138,6 +138,10 @@
 #include "xml.h"
 
 extern NmapOps o;
+#ifdef WIN32
+/* from libdnet's intf-win32.c */
+extern "C" int g_has_npcap_loopback;
+#endif
 
 /* Conducts an ARP ping sweep of the given hosts to determine which ones
    are up on a local ethernet network */
@@ -556,6 +560,15 @@ static Target *setup_target(const HostGroupState *hs,
       else
         t->setSrcMACAddress(rnfo.ii.mac);
     }
+#ifdef WIN32
+    else if (g_has_npcap_loopback && rnfo.ii.device_type == devt_loopback) {
+      if (o.spoofMACAddress())
+        t->setSrcMACAddress(o.spoofMACAddress());
+      else
+        t->setSrcMACAddress(rnfo.ii.mac);
+      t->setNextHopMACAddress(t->SrcMACAddress());
+    }
+#endif
     t->setSourceSockAddr(&rnfo.srcaddr, sizeof(rnfo.srcaddr));
     if (hs->current_batch_sz == 0) /* Because later ones can have different src addy and be cut off group */
       o.decoys[o.decoyturn] = t->v4source();

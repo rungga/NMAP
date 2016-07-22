@@ -2,7 +2,7 @@
  * ncat_connect.c -- Ncat connect mode.                                    *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -118,7 +118,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_connect.c 35458 2015-11-20 16:17:26Z dmiller $ */
+/* $Id: ncat_connect.c 35761 2016-04-04 15:38:44Z dmiller $ */
 
 #include "base64.h"
 #include "nsock.h"

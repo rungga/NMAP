@@ -1,5 +1,5 @@
 # Nmap nmap payload database -*- mode: fundamental; -*-
-# $Id: nmap-payloads 35742 2016-03-28 16:48:38Z dmiller $
+# $Id: nmap-payloads 35763 2016-04-05 12:02:40Z tomsellers $
 #
 # These payloads are sent with every host discovery or port scan probe
 # by default. This database should only include payloads that are
@@ -66,6 +66,13 @@ udp 161
 # packet in reply.
 # http://cgit.freedesktop.org/xorg/doc/xorg-docs/plain/hardcopy/XDMCP/xdmcp.PS.gz
 udp 177 "\x00\x01\x00\x02\x00\x01\x00"
+
+# Connectionless LDAP - used by Microsoft Active Directory
+udp 389 
+  "\x30\x84\x00\x00\x00\x2d\x02\x01\x07\x63\x84\x00\x00\x00\x24\x04\x00"
+  "\x0a\x01\x00\x0a\x01\x00\x02\x01\x00\x02\x01\x64\x01\x01\x00\x87\x0b"
+  "\x6f\x62\x6a\x65\x63\x74\x43\x6c\x61\x73\x73\x30\x84\x00\x00\x00\x00"
+
 
 # svrloc
 udp 427

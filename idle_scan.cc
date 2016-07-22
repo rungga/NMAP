@@ -9,7 +9,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2015 Insecure.Com LLC. Nmap is    *
+ * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC. Nmap is    *
  * also a registered trademark of Insecure.Com LLC.  This program is free  *
  * software; you may redistribute and/or modify it under the terms of the  *
  * GNU General Public License as published by the Free Software            *
@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: idle_scan.cc 34903 2015-07-14 03:08:17Z dmiller $ */
+/* $Id: idle_scan.cc 35863 2016-06-14 14:16:46Z dmiller $ */
 
 /* IPv6 fragment ID sequence algorithms. http://seclists.org/nmap-dev/2013/q3/369.
         Android 4.1 (Linux 3.0.15) | Per host, incremental (1)
@@ -168,6 +168,10 @@
 #include <stdio.h>
 
 extern NmapOps o;
+#ifdef WIN32
+/* from libdnet's intf-win32.c */
+extern "C" int g_has_npcap_loopback;
+#endif
 
 struct idle_proxy_info {
   Target host; /* contains name, IP, source IP, timing info, etc. */
@@ -662,7 +666,11 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
 
   /* Now lets send some probes to check IP ID algorithm ... */
   /* First we need a raw socket ... */
-  if ((o.sendpref & PACKET_SEND_ETH) &&  proxy->host.ifType() == devt_ethernet) {
+  if ((o.sendpref & PACKET_SEND_ETH) && (proxy->host.ifType() == devt_ethernet
+#ifdef WIN32
+    || (g_has_npcap_loopback && proxy->host.ifType() == devt_loopback)
+#endif
+    )) {
     if (!setTargetNextHopMAC(&proxy->host))
       fatal("%s: Failed to determine dst MAC address for Idle proxy", __func__);
     memcpy(proxy->eth.srcmac, proxy->host.SrcMACAddress(), 6);
