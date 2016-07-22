@@ -1,3 +1,10 @@
+nmap (7.25~BETA1-0kali1) kali-dev; urgency=medium
+
+  * Import new usptream release
+  * Keep the debian/rules with libpcap included for kali
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 22 Jul 2016 13:08:14 +0200
+
 nmap (7.12-1) unstable; urgency=medium
 
   * New upstream version
