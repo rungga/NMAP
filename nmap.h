@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.h 35991 2016-07-13 19:20:16Z dmiller $ */
+/* $Id: nmap.h 36231 2016-09-01 04:06:07Z dmiller $ */
 
 #ifndef NMAP_H
 #define NMAP_H
@@ -193,8 +193,8 @@
 #ifndef NMAP_VERSION
 /* Edit this definition only within the quotes, because it is read from this
    file by the makefiles. */
-#define NMAP_VERSION "7.25BETA1"
-#define NMAP_NUM_VERSION "7.0.25.1"
+#define NMAP_VERSION "7.25BETA2"
+#define NMAP_NUM_VERSION "7.0.25.2"
 #endif
 /* The version number of updates retrieved by the nmap-update
    program. It can be different (but should always be the same or
@@ -322,6 +322,9 @@
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN 64
 #endif
+
+/* Length of longest DNS name */
+#define FQDN_LEN 254
 
 /* Max payload: Worst case is IPv4 with 40bytes of options and TCP with 20
  * bytes of options. */

@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: idle_scan.cc 35863 2016-06-14 14:16:46Z dmiller $ */
+/* $Id: idle_scan.cc 36034 2016-07-26 14:06:22Z vincent $ */
 
 /* IPv6 fragment ID sequence algorithms. http://seclists.org/nmap-dev/2013/q3/369.
         Android 4.1 (Linux 3.0.15) | Per host, incremental (1)
@@ -547,7 +547,7 @@ static void initialize_idleproxy(struct idle_proxy_info *proxy, char *proxyName,
   int newipid;
   unsigned int i;
   char filter[512]; /* Libpcap filter string */
-  char name[MAXHOSTNAMELEN + 1];
+  char name[FQDN_LEN + 1];
   struct sockaddr_storage ss;
   size_t sslen;
   u32 sequence_base;
@@ -1399,7 +1399,7 @@ static int idle_treescan(struct idle_proxy_info *proxy, Target *target,
 void idle_scan(Target *target, u16 *portarray, int numports,
                char *proxyName, const struct scan_lists *ports) {
 
-  static char lastproxy[MAXHOSTNAMELEN + 1] = ""; /* The proxy used in any previous call */
+  static char lastproxy[FQDN_LEN + 1] = ""; /* The proxy used in any previous call */
   static struct idle_proxy_info proxy;
   int groupsz;
   int portidx = 0; /* Used for splitting the port array into chunks */

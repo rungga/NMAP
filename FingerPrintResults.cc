@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: FingerPrintResults.cc 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: FingerPrintResults.cc 35877 2016-06-15 20:15:11Z dmiller $ */
 
 #include "FingerPrintResults.h"
 #include "osscan.h"
@@ -250,6 +250,10 @@ const char *FingerPrintResultsIPv6::OmitSubmissionFP() {
   if (o.scan_delay > 500) { // This can screw up the sequence timing
     Snprintf(reason, sizeof(reason), "Scan delay (%d) is greater than 500", o.scan_delay);
     return reason;
+  }
+
+  if (osscan_opentcpport <= 0 && osscan_closedtcpport <= 0) {
+    return "Missing a closed or open TCP port so results incomplete";
   }
 
   if (incomplete) {

@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_winconfig.h 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: nmap_winconfig.h 36131 2016-08-18 23:53:46Z dmiller $ */
 
 #ifndef NMAP_WINCONFIG_H
 #define NMAP_WINCONFIG_H
@@ -141,9 +141,6 @@
 #undef PCAP_INCLUDED
 #define DNET_INCLUDED 1
 #define PCRE_INCLUDED 1
-
-/* WinPCAP doesn't have this */
-#define PCAP_NETMASK_UNKNOWN 0
 
 #endif /* NMAP_WINCONFIG_H */
 

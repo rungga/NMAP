@@ -118,7 +118,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: ncat_core.c 36004 2016-07-19 10:07:58Z abhishek $ */
 
 #include "ncat.h"
 #include "util.h"
@@ -200,6 +200,7 @@ void options_init(void)
     o.execmode = EXEC_PLAIN;
     o.proxy_auth = NULL;
     o.proxytype = NULL;
+    o.zerobyte = 0;
 
 #ifdef HAVE_OPENSSL
     o.ssl = 0;

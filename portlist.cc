@@ -120,7 +120,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: portlist.cc 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: portlist.cc 36050 2016-07-29 16:23:59Z dmiller $ */
 
 
 #include "nmap.h"
@@ -933,7 +933,7 @@ int PortList::setStateReason(u16 portno, u8 proto, reason_t reason, u8 ttl,
       answer->reason.ip_addr.sockaddr.sa_family = AF_UNSPEC;
     else
       answer->reason.set_ip_addr(ip_addr);
-        answer->reason.ttl = ttl;
+    answer->reason.ttl = ttl;
     return 0;
 }
 

@@ -52,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_connect.c 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: nsock_connect.c 36171 2016-08-22 19:15:13Z tudor $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -253,7 +253,7 @@ void nsock_connect_internal(struct npool *ms, struct nevent *nse, int type, int 
       memcpy(&iod->peer, ss, sslen);
     iod->peerlen = sslen;
 
-    if (connect(iod->sd, (struct sockaddr *)ss, sslen) == -1) {
+    if (ms->engine->io_operations->iod_connect(ms, iod->sd, (struct sockaddr *)ss, sslen) == -1) {
       int err = socket_errno();
 
       if (proto == IPPROTO_UDP || (err != EINPROGRESS && err != EAGAIN)) {
