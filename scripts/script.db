@@ -64,6 +64,7 @@ Entry { filename = "citrix-enum-apps.nse", categories = { "discovery", "safe", }
 Entry { filename = "citrix-enum-servers-xml.nse", categories = { "discovery", "safe", } }
 Entry { filename = "citrix-enum-servers.nse", categories = { "discovery", "safe", } }
 Entry { filename = "clamav-exec.nse", categories = { "exploit", "vuln", } }
+Entry { filename = "clock-skew.nse", categories = { "default", "safe", } }
 Entry { filename = "couchdb-databases.nse", categories = { "discovery", "safe", } }
 Entry { filename = "couchdb-stats.nse", categories = { "discovery", "safe", } }
 Entry { filename = "creds-summary.nse", categories = { "auth", "default", "safe", } }
@@ -271,7 +272,6 @@ Entry { filename = "informix-brute.nse", categories = { "brute", "intrusive", } 
 Entry { filename = "informix-query.nse", categories = { "auth", "intrusive", } }
 Entry { filename = "informix-tables.nse", categories = { "auth", "intrusive", } }
 Entry { filename = "ip-forwarding.nse", categories = { "discovery", "safe", } }
-Entry { filename = "ip-geolocation-geobytes.nse", categories = { "discovery", "external", "safe", } }
 Entry { filename = "ip-geolocation-geoplugin.nse", categories = { "discovery", "external", "safe", } }
 Entry { filename = "ip-geolocation-ipinfodb.nse", categories = { "discovery", "external", "safe", } }
 Entry { filename = "ip-geolocation-maxmind.nse", categories = { "discovery", "external", "safe", } }
@@ -375,6 +375,7 @@ Entry { filename = "oracle-brute-stealth.nse", categories = { "brute", "intrusiv
 Entry { filename = "oracle-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "oracle-enum-users.nse", categories = { "auth", "intrusive", } }
 Entry { filename = "oracle-sid-brute.nse", categories = { "brute", "intrusive", } }
+Entry { filename = "oracle-tns-version.nse", categories = { "safe", "version", } }
 Entry { filename = "ovs-agent-version.nse", categories = { "version", } }
 Entry { filename = "p2p-conficker.nse", categories = { "default", "safe", } }
 Entry { filename = "path-mtu.nse", categories = { "discovery", "safe", } }

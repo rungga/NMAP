@@ -133,6 +133,8 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
 
 extern "C"
 {
@@ -384,7 +386,7 @@ static void asn1_time_to_obj(lua_State *L, const ASN1_TIME *s)
 /* This is a helper function for x509_validity_to_table. It builds a table with
    the two members "notBefore" and "notAfter", whose values are what is returned
    from asn1_time_to_obj. */
-static void x509_validity_to_table(lua_State *L, const X509 *cert)
+static void x509_validity_to_table(lua_State *L, X509 *cert)
 {
   lua_newtable(L);
 
@@ -424,7 +426,7 @@ static const char *pkey_type_to_string(int type)
     return "dsa";
   case EVP_PKEY_DH:
     return "dh";
-#ifdef EVP_PKEY_EC
+#ifdef HAVE_OPENSSL_EC
   case EVP_PKEY_EC:
     return "ec";
 #endif
@@ -434,7 +436,7 @@ static const char *pkey_type_to_string(int type)
 }
 
 int lua_push_ecdhparams(lua_State *L, EVP_PKEY *pubkey) {
-#ifdef EVP_PKEY_EC
+#ifdef HAVE_OPENSSL_EC
   EC_KEY *ec_key = EVP_PKEY_get1_EC_KEY(pubkey);
   const EC_GROUP *group = EC_KEY_get0_group(ec_key);
   int nid;
@@ -454,16 +456,15 @@ int lua_push_ecdhparams(lua_State *L, EVP_PKEY *pubkey) {
     nid = EC_METHOD_get_field_type(EC_GROUP_method_of(group));
     if (nid == NID_X9_62_prime_field) {
       lua_pushstring(L, "explicit_prime");
-      lua_setfield(L, -2, "ec_curve_type");
     }
     else if (nid == NID_X9_62_characteristic_two_field) {
       lua_pushstring(L, "explicit_char2");
-      lua_setfield(L, -2, "ec_curve_type");
     }
     else {
       /* Something weird happened. */
-      return luaL_error(L, "Unknown EC field type in certificate.");
+      lua_pushstring(L, "UNKNOWN");
     }
+    lua_setfield(L, -2, "ec_curve_type");
   }
   lua_setfield(L, -2, "curve_params");
   EC_KEY_free(ec_key);
@@ -527,7 +528,11 @@ static int parse_ssl_cert(lua_State *L, X509 *cert)
     lua_setfield(L, -2, "subject");
   }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   const char *sig_algo = OBJ_nid2ln(OBJ_obj2nid(cert->sig_alg->algorithm));
+#else
+  const char *sig_algo = OBJ_nid2ln(X509_get_signature_nid(cert));
+#endif
   lua_pushstring(L, sig_algo);
   lua_setfield(L, -2, "sig_algorithm");
 
@@ -544,18 +549,40 @@ static int parse_ssl_cert(lua_State *L, X509 *cert)
   lua_setfield(L, -2, "pem");
 
   pubkey = X509_get_pubkey(cert);
+  if (pubkey == NULL) {
+    lua_pushnil(L);
+    lua_pushfstring(L, "Error parsing cert: %s", ERR_error_string(ERR_get_error(), NULL));
+    return 2;
+  }
   lua_newtable(L);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   pkey_type = EVP_PKEY_type(pubkey->type);
+#else
+  pkey_type = EVP_PKEY_base_id(pubkey);
+#endif
+#ifdef HAVE_OPENSSL_EC
   if (pkey_type == EVP_PKEY_EC) {
     lua_push_ecdhparams(L, pubkey);
     lua_setfield(L, -2, "ecdhparams");
   }
-  else if (pkey_type == EVP_PKEY_RSA) {
+  else
+#endif
+  if (pkey_type == EVP_PKEY_RSA) {
     RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
     bignum_data_t * data = (bignum_data_t *) lua_newuserdata( L, sizeof(bignum_data_t));
     luaL_getmetatable( L, "BIGNUM" );
     lua_setmetatable( L, -2 );
+  #if OPENSSL_VERSION_NUMBER < 0x10100000L
     data->bn = rsa->e;
+  #elif OPENSSL_VERSION_NUMBER < 0x10100006L
+    BIGNUM *n, *e, *d;
+    RSA_get0_key(rsa, &n, &e, &d);
+    data->bn = e;
+  #else
+    const BIGNUM *n, *e, *d;
+    RSA_get0_key(rsa, &n, &e, &d);
+    data->bn = (BIGNUM*) e;
+  #endif
     lua_setfield(L, -2, "exponent");
   }
   lua_pushstring(L, pkey_type_to_string(pkey_type));

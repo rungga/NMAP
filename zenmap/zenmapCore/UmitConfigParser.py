@@ -149,15 +149,7 @@ class UmitConfigParser(ConfigParser):
     def save_changes(self):
         if self.filenames:
             log.debug("saving to %s" % self.filenames)
-            try:
-                self.write(open(self.filenames, 'w'))
-            except EnvironmentError as e:
-                import sys
-                errno, message = e.args
-                message = (message + '\nPlease include output from "ls -l"'
-                        ' (Linux/OS X) or "icacls" (Windows) for this file'
-                        ' with your bug report')
-                raise type(e), type(e)(errno, message, self.filenames), sys.exc_info()[2]
+            self.write(open(self.filenames, 'w'))
         else:
             log.debug(">>> UmitConfigParser can't save changes: no filename")
 

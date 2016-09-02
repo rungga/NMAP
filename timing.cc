@@ -123,7 +123,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: timing.cc 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: timing.cc 36172 2016-08-22 19:50:06Z dmiller $ */
 
 #include "timing.h"
 #include "NmapOps.h"
@@ -707,13 +707,22 @@ bool ScanProgressMeter::printStats(double perc_done,
   /* Get the estimated time of day at completion */
   timet = last_est.tv_sec;
   ltime = localtime(&timet);
-  assert(ltime);
 
-  log_write(LOG_STDOUT, "%s Timing: About %.2f%% done; ETC: %02d:%02d (%.f:%02.f:%02.f remaining)\n",
-      scantypestr, perc_done * 100, ltime->tm_hour, ltime->tm_min,
-      floor(time_left_s / 60.0 / 60.0),
-      floor(fmod(time_left_s / 60.0, 60.0)),
-      floor(fmod(time_left_s, 60.0)));
+  if (ltime) {
+    log_write(LOG_STDOUT, "%s Timing: About %.2f%% done; ETC: %02d:%02d (%.f:%02.f:%02.f remaining)\n",
+        scantypestr, perc_done * 100, ltime->tm_hour, ltime->tm_min,
+        floor(time_left_s / 60.0 / 60.0),
+        floor(fmod(time_left_s / 60.0, 60.0)),
+        floor(fmod(time_left_s, 60.0)));
+  }
+  else {
+    log_write(LOG_STDERR, "Timing error: localtime(%f) is NULL\n", (double) timet);
+    log_write(LOG_STDOUT, "%s Timing: About %.2f%% done; ETC: Unknown (%.f:%02.f:%02.f remaining)\n",
+        scantypestr, perc_done * 100,
+        floor(time_left_s / 60.0 / 60.0),
+        floor(fmod(time_left_s / 60.0, 60.0)),
+        floor(fmod(time_left_s, 60.0)));
+  }
   xml_open_start_tag("taskprogress");
   xml_attribute("task", "%s", scantypestr);
   xml_attribute("time", "%lu", (unsigned long) now->tv_sec);

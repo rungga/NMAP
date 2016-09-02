@@ -67,28 +67,7 @@ and therefore is quite noisy.
 -- |       NULL
 -- |     cipher preference: server
 -- |     warnings:
--- |       Broken cipher RC4 is deprecated by RFC 7465
--- |       Ciphersuite uses MD5 for message integrity
--- |       Weak certificate signature: SHA1
--- |   TLSv1.1:
--- |     ciphers:
--- |       TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA (secp256r1) - A
--- |       TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA (secp256r1) - A
--- |       TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA (secp256r1) - A
--- |       TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA (secp256r1) - A
--- |       TLS_RSA_WITH_AES_128_CBC_SHA (rsa 2048) - A
--- |       TLS_RSA_WITH_AES_256_CBC_SHA (rsa 2048) - A
--- |       TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA (secp256r1) - C
--- |       TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA (secp256r1) - C
--- |       TLS_RSA_WITH_3DES_EDE_CBC_SHA (rsa 2048) - C
--- |       TLS_ECDHE_ECDSA_WITH_RC4_128_SHA (secp256r1) - C
--- |       TLS_ECDHE_RSA_WITH_RC4_128_SHA (secp256r1) - C
--- |       TLS_RSA_WITH_RC4_128_SHA (rsa 2048) - C
--- |       TLS_RSA_WITH_RC4_128_MD5 (rsa 2048) - C
--- |     compressors:
--- |       NULL
--- |     cipher preference: server
--- |     warnings:
+-- |       64-bit block cipher 3DES vulnerable to SWEET32 attack
 -- |       Broken cipher RC4 is deprecated by RFC 7465
 -- |       Ciphersuite uses MD5 for message integrity
 -- |       Weak certificate signature: SHA1
@@ -117,12 +96,13 @@ and therefore is quite noisy.
 -- |       NULL
 -- |     cipher preference: server
 -- |     warnings:
+-- |       64-bit block cipher 3DES vulnerable to SWEET32 attack
 -- |       Broken cipher RC4 is deprecated by RFC 7465
 -- |       Ciphersuite uses MD5 for message integrity
 -- |_  least strength: C
 --
 -- @xmloutput
--- <table key="TLSv1.1">
+-- <table key="TLSv1.0">
 --   <table key="ciphers">
 --     <table>
 --       <elem key="kex_info">secp256r1</elem>
@@ -195,6 +175,7 @@ and therefore is quite noisy.
 --   </table>
 --   <elem key="cipher preference">server</elem>
 --   <table key="warnings">
+--     <elem>64-bit block cipher 3DES vulnerable to SWEET32 attack</elem>
 --     <elem>Broken cipher RC4 is deprecated by RFC 7465</elem>
 --     <elem>Ciphersuite uses MD5 for message integrity</elem>
 --     <elem>Weak certificate signature: SHA1</elem>
@@ -305,6 +286,7 @@ and therefore is quite noisy.
 --   </table>
 --   <elem key="cipher preference">server</elem>
 --   <table key="warnings">
+--     <elem>64-bit block cipher 3DES vulnerable to SWEET32 attack</elem>
 --     <elem>Broken cipher RC4 is deprecated by RFC 7465</elem>
 --     <elem>Ciphersuite uses MD5 for message integrity</elem>
 --   </table>
@@ -620,6 +602,9 @@ local function find_ciphers_group(host, port, protocol, group, scores)
     t["ciphers"] = group
 
     local records = try_params(host, port, t)
+    if not records then
+      return nil
+    end
     local handshake = records.handshake
 
     if handshake == nil then
@@ -674,6 +659,9 @@ local function find_ciphers_group(host, port, protocol, group, scores)
             if info.hash and info.hash == "MD5" then
               scores.warnings["Ciphersuite uses MD5 for message integrity"] = true
             end
+            if info.mode and info.mode == "CBC" and info.block_size <= 64 then
+              scores.warnings[("64-bit block cipher %s vulnerable to SWEET32 attack"):format(info.cipher)] = true
+            end
             if protocol == "SSLv3" and  info.mode and info.mode == "CBC" then
               scores.warnings["CBC-mode cipher in SSLv3 (CVE-2014-3566)"] = true
             elseif info.cipher == "RC4" then
@@ -697,8 +685,10 @@ local function find_ciphers_group(host, port, protocol, group, scores)
                 -- This may not always be the case, so
                 -- TODO: reorder certificates and validate entire chain
                 -- TODO: certificate validation (date, self-signed, etc)
-                local c = sslcert.parse_ssl_certificate(certs.certificates[1])
-                if c.pubkey.type == kex.pubkey then
+                local c, err = sslcert.parse_ssl_certificate(certs.certificates[1])
+                if not c then
+                  stdnse.debug1("Failed to parse certificate: %s", err)
+                elseif c.pubkey.type == kex.pubkey then
                   local sigalg = c.sig_algorithm:match("([mM][dD][245])")
                   if sigalg then
                     -- MD2 and MD5 are broken
@@ -738,9 +728,10 @@ local function find_ciphers_group(host, port, protocol, group, scores)
                 local kex_info = kex.server_key_exchange(ske.data)
                 if kex_info.strength then
                   local rsa_bits = tls.rsa_equiv(kex.type, kex_info.strength)
+                  local low_strength_warning = false
                   if kex_strength and kex_strength > rsa_bits then
                     kex_strength = rsa_bits
-                    scores.warnings["Key exchange parameters of lower strength than certificate key"] = true
+                    low_strength_warning = true
                   end
                   kex_strength = kex_strength or rsa_bits
                   if kex_info.ecdhparams then
@@ -751,6 +742,11 @@ local function find_ciphers_group(host, port, protocol, group, scores)
                     end
                   else
                     extra = string.format("%s %d", kex.type, kex_info.strength)
+                  end
+                  if low_strength_warning then
+                    scores.warnings[(
+                        "Key exchange (%s) of lower strength than certificate key"
+                      ):format(extra)] = true
                   end
                 end
                 if kex_info.rsa and kex_info.rsa.exponent == 1 then

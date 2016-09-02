@@ -55,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_pool.c 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: nsock_pool.c 36101 2016-08-11 18:58:03Z tudor $ */
 
 #include "nsock_internal.h"
 #include "nsock_log.h"

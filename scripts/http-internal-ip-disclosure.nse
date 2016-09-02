@@ -1,4 +1,5 @@
 local http = require "http"
+local nmap = require "nmap"
 local shortport = require "shortport"
 local stdnse = require "stdnse"
 local ipOps = require "ipOps"
@@ -19,7 +20,7 @@ versions of Microsoft IIS, but affects other web servers as well.
 --
 -- @output
 -- 80/tcp open  http    syn-ack
--- | http-internal-ip-disclosure: 
+-- | http-internal-ip-disclosure:
 -- |_  Internal IP Leaked: 10.0.0.2
 --
 -- @xmloutput
@@ -27,8 +28,8 @@ versions of Microsoft IIS, but affects other web servers as well.
 ---
 
 author = "Josh Amishav-Zlatin"
-license = "Same as Nmap--See http://nmap.org/book/man-legal.html"
-categories = { "vuln", "discovery", "safe" } 
+license = "Same as Nmap--See https://nmap.org/book/man-legal.html"
+categories = { "vuln", "discovery", "safe" }
 
 portrule = shortport.http
 
@@ -52,7 +53,7 @@ local function generateHttpV1_0Req(host, port, path)
       -- Check if the redirect location contains an IP address
       redirectIP = locTarget:match("[%d%.]+")
       if redirectIP then
-        privateIP, _ = ipOps.isPrivate(redirectIP)
+        privateIP = ipOps.isPrivate(redirectIP)
       end
 
       stdnse.debug1("Location: %s", locTarget )
@@ -80,7 +81,7 @@ action = function(host, port)
   end
 
   if IP then
-    output["Internal IP Leaked"] = IP 
+    output["Internal IP Leaked"] = IP
     return output
   end
 end

@@ -120,7 +120,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_ftp.h 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: nmap_ftp.h 36034 2016-07-26 14:06:22Z vincent $ */
 
 #ifndef NMAP_FTP_H
 #define NMAP_FTP_H
@@ -137,7 +137,7 @@ class Target;
 struct ftpinfo {
   char user[64];
   char pass[256]; /* methinks you're paranoid if you need this much space */
-  char server_name[MAXHOSTNAMELEN + 1];
+  char server_name[FQDN_LEN + 1];
   struct in_addr server;
   u16 port;
   int sd; /* socket descriptor */

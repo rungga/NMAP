@@ -189,7 +189,7 @@ Request = {
     end,
 
    },
- 
+
   -- The pong message is sent in response to a ping message.
   Pong = {
     new = function(self)
@@ -207,7 +207,7 @@ Request = {
 
       return bin.pack("<IAII", magic, cmd, len, chksum)
     end,
- 
+
   }
 
 }
@@ -299,10 +299,10 @@ Response = {
 
       local function decode_bitcoin_version(n)
         if ( n < 31300 ) then
-          local minor, micro = n / 100, n % 100
+          local minor, micro = n // 100, n % 100
           return ("0.%d.%d"):format(minor, micro)
         else
-          local minor, micro = n / 10000, (n / 100) % 100
+          local minor, micro = n // 10000, (n // 100) % 100
           return ("0.%d.%d"):format(minor, micro)
         end
       end

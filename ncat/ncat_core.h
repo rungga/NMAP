@@ -118,7 +118,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.h 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: ncat_core.h 36004 2016-07-19 10:07:58Z abhishek $ */
 
 #ifndef NCAT_CORE_H
 #define NCAT_CORE_H
@@ -205,6 +205,7 @@ struct options {
     int sslverify;
     char *ssltrustfile;
     char *sslciphers;
+    int zerobyte;
 };
 
 extern struct options o;

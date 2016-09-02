@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nbase_winconfig.h 35869 2016-06-14 15:50:38Z dmiller $ */
+/* $Id: nbase_winconfig.h 35876 2016-06-15 13:56:03Z dmiller $ */
 
 #ifndef NBASE_WINCONFIG_H
 #define NBASE_WINCONFIG_H

@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: tcpip.h 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: tcpip.h 36131 2016-08-18 23:53:46Z dmiller $ */
 
 
 #ifndef TCPIP_H
@@ -131,6 +131,12 @@
 #include "nbase.h"
 
 #include <pcap.h>
+#ifdef WIN32
+/* WinPCAP doesn't have this, but Npcap does.
+ * Using 0 is safe for both, but change this if we decide to drop WinPcap */
+#undef PCAP_NETMASK_UNKNOWN
+#define PCAP_NETMASK_UNKNOWN 0
+#endif
 
 class Target;
 

@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: targets.h 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: targets.h 36089 2016-08-09 06:12:17Z tudor $ */
 
 #ifndef TARGETS_H
 #define TARGETS_H
@@ -208,6 +208,9 @@ int dumpExclude(addrset *exclude_group);
 /* Returns the last host obtained by nexthost.  It will be given again the next
    time you call nexthost(). */
 void returnhost(HostGroupState *hs);
+
+
+bool target_needs_new_hostgroup(Target **targets, int targets_sz, const Target *target);
 
 #endif /* TARGETS_H */
 
