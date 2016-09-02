@@ -1,3 +1,10 @@
+nmap (7.25~BETA2-0kali1) kali-dev; urgency=medium
+
+  * Import new upstream release
+  * Lua 5.3 is now needed to build the NSE
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 02 Sep 2016 10:19:40 +0200
+
 nmap (7.25~BETA1-0kali1) kali-dev; urgency=medium
 
   * Import new usptream release
