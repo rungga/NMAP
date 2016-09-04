@@ -38,7 +38,7 @@ Architecture: all
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
  nmap,
  python (>= 2.5) | python-pysqlite2,
- python-gobject,
+ python-gobject-2 | python-gobject,
  python-gtk2,
 Provides: ${python:Provides}, nmapfe
 Conflicts: nmapfe
