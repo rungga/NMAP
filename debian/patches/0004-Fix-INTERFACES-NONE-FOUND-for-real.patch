@@ -1,0 +1,58 @@
+From: dmiller <dmiller@e0a8ed71-7df4-0310-8962-fdc924857419>
+Date: Mon, 25 Apr 2016 05:20:56 +0000
+Subject: Fix 'INTERFACES: NONE FOUND' for real.
+
+This is part of upstream patch r35782.
+---
+ libdnet-stripped/NMAP_MODIFICATIONS | 22 ++++++++++++++++++++++
+ libdnet-stripped/src/intf.c         |  7 +++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/libdnet-stripped/NMAP_MODIFICATIONS b/libdnet-stripped/NMAP_MODIFICATIONS
+index 0324ed7..90ac38d 100644
+--- a/libdnet-stripped/NMAP_MODIFICATIONS
++++ b/libdnet-stripped/NMAP_MODIFICATIONS
+@@ -2262,3 +2262,25 @@ index 3c09f9c..77225b6 100644
+  
+  	/* Loop through all the pcap devices until we find a match. */
+  	selected = NULL;
++
++o Avoid bailing completely when an interface is encountered with an unsupported
++  hardware address type. Caused "INTERFACES: NONE FOUND!" bugs in Nmap.
++
++diff --git a/libdnet-stripped/src/intf.c b/libdnet-stripped/src/intf.c
++index b71fb82..315e7b0 100644
++--- a/libdnet-stripped/src/intf.c
+++++ b/libdnet-stripped/src/intf.c
++@@ -561,8 +561,11 @@ _intf_get_noalias(intf_t *intf, struct intf_entry *entry)
++ #elif defined(SIOCGIFHWADDR)
++ 		if (ioctl(intf->fd, SIOCGIFHWADDR, &ifr) < 0)
++ 			return (-1);
++-		if (addr_ston(&ifr.ifr_addr, &entry->intf_link_addr) < 0)
++-			return (-1);
+++		if (addr_ston(&ifr.ifr_addr, &entry->intf_link_addr) < 0) {
+++		  /* Likely we got an unsupported address type. Just use NONE for now. */
+++		  entry->intf_link_addr.addr_type = ADDR_TYPE_NONE;
+++		  entry->intf_link_addr.addr_bits = 0;
+++    }
++ #elif defined(SIOCRPHYSADDR)
++ 		/* Tru64 */
++ 		struct ifdevea *ifd = (struct ifdevea *)&ifr; /* XXX */
+diff --git a/libdnet-stripped/src/intf.c b/libdnet-stripped/src/intf.c
+index b71fb82..315e7b0 100644
+--- a/libdnet-stripped/src/intf.c
++++ b/libdnet-stripped/src/intf.c
+@@ -561,8 +561,11 @@ _intf_get_noalias(intf_t *intf, struct intf_entry *entry)
+ #elif defined(SIOCGIFHWADDR)
+ 		if (ioctl(intf->fd, SIOCGIFHWADDR, &ifr) < 0)
+ 			return (-1);
+-		if (addr_ston(&ifr.ifr_addr, &entry->intf_link_addr) < 0)
+-			return (-1);
++		if (addr_ston(&ifr.ifr_addr, &entry->intf_link_addr) < 0) {
++		  /* Likely we got an unsupported address type. Just use NONE for now. */
++		  entry->intf_link_addr.addr_type = ADDR_TYPE_NONE;
++		  entry->intf_link_addr.addr_bits = 0;
++    }
+ #elif defined(SIOCRPHYSADDR)
+ 		/* Tru64 */
+ 		struct ifdevea *ifd = (struct ifdevea *)&ifr; /* XXX */

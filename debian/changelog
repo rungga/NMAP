@@ -12,6 +12,13 @@ nmap (7.25~BETA1-0kali1) kali-dev; urgency=medium
 
  -- Sophie Brun <sophie@freexian.com>  Fri, 22 Jul 2016 13:08:14 +0200
 
+nmap (7.12-2) unstable; urgency=medium
+
+  * Update python-gobject dependency
+  * Use upstream patch to fix #821913 (Closes: #834546)
+
+ -- Hilko Bengen <bengen@debian.org>  Sun, 04 Sep 2016 22:16:15 +0200
+
 nmap (7.12-1) unstable; urgency=medium
 
   * New upstream version
