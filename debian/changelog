@@ -1,6 +1,8 @@
 nmap (7.30-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release
+  * Remove 0004-Fix-INTERFACES-NONE-FOUND-for-real.patch: merged in new
+    upstream release
 
  -- Sophie Brun <sophie@freexian.com>  Fri, 30 Sep 2016 14:32:28 +0200
 
