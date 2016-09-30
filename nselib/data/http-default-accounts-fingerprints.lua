@@ -1,5 +1,4 @@
 local base64 = require "base64"
-local bin = require "bin"
 local http = require "http"
 local stdnse = require "stdnse"
 local table = require "table"
@@ -105,9 +104,8 @@ table.insert(fingerprints, {
   },
   login_check = function (host, port, path, user, pass)
     return try_http_post_login(host, port, path, "index.php",
-                              "Invalid User Name/Password",
-                              {action="login", login_username=user, login_password=pass},
-                              false)
+                              "%sname%s*=%s*(['\"]?)login_password%1[%s>]",
+                              {action="login", login_username=user, login_password=pass})
   end
 })
 
@@ -240,7 +238,7 @@ table.insert(fingerprints, {
   },
   login_check = function (host, port, path, user, pass)
     return try_http_post_login(host, port, path, "login",
-                              "Invalid auth credentials!",
+                              "%sname%s*=%s*(['\"]?)password%1[%s>]",
                               {submit=" Login ", userName=user, password=pass})
   end
 })
@@ -709,6 +707,50 @@ table.insert(fingerprints, {
 })
 
 ---
+--Storage
+---
+table.insert(fingerprints, {
+  -- Version TS200R021 on MSA 2000 G3
+  name = "HP Storage Management Utility",
+  category = "storage",
+  paths = {
+    {path = "/api/id/"}
+  },
+  -- TODO: Change the probe path to "/" and use the following target_check
+  -- once the http library adds support for gzip encoding. Don't forget
+  -- to change url.absolute() argument from "../" to "api/" in login_check.
+  --target_check = function (host, port, path, response)
+  --  return response.status == 200
+  --         and response.body
+  --         and response.body:find("brandStrings", 1, true)
+  --         and response.body:find("checkAuthentication", 1, true)
+  --         and response.body:find("hp stuff init", 1, true)
+  --end,
+  target_check = function (host, port, path, response)
+    return response.status == 200
+           and response.header["command-status"]
+           and response.header["command-status"]:find("^0 %({.*systemName:.*,%s*controller:.*}%)")
+  end,
+  login_combos = {
+    {username = "monitor", password = "!monitor"},
+    {username = "manage",  password = "!manage"},
+    {username = "admin",   password = "!admin"}
+  },
+  login_check = function (host, port, path, user, pass)
+    local creds = stdnse.tohex(openssl.md5(user .. "_" .. pass))
+    local content = "/api/login/" .. creds
+    local header = {["Content-Type"] = "application/x-www-form-urlencoded",
+                    ["datatype"] = "json"}
+    local req = http.generic_request(host, port, "POST",
+                                    url.absolute(path, "../"),
+                                    {header=header, content=content,
+                                    no_cache=true, redirect_ok=false})
+    return req.status == 200
+           and (req.header["command-status"] or ""):find("^1 ")
+  end
+})
+
+---
 --Virtualization systems
 ---
 table.insert(fingerprints, {
@@ -750,7 +792,8 @@ table.insert(fingerprints, {
            and response.header["server"]
            and response.header["server"]:find("^mini_httpd")
            and response.body
-           and response.body:lower():find("<title>lantronix slc", 1, true)
+           and response.body:find("lantronix", 1, true)
+           and response.body:find("slcpassword", 1, true)
   end,
   login_combos = {
     {username = "sysadmin", password = "PASS"}

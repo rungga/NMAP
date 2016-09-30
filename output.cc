@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: output.cc 36094 2016-08-09 14:31:59Z tudor $ */
+/* $Id: output.cc 36298 2016-09-21 03:55:12Z dmiller $ */
 
 #include "nmap.h"
 #include "output.h"
@@ -462,7 +462,8 @@ static std::string escape_for_screen(const std::string s) {
   for (unsigned int i = 0; i < s.size(); i++) {
     char buf[5];
     unsigned char c = s[i];
-    if (c == '\t' || c == '\r' || c == '\n' || (0x20 <= c && c <= 0x7e)) {
+    // Printable and some whitespace ok. "\r" not ok because it overwrites the line.
+    if (c == '\t' || c == '\n' || (0x20 <= c && c <= 0x7e)) {
       r += c;
     } else {
       Snprintf(buf, sizeof(buf), "\\x%02X", c);

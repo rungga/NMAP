@@ -122,7 +122,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: service_scan.cc 35884 2016-06-17 16:11:33Z dmiller $ */
+/* $Id: service_scan.cc 36298 2016-09-21 03:55:12Z dmiller $ */
 
 
 #include "service_scan.h"
@@ -691,7 +691,7 @@ static char *transform_cpe(const char *s) {
       Snprintf(buf, sizeof(buf), "%%%02X", *p);
       repl = buf;
     /* Replacing spaces with underscores is also a convention. */
-    } else if (*p == ' ') {
+    } else if (isspace(*p)) {
       repl = "_";
     /* Otherwise just make lower-case. */
     } else {

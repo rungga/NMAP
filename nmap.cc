@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 36230 2016-09-01 04:01:36Z dmiller $ */
+/* $Id: nmap.cc 36342 2016-09-29 15:23:29Z dmiller $ */
 
 #include "nmap.h"
 #include "osscan.h"
@@ -1569,7 +1569,7 @@ void  apply_delayed_options() {
   }
 
   // Uncomment the following line to use the common lisp port spec test suite
-  //printf("port spec: (%d %d %d %d)\n", ports.tcp_count, ports.udp_count, ports.stcp_count, ports.prot_count); exit(0);
+  //printf("port spec: (%d %d %d %d)\n", ports.tcp_count, ports.udp_count, ports.sctp_count, ports.prot_count); exit(0);
 
 #ifdef WIN32
   if (o.sendpref & PACKET_SEND_IP) {
@@ -2031,7 +2031,10 @@ int nmap_main(int argc, char *argv[]) {
         }
         delete currenths;
         o.numhosts_scanned++;
-        continue;
+        if (!o.max_ips_to_scan || o.max_ips_to_scan > o.numhosts_scanned + Targets.size())
+          continue;
+        else
+          break;
       }
 
       if (o.spoofsource) {
@@ -2051,7 +2054,10 @@ int nmap_main(int argc, char *argv[]) {
         }
         delete currenths;
         o.numhosts_scanned++;
-        continue;
+        if (!o.max_ips_to_scan || o.max_ips_to_scan > o.numhosts_scanned + Targets.size())
+          continue;
+        else
+          break;
       }
 
       if (o.RawScan()) {
@@ -2668,23 +2674,23 @@ static void getpts_aux(const char *origexpr, int nested, u8 *porttbl, int range_
       current_range++; /* I don't know why I should allow spaces here, but I will */
 
     if (change_range_type) {
-      if (*current_range == 'T' && *++current_range == ':') {
-        current_range++;
+      if (*current_range == 'T' && *(current_range+1) == ':') {
+        current_range += 2;
         range_type = SCAN_TCP_PORT;
         continue;
       }
-      if (*current_range == 'U' && *++current_range == ':') {
-        current_range++;
+      if (*current_range == 'U' && *(current_range+1) == ':') {
+        current_range += 2;
         range_type = SCAN_UDP_PORT;
         continue;
       }
-      if (*current_range == 'S' && *++current_range == ':') {
-        current_range++;
+      if (*current_range == 'S' && *(current_range+1) == ':') {
+        current_range += 2;
         range_type = SCAN_SCTP_PORT;
         continue;
       }
-      if (*current_range == 'P' && *++current_range == ':') {
-        current_range++;
+      if (*current_range == 'P' && *(current_range+1) == ':') {
+        current_range += 2;
         range_type = SCAN_PROTOCOLS;
         continue;
       }
@@ -3232,11 +3238,20 @@ static void display_nmap_version() {
 #endif
 
   const char *pcap_version = pcap_lib_version();
-#ifdef PCAP_INCLUDED
-  with.push_back(std::string("nmap-") + get_word_or_quote(pcap_version, 0) + std::string("-") + get_word_or_quote(pcap_version, 2));
+#ifdef WIN32
+  const char *pcap_num = strstr(pcap_version, "version ");
+  if (pcap_num) {
+    pcap_num += strlen("version ");
+  }
+  std::string pcap_num_str (pcap_num, strchr(pcap_num, ',') - pcap_num);
 #else
-  with.push_back(get_word_or_quote(pcap_version, 0) + std::string("-") + get_word_or_quote(pcap_version, 2));
+  std::string pcap_num_str = get_word_or_quote(pcap_version, 2);
 #endif
+  with.push_back(
+#ifdef PCAP_INCLUDED
+      std::string("nmap-") +
+#endif
+      get_word_or_quote(pcap_version, 0) + std::string("-") + pcap_num_str);
 
 #ifdef DNET_INCLUDED
   with.push_back(std::string("nmap-libdnet-") + DNET_VERSION);

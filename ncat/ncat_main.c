@@ -119,7 +119,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_main.c 36004 2016-07-19 10:07:58Z abhishek $ */
+/* $Id: ncat_main.c 36302 2016-09-21 20:04:16Z dmiller $ */
 
 #include "nsock.h"
 #include "ncat.h"
@@ -334,7 +334,7 @@ int main(int argc, char *argv[])
     while (1) {
         /* handle command line arguments */
         int option_index;
-        int c = getopt_long(argc, argv, "46UCc:e:g:G:i:km:hp:d:lo:x:ts:uvw:n:z",
+        int c = getopt_long(argc, argv, "46UCc:e:g:G:i:km:hp:d:lo:x:ts:uvw:nz",
                             long_options, &option_index);
 
         /* That's the end of the options. */
