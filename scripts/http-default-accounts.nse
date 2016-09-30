@@ -19,6 +19,7 @@ You may select a category if you wish to reduce the number of requests. We have 
 * <code>security</code> - CCTVs and other security devices
 * <code>industrial</code> - Industrial systems
 * <code>printer</code> - Network-attached printers and printer servers
+* <code>storage</code> - Storage devices
 * <code>virtualization</code> - Virtualization systems
 * <code>console</code> - Remote consoles
 
@@ -222,11 +223,7 @@ local function register_http_credentials(host, port, login_username, login_passw
   c:add(login_username, login_password, creds.State.VALID )
 end
 
----
--- MAIN
--- Here we iterate through the paths to try to find a target. When a target is found
--- the login routine is initialized to check for default credentials authentication
----
+
 action = function(host, port)
   local fingerprintload_status, status, fingerprints, pathmap, requests, results
   local fingerprint_filename = stdnse.get_script_args("http-default-accounts.fingerprintfile") or "http-default-accounts-fingerprints.lua"
@@ -253,7 +250,7 @@ action = function(host, port)
 
   -- Add requests to the http pipeline
   pathmap = {}
-  requests = {}
+  requests = nil
   stdnse.debug(1, "Trying known locations under path '%s' (change with '%s.basepath' argument)", basepath, SCRIPT_NAME)
   for _, fingerprint in ipairs(fingerprints) do
     for _, probe in ipairs(fingerprint.paths) do
@@ -269,7 +266,7 @@ action = function(host, port)
   end
 
   -- Nuclear launch detected!
-  results = http.pipeline_go(host, port, requests, nil)
+  results = http.pipeline_go(host, port, requests)
   if results == nil then
     return stdnse.format_output(false,
       "HTTP request table is empty. This should not happen since we at least made one request.")

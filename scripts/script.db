@@ -65,6 +65,7 @@ Entry { filename = "citrix-enum-servers-xml.nse", categories = { "discovery", "s
 Entry { filename = "citrix-enum-servers.nse", categories = { "discovery", "safe", } }
 Entry { filename = "clamav-exec.nse", categories = { "exploit", "vuln", } }
 Entry { filename = "clock-skew.nse", categories = { "default", "safe", } }
+Entry { filename = "coap-resources.nse", categories = { "discovery", "safe", } }
 Entry { filename = "couchdb-databases.nse", categories = { "discovery", "safe", } }
 Entry { filename = "couchdb-stats.nse", categories = { "discovery", "safe", } }
 Entry { filename = "creds-summary.nse", categories = { "auth", "default", "safe", } }
@@ -113,6 +114,7 @@ Entry { filename = "finger.nse", categories = { "default", "discovery", "safe", 
 Entry { filename = "firewalk.nse", categories = { "discovery", "safe", } }
 Entry { filename = "firewall-bypass.nse", categories = { "intrusive", "vuln", } }
 Entry { filename = "flume-master-info.nse", categories = { "default", "discovery", "safe", } }
+Entry { filename = "fox-info.nse", categories = { "discovery", "version", } }
 Entry { filename = "freelancer-info.nse", categories = { "default", "discovery", "safe", "version", } }
 Entry { filename = "ftp-anon.nse", categories = { "auth", "default", "safe", } }
 Entry { filename = "ftp-bounce.nse", categories = { "default", "safe", } }
@@ -277,6 +279,9 @@ Entry { filename = "ip-geolocation-ipinfodb.nse", categories = { "discovery", "e
 Entry { filename = "ip-geolocation-maxmind.nse", categories = { "discovery", "external", "safe", } }
 Entry { filename = "ip-https-discover.nse", categories = { "default", "discovery", "safe", } }
 Entry { filename = "ipidseq.nse", categories = { "discovery", "safe", } }
+Entry { filename = "ipmi-brute.nse", categories = { "brute", "intrusive", } }
+Entry { filename = "ipmi-cipher-zero.nse", categories = { "safe", "vuln", } }
+Entry { filename = "ipmi-version.nse", categories = { "discovery", "safe", } }
 Entry { filename = "ipv6-multicast-mld-list.nse", categories = { "broadcast", "discovery", } }
 Entry { filename = "ipv6-node-info.nse", categories = { "default", "discovery", "safe", } }
 Entry { filename = "ipv6-ra-flood.nse", categories = { "dos", "intrusive", } }
@@ -317,6 +322,7 @@ Entry { filename = "modbus-discover.nse", categories = { "discovery", "intrusive
 Entry { filename = "mongodb-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "mongodb-databases.nse", categories = { "default", "discovery", "safe", } }
 Entry { filename = "mongodb-info.nse", categories = { "default", "discovery", "safe", } }
+Entry { filename = "mqtt-subscribe.nse", categories = { "discovery", "safe", "version", } }
 Entry { filename = "mrinfo.nse", categories = { "broadcast", "discovery", "safe", } }
 Entry { filename = "ms-sql-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "ms-sql-config.nse", categories = { "discovery", "safe", } }
@@ -380,6 +386,7 @@ Entry { filename = "ovs-agent-version.nse", categories = { "version", } }
 Entry { filename = "p2p-conficker.nse", categories = { "default", "safe", } }
 Entry { filename = "path-mtu.nse", categories = { "discovery", "safe", } }
 Entry { filename = "pcanywhere-brute.nse", categories = { "brute", "intrusive", } }
+Entry { filename = "pcworx-info.nse", categories = { "discovery", } }
 Entry { filename = "pgsql-brute.nse", categories = { "brute", "intrusive", } }
 Entry { filename = "pjl-ready-message.nse", categories = { "intrusive", } }
 Entry { filename = "pop3-brute.nse", categories = { "brute", "intrusive", } }

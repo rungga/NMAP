@@ -121,16 +121,16 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: protocols.h 35761 2016-04-04 15:38:44Z dmiller $ */
+/* $Id: protocols.h 36256 2016-09-06 18:14:58Z dmiller $ */
 
 #ifndef PROTOCOLS_H
 #define PROTOCOLS_H
 
+#include "nbase.h"
+
 #if HAVE_NETDB_H
 #include <netdb.h>
 #endif
-
-#include "nbase.h"
 
 #define PROTOCOL_TABLE_SIZE 256
 

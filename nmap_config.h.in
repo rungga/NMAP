@@ -121,7 +121,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_config.h.in 36069 2016-08-02 12:20:06Z vincent $ */
+/* $Id: nmap_config.h.in 36255 2016-09-06 18:14:57Z dmiller $ */
 
 #ifndef CONFIG_H
 #define CONFIG_H
@@ -158,6 +158,8 @@
 #undef HAVE_BZERO
 #undef HAVE_MEMCPY
 #undef HAVE_STRERROR
+
+#undef HAVE_STDINT_H
 
 #undef HAVE_SYS_PARAM_H
 
