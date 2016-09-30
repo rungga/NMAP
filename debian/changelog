@@ -1,3 +1,9 @@
+nmap (7.30-0kali1) kali-dev; urgency=medium
+
+  * Import new upstream release
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 30 Sep 2016 14:32:28 +0200
+
 nmap (7.25~BETA2-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release
