@@ -1,4 +1,3 @@
 0001-use-su-to-root.patch
 0002-Use-Debian-s-ca-certificates.patch
 0003-Link-against-lua-lpeg.patch
-0004-Fix-INTERFACES-NONE-FOUND-for-real.patch
