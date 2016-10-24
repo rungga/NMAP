@@ -1,3 +1,9 @@
+nmap (7.31-0kali1) kali-dev; urgency=medium
+
+  * Import new upstream release
+
+ -- Sophie Brun <sophie@freexian.com>  Mon, 24 Oct 2016 16:34:53 +0200
+
 nmap (7.30-1) unstable; urgency=medium
 
   * New upstream version 7.30
