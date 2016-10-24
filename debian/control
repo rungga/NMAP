@@ -1,7 +1,8 @@
 Source: nmap
 Section: net
 Priority: extra
-Maintainer: Hilko Bengen <bengen@debian.org>
+Maintainer: Debian Security Tools Packaging Team <pkg-security-team@lists.alioth.debian.org>
+Uploaders: Hilko Bengen <bengen@debian.org>
 Build-Depends: debhelper (>=9), dh-autoreconf,
  dh-python,
  bison,
@@ -12,11 +13,11 @@ Build-Depends: debhelper (>=9), dh-autoreconf,
  libpcap0.8-dev,
  libpcre3-dev,
  libssl-dev,
- python (>=2.4),
-Standards-Version: 3.9.7
-Homepage: https://nmap.org/
-Vcs-Git: git://anonscm.debian.org/users/bengen/nmap.git
-Vcs-Browser: http://anonscm.debian.org/cgit/users/bengen/nmap.git
+ python (>=2.3.5-7),
+Standards-Version: 3.9.8
+Homepage: http://nmap.org/
+Vcs-Git: https://anonscm.debian.org/git/pkg-security/nmap.git
+Vcs-Browser: https://anonscm.debian.org/cgit/pkg-security/nmap.git
 
 Package: nmap
 Architecture: any
@@ -38,7 +39,7 @@ Architecture: all
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends},
  nmap,
  python (>= 2.5) | python-pysqlite2,
- python-gobject,
+ python-gobject-2 | python-gobject,
  python-gtk2,
 Provides: ${python:Provides}, nmapfe
 Conflicts: nmapfe
