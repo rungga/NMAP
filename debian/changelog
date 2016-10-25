@@ -1,3 +1,9 @@
+nmap (7.31-0kali2) kali-dev; urgency=medium
+
+  * Drop debian/rules with libpcap included
+
+ -- Sophie Brun <sophie@freexian.com>  Tue, 25 Oct 2016 11:18:54 +0200
+
 nmap (7.31-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release
