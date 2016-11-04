@@ -1,3 +1,9 @@
+nmap (7.31-0kali3) kali-experimental; urgency=medium
+
+  * Reintroduce build with libpcacp included
+
+ -- Sophie Brun <sophie@freexian.com>  Fri, 04 Nov 2016 10:56:01 +0100
+
 nmap (7.31-0kali2) kali-dev; urgency=medium
 
   * Drop debian/rules with libpcap included
