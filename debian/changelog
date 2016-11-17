@@ -1,3 +1,9 @@
+nmap (7.31-1kali1) kali-dev; urgency=medium
+
+  * Synchronize with Debian: keep libpcap included for Kali
+
+ -- Sophie Brun <sophie@freexian.com>  Thu, 17 Nov 2016 12:04:45 +0100
+
 nmap (7.31-1) unstable; urgency=medium
 
   * New upstream version 7.31
