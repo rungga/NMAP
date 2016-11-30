@@ -1,0 +1,42 @@
+From 3154a6fc863f8748042daf91162b01dd9f76a7f3 Mon Sep 17 00:00:00 2001
+From: Samuel Henrique <samueloph@gmail.com>
+Date: Tue, 29 Nov 2016 22:19:36 -0200
+Subject: [PATCH 1/2] zenmap[-root].desktop: Remove Encoding Key
+
+Patch from the Debian Community, see:
+https://lintian.debian.org/tags/desktop-entry-contains-encoding-key.html
+---
+ zenmap/install_scripts/unix/zenmap-root.desktop | 1 -
+ zenmap/install_scripts/unix/zenmap.desktop      | 1 -
+ 2 files changed, 2 deletions(-)
+
+Index: nmap/zenmap/install_scripts/unix/zenmap-root.desktop
+===================================================================
+--- nmap.orig/zenmap/install_scripts/unix/zenmap-root.desktop
++++ nmap/zenmap/install_scripts/unix/zenmap-root.desktop
+@@ -1,5 +1,4 @@
+ [Desktop Entry]
+-Encoding=UTF-8
+ Name=Zenmap (as root)
+ GenericName=GUI Port Scanner
+ TryExec=su-to-root
+@@ -9,3 +8,4 @@ Icon=zenmap
+ Type=Application
+ Categories=Application;Network;Security;
+ Comment=A cross-platform GUI for the Nmap Security Scanner.
++Keywords=network;scan;scanner;IP;security;
+Index: nmap/zenmap/install_scripts/unix/zenmap.desktop
+===================================================================
+--- nmap.orig/zenmap/install_scripts/unix/zenmap.desktop
++++ nmap/zenmap/install_scripts/unix/zenmap.desktop
+@@ -1,5 +1,4 @@
+ [Desktop Entry]
+-Encoding=UTF-8
+ Name=Zenmap
+ GenericName=GUI Port Scanner
+ TryExec=zenmap
+@@ -9,3 +8,4 @@ Icon=zenmap
+ Type=Application
+ Categories=Application;Network;Security;
+ Comment=A cross-platform GUI for the Nmap Security Scanner.
++Keywords=network;scan;scanner;IP;security;
