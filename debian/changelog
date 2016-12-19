@@ -1,3 +1,26 @@
+nmap (7.31-2) unstable; urgency=medium
+
+  [ Gianfranco Costamagna ]
+  * Add debian/gbp.conf file
+
+  [ Samuel Henrique ]
+  * Bump DH level to 10.
+  * Add myself as an uploader.
+  * debian/control: Remove dh-autoreconf, now a dependency of DH 10.
+  * debian/patches:
+    - 0004-zenmap-desktop.patch: New patch to remove Encoding key and add
+      Keywords entry for zenmap's desktop files, sent upstream.
+  * debian/rules:
+    - Avoid useless dependencies with "-Wl,--as-needed".
+    - Enable all hardening flags with "hardening=+all".
+    - Remove "--parallel" parameter, default on DH 10.
+  * wrap-and-sort -a.
+
+  [ Hilko Bengen ]
+  * Add manpage links for zenmap links (nmapfe, nmap)
+
+ -- Hilko Bengen <bengen@debian.org>  Wed, 30 Nov 2016 20:41:51 +0100
+
 nmap (7.31-1kali1) kali-dev; urgency=medium
 
   * Synchronize with Debian: keep libpcap included for Kali

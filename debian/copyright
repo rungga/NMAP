@@ -1,11 +1,11 @@
-This is the Debian GNU/Linux package of NMAP -- The Network Mapper, 
-by Fyodor <fyodor@insecure.org>.  Please see https://nmap.org/.
+This is the Debian GNU/Linux package of NMAP -- The Network Mapper,
+by Fyodor <fyodor@insecure.org>.  Please see http://nmap.org/.
 
 This package was crafted by LaMont Jones <lamont@debian.org> using:
 
-	https://nmap.org/
+	http://nmap.org/
 
-NMAP is copyright 1997-2016 by Fyodor <fyodor@insecure.org> and others,
+NMAP is copyright 1997-2003 by Fyodor <fyodor@insecure.org> and others,
 and distributed under the terms of the GNU General Public License, Version 2.
 
 On Debian GNU/Linux systems, the complete text of the GNU General
