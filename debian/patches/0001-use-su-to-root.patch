@@ -6,12 +6,12 @@ Subject: use su-to-root
  zenmap/install_scripts/unix/zenmap-root.desktop | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/zenmap/install_scripts/unix/zenmap-root.desktop b/zenmap/install_scripts/unix/zenmap-root.desktop
-index bd0acc9..37c9475 100644
---- a/zenmap/install_scripts/unix/zenmap-root.desktop
-+++ b/zenmap/install_scripts/unix/zenmap-root.desktop
-@@ -2,8 +2,8 @@
- Encoding=UTF-8
+Index: nmap/zenmap/install_scripts/unix/zenmap-root.desktop
+===================================================================
+--- nmap.orig/zenmap/install_scripts/unix/zenmap-root.desktop
++++ nmap/zenmap/install_scripts/unix/zenmap-root.desktop
+@@ -1,8 +1,8 @@
+ [Desktop Entry]
  Name=Zenmap (as root)
  GenericName=GUI Port Scanner
 -TryExec=su-to-zenmap.sh
