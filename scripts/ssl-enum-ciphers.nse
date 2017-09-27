@@ -38,11 +38,16 @@ vulnerability.
 
 This script is intrusive since it must initiate many connections to a server,
 and therefore is quite noisy.
+
+It is recommended to use this script in conjunction with version detection
+(<code>-sV</code>) in order to discover SSL/TLS services running on unexpected
+ports. For the most common SSL ports like 443, 25 (with STARTTLS), 3389, etc.
+the script is smart enough to run on its own.
 ]]
 
 ---
 -- @usage
--- nmap --script ssl-enum-ciphers -p 443 <host>
+-- nmap -sV --script ssl-enum-ciphers -p 443 <host>
 --
 -- @output
 -- PORT    STATE SERVICE REASON
@@ -410,6 +415,7 @@ end
 
 local function in_chunks(t, size)
   size = math.floor(size)
+  if size < 1 then size = 1 end
   local ret = {}
   for i = 1, #t, size do
     local chunk = {}
@@ -578,6 +584,7 @@ local function find_ciphers_group(host, port, protocol, group, scores)
   local results = {}
   local t = {
     ["protocol"] = protocol,
+    ["record_protocol"] = protocol, -- improve chances of immediate rejection
     ["extensions"] = base_extensions(host),
   }
 
@@ -600,8 +607,11 @@ local function find_ciphers_group(host, port, protocol, group, scores)
       if alert then
         ctx_log(2, protocol, "Got alert: %s", alert.body[1].description)
         if alert["protocol"] ~= protocol then
-          ctx_log(1, protocol, "Protocol rejected.")
-          protocol_worked = nil
+          ctx_log(1, protocol, "Protocol mismatch (received %s)", alert.protocol)
+          -- Sometimes this is not an actual rejection of the protocol. Check specifically:
+          if get_body(alert, "description", "protocol_version") then
+            protocol_worked = nil
+          end
           break
         elseif get_body(alert, "description", "handshake_failure") then
           protocol_worked = true
@@ -622,7 +632,12 @@ local function find_ciphers_group(host, port, protocol, group, scores)
       end
       if server_hello.protocol ~= protocol then
         ctx_log(1, protocol, "Protocol rejected. cipher: %s", server_hello.cipher)
-        protocol_worked = (protocol_worked == nil) and nil or false
+        -- Some implementations will do this if a cipher is supported in some
+        -- other protocol version but not this one. Gotta keep trying.
+        if not remove(group, server_hello.cipher) then
+          -- But if we didn't even offer this cipher, then give up. Crazy!
+          protocol_worked = protocol_worked or nil
+        end
         break
       else
         protocol_worked = true
@@ -673,7 +688,12 @@ local function find_ciphers_group(host, port, protocol, group, scores)
                 -- This may not always be the case, so
                 -- TODO: reorder certificates and validate entire chain
                 -- TODO: certificate validation (date, self-signed, etc)
-                local c, err = sslcert.parse_ssl_certificate(certs.certificates[1])
+                local c, err
+                if certs == nil then
+                  err = "no certificate message"
+                else
+                   c, err = sslcert.parse_ssl_certificate(certs.certificates[1])
+                end
                 if not c then
                   stdnse.debug1("Failed to parse certificate: %s", err)
                 elseif c.pubkey.type == kex.pubkey then
@@ -768,7 +788,7 @@ local function get_chunk_size(host, protocol)
   local cipher_len_remaining = 255 - #tls.client_hello(len_t)
   -- if we're over 255 anyway, just go for it.
   -- Each cipher adds 2 bytes
-  local max_chunks = cipher_len_remaining > 0 and cipher_len_remaining / 2 or CHUNK_SIZE
+  local max_chunks = cipher_len_remaining > 1 and cipher_len_remaining // 2 or CHUNK_SIZE
   -- otherwise, use the min
   return max_chunks < CHUNK_SIZE and max_chunks or CHUNK_SIZE
 end
@@ -1024,7 +1044,9 @@ local function try_protocol(host, port, protocol, upresults)
   results["ciphers"] = ciphers
 
   -- Format the compressor table.
-  table.sort(compressors)
+  if compressors then
+    table.sort(compressors)
+  end
   results["compressors"] = compressors
 
   results["cipher preference"] = cipher_pref

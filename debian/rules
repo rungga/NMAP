@@ -4,19 +4,25 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
 %:
-	dh $@ --with=autoreconf,python2
+	dh $@ --with=python2
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -f nselib/data/jdwp-class/*.class nselib/data/psexec/*.exe
 
 override_dh_auto_configure:
-	dh_auto_configure -- --with-liblua --with-liblinear --enable-ipv6
+	dh_auto_configure -- --with-liblua --with-liblinear --enable-ipv6 STRIP=/bin/true
+
+override_dh_auto_build-indep:
+	dh_auto_build
+	cd nselib/data/jdwp-class && /usr/lib/jvm/default-java/bin/javac *.java
+	cd nselib/data/psexec && i686-w64-mingw32-gcc -o nmap_service.exe nmap_service.c
 
 override_dh_auto_test:
 
 override_dh_auto_install:
 	dh_auto_install
 	mv debian/tmp/usr/share/man/pt_PT debian/tmp/usr/share/man/pt
-
-override_dh_autoreconf:
-	dh_autoreconf autoconf
 
 override_dh_install:
 	dh_install --fail-missing -X/usr/bin/uninstall_ -Xca-bundle.crt -X.pyc

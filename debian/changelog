@@ -1,3 +1,79 @@
+nmap (7.60+dfsg2-1) unstable; urgency=medium
+
+  * Repack source: Remove *.class files
+  * Include *.class (for jdwp-exec.nse), nmap_service.exe (for
+    smb-psexec.nse), built from source
+
+ -- Hilko Bengen <bengen@debian.org>  Wed, 27 Sep 2017 14:53:30 +0200
+
+nmap (7.60+dfsg1-2) unstable; urgency=low
+
+  * Team upload.
+  * Add new patch (0006-move-manual-defines.patch) which moves manually added
+    defines from config.h.in (where they are overwritten by dh-autoreconf) to
+    a proper location.  Fixes FTBFS on kfreebsd-any architectures.
+
+ -- Lukas Schwaighofer <lukas@schwaighofer.name>  Mon, 18 Sep 2017 23:29:18 +0200
+
+nmap (7.60+dfsg1-1) unstable; urgency=low
+
+  * Team upload.
+  * Repack source:
+    - Remove non-DFSG compliant files.
+    - Remove unused libraries.
+    - Update debian/watch.
+  * debian/watch:
+    - Correct syntax error.
+    - Check upstream's pgp signatures.
+  * Override lintian warnings:
+    - Description synopsis starting with "The Network Mapper" is ok.
+    - Windows devel files will be kept until upstream drops them.
+  * Put architecture independent files into new nmap-common package (marked as
+    Multi-Arch: foreign).
+  * debian/control:
+    - Change priority from extra (deprecated) to optional.
+    - Bump Standards-Version to 4.1.0.
+    - Add new suggestion: nmap suggests zenmap, the graphical frontend.
+    - Zenmap needs ndiff, add the missing dependency.
+    - Use Breaks (instead of Conflicts) for znmap's versioned dependency on
+      nmap as this weaker restriction is sufficient.
+    - Clean up versioned python2 dependencies (there's only 2.7 now).
+    - Move python-pysqlite2 to Recommends as zenmap works without it (but
+      loses useful features like searching and database saving).
+    - No longer Recommend gksu as the `su-to-root` script is not part of that
+      package.
+  * debian/patches:
+    - Added new patch (0004-library-versions.patch) so nmap reports correct
+      library versions.
+    - Add new patch (0005-autotools.patch) to fix autotools problems and
+      allow refreshing all autotools generated files with `autoreconf -fi`.
+  * debian/rules:
+    - Drop --with=autoreconf, this is the default in debhelper compatibility
+      level 10.
+    - Add STRIP=/bin/true to dh_auto_configure to generate useful dbgsym
+      packages.
+    - Update the dh-autoreconf call so all autotools geneated files used
+      in the build are refreshed.
+  * Migrate debian/copyright to machine readable DEP-5 format.
+
+ -- Lukas Schwaighofer <lukas@schwaighofer.name>  Fri, 15 Sep 2017 22:51:59 +0200
+
+nmap (7.60-1) unstable; urgency=medium
+
+  * New upstream version 7.60
+  * Rebase patches
+  * Add libssh2 build-dependency to avoid using the embedded copy
+
+ -- Hilko Bengen <bengen@debian.org>  Sat, 12 Aug 2017 00:34:12 +0200
+
+nmap (7.50-1) unstable; urgency=medium
+
+  * New upstream version 7.50.
+  * Bump Standards-Version to 4.0.0.
+  * Remove unused lintian overrides.
+
+ -- Samuel Henrique <samueloph@gmail.com>  Sat, 17 Jun 2017 21:04:49 -0300
+
 nmap (7.40-1) unstable; urgency=medium
 
   * New upstream version 7.40.

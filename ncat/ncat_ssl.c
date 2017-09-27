@@ -2,7 +2,7 @@
  * ncat_ssl.c -- SSL support functions.                                    *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2017 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -60,7 +60,7 @@
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
  * linked combinations including the two.                                  *
- *                                                                         * 
+ *                                                                         *
  * The Nmap Project has permission to redistribute Npcap, a packet         *
  * capturing driver and library for the Microsoft Windows platform.        *
  * Npcap is a separate work with it's own license rather than this Nmap    *
@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_ssl.c 36488 2016-12-14 00:12:23Z fyodor $ */
+/* $Id: ncat_ssl.c 36885 2017-07-29 05:55:27Z dmiller $ */
 
 #include "nbase.h"
 #include "ncat_config.h"
@@ -173,10 +173,12 @@ SSL_CTX *setup_ssl_listen(void)
     if (sslctx)
         goto done;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined LIBRESSL_VERSION_NUMBER
     SSL_library_init();
     OpenSSL_add_all_algorithms();
     ERR_load_crypto_strings();
     SSL_load_error_strings();
+#endif
 
     /* RAND_status initializes the random number generator through a variety of
        platform-dependent methods, then returns 1 if there is enough entropy or
@@ -195,7 +197,7 @@ SSL_CTX *setup_ssl_listen(void)
 
     /* Secure ciphers list taken from Nsock. */
     if (o.sslciphers == NULL) {
-      if (!SSL_CTX_set_cipher_list(sslctx, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH"))
+      if (!SSL_CTX_set_cipher_list(sslctx, "ALL:!aNULL:!eNULL:!LOW:!EXP:!MD5:@STRENGTH"))
         bye("Unable to set OpenSSL cipher list: %s", ERR_error_string(ERR_get_error(), NULL));
     }
     else {
@@ -585,12 +587,35 @@ static int ssl_gen_cert(X509 **cert, EVP_PKEY **key)
     if (X509_add_ext(*cert, ext, -1) == 0)
         goto err;
 
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && !defined LIBRESSL_VERSION_NUMBER
+    {
+        ASN1_TIME *tb, *ta;
+        tb = NULL;
+        ta = NULL;
+
+        if (X509_set_issuer_name(*cert, X509_get_subject_name(*cert)) == 0
+            || (tb = ASN1_STRING_dup(X509_get0_notBefore(*cert))) == 0
+            || X509_gmtime_adj(tb, 0) == 0
+            || X509_set1_notBefore(*cert, tb) == 0
+            || (ta = ASN1_STRING_dup(X509_get0_notAfter(*cert))) == 0
+            || X509_gmtime_adj(ta, 60) == 0
+            || X509_set1_notAfter(*cert, ta) == 0
+            || X509_set_pubkey(*cert, *key) == 0) {
+            ASN1_STRING_free(tb);
+            ASN1_STRING_free(ta);
+            goto err;
+        }
+        ASN1_STRING_free(tb);
+        ASN1_STRING_free(ta);
+    }
+#else
     if (X509_set_issuer_name(*cert, X509_get_subject_name(*cert)) == 0
         || X509_gmtime_adj(X509_get_notBefore(*cert), 0) == 0
         || X509_gmtime_adj(X509_get_notAfter(*cert), DEFAULT_CERT_DURATION) == 0
         || X509_set_pubkey(*cert, *key) == 0) {
         goto err;
     }
+#endif
 
     /* Sign it. */
     if (X509_sign(*cert, *key, EVP_sha1()) == 0)
