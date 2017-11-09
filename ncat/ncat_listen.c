@@ -2,7 +2,7 @@
  * ncat_listen.c -- --listen mode.                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2017 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -60,7 +60,7 @@
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
  * linked combinations including the two.                                  *
- *                                                                         * 
+ *                                                                         *
  * The Nmap Project has permission to redistribute Npcap, a packet         *
  * capturing driver and library for the Microsoft Windows platform.        *
  * Npcap is a separate work with it's own license rather than this Nmap    *
@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.c 36488 2016-12-14 00:12:23Z fyodor $ */
+/* $Id: ncat_listen.c 36887 2017-07-29 05:55:30Z dmiller $ */
 
 #include "ncat.h"
 
@@ -264,6 +264,8 @@ static int ncat_listen_stream(int proto)
 
 #ifdef HAVE_OPENSSL
     if (o.ssl)
+        if (o.sslalpn)
+            bye("ALPN is not supported in listen mode\n");
         setup_ssl_listen();
 #endif
 
@@ -344,7 +346,11 @@ static int ncat_listen_stream(int proto)
         if (o.idletimeout > 0)
             ms_to_timeval(tvp, o.idletimeout);
 
-        fds_ready = fselect(client_fdlist.fdmax + 1, &readfds, &writefds, NULL, tvp);
+        /* The idle timer should only be running when there are active connections */
+        if (get_conn_count())
+            fds_ready = fselect(client_fdlist.fdmax + 1, &readfds, &writefds, NULL, tvp);
+        else
+            fds_ready = fselect(client_fdlist.fdmax + 1, &readfds, &writefds, NULL, NULL);
 
         if (o.debug > 1)
             logdebug("select returned %d fds ready\n", fds_ready);
@@ -628,6 +634,9 @@ int read_socket(int recv_fd)
     char buf[DEFAULT_TCP_BUF_LEN];
     struct fdinfo *fdn;
     int nbytes, pending;
+#ifdef HAVE_OPENSSL
+    int err = SSL_ERROR_NONE;
+#endif
 
     fdn = get_fdinfo(&client_fdlist, recv_fd);
     ncat_assert(fdn != NULL);
@@ -637,11 +646,28 @@ int read_socket(int recv_fd)
         int n;
 
         n = ncat_recv(fdn, buf, sizeof(buf), &pending);
-        if (n <= 0) {
+#ifdef HAVE_OPENSSL
+        /* SSL_read returns <0 in some cases like renegotiation. In these
+         * cases, SSL_get_error gives SSL_ERROR_WANT_{READ,WRITE}, and we
+         * should try the SSL_read again. */
+        if (n < 0 && o.ssl && fdn->ssl) {
+            err = SSL_get_error(fdn->ssl, n);
+            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
+                pending = 1;
+            }
+        }
+#endif
+        /* If return value is 0, it's a clean shutdown from the other side, SSL
+         * or plain. If <0, it's an error. If pending, the error may be
+         * recoverable with a second SSL_read, so don't shut down yet. */
+        if (n <= 0 && !pending) {
             if (o.debug)
-                logdebug("Closing connection.\n");
+                logdebug("Closing fd %d.\n", recv_fd);
 #ifdef HAVE_OPENSSL
             if (o.ssl && fdn->ssl) {
+                if (n < 0 && o.debug) {
+                    logdebug("SSL error on %d: %s\n", recv_fd, ERR_error_string(err, NULL));;
+                }
                 if (nbytes == 0)
                     SSL_shutdown(fdn->ssl);
                 SSL_free(fdn->ssl);
@@ -659,9 +685,10 @@ int read_socket(int recv_fd)
 
             return n;
         }
-
-        Write(STDOUT_FILENO, buf, n);
-        nbytes += n;
+        else if (n > 0) {
+            Write(STDOUT_FILENO, buf, n);
+            nbytes += n;
+        }
     } while (pending);
 
     return nbytes;
@@ -686,6 +713,11 @@ static int ncat_listen_dgram(int proto)
     struct timeval tv;
     struct timeval *tvp = NULL;
     unsigned int num_sockets;
+
+#ifdef HAVE_OPENSSL
+    if(o.ssl)
+        bye("DTLS is not supported in listen mode\n");
+#endif
 
     for (i = 0; i < NUM_LISTEN_ADDRS; i++) {
         sockfd[i].fd = -1;
@@ -785,7 +817,11 @@ static int ncat_listen_dgram(int proto)
             if (o.idletimeout > 0)
                 ms_to_timeval(tvp, o.idletimeout);
 
-            fds_ready = fselect(listen_fdlist.fdmax + 1, &fds, NULL, NULL, tvp);
+            /* The idle timer should only be running when there are active connections */
+            if (get_conn_count())
+                fds_ready = fselect(listen_fdlist.fdmax + 1, &fds, NULL, NULL, tvp);
+            else
+                fds_ready = fselect(listen_fdlist.fdmax + 1, &fds, NULL, NULL, NULL);
 
             if (o.debug > 1)
                 logdebug("select returned %d fds ready\n", fds_ready);

@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2017 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -62,7 +62,7 @@
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
  * linked combinations including the two.                                  *
- *                                                                         * 
+ *                                                                         *
  * The Nmap Project has permission to redistribute Npcap, a packet         *
  * capturing driver and library for the Microsoft Windows platform.        *
  * Npcap is a separate work with it's own license rather than this Nmap    *
@@ -183,6 +183,8 @@
 
 #ifdef WIN32
 #include "nmap_winconfig.h"
+/* Need DnetName2PcapName */
+#include "libnetutil/netutil.h"
 #endif
 
 #include "nmap.h"
@@ -191,6 +193,7 @@
 #include "nsock.h"
 #include "nmap_error.h"
 #include "nmap_tty.h"
+#include "tcpip.h"
 #include "timing.h"
 #include "Target.h"
 
@@ -1508,12 +1511,12 @@ size_t DNS::Factory::putDomainName(const std::string &name, u8 *buf, size_t offs
   {
     if((*c)=='.')
     {
-      u8 lenght = accumulator.length();
-      *(buf+offset+ret) = lenght;
+      u8 length = accumulator.length();
+      *(buf+offset+ret) = length;
       ret += 1;
 
-      memcpy(buf+offset+ret, accumulator.c_str(), lenght);
-      ret += lenght;
+      memcpy(buf+offset+ret, accumulator.c_str(), length);
+      ret += length;
       accumulator.clear();
     }
     else

@@ -5,7 +5,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2017 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -63,7 +63,7 @@
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
  * linked combinations including the two.                                  *
- *                                                                         * 
+ *                                                                         *
  * The Nmap Project has permission to redistribute Npcap, a packet         *
  * capturing driver and library for the Microsoft Windows platform.        *
  * Npcap is a separate work with it's own license rather than this Nmap    *
@@ -316,26 +316,18 @@ int bitcmp(u8 *a, u8*b, int len){
 
 /** Removes every instance of the character stored in parameter "c" in the
  * supplied string.
- * @warning the supplied buffer is modified by this function. Whenever a
- * colon is found, the rest of the string is moved one position to the left
- * so the colon gets overwritten. */
+ * @warning the supplied buffer is modified by this function. */
 int removechar(char *string, char c){
-  size_t len=0, i=0, j=0;
+  size_t i=0, j=0;
   if(string==NULL)
     return OP_FAILURE;
-  len=strlen(string);
-  for(i=0; i<len; i++){
-    /* Found the character, move everything one position to the left */
-    if( string[i]== c ){
-        for(j=i; j<len-1; j++)
-            string[j]=string[j+1];
-        len-=1;
-        string[len]='\0';
-        /* Start again from the beginning because otherwise we don't catch
-         * consecutive colons */
-        i=-1; /* (get incremented by one by the loop control) */ 
-    }
+
+  while(string[j] != '\0') {
+    if(string[j] != c)
+      string[i++] = string[j];
+    j++;
   }
+  string[i] = '\0';
   return OP_SUCCESS;
 } /* End of removechar() */
 
