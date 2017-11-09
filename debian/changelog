@@ -1,3 +1,10 @@
+nmap (7.60+dfsg2-1kali1) kali-dev; urgency=medium
+
+  * Synchronize with Debian: reintroduce libpcap included for Kali
+    (see bug 4226)
+
+ -- Sophie Brun <sophie@freexian.com>  Thu, 09 Nov 2017 13:34:04 +0100
+
 nmap (7.60+dfsg2-1) unstable; urgency=medium
 
   * Repack source: Remove *.class files
