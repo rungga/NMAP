@@ -1,6 +1,6 @@
 Source: nmap
 Section: net
-Priority: extra
+Priority: optional
 Maintainer: Debian Security Tools Packaging Team <pkg-security-team@lists.alioth.debian.org>
 Uploaders: Hilko Bengen <bengen@debian.org>,
            Samuel Henrique <samueloph@gmail.com>
@@ -13,20 +13,25 @@ Build-Depends: bison,
                liblua5.3-dev,
                libpcap0.8-dev,
                libpcre3-dev,
+               libssh2-1-dev,
                libssl-dev,
                lua-lpeg-dev,
-               python (>=2.3.5-7)
-Standards-Version: 3.9.8
+               python
+Build-Depends-Indep: default-jdk-headless,
+                     gcc-mingw-w64-i686
+Standards-Version: 4.1.0
 Homepage: http://nmap.org/
 Vcs-Git: https://anonscm.debian.org/git/pkg-security/nmap.git
 Vcs-Browser: https://anonscm.debian.org/cgit/pkg-security/nmap.git
 
 Package: nmap
 Architecture: any
-Depends: ${misc:Depends},
+Depends: nmap-common (= ${source:Version}),
+         ${misc:Depends},
          ${python:Depends},
          ${shlibs:Depends}
 Recommends: ndiff
+Suggests: zenmap
 Description: The Network Mapper
  Nmap is a utility for network exploration or security auditing. It
  supports ping scanning (determine which hosts are up), many port
@@ -38,20 +43,39 @@ Description: The Network Mapper
  supported in both GUI and commandline modes. Several popular handheld
  devices are also supported, including the Sharp Zaurus and the iPAQ.
 
+Package: nmap-common
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Recommends: nmap
+Replaces: nmap (<< 7.60+dfsg1-1~)
+Breaks: nmap (<< 7.60+dfsg1-1~)
+Description: Architecture independent files for nmap
+ Nmap is a utility for network exploration or security auditing. It
+ supports ping scanning (determine which hosts are up), many port
+ scanning techniques, version detection (determine service protocols
+ and application versions listening behind ports), and TCP/IP
+ fingerprinting (remote host OS or device identification). Nmap also
+ offers flexible target and port specification, decoy/stealth scanning,
+ sunRPC scanning, and more. Most Unix and Windows platforms are
+ supported in both GUI and commandline modes. Several popular handheld
+ devices are also supported, including the Sharp Zaurus and the iPAQ.
+ .
+ This package contains the nmap files shared by all architectures.
+
 Package: zenmap
 Architecture: all
-Depends: nmap,
-         python (>= 2.5) | python-pysqlite2,
+Depends: ndiff,
+         nmap,
          python-gobject-2 | python-gobject,
          python-gtk2,
          ${misc:Depends},
          ${python:Depends},
          ${shlibs:Depends}
-Provides: nmapfe,
-          ${python:Provides}
+Provides: nmapfe
 Conflicts: nmapfe
 Replaces: nmapfe
-Recommends: gksu
+Recommends: python-pysqlite2
 Description: The Network Mapper Front End
  Zenmap is an Nmap frontend. It is meant to be useful for advanced users
  and to make Nmap easy to use by beginners. It was originally derived
@@ -60,8 +84,8 @@ Description: The Network Mapper Front End
 Package: ndiff
 Architecture: all
 Recommends: nmap
-Conflicts: nmap (<< ${source:Version})
-Breaks: zenmap (<< 6.47-5~)
+Breaks: nmap (<< ${source:Version}),
+        zenmap (<< 6.47-5~)
 Replaces: zenmap (<< 6.47-5~)
 Depends: python-lxml,
          ${misc:Depends},

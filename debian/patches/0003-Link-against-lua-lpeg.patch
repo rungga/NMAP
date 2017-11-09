@@ -7,10 +7,10 @@ Subject: Link against lua-lpeg
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/configure.ac b/configure.ac
-index d9ffe3d..c56f416 100644
+index 3d00e16..38deb12 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -644,7 +644,7 @@ else
+@@ -826,7 +826,7 @@ else
    # If they didn't specify it, we try to find it
    if test $have_lua != yes; then
      AC_CHECK_HEADERS([lua5.3/lua.h lua/5.3/lua.h lua.h lua/lua.h],

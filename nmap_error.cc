@@ -4,7 +4,7 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2016 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2017 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -62,7 +62,7 @@
  * OpenSSL library which is distributed under a license identical to that  *
  * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
  * linked combinations including the two.                                  *
- *                                                                         * 
+ *                                                                         *
  * The Nmap Project has permission to redistribute Npcap, a packet         *
  * capturing driver and library for the Microsoft Windows platform.        *
  * Npcap is a separate work with it's own license rather than this Nmap    *
@@ -127,7 +127,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap_error.cc 36488 2016-12-14 00:12:23Z fyodor $ */
+/* $Id: nmap_error.cc 36788 2017-06-07 12:32:38Z dmiller $ */
 
 #include "nmap_error.h"
 #include "output.h"
@@ -142,6 +142,14 @@ extern NmapOps o;
 #include <windows.h>
 #endif /* WIN32 */
 
+
+#ifndef HAVE_STRERROR
+char *strerror(int errnum) {
+  static char buf[1024];
+  sprintf(buf, "your system is too old for strerror of errno %d\n", errnum);
+  return buf;
+}
+#endif
 
 void fatal(const char *fmt, ...) {
   time_t timep;

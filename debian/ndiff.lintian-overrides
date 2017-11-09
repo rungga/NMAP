@@ -1,2 +1,3 @@
-# Workaround for #743599
-ndiff: python-script-but-no-python-dep usr/bin/ndiff
+# The Network Mapper - result compare utility is a good and concise short
+# description
+description-synopsis-starts-with-article
