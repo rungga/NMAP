@@ -2,7 +2,7 @@
  * ncat_listen.c -- --listen mode.                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2017 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2018 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -86,12 +86,12 @@
  * Covered Software without special permission from the copyright holders. *
  *                                                                         *
  * If you have any questions about the licensing restrictions on using     *
- * Nmap in other works, are happy to help.  As mentioned above, we also    *
- * offer alternative license to integrate Nmap into proprietary            *
+ * Nmap in other works, we are happy to help.  As mentioned above, we also *
+ * offer an alternative license to integrate Nmap into proprietary         *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@nmap.com for further *
+ * as providing support and updates.  They also fund the continued         *
+ * development of Nmap.  Please email sales@nmap.com for further           *
  * information.                                                            *
  *                                                                         *
  * If you have received a written license agreement or contract for        *
@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_listen.c 36887 2017-07-29 05:55:30Z dmiller $ */
+/* $Id: ncat_listen.c 37187 2018-03-11 03:50:53Z dmiller $ */
 
 #include "ncat.h"
 
@@ -264,9 +264,11 @@ static int ncat_listen_stream(int proto)
 
 #ifdef HAVE_OPENSSL
     if (o.ssl)
+    {
         if (o.sslalpn)
             bye("ALPN is not supported in listen mode\n");
         setup_ssl_listen();
+    }
 #endif
 
 /* Not sure if this problem exists on Windows, but fcntl and /dev/null don't */
@@ -335,7 +337,7 @@ static int ncat_listen_stream(int proto)
         /* We pass these temporary descriptor sets to fselect, since fselect
            modifies the sets it receives. */
         fd_set readfds = master_readfds, writefds = master_writefds;
-        
+
 
         if (o.debug > 1)
             logdebug("selecting, fdmax %d\n", client_fdlist.fdmax);
@@ -634,9 +636,6 @@ int read_socket(int recv_fd)
     char buf[DEFAULT_TCP_BUF_LEN];
     struct fdinfo *fdn;
     int nbytes, pending;
-#ifdef HAVE_OPENSSL
-    int err = SSL_ERROR_NONE;
-#endif
 
     fdn = get_fdinfo(&client_fdlist, recv_fd);
     ncat_assert(fdn != NULL);
@@ -646,28 +645,11 @@ int read_socket(int recv_fd)
         int n;
 
         n = ncat_recv(fdn, buf, sizeof(buf), &pending);
-#ifdef HAVE_OPENSSL
-        /* SSL_read returns <0 in some cases like renegotiation. In these
-         * cases, SSL_get_error gives SSL_ERROR_WANT_{READ,WRITE}, and we
-         * should try the SSL_read again. */
-        if (n < 0 && o.ssl && fdn->ssl) {
-            err = SSL_get_error(fdn->ssl, n);
-            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE) {
-                pending = 1;
-            }
-        }
-#endif
-        /* If return value is 0, it's a clean shutdown from the other side, SSL
-         * or plain. If <0, it's an error. If pending, the error may be
-         * recoverable with a second SSL_read, so don't shut down yet. */
-        if (n <= 0 && !pending) {
+        if (n <= 0) {
             if (o.debug)
                 logdebug("Closing fd %d.\n", recv_fd);
 #ifdef HAVE_OPENSSL
             if (o.ssl && fdn->ssl) {
-                if (n < 0 && o.debug) {
-                    logdebug("SSL error on %d: %s\n", recv_fd, ERR_error_string(err, NULL));;
-                }
                 if (nbytes == 0)
                     SSL_shutdown(fdn->ssl);
                 SSL_free(fdn->ssl);
@@ -685,7 +667,7 @@ int read_socket(int recv_fd)
 
             return n;
         }
-        else if (n > 0) {
+        else {
             Write(STDOUT_FILENO, buf, n);
             nbytes += n;
         }
@@ -896,8 +878,8 @@ static int ncat_listen_dgram(int proto)
             ncat_log_recv(buf, nbytes);
         }
 
-        if (o.debug > 1)
-            logdebug("Valid Connection from %d\n", socket_n);
+        if (o.verbose)
+            loguser("Connection from %s.\n", inet_socktop(&remotess));
 
         conn_inc++;
 
@@ -915,6 +897,7 @@ static int ncat_listen_dgram(int proto)
             struct fdinfo info = { 0 };
 
             info.fd = socket_n;
+            info.remoteaddr = remotess;
             if (o.keepopen)
                 netrun(&info, o.cmdexec);
             else
@@ -1152,7 +1135,7 @@ static int chat_announce_connect(int fd, const union sockaddr_u *su)
 
     strbuf_sprintf(&buf, &size, &offset, "<announce> already connected: ");
     count = 0;
-    for (i = 0; i < client_fdlist.fdmax; i++) {
+    for (i = 0; i <= client_fdlist.fdmax; i++) {
         union sockaddr_u su;
         socklen_t len = sizeof(su.storage);
 

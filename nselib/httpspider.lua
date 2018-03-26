@@ -131,6 +131,7 @@ Options = {
     if ( o.withinhost ) then
       o.withinhost = function(u)
         local parsed_u = url.parse(tostring(u))
+        local host = parsed_u.ascii_host or parsed_u.host
 
         if ( o.base_url:getPort() ~= 80 and o.base_url:getPort() ~= 443 ) then
           if ( parsed_u.port ~= tonumber(o.base_url:getPort()) ) then
@@ -139,7 +140,7 @@ Options = {
         elseif ( parsed_u.scheme ~= o.base_url:getProto() ) then
           return false
           -- if urls don't match only on the "www" prefix, then they are probably the same
-        elseif ( parsed_u.host == nil or removewww(parsed_u.host:lower()) ~= removewww(o.base_url:getHost():lower()) ) then
+        elseif ( host == nil or removewww(host:lower()) ~= removewww(o.base_url:getHost():lower()) ) then
           return false
         end
         return true
@@ -148,13 +149,14 @@ Options = {
     if ( o.withindomain ) then
       o.withindomain = function(u)
         local parsed_u = url.parse(tostring(u))
+        local host = parsed_u.ascii_host or parsed_u.host
         if ( o.base_url:getPort() ~= 80 and o.base_url:getPort() ~= 443 ) then
           if ( parsed_u.port ~= tonumber(o.base_url:getPort()) ) then
             return false
           end
         elseif ( parsed_u.scheme ~= o.base_url:getProto() ) then
           return false
-        elseif ( parsed_u.host == nil or parsed_u.host:sub(-#o.base_url:getDomain()):lower() ~= o.base_url:getDomain():lower() ) then
+        elseif ( host == nil or host:sub(-#o.base_url:getDomain()):lower() ~= o.base_url:getDomain():lower() ) then
           return false
         end
         return true
@@ -345,16 +347,16 @@ LinkExtractor = {
   parse = function(self)
     local links = {}
     local patterns = {
-      '[hH][rR][eE][fF]%s*=%s*[\'"]%s*([^"^\']-)%s*[\'"]',
-      '[hH][rR][eE][fF]%s*=%s*([^\'\"][^%s>]+)',
-      '[sS][rR][cC]%s*=%s*[\'"]%s*([^"^\']-)%s*[\'"]',
-      '[sS][rR][cC]%s*=%s*([^\'\"][^%s>]+)',
-      '[aA][cC][tT][iI][oO][nN]%s*=%s*[\'"]%s*([^"^\']+%s*)[\'"]',
+      '<[^>]+[hH][rR][eE][fF]%s*=%s*[\'"]%s*([^"^\']-)%s*[\'"]',
+      '<[^>]+[hH][rR][eE][fF]%s*=%s*([^\'\"][^%s>]+)',
+      '<[^>]+[sS][rR][cC]%s*=%s*[\'"]%s*([^"^\']-)%s*[\'"]',
+      '<[^>]+[sS][rR][cC]%s*=%s*([^\'\"][^%s>]+)',
+      '<[^>]+[aA][cC][tT][iI][oO][nN]%s*=%s*[\'"]%s*([^"^\']+%s*)[\'"]',
     }
 
     local base_hrefs = {
-      '[Bb][Aa][Ss][Ee]%s*[Hh][Rr][Ee][Ff]%s*=%s*[\'"](%s*[^"^\']+%s*)[\'"]',
-      '[Bb][Aa][Ss][Ee]%s*[Hh][Rr][Ee][Ff]%s*=%s*([^\'\"][^%s>]+)'
+      '<[^>]+[Bb][Aa][Ss][Ee]%s*[Hh][Rr][Ee][Ff]%s*=%s*[\'"](%s*[^"^\']+%s*)[\'"]',
+      '<[^>]+[Bb][Aa][Ss][Ee]%s*[Hh][Rr][Ee][Ff]%s*=%s*([^\'\"][^%s>]+)'
     }
 
     local base_href
@@ -422,21 +424,30 @@ URL = {
   -- URL components
   -- @return status true on success, false on failure
   parse = function(self)
-    self.proto, self.host, self.port, self.file = self.raw:match("^(http[s]?)://([^:/]*)[:]?(%d*)")
-    if ( self.proto and self.host ) then
-      self.file = self.raw:match("^http[s]?://[^:/]*[:]?%d*(/[^#]*)") or '/'
-      self.port = tonumber(self.port) or url.get_default_port(self.proto)
-
-      self.path  = self.file:match("^([^?]*)[%?]?")
+    local parsed = url.parse(self.raw)
+    if parsed.scheme and parsed.scheme:match("^https?$") then
+      self.proto = parsed.scheme
+      self.host = parsed.ascii_host or parsed.host
+      self.port = tonumber(parsed.port) or url.get_default_port(self.proto)
+      -- "file" is the path, params, and query, but not the fragment
+      local fileparts = {parsed.path}
+      if parsed.params then
+        fileparts[#fileparts+1] = ";"
+        fileparts[#fileparts+1] = parsed.params
+      end
+      if parsed.query then
+        fileparts[#fileparts+1] = "?"
+        fileparts[#fileparts+1] = parsed.query
+      end
+      self.file = table.concat(fileparts)
+      self.path = parsed.path
+      -- Normalize the values; removes dot and dot-dot path segments
+      self.file = url.absolute("", self.file)
+      self.path = url.absolute("", self.path)
       self.dir   = self.path:match("^(.+%/)") or "/"
+      -- TODO: Use public suffix list to extract domain
       self.domain= self.host:match("^[^%.]-%.(.*)")
       return true
-    elseif( self.raw:match("^javascript:") ) then
-      stdnse.debug2("%s: Skipping javascript url: %s", LIBRARY_NAME, self.raw)
-    elseif( self.raw:match("^mailto:") ) then
-      stdnse.debug2("%s: Skipping mailto link: %s", LIBRARY_NAME, self.raw)
-    else
-      stdnse.debug2("%s: WARNING: Failed to parse url: %s", LIBRARY_NAME, self.raw)
     end
     return false
   end,
@@ -478,7 +489,14 @@ URL = {
 
   -- Converts the URL to a string
   -- @return url string containing the string representation of the url
-  __tostring = function(self) return self.raw end,
+  __tostring = function(self)
+    return string.format("%s://%s:%s%s",
+      self.proto,
+      self.host,
+      self.port,
+      self.file
+      )
+  end,
 }
 
 -- An UrlQueue
@@ -543,6 +561,7 @@ Crawler = {
   -- @param u URL that points to the resource we want to check.
   iswithinhost = function(self, u)
     local parsed_u = url.parse(tostring(u))
+    local host = parsed_u.ascii_host or parsed_u.host
     if ( self.options.base_url:getPort() ~= 80 and self.options.base_url:getPort() ~= 443 ) then
       if ( parsed_u.port ~= tonumber(self.options.base_url:getPort()) ) then
         return false
@@ -550,7 +569,7 @@ Crawler = {
     elseif ( parsed_u.scheme ~= self.options.base_url:getProto() ) then
       return false
       -- if urls don't match only on the "www" prefix, then they are probably the same
-    elseif ( parsed_u.host == nil or self.removewww(parsed_u.host:lower()) ~= self.removewww(self.options.base_url:getHost():lower()) ) then
+    elseif ( host == nil or self.removewww(host:lower()) ~= self.removewww(self.options.base_url:getHost():lower()) ) then
       return false
     end
     return true
@@ -560,13 +579,14 @@ Crawler = {
   -- @param u URL that points to the resource we want to check.
   iswithindomain = function(self, u)
     local parsed_u = url.parse(tostring(u))
+    local host = parsed_u.ascii_host or parsed_u.host
     if ( self.options.base_url:getPort() ~= 80 and self.options.base_url:getPort() ~= 443 ) then
       if ( parsed_u.port ~= tonumber(self.options.base_url:getPort()) ) then
         return false
       end
     elseif ( parsed_u.scheme ~= self.options.base_url:getProto() ) then
       return false
-    elseif ( parsed_u.host == nil or parsed_u.host:sub(-#self.options.base_url:getDomain()):lower() ~= self.options.base_url:getDomain():lower() ) then
+    elseif ( host == nil or host:sub(-#self.options.base_url:getDomain()):lower() ~= self.options.base_url:getDomain():lower() ) then
       return false
     end
     return true

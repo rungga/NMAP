@@ -73,7 +73,7 @@ Driver = {
     o.host = host
     o.port = port
     o.options = options
-    o.tn3270 = tn3270.Telnet:new()
+    o.tn3270 = tn3270.Telnet:new(brute.new_socket())
     return o
   end,
   connect = function( self )
@@ -112,7 +112,7 @@ Driver = {
       self.tn3270:get_all_data()
     end
 
-    if self.tn3270:find("***") then -- For ACF2/TopSecret if required
+    if self.tn3270:find("%*%*%*") then -- For ACF2/TopSecret if required
       self.tn3270:send_enter()
       self.tn3270:get_all_data()
     end
