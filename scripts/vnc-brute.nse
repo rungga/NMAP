@@ -13,6 +13,7 @@ Performs brute force password auditing against VNC servers.
 --
 -- @args vnc-brute.bruteusers If set, allows the script to iterate over
 --                            usernames for auth types that require it (plain,
+--                            Apple Remote Desktop (30),
 --                            SASL (not supported), and ATEN) Default: false,
 --                            since most VNC auth types are password-only.
 -- @usage
@@ -57,16 +58,8 @@ Driver =
   end,
 
   connect = function( self )
-    local status, data
-    self.vnc = vnc.VNC:new( self.host, self.port )
-    status, data = self.vnc:connect()
-    if ( not(status) ) then
-      local err = brute.Error:new( "VNC connect failed" )
-      -- This might be temporary, set the retry flag
-      err:setRetry( true )
-      return false, err
-    end
-    return true
+    self.vnc = vnc.VNC:new( self.host, self.port, brute.new_socket() )
+    return self.vnc:connect()
   end,
   --- Attempts to login to the VNC server
   --
