@@ -16,7 +16,7 @@ Files-Excluded: mswin32
  nselib/data/jdwp-class/*.class
 
 Files: *
-Copyright: 1996-2017, Insecure.Com LLC ("The Nmap Project")
+Copyright: 1996-2018, Insecure.Com LLC ("The Nmap Project")
 License: nmap-GPL-2
 
 Files: debian/*
@@ -199,13 +199,12 @@ License: nmap-GPL-2
  Covered Software without special permission from the copyright holders.
  .
  If you have any questions about the licensing restrictions on using
- Nmap in other works, are happy to help.  As mentioned above, we also
+ Nmap in other works, we are happy to help.  As mentioned above, we also
  offer alternative license to integrate Nmap into proprietary
  applications and appliances.  These contracts have been sold to dozens
- of software vendors, and generally include a perpetual license as well
- as providing for priority support and updates.  They also fund the
- continued development of Nmap.  Please email sales@nmap.com for further
- information.
+ of software vendors, and generally include a perpetual license as well as
+ providing support and updates.  They also fund the continued development
+ of Nmap.  Please email sales@nmap.com for further information.
  .
  If you have received a written license agreement or contract for
  Covered Software stating terms other than these, you may choose to use
