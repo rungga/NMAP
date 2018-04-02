@@ -1,3 +1,9 @@
+nmap (7.70+dfsg1-0kali2) kali-dev; urgency=medium
+
+  * Rebuild with Debian orig.tag.xz
+
+ -- Sophie Brun <sophie@freexian.com>  Mon, 02 Apr 2018 21:12:38 +0200
+
 nmap (7.70+dfsg1-0kali1) kali-dev; urgency=medium
 
   * Import new upstream release. Keep libpcap embedded for Kali
