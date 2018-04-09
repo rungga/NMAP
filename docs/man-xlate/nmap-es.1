@@ -2,12 +2,12 @@
 .\"     Title: nmap
 .\"    Author: [see the "Autor" section]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 31/07/2017
+.\"      Date: 15/03/2018
 .\"    Manual: [FIXME: manual]
 .\"    Source: [FIXME: source]
 .\"  Language: Spanish
 .\"
-.TH "NMAP" "1" "31/07/2017" "[FIXME: source]" "[FIXME: manual]"
+.TH "NMAP" "1" "15/03/2018" "[FIXME: source]" "[FIXME: manual]"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -257,7 +257,7 @@ SALIDA:
   \-\-stylesheet <ruta/URL>: Convertir la salida XML a HTML según la hoja de estilo
       XSL indicada
   \-\-webxml: Referenciar a la hoja de estilo de Insecure\&.Org para tener un XML más portable
-  \-\-no_stylesheet: No asociar la salida XML con ninguna hoja de estilos XSL
+  \-\-no\-stylesheet: No asociar la salida XML con ninguna hoja de estilos XSL
 MISCELÁNEO:
    \-6: Habilitar análisis IPv6 
    \-A: Habilita la detección de SO y de versión 
@@ -1013,7 +1013,7 @@ para
 hará que Nmap se mantenga a esa velocidad reducida\&. Nmap intenta detectar limitaciones de tasa y ajustar la demora del sondeo como considere necesario, pero a veces viene bien especificarlo de forma explícita si ya sabe qué valor es mejor\&.
 .sp
 El sondeo se ralentiza de forma drástica cuando Nmap incrementa el valor del tiempo de espera para poder tratar las limitaciones de tasa\&. Puede utilizar la opción
-\fB\-\-max_scan\-delay\fR
+\fB\-\-max\-scan\-delay\fR
 para indicar el tiempo máximo de espera que permitirá Nmap\&. Si especifica un valor muy pequeño tendrá retransmisiones inútiles de paquetes y posiblemente no detecte puertos para los que el objetivo implemente tasas de tráfico estrictas\&.
 .sp
 También se puede usar
@@ -1416,7 +1416,7 @@ Esta opción es simplemente un alias para
 \fB\-\-stylesheet http://www\&.insecure\&.org/nmap/data/nmap\&.xsl\fR\&.
 .RE
 .PP
-\fB\-\-no_stylesheet\fR (Omite la declaración de hoja de estilo XSL del XML)
+\fB\-\-no\-stylesheet\fR (Omite la declaración de hoja de estilo XSL del XML)
 .RS 4
 Puede utilizar esta opción para evitar que Nmap asocie una hoja de estilo XSL a su salida XML\&. En este caso, se omite la directiva
 xml\-stylesheet

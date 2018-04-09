@@ -6,10 +6,10 @@ Subject: use su-to-root
  zenmap/install_scripts/unix/zenmap-root.desktop | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-Index: nmap/zenmap/install_scripts/unix/zenmap-root.desktop
-===================================================================
---- nmap.orig/zenmap/install_scripts/unix/zenmap-root.desktop
-+++ nmap/zenmap/install_scripts/unix/zenmap-root.desktop
+diff --git a/zenmap/install_scripts/unix/zenmap-root.desktop b/zenmap/install_scripts/unix/zenmap-root.desktop
+index c5f4c10..f50029d 100644
+--- a/zenmap/install_scripts/unix/zenmap-root.desktop
++++ b/zenmap/install_scripts/unix/zenmap-root.desktop
 @@ -1,8 +1,8 @@
  [Desktop Entry]
  Name=Zenmap (as root)

@@ -11,7 +11,6 @@ Files-Excluded: mswin32
  liblua
  libpcap
  libpcre
- libssh2
  libz
  nselib/data/jdwp-class/*.class
 
@@ -22,9 +21,10 @@ License: nmap-GPL-2
 Files: debian/*
 Copyright: 1997-1999, Bdale Garbee <bdale@gag.com>
            1999-2010, LaMont Jones <lamont@debian.org>
-           2012-2017, Hilko Bengen <bengen@debian.org>
-           2016-2017, Samuel Henrique <samueloph@gmail.com>
+           2012-2018, Hilko Bengen <bengen@debian.org>
+           2016-2018, Samuel Henrique <samueloph@gmail.com>
            2017, Lukas Schwaighofer <lukas@schwaighofer.name>
+           2018, Raphaël Hertzog <hertzog@debian.org>
 License: nmap-GPL-2
 
 Files: aclocal.m4 configure depcomp ltmain.sh nbase/configure ncat/Makefile.in
@@ -120,6 +120,44 @@ License: preserve-copyright
 Files: shtool
 Copyright: 1994-2008, Ralf S. Engelschall <rse@engelschall.com>
 License: GPL-2+
+
+Files: libssh2/*
+Copyright: 2004-2007 Sara Golemon <sarag@libssh2.org>
+  2005,2006 Mikhail Gusarov <dottedmag@dottedmag.net>
+  2006-2007 The Written Word, Inc.
+  2007 Eli Fant <elifantu@mail.ru>
+  2009-2014 Daniel Stenberg
+  2008, 2009 Simon Josefsson
+License: BSD-3-clause-copyright-holders-contributors
+
+Files: libssh2/Makefile.in libssh2/aclocal.m4 libssh2/configure libssh2/m4/*
+ libssh2/src/Makefile.in
+Copyright: 1991-2015, Free Software Foundation, Inc.
+Comment: May be distributed under the same license as the rest of the program.
+License: BSD-3-clause-copyright-holders-contributors
+
+Files: libssh2/m4/autobuild.m4
+Copyright: 2004, 2006, Simon Josefsson
+Comment: May be distributed under the same license as the rest of the program.
+License: BSD-3-clause-copyright-holders-contributors
+
+Files: libssh2/nw/*
+Copyright: Guenter Knauf, Ulrich Neumann
+License: BSD-3-clause-copyright-holders-contributors
+
+Files: libssh2/os400/* libssh2/src/os400qc3.c libssh2/src/os400qc3.h
+Copyright: 2015, Patrick Monnerat, D+H <patrick.monnerat@dh.com>
+License: BSD-3-clause-copyright-holders-contributors
+
+Files: libssh2/src/libssh2_config_cmake.h.in
+Copyright: 2014, Alexander Lamaison <alexander.lamaison@gmail.com>
+  1999-2011, Douglas Gilbert
+License: BSD-3-clause-copyright-holders-contributors
+
+Files: libssh2/src/wincng.c
+  libssh2/src/wincng.h
+Copyright: 2013-2015, Marc Hoersken <info@marc-hoersken.de>
+License: BSD-3-clause-copyright-holders-contributors
 
 License: nmap-GPL-2
  This program is free software; you may redistribute and/or modify it
@@ -341,6 +379,40 @@ License: BSD-3-clause-institute
  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  SUCH DAMAGE.
+
+License: BSD-3-clause-copyright-holders-contributors
+ Redistribution and use in source and binary forms,
+ with or without modification, are permitted provided
+ that the following conditions are met:
+ .
+   Redistributions of source code must retain the above
+   copyright notice, this list of conditions and the
+   following disclaimer.
+ .
+   Redistributions in binary form must reproduce the above
+   copyright notice, this list of conditions and the following
+   disclaimer in the documentation and/or other materials
+   provided with the distribution.
+ .
+   Neither the name of the copyright holder nor the names
+   of any other contributors may be used to endorse or
+   promote products derived from this software without
+   specific prior written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+ INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+ OF SUCH DAMAGE.
 
 License: BSD-4-clause
  Redistribution and use in source and binary forms, with or without

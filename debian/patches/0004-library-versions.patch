@@ -5,44 +5,33 @@ Description: Report correct versions for libssh2 and zlib
  facility provided by the libraries themselves.
 Origin: upstream
 Bug: https://github.com/nmap/nmap/pull/957
+---
+ nmap.cc | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
+diff --git a/nmap.cc b/nmap.cc
+index ec46267..6fc3e8f 100644
 --- a/nmap.cc
 +++ b/nmap.cc
 @@ -182,11 +182,19 @@
  #endif
  
  #if HAVE_LIBSSH2
+-#include <libssh2.h>
 +#ifdef LIBSSH2_INCLUDED
- #include "libssh2/libssh2v.h"
++#include "libssh2/libssh2v.h"
 +#else
 +#include "libssh2.h"
 +#endif
  #endif
  
  #if HAVE_LIBZ
+-#include <zlib.h>
 +#ifdef ZLIB_INCLUDED
- #include "libz/libzv.h"
++#include "libz/libzv.h"
 +#else
 +#include "zlib.h"
 +#endif
  #endif
  
  /* To get the version number only. */
-@@ -2846,7 +2854,7 @@
- #ifdef LIBSSH2_INCLUDED
-   with.push_back(std::string("nmap-libssh2-") + get_word_or_quote(LIBSSH2_VERSION_TEXT, 1));
- #else
--  with.push_back(std::string("libssh2-") + get_word_or_quote(LIBSSH2_VERSION_TEXT, 1));
-+  with.push_back(std::string("libssh2-") + get_word_or_quote(LIBSSH2_VERSION, 0));
- #endif
- #else
-   without.push_back("libssh2");
-@@ -2856,7 +2864,7 @@
- #ifdef ZLIB_INCLUDED
-   with.push_back(std::string("nmap-libz-") + get_word_or_quote(LIBZ_VERSION_TEXT, 1));
- #else
--  with.push_back(std::string("libz-") + get_word_or_quote(LIBZ_VERSION_TEXT, 1));
-+  with.push_back(std::string("libz-") + get_word_or_quote(ZLIB_VERSION, 0));
- #endif
- #else
-   without.push_back("libz");

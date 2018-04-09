@@ -2,7 +2,7 @@
  * ncat_core.c -- Contains option definitions and miscellaneous functions. *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2017 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2018 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -86,12 +86,12 @@
  * Covered Software without special permission from the copyright holders. *
  *                                                                         *
  * If you have any questions about the licensing restrictions on using     *
- * Nmap in other works, are happy to help.  As mentioned above, we also    *
- * offer alternative license to integrate Nmap into proprietary            *
+ * Nmap in other works, we are happy to help.  As mentioned above, we also *
+ * offer an alternative license to integrate Nmap into proprietary         *
  * applications and appliances.  These contracts have been sold to dozens  *
  * of software vendors, and generally include a perpetual license as well  *
- * as providing for priority support and updates.  They also fund the      *
- * continued development of Nmap.  Please email sales@nmap.com for further *
+ * as providing support and updates.  They also fund the continued         *
+ * development of Nmap.  Please email sales@nmap.com for further           *
  * information.                                                            *
  *                                                                         *
  * If you have received a written license agreement or contract for        *
@@ -125,7 +125,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: ncat_core.c 36887 2017-07-29 05:55:30Z dmiller $ */
+/* $Id: ncat_core.c 37187 2018-03-11 03:50:53Z dmiller $ */
 
 #include "ncat.h"
 #include "util.h"
@@ -338,8 +338,24 @@ int fdinfo_close(struct fdinfo *fdn)
 int fdinfo_recv(struct fdinfo *fdn, char *buf, size_t size)
 {
 #ifdef HAVE_OPENSSL
+    int n;
+    int err = SSL_ERROR_NONE;
     if (o.ssl && fdn->ssl)
-        return SSL_read(fdn->ssl, buf, size);
+    {
+        do {
+            n = SSL_read(fdn->ssl, buf, size);
+            /* SSL_read returns <0 in some cases like renegotiation. In these
+             * cases, SSL_get_error gives SSL_ERROR_WANT_{READ,WRITE}, and we
+             * should try the SSL_read again. */
+            if (n < 0) {
+                err = SSL_get_error(fdn->ssl, n);
+                if (err != SSL_ERROR_WANT_READ || err != SSL_ERROR_WANT_WRITE) {
+                    logdebug("SSL error on %d: %s\n", fdn->fd, ERR_error_string(err, NULL));
+                }
+            }
+        } while (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE);
+        return n;
+    }
 #endif
     return recv(fdn->fd, buf, size, 0);
 }
