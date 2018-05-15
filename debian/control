@@ -1,11 +1,11 @@
 Source: nmap
 Section: net
 Priority: optional
-Maintainer: Debian Security Tools Packaging Team <pkg-security-team@lists.alioth.debian.org>
+Maintainer: Debian Security Tools <team+pkg-security@tracker.debian.org>
 Uploaders: Hilko Bengen <bengen@debian.org>,
            Samuel Henrique <samueloph@gmail.com>
 Build-Depends: bison,
-               debhelper (>=10),
+               debhelper (>=11),
                dh-python,
                flex,
                libgtk2.0-dev,
@@ -19,8 +19,8 @@ Build-Depends: bison,
                python
 Build-Depends-Indep: default-jdk-headless,
                      gcc-mingw-w64-i686
-Standards-Version: 4.1.0
-Homepage: http://nmap.org/
+Standards-Version: 4.1.3
+Homepage: https://nmap.org/
 Vcs-Git: git://git.kali.org/packages/nmap.git
 Vcs-Browser: http://git.kali.org/gitweb/?p=packages/nmap.git;a=summary
 
@@ -30,8 +30,7 @@ Depends: nmap-common (= ${source:Version}),
          ${misc:Depends},
          ${python:Depends},
          ${shlibs:Depends}
-Recommends: ndiff
-Suggests: zenmap
+Suggests: ncat, ndiff, zenmap
 Description: The Network Mapper
  Nmap is a utility for network exploration or security auditing. It
  supports ping scanning (determine which hosts are up), many port
@@ -93,3 +92,14 @@ Depends: python-lxml,
 Description: The Network Mapper - result compare utility
  Ndiff is a tool to aid in the comparison of Nmap scans. It takes two
  Nmap XML output files and prints the differences between them.
+
+Package: ncat
+Architecture: any
+Breaks: nmap (<< 7.70+dfsg1-2~)
+Replaces: nmap (<< 7.70+dfsg1-2~)
+Depends: ${misc:Depends},  ${shlibs:Depends}
+Description: NMAP netcat reimplementation
+ ncat is a reimplementation of Netcat by the NMAP project, providing
+ most of the features present in the original implementations, along
+ with some new features such as IPv6 and SSL support. Port scanning
+ support has been removed.

@@ -1,3 +1,49 @@
+nmap (7.70+dfsg1-3) unstable; urgency=medium
+
+  * Make ncat Architecture: any
+  * Fix ncat description
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 09 Apr 2018 11:49:11 +0200
+
+nmap (7.70+dfsg1-2) unstable; urgency=medium
+
+  [ Samuel Henrique ]
+  * Bump DH to 11
+  * d/copyright: update debian/* entry
+
+  [ Hilko Bengen ]
+  * Ship ncat as separate package, provide nc alternative
+    (Closes: #881639, #560377)
+
+ -- Hilko Bengen <bengen@debian.org>  Sun, 08 Apr 2018 22:17:31 +0200
+
+nmap (7.70+dfsg1-1) unstable; urgency=medium
+
+  * Team upload.
+
+  [ Lukas Schwaighofer ]
+  * Leave embedded copy of libssh2 in the source package to ease packaging for
+    Ubuntu (which requires the embedded copy).
+    - Update debian/copyright with the libssh2 copyright details.
+  * Update debian/rules to use the included libssh2 copy when builing for
+    Ubuntu and its derivates.
+
+  [ Samuel Henrique ]
+  * d/[control|watch]: update upstream homepage to https
+
+  [ Raphaël Hertzog ]
+  * Update team maintainer address to Debian Security Tools
+    <team+pkg-security@tracker.debian.org>
+  * Update Vcs-Git and Vcs-Browser for the move to salsa.debian.org
+
+  [ Hilko Bengen ]
+  * New upstream version 7.70+dfsg1
+  * Bump Standards-Version
+  * nmap: Suggest ndiff, instead of recommending it (Closes: #885871)
+  * Update patches
+
+ -- Hilko Bengen <bengen@debian.org>  Tue, 27 Mar 2018 21:48:37 +0200
+
 nmap (7.70+dfsg1-0kali2) kali-dev; urgency=medium
 
   * Rebuild with Debian orig.tag.xz

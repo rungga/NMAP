@@ -7,7 +7,7 @@ Subject: Link against lua-lpeg
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/configure.ac b/configure.ac
-index 3d00e16..38deb12 100644
+index 9bea4c8..401ddee 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -826,7 +826,7 @@ else
