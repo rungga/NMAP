@@ -6,6 +6,9 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 ifeq ($(shell dpkg-vendor --derives-from Ubuntu && echo yes),yes)
 	VENDOR_CONFIGURE_OPTIONS = --with-libssh2=included
 endif
+ifeq ($(shell dpkg-vendor --derives-from kali && echo yes),yes)
+	VENDOR_CONFIGURE_OPTIONS = --with-libpcap=included
+endif
 
 %:
 	dh $@ --with=python2
@@ -14,9 +17,12 @@ override_dh_auto_clean:
 	dh_auto_clean
 	rm -f nselib/data/jdwp-class/*.class nselib/data/psexec/*.exe
 
-override_dh_auto_configure:
+override_dh_autoreconf:
 	cp -r debian/libpcap .
-	dh_auto_configure -- --with-liblua --with-liblinear --with-libpcap=included --enable-ipv6 STRIP=/bin/true $(VENDOR_CONFIGURE_OPTIONS)
+	dh_autoreconf
+
+override_dh_auto_configure:
+	dh_auto_configure -- --with-liblua --with-liblinear --enable-ipv6 STRIP=/bin/true $(VENDOR_CONFIGURE_OPTIONS)
 
 override_dh_auto_build-indep:
 	dh_auto_build

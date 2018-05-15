@@ -1,3 +1,9 @@
+nmap (7.70+dfsg1-3kali1) kali-dev; urgency=medium
+
+  * Import new upstream release. Keep libpcap embedded for Kali
+
+ -- Sophie Brun <sophie@freexian.com>  Tue, 15 May 2018 11:31:30 +0200
+
 nmap (7.70+dfsg1-3) unstable; urgency=medium
 
   * Make ncat Architecture: any
