@@ -22,7 +22,7 @@ Files: debian/*
 Copyright: 1997-1999, Bdale Garbee <bdale@gag.com>
            1999-2010, LaMont Jones <lamont@debian.org>
            2012-2018, Hilko Bengen <bengen@debian.org>
-           2016-2018, Samuel Henrique <samueloph@gmail.com>
+           2016-2018, Samuel Henrique <samueloph@debian.org>
            2017, Lukas Schwaighofer <lukas@schwaighofer.name>
            2018, Raphaël Hertzog <hertzog@debian.org>
 License: nmap-GPL-2

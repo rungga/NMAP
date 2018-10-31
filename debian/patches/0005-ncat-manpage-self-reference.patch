@@ -1,0 +1,17 @@
+Description: Remove ncat's manpage self-reference (closes: #765999)
+ manpage is generated dynamicaly on upstream, so it is needed to
+ patch their script instead of the file like this.
+Author: Samuel Henrique <samueloph@debian.org>
+Forwarded: no
+Index: nmap/ncat/docs/ncat.1
+===================================================================
+--- nmap.orig/ncat/docs/ncat.1
++++ nmap/ncat/docs/ncat.1
+@@ -95,7 +95,6 @@ Options taking a time assume seconds\&.
+       \-\-ssl\-alpn             ALPN protocol list to use\&.
+       \-\-version              Display Ncat\*(Aqs version information and exit
+ 
+-See the ncat(1) manpage for full options, descriptions and usage examples
+ .fi
+ .if n \{\
+ .RE

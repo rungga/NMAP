@@ -16,8 +16,8 @@ index c5f4c10..f50029d 100644
  GenericName=GUI Port Scanner
 -TryExec=su-to-zenmap.sh
 -Exec=su-to-zenmap.sh %F
-+TryExec=su-to-root
-+Exec=su-to-root -X -c zenmap %F
++TryExec=pkexec
++Exec=pkexec /usr/bin/zenmap %F
  Terminal=false
  Icon=zenmap
  Type=Application
