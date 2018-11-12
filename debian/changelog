@@ -1,3 +1,9 @@
+nmap (7.70+dfsg1-5kali1) kali-dev; urgency=medium
+
+  * Import new upstream release. Keep libpcap embedded for Kali
+
+ -- Sophie Brun <sophie@freexian.com>  Mon, 12 Nov 2018 15:10:19 +0100
+
 nmap (7.70+dfsg1-5) unstable; urgency=medium
 
   * d/control: zenmap: move polkit from Depends to Recommends, note
