@@ -3,7 +3,7 @@ Section: net
 Priority: optional
 Maintainer: Debian Security Tools <team+pkg-security@tracker.debian.org>
 Uploaders: Hilko Bengen <bengen@debian.org>,
-           Samuel Henrique <samueloph@gmail.com>
+           Samuel Henrique <samueloph@debian.org>
 Build-Depends: bison,
                debhelper (>=11),
                dh-python,
@@ -19,7 +19,7 @@ Build-Depends: bison,
                python
 Build-Depends-Indep: default-jdk-headless,
                      gcc-mingw-w64-i686
-Standards-Version: 4.1.3
+Standards-Version: 4.2.1
 Homepage: https://nmap.org/
 Vcs-Git: git://git.kali.org/packages/nmap.git
 Vcs-Browser: http://git.kali.org/gitweb/?p=packages/nmap.git;a=summary
@@ -74,7 +74,8 @@ Depends: ndiff,
 Provides: nmapfe
 Conflicts: nmapfe
 Replaces: nmapfe
-Recommends: python-pysqlite2
+Recommends: policykit-1,
+            python-pysqlite2
 Description: The Network Mapper Front End
  Zenmap is an Nmap frontend. It is meant to be useful for advanced users
  and to make Nmap easy to use by beginners. It was originally derived
@@ -91,7 +92,9 @@ Depends: python-lxml,
          ${python:Depends}
 Description: The Network Mapper - result compare utility
  Ndiff is a tool to aid in the comparison of Nmap scans. It takes two
- Nmap XML output files and prints the differences between them.
+ Nmap XML output files and prints the differences between them them:
+ hosts coming up and down, ports becoming open or closed, and things like that.
+ It can produce output in human-readable text or machine-readable XML formats.
 
 Package: ncat
 Architecture: any

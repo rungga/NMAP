@@ -1,3 +1,30 @@
+nmap (7.70+dfsg1-5) unstable; urgency=medium
+
+  * d/control: zenmap: move polkit from Depends to Recommends, note
+    that the desktop entry of zenmap as root won't work without polkit
+    (closes: #912452)
+
+ -- Samuel Henrique <samueloph@debian.org>  Wed, 31 Oct 2018 20:02:43 -0300
+
+nmap (7.70+dfsg1-4) unstable; urgency=medium
+
+  [ Samuel Henrique ]
+  * Bump Standards-Version to 4.2.1
+  * Update my email to @debian.org
+  * d/p/0005: remove ncat's manpage self-reference (closes: #765999)
+  * d/control: better ndiff extended description
+  * lintian-overrides:
+    - ndiff: add description lintian (as nmap and zenmap does)
+    - nmap: add false positive lintians
+    - nmap-common: add two overrides for READMEs
+    - zenmap: add override for pkexec
+
+  [ Christian Ehrhardt ]
+  * Fix "zenmap as root" using polkit instead of menu
+    (closes: #890728) (LP: #1263311)
+
+ -- Samuel Henrique <samueloph@debian.org>  Wed, 31 Oct 2018 03:26:50 -0300
+
 nmap (7.70+dfsg1-3kali1) kali-dev; urgency=medium
 
   * Import new upstream release. Keep libpcap embedded for Kali
@@ -146,7 +173,7 @@ nmap (7.50-1) unstable; urgency=medium
   * Bump Standards-Version to 4.0.0.
   * Remove unused lintian overrides.
 
- -- Samuel Henrique <samueloph@gmail.com>  Sat, 17 Jun 2017 21:04:49 -0300
+ -- Samuel Henrique <samueloph@debian.org>  Sat, 17 Jun 2017 21:04:49 -0300
 
 nmap (7.40-1kali1) kali-dev; urgency=medium
 
@@ -162,7 +189,7 @@ nmap (7.40-1) unstable; urgency=medium
     - 0004-zenmap-desktop.patch: Remove patch, applied upstream.
   * debian/watch: Bump to v4.
 
- -- Samuel Henrique <samueloph@gmail.com>  Thu, 22 Dec 2016 00:52:47 -0200
+ -- Samuel Henrique <samueloph@debian.org>  Thu, 22 Dec 2016 00:52:47 -0200
 
 nmap (7.31-2kali1) kali-dev; urgency=medium
 

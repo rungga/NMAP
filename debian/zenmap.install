@@ -6,3 +6,4 @@ usr/lib/python2.7/site-packages/zenmap*
 usr/share/applications/zenmap*
 usr/share/man/man1/zenmap.1
 usr/share/zenmap
+debian/com.ubuntu.zenmap.policy usr/share/polkit-1/actions
