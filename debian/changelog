@@ -1,3 +1,11 @@
+nmap (7.70+dfsg1-6) unstable; urgency=medium
+
+  * Team upload
+  * Drop 0004-library-versions.patch, it has been fixed differently
+    by upstream, and it is now breaking Ubuntu builds.
+
+ -- Gianfranco Costamagna <locutusofborg@debian.org>  Wed, 12 Dec 2018 15:58:18 +0100
+
 nmap (7.70+dfsg1-5) unstable; urgency=medium
 
   * d/control: zenmap: move polkit from Depends to Recommends, note
