@@ -1,7 +1,8 @@
 Source: nmap
 Section: net
 Priority: optional
-Maintainer: Debian Security Tools <team+pkg-security@tracker.debian.org>
+XSBC-Original-Maintainer: Debian Security Tools <team+pkg-security@tracker.debian.org>
+Maintainer: Kali Developers <devel@kali.org>
 Uploaders: Hilko Bengen <bengen@debian.org>,
            Samuel Henrique <samueloph@debian.org>
 Build-Depends: bison,
