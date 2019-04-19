@@ -22,8 +22,8 @@ Build-Depends-Indep: default-jdk-headless,
                      gcc-mingw-w64-i686
 Standards-Version: 4.2.1
 Homepage: https://nmap.org/
-Vcs-Git: git://git.kali.org/packages/nmap.git
-Vcs-Browser: http://git.kali.org/gitweb/?p=packages/nmap.git;a=summary
+Vcs-Git: https://gitlab.com/kalilinux/packages/nmap.git
+Vcs-Browser: https://gitlab.com/kalilinux/packages/nmap
 
 Package: nmap
 Architecture: any
