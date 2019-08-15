@@ -1,11 +1,11 @@
+#ifndef PROBESPEC_H
+#define PROBESPEC_H
 /***************************************************************************
- * winclude.h -- some windows include files and                            *
- * windows-compatibility-related functions that are specific to Nmap. Most *
- * of this has been moved into nbase so it can be shared.                  *
- *                                                                         *
+ * probespec.h -- Defines structures which specify probes to network ports *
+ * and protocols.                                                          *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2018 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2019 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
  * This program is free software; you may redistribute and/or modify it    *
  * under the terms of the GNU General Public License as published by the   *
@@ -127,23 +127,59 @@
  * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
  *                                                                         *
  ***************************************************************************/
+#include <nbase.h>
 
-/* $Id: */
+struct probespec_tcpdata {
+  u16 dport;
+  u8 flags;
+};
 
-#ifndef WINCLUDE_H
-#define WINCLUDE_H
+struct probespec_udpdata {
+  u16 dport;
+};
 
-#include "nping_winconfig.h"
+struct probespec_sctpdata {
+  u16 dport;
+  u8 chunktype;
+};
 
-#include <stdio.h>
-#include <stdlib.h>
+struct probespec_icmpdata {
+  u8 type;
+  u8 code;
+};
 
-#include "nbase.h"
+struct probespec_icmpv6data {
+  u8 type;
+  u8 code;
+};
 
-#include <pcap.h>
-#include <packet32.h>
+#define PS_NONE 0
+#define PS_TCP 1
+#define PS_UDP 2
+#define PS_PROTO 3
+#define PS_ICMP 4
+#define PS_ARP 5
+#define PS_CONNECTTCP 6
+#define PS_SCTP 7
+#define PS_ICMPV6 8
+#define PS_ND 9
 
-/* non-functioning stub function */
-int fork();
+/* The size of this structure is critical, since there can be tens of
+   thousands of them stored together ... */
+typedef struct probespec {
+  /* To save space, I changed this from private enum (took 4 bytes) to
+     u8 that uses #defines above */
+  u8 type;
+  u8 proto; /* If not PS_ARP -- Protocol number ... eg IPPROTO_TCP, etc. */
+  union {
+    struct probespec_tcpdata tcp; /* If type is PS_TCP or PS_CONNECTTCP. */
+    struct probespec_udpdata udp; /* PS_UDP */
+    struct probespec_sctpdata sctp; /* PS_SCTP */
+    struct probespec_icmpdata icmp; /* PS_ICMP */
+    struct probespec_icmpv6data icmpv6; /* PS_ICMPV6 */
+    /* Nothing needed for PS_ARP, since src mac and target IP are
+       avail from target structure anyway */
+  } pd;
+} probespec;
 
-#endif /* WINCLUDE_H */
+#endif

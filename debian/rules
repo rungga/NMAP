@@ -28,6 +28,9 @@ override_dh_auto_install:
 	dh_auto_install
 	mv debian/tmp/usr/share/man/pt_PT debian/tmp/usr/share/man/pt
 
+override_dh_missing:
+	dh_missing -X/usr/bin/uninstall_ -Xca-bundle.crt -X.pyc --fail-missing
+
 override_dh_install:
-	dh_install --fail-missing -X/usr/bin/uninstall_ -Xca-bundle.crt -X.pyc
+	dh_install -X/usr/bin/uninstall_ -Xca-bundle.crt -X.pyc
 

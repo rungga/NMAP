@@ -1,3 +1,16 @@
+nmap (7.80+dfsg1-1) unstable; urgency=medium
+
+  * New upstream version 7.80+dfsg1 (Closes: #934728)
+  * Disable check for upstream signatures which are apparently
+    no longer published.
+  * Bump Debhelper compat level
+  * Replace dh_install --fail-missing
+  * Bump Standards-Version
+  * dh_missing
+  * Rework patches
+
+ -- Hilko Bengen <bengen@debian.org>  Thu, 15 Aug 2019 09:25:50 +0200
+
 nmap (7.70+dfsg1-6) unstable; urgency=medium
 
   * Team upload

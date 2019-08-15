@@ -3,7 +3,7 @@
 #     --define "__python /usr/bin/python2.5"
 
 %define name zenmap
-%define version 7.70
+%define version 7.80
 %define release 1
 %define _prefix /usr
 
@@ -86,5 +86,5 @@ gzip $RPM_BUILD_ROOT%{_mandir}/man1/* || :
 
 * Sat Jun 06 2009 Fyodor (fyodor(a)insecure.org)
 - Removed changelog entries as SVN is a more authoritative source. Execute:
-- svn log --username guest --password "" svn://svn.insecure.org/nmap/zenmap.spec.in
+- svn log --username guest --password "" https://svn.nmap.org/nmap/zenmap.spec.in
 
