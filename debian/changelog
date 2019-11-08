@@ -1,3 +1,17 @@
+nmap (7.80+dfsg1-2) unstable; urgency=medium
+
+  [ Samuel Henrique ]
+  * Add salsa-ci.yml
+  * d/rules: Pass some hardening flags to nmap_service.exe
+  * salsa-ci: Disable BLHC test
+
+  [ Hilko Bengen ]
+  * Drop zenmap package due to python2 and pygtk removal (Closes: #885498)
+  * Use Python3 for ndiff, using Bryan Quigley's patch (PR #1807).
+    Closes: #883161
+
+ -- Hilko Bengen <bengen@debian.org>  Fri, 08 Nov 2019 12:41:14 +0100
+
 nmap (7.80+dfsg1-1) unstable; urgency=medium
 
   * New upstream version 7.80+dfsg1 (Closes: #934728)
