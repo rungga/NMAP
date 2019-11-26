@@ -11,10 +11,11 @@ ifeq ($(shell dpkg-vendor --derives-from kali && echo yes),yes)
 endif
 
 %:
-	dh $@ --with=python2
+	dh $@ --with=python3
 
 override_dh_auto_clean:
 	dh_auto_clean
+	dh_auto_clean --sourcedir=ndiff --buildsystem=pybuild
 	rm -f nselib/data/jdwp-class/*.class nselib/data/psexec/*.exe
 
 override_dh_autoreconf:
@@ -22,17 +23,27 @@ override_dh_autoreconf:
 	dh_autoreconf
 
 override_dh_auto_configure:
-	dh_auto_configure -- --with-liblua --with-liblinear --enable-ipv6 STRIP=/bin/true $(VENDOR_CONFIGURE_OPTIONS)
+	dh_auto_configure -- \
+		--with-liblua \
+		--with-liblinear \
+		--without-zenmap \
+		--without-ndiff \
+		--enable-ipv6 \
+		STRIP=/bin/true $(VENDOR_CONFIGURE_OPTIONS)
+	dh_auto_configure --sourcedir=ndiff --buildsystem=pybuild
 
 override_dh_auto_build-indep:
 	dh_auto_build
+	dh_auto_build --sourcedir=ndiff --buildsystem=pybuild
 	cd nselib/data/jdwp-class && /usr/lib/jvm/default-java/bin/javac *.java
-	cd nselib/data/psexec && i686-w64-mingw32-gcc -o nmap_service.exe nmap_service.c
+	cd nselib/data/psexec && i686-w64-mingw32-gcc ${CPPFLAGS} ${CFLAGS} -o nmap_service.exe nmap_service.c
 
 override_dh_auto_test:
+	dh_auto_test --sourcedir=ndiff --buildsystem=pybuild
 
 override_dh_auto_install:
 	dh_auto_install
+	dh_auto_install --sourcedir=ndiff --buildsystem=pybuild
 	mv debian/tmp/usr/share/man/pt_PT debian/tmp/usr/share/man/pt
 
 override_dh_missing:
