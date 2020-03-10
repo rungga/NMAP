@@ -1,3 +1,9 @@
+nmap (7.80+dfsg1-2kali2) kali-dev; urgency=medium
+
+  * Refresh patch and import upstream patch to fix issue
+
+ -- Sophie Brun <sophie@offensive-security.com>  Tue, 10 Mar 2020 17:52:31 +0100
+
 nmap (7.80+dfsg1-2kali1) kali-dev; urgency=medium
 
   * Import new upstream release. Keep libpcap embedded for Kali

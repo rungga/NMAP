@@ -1,0 +1,61 @@
+From: Sophie Brun <sophie@offensive-security.com>
+Date: Tue, 10 Mar 2020 17:49:19 +0100
+Subject: Fix smb-os-discovery
+
+Last-Update: 2020-03-10
+
+
+Description: import upstream patch
+https://github.com/nmap/nmap/commit/c491143358f3417ed7f6712ae8a9d3e48699463a
+---
+ CHANGELOG      |  4 ++++
+ nselib/smb.lua | 11 ++++++-----
+ 2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/CHANGELOG b/CHANGELOG
+index d11b091..6e0b3b3 100644
+--- a/CHANGELOG
++++ b/CHANGELOG
+@@ -1,5 +1,9 @@
+ #Nmap Changelog ($Id: CHANGELOG 37693 2019-07-31 18:08:34Z dmiller $); -*-text-*-
+ 
++o [NSE][GH#1476][GH#1707] A MS-SMB spec non-compliance in Samba was causing
++  protocol negotiation to fail with data string too short error.
++  [Clément Notin, nnposter]
++
+ Nmap 7.80 [2019-08-01]
+ 
+ o [Security][Windows] Address CVE-2019-1552 in OpenSSL by building with the prefix
+diff --git a/nselib/smb.lua b/nselib/smb.lua
+index 1b54328..e95dd7d 100644
+--- a/nselib/smb.lua
++++ b/nselib/smb.lua
+@@ -1019,15 +1019,11 @@ function negotiate_v1(smb, overrides)
+   end
+ 
+   -- Data section
+-  if #data < smb.key_length then
+-    return false, "SMB: ERROR: not enough data for server_challenge"
+-  end
+-  smb.server_challenge, pos = string.unpack(string.format("<c%d", smb['key_length']), data)
+   if(smb['extended_security'] == true) then
+     if #data < 16 then
+       return false, "SMB: ERROR: not enough data for extended security"
+     end
+-    smb.server_guid, pos = string.unpack("<c16", data, pos)
++    smb.server_guid, pos = string.unpack("<c16", data)
+ 
+     -- do we have a security blob?
+     if ( #data - pos > 0 ) then
+@@ -1035,6 +1031,11 @@ function negotiate_v1(smb, overrides)
+       pos = #data + 1
+     end
+   else
++    if #data < smb.key_length then
++      return false, "SMB: ERROR: not enough data for server_challenge"
++    end
++    smb.server_challenge, pos = string.unpack(string.format("<c%d", smb['key_length']), data)
++
+     -- Get the (null-terminated) domain as a Unicode string
+     smb['domain'] = ""
+     smb['server'] = ""
