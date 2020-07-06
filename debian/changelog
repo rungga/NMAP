@@ -1,3 +1,39 @@
+nmap (7.80+dfsg1-5) unstable; urgency=medium
+
+  * Make nmap_service.ex_ reproducible, thanks to Chris Lamb for the patch
+    (Closes: #964369)
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 06 Jul 2020 23:01:39 +0200
+
+nmap (7.80+dfsg1-4) unstable; urgency=medium
+
+  * Revert "Enable running all tests" as this caused network activity and
+    FTBFS on some autobuilders.
+
+ -- Hilko Bengen <bengen@debian.org>  Sat, 04 Jul 2020 17:00:00 +0200
+
+nmap (7.80+dfsg1-3) unstable; urgency=medium
+
+  [ Hilko Bengen ]
+  * Enable running all tests
+  * Ship obfuscated nmap_service.ex_ instead of nmap_service.exe (Closes:
+    #929272)
+
+  [ Samuel Henrique ]
+  * Configure git-buildpackage for Debian
+  * d/control: Add Rules-Requires-Root: no
+  * Bump DH to 13
+  * d/p/upstream/signing-key.asc: Remove extra signature
+  * Bump Standards Version to 4.5.0
+
+  [ Automatic changes ]
+  * Trim trailing whitespace.
+  * Wrap long lines in changelog entries: 6.25-0.2, 4.76-0ubuntu1.
+  * Set debhelper-compat version in Build-Depends.
+  * Fix field name typos in debian/copyright.
+
+ -- Hilko Bengen <bengen@debian.org>  Sat, 04 Jul 2020 15:34:56 +0200
+
 nmap (7.80+dfsg1-2) unstable; urgency=medium
 
   [ Samuel Henrique ]
@@ -373,7 +409,8 @@ nmap (6.40-0.1) unstable; urgency=low
 nmap (6.25-0.2) unstable; urgency=low
 
   * Non-maintainer upload.
-  * debian/rules: Make sure zenmap is built again (tabs vs. spaces), other cleanups
+  * debian/rules: Make sure zenmap is built again (tabs vs. spaces), other
+    cleanups
 
  -- Hilko Bengen <bengen@debian.org>  Mon, 27 May 2013 22:02:16 +0200
 
@@ -437,7 +474,7 @@ nmap (5.51.6-0.2) unstable; urgency=low
 nmap (5.51.6-0.1) unstable; urgency=low
 
   * Non-maintainer upload
-  * New upstream version (Closes: #630144) 
+  * New upstream version (Closes: #630144)
   * Added watch file
   * Simplified debian/*.files, added translated manpages (Closes: #358336)
   * Added Python dependency for ndiff to nmap package
@@ -498,7 +535,7 @@ nmap (5.00-3) unstable; urgency=low
 nmap (5.00-2) unstable; urgency=low
 
   * rules: fix dependencies for -j.  Closes: #541984
-  * Conflicts: ndiff.  Different enough to not warrant Replaces. 
+  * Conflicts: ndiff.  Different enough to not warrant Replaces.
     Closes: #542054
   * new config.guess, updated rules for same.  Closes: #542079
 
@@ -536,7 +573,8 @@ nmap (4.76-0ubuntu2) jaunty; urgency=low
 nmap (4.76-0ubuntu1) jaunty; urgency=low
 
   * New upstream release (LP: #268996)
-  * Edit broken links in debian/nmap.files, debian/zenmap.dirs, debian/zenmap.files
+  * Edit broken links in debian/nmap.files, debian/zenmap.dirs,
+    debian/zenmap.files
   * Edit path to pixmaps in debian/rules
 
  -- Petr E. Antonov <Petr.E.Antonov@gmail.com>  Mon, 19 Jan 2009 10:24:39 +0100
@@ -1106,5 +1144,3 @@ nmap (1.30-1) unstable; urgency=low
   * initial release
 
  -- Bdale Garbee <bdale@gag.com>  Tue, 16 Dec 1997 00:40:01 -0700
-
-
