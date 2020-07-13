@@ -44,8 +44,8 @@ Copyright: 2001-2008, Insecure.Com LLC
 License: retain-copyright-cisco
 
 Files: docs/style/*
-copyright: 2011, Patrick Joseph Donnelly
 License: unlimited-retain-copyright
+Copyright: 2011, Patrick Joseph Donnelly
 
 Files: libdnet-stripped/*
 Copyright: 2000-2006, Dug Song <dugsong@monkey.org>

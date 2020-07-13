@@ -6,7 +6,7 @@ Maintainer: Kali Developers <devel@kali.org>
 Uploaders: Hilko Bengen <bengen@debian.org>,
            Samuel Henrique <samueloph@debian.org>
 Build-Depends: bison,
-               debhelper (>=12~),
+               debhelper-compat (= 13),
                dh-python,
                flex,
                liblinear-dev,
@@ -20,7 +20,8 @@ Build-Depends: bison,
                python3,
 Build-Depends-Indep: default-jdk-headless,
                      gcc-mingw-w64-i686
-Standards-Version: 4.4.0
+Standards-Version: 4.5.0
+Rules-Requires-Root: no
 Homepage: https://nmap.org/
 Vcs-Git: https://gitlab.com/kalilinux/packages/nmap.git
 Vcs-Browser: https://gitlab.com/kalilinux/packages/nmap
