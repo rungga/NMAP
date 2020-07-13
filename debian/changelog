@@ -1,3 +1,9 @@
+nmap (7.80+dfsg1-5kali1) kali-dev; urgency=medium
+
+  * Import new upstream release. Keep libpcap embedded for Kali
+
+ -- Sophie Brun <sophie@offensive-security.com>  Mon, 13 Jul 2020 11:03:54 +0200
+
 nmap (7.80+dfsg1-5) unstable; urgency=medium
 
   * Make nmap_service.ex_ reproducible, thanks to Chris Lamb for the patch
