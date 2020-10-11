@@ -3,7 +3,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2019 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2020 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -52,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: gh_list.h 37640 2019-05-28 21:36:04Z dmiller $ */
+/* $Id: gh_list.h 38071 2020-10-02 05:02:05Z fyodor $ */
 
 #ifndef GH_LIST_H
 #define GH_LIST_H

@@ -6,7 +6,7 @@
  *                                                                         *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2019 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2020 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -55,7 +55,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_pool.c 37640 2019-05-28 21:36:04Z dmiller $ */
+/* $Id: nsock_pool.c 38071 2020-10-02 05:02:05Z fyodor $ */
 
 #include "nsock_internal.h"
 #include "nsock_log.h"
@@ -71,6 +71,9 @@
 #endif
 #include <signal.h>
 
+#if HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
 
 extern struct timeval nsock_tod;
 
@@ -294,17 +297,16 @@ void nsock_pool_delete(nsock_pool ms_pool) {
 }
 
 void nsock_library_initialize(void) {
-  int res;
+#ifndef WIN32
+  rlim_t res;
 
   /* We want to make darn sure the evil SIGPIPE is ignored */
-#ifndef WIN32
   signal(SIGPIPE, SIG_IGN);
-#endif
 
   /* And we're gonna need sockets -- LOTS of sockets ... */
   res = maximize_fdlimit();
-#ifndef WIN32
   assert(res > 7);
 #endif
+  return;
 }
 
