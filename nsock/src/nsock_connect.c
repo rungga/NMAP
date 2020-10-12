@@ -3,7 +3,7 @@
  * connections from the nsock parallel socket event library                *
  ***********************IMPORTANT NSOCK LICENSE TERMS***********************
  *                                                                         *
- * The nsock parallel socket event library is (C) 1999-2019 Insecure.Com   *
+ * The nsock parallel socket event library is (C) 1999-2020 Insecure.Com   *
  * LLC This library is free software; you may redistribute and/or          *
  * modify it under the terms of the GNU General Public License as          *
  * published by the Free Software Foundation; Version 2.  This guarantees  *
@@ -52,7 +52,7 @@
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nsock_connect.c 37640 2019-05-28 21:36:04Z dmiller $ */
+/* $Id: nsock_connect.c 38071 2020-10-02 05:02:05Z fyodor $ */
 
 #include "nsock.h"
 #include "nsock_internal.h"
@@ -242,6 +242,7 @@ void nsock_connect_internal(struct npool *ms, struct nevent *nse, int type, int 
 #endif
 #if HAVE_SYS_UN_H
     else if (ss->ss_family == AF_UNIX) {
+      /* Nothing more to do for Unix socket */
     }
 #endif
 #if HAVE_LINUX_VM_SOCKETS_H

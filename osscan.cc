@@ -6,222 +6,77 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2019 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2020 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
- * This program is free software; you may redistribute and/or modify it    *
- * under the terms of the GNU General Public License as published by the   *
- * Free Software Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE   *
- * CLARIFICATIONS AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your   *
- * right to use, modify, and redistribute this software under certain      *
- * conditions.  If you wish to embed Nmap technology into proprietary      *
- * software, we sell alternative licenses (contact sales@nmap.com).        *
- * Dozens of software vendors already license Nmap technology such as      *
- * host discovery, port scanning, OS detection, version detection, and     *
- * the Nmap Scripting Engine.                                              *
  *                                                                         *
- * Note that the GPL places important restrictions on "derivative works",  *
- * yet it does not provide a detailed definition of that term.  To avoid   *
- * misunderstandings, we interpret that term as broadly as copyright law   *
- * allows.  For example, we consider an application to constitute a        *
- * derivative work for the purpose of this license if it does any of the   *
- * following with any software or content covered by this license          *
- * ("Covered Software"):                                                   *
+ * This program is distributed under the terms of the Nmap Public Source   *
+ * License (NPSL). The exact license text applying to a particular Nmap    *
+ * release or source code control revision is contained in the LICENSE     *
+ * file distributed with that version of Nmap or source code control       *
+ * revision. More Nmap copyright/legal information is available from       *
+ * https://nmap.org/book/man-legal.html, and further information on the    *
+ * NPSL license itself can be found at https://nmap.org/npsl. This header  *
+ * summarizes some key points from the Nmap license, but is no substitute  *
+ * for the actual license text.                                            *
  *                                                                         *
- * o Integrates source code from Covered Software.                         *
+ * Nmap is generally free for end users to download and use themselves,    *
+ * including commercial use. It is available from https://nmap.org.        *
  *                                                                         *
- * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
- * or nmap-service-probes.                                                 *
+ * The Nmap license generally prohibits companies from using and           *
+ * redistributing Nmap in commercial products, but we sell a special Nmap  *
+ * OEM Edition with a more permissive license and special features for     *
+ * this purpose. See https://nmap.org/oem                                  *
  *                                                                         *
- * o Is designed specifically to execute Covered Software and parse the    *
- * results (as opposed to typical shell or execution-menu apps, which will *
- * execute anything you tell them to).                                     *
+ * If you have received a written Nmap license agreement or contract       *
+ * stating terms other than these (such as an Nmap OEM license), you may   *
+ * choose to use and redistribute Nmap under those terms instead.          *
  *                                                                         *
- * o Includes Covered Software in a proprietary executable installer.  The *
- * installers produced by InstallShield are an example of this.  Including *
- * Nmap with other software in compressed or archival form does not        *
- * trigger this provision, provided appropriate open source decompression  *
- * or de-archiving software is widely available for no charge.  For the    *
- * purposes of this license, an installer is considered to include Covered *
- * Software even if it actually retrieves a copy of Covered Software from  *
- * another source during runtime (such as by downloading it from the       *
- * Internet).                                                              *
- *                                                                         *
- * o Links (statically or dynamically) to a library which does any of the  *
- * above.                                                                  *
- *                                                                         *
- * o Executes a helper program, module, or script to do any of the above.  *
- *                                                                         *
- * This list is not exclusive, but is meant to clarify our interpretation  *
- * of derived works with some common examples.  Other people may interpret *
- * the plain GPL differently, so we consider this a special exception to   *
- * the GPL that we apply to Covered Software.  Works which meet any of     *
- * these conditions must conform to all of the terms of this license,      *
- * particularly including the GPL Section 3 requirements of providing      *
- * source code and allowing free redistribution of the work as a whole.    *
- *                                                                         *
- * As another special exception to the GPL terms, the Nmap Project grants  *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two.                                  *
- *                                                                         *
- * The Nmap Project has permission to redistribute Npcap, a packet         *
- * capturing driver and library for the Microsoft Windows platform.        *
- * Npcap is a separate work with it's own license rather than this Nmap    *
- * license.  Since the Npcap license does not permit redistribution        *
- * without special permission, our Nmap Windows binary packages which      *
- * contain Npcap may not be redistributed without special permission.      *
- *                                                                         *
- * Any redistribution of Covered Software, including any derived works,    *
- * must obey and carry forward all of the terms of this license, including *
- * obeying all GPL rules and restrictions.  For example, source code of    *
- * the whole work must be provided and free redistribution must be         *
- * allowed.  All GPL references to "this License", are to be treated as    *
- * including the terms and conditions of this license text as well.        *
- *                                                                         *
- * Because this license imposes special exceptions to the GPL, Covered     *
- * Work may not be combined (even as part of a larger work) with plain GPL *
- * software.  The terms, conditions, and exceptions of this license must   *
- * be included as well.  This license is incompatible with some other open *
- * source licenses as well.  In some cases we can relicense portions of    *
- * Nmap or grant special permissions to use it in other open source        *
- * software.  Please contact fyodor@nmap.org with any such requests.       *
- * Similarly, we don't incorporate incompatible open source software into  *
- * Covered Software without special permission from the copyright holders. *
- *                                                                         *
- * If you have any questions about the licensing restrictions on using     *
- * Nmap in other works, we are happy to help.  As mentioned above, we also *
- * offer an alternative license to integrate Nmap into proprietary         *
- * applications and appliances.  These contracts have been sold to dozens  *
- * of software vendors, and generally include a perpetual license as well  *
- * as providing support and updates.  They also fund the continued         *
- * development of Nmap.  Please email sales@nmap.com for further           *
- * information.                                                            *
- *                                                                         *
- * If you have received a written license agreement or contract for        *
- * Covered Software stating terms other than these, you may choose to use  *
- * and redistribute Covered Software under those terms instead of these.   *
+ * The official Nmap Windows builds include the Npcap software             *
+ * (https://npcap.org) for packet capture and transmission. It is under    *
+ * separate license terms which forbid redistribution without special      *
+ * permission. So the official Nmap Windows builds may not be              *
+ * redistributed without special permission (such as an Nmap OEM           *
+ * license).                                                               *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
  * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
- * and add new features.  You are highly encouraged to send your changes   *
- * to the dev@nmap.org mailing list for possible incorporation into the    *
- * main distribution.  By sending these changes to Fyodor or one of the    *
- * Insecure.Org development mailing lists, or checking them into the Nmap  *
- * source code repository, it is understood (unless you specify            *
- * otherwise) that you are offering the Nmap Project the unlimited,        *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because     *
- * the inability to relicense code has caused devastating problems for     *
- * other Free Software projects (such as KDE and NASM).  We also           *
- * occasionally relicense the code to third parties as discussed above.    *
- * If you wish to specify special license conditions of your               *
- * contributions, just say so when you send them.                          *
+ * and add new features.  You are highly encouraged to submit your         *
+ * changes as a Github PR or by email to the dev@nmap.org mailing list     *
+ * for possible incorporation into the main distribution. Unless you       *
+ * specify otherwise, it is understood that you are offering us very       *
+ * broad rights to use your submissions as described in the Nmap Public    *
+ * Source License Contributor Agreement. This is important because we      *
+ * fund the project by selling licenses with various terms, and also       *
+ * because the inability to relicense code has caused devastating          *
+ * problems for other Free Software projects (such as KDE and NASM).       *
  *                                                                         *
- * This program is distributed in the hope that it will be useful, but     *
- * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
- * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
+ * The free version of Nmap is distributed in the hope that it will be     *
+ * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of  *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,        *
+ * indemnification and commercial support are all available through the    *
+ * Npcap OEM program--see https://nmap.org/oem.                            *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: osscan.cc 37640 2019-05-28 21:36:04Z dmiller $ */
+/* $Id: osscan.cc 38078 2020-10-02 16:12:22Z dmiller $ */
 
 #include "osscan.h"
 #include "NmapOps.h"
 #include "charpool.h"
 #include "FingerPrintResults.h"
 #include "nmap_error.h"
+#include "string_pool.h"
 
 #include <errno.h>
-#include <stdarg.h>
 #include <time.h>
 
 #include <algorithm>
 #include <list>
-#include <set>
 
 extern NmapOps o;
-
-/* Store a string uniquely. The first time this function is called with a
-   certain string, it allocates memory and stores a copy of the string in a
-   static pool. Thereafter it will return a pointer to the saved string instead
-   of allocating memory for an identical one. */
-const char *string_pool_insert(const char *s)
-{
-  static std::set<std::string> pool;
-  static std::pair<std::set<std::string>::iterator, bool> pair;
-
-  pair = pool.insert(s);
-
-  return pair.first->c_str();
-}
-
-const char *string_pool_substr(const char *s, const char *t)
-{
-  return string_pool_insert(std::string(s, t).c_str());
-}
-
-const char *string_pool_substr_strip(const char *s, const char *t) {
-  while (isspace((int) (unsigned char) *s))
-    s++;
-  while (t > s && isspace((int) (unsigned char) *(t - 1)))
-    t--;
-
-  return string_pool_substr(s, t);
-}
-
-/* Skip over whitespace to find the beginning of a word, then read until the
-   next whilespace character. Returns NULL if only whitespace is found. */
-static const char *string_pool_strip_word(const char *s) {
-  const char *t;
-
-  while (isspace((int) (unsigned char) *s))
-    s++;
-  t = s;
-  while (*t != '\0' && !isspace((int) (unsigned char) *t))
-    t++;
-
-  if (s == t)
-    return NULL;
-
-  return string_pool_substr(s, t);
-}
-
-/* Format a string with sprintf and insert it with string_pool_insert. */
-const char *string_pool_sprintf(const char *fmt, ...)
-{
-  const char *s;
-  char *buf;
-  int size, n;
-  va_list ap;
-
-  buf = NULL;
-  size = 32;
-  /* Loop until we allocate a string big enough for the sprintf. */
-  for (;;) {
-    buf = (char *) realloc(buf, size);
-    assert(buf != NULL);
-    va_start(ap, fmt);
-    n = Vsnprintf(buf, size, fmt, ap);
-    va_end(ap);
-    if (n < 0)
-      size = size * 2;
-    else if (n >= size)
-      size = n + 1;
-    else
-      break;
-  }
-
-  s = string_pool_insert(buf);
-  free(buf);
-
-  return s;
-}
 
 FingerPrintDB::FingerPrintDB() : MatchPoints(NULL) {
 }
@@ -250,134 +105,52 @@ void FingerPrint::sort() {
    "3B-47" or "8|A" or ">10"). Return true iff there's a match. The syntax uses
      < (less than)
      > (greater than)
-     + (non-zero)
      | (or)
      - (range)
-     & (and)
    No parentheses are allowed. */
 static bool expr_match(const char *val, const char *expr) {
-  int andexp, orexp, expchar, numtrue;
-  int testfailed;
-  char exprcpy[512];
-  char *p, *q, *q1;  /* OHHHH YEEEAAAAAHHHH!#!@#$!% */
+  const char *p, *q, *q1;  /* OHHHH YEEEAAAAAHHHH!#!@#$!% */
   char *endptr;
   unsigned int val_num, expr_num, expr_num1;
+  bool is_numeric;
 
-  numtrue = andexp = orexp = 0; testfailed = 0;
-  Strncpy(exprcpy, expr, sizeof(exprcpy));
-  p = exprcpy;
+  p = expr;
 
-  if (strchr(expr, '|')) {
-    orexp = 1; expchar = '|';
-  } else {
-    andexp = 1; expchar = '&';
-  }
-
+  val_num = strtol(val, &endptr, 16);
+  is_numeric = !*endptr;
+  // TODO: this could be a lot faster if we compiled fingerprints to a bytecode
+  // instead of re-parsing every time.
   do {
-    q = strchr(p, expchar);
-    if (q)
-      *q = '\0';
-    if (strcmp(p, "+") == 0) {
-      if (!*val) {
-        if (andexp) {
-          testfailed = 1;
-          break;
+    q = strchr(p, '|');
+    if (is_numeric && (*p == '<' || *p == '>')) {
+      expr_num = strtol(p + 1, &endptr, 16);
+      if (endptr == q || !*endptr) {
+        if ((*p == '<' && val_num < expr_num)
+            || (*p == '>' && val_num > expr_num)) {
+          return true;
         }
-      } else {
-        val_num = strtol(val, &endptr, 16);
-        if (val_num == 0 || *endptr) {
-          if (andexp) {
-            testfailed = 1;
-            break;
+      }
+    } else if (is_numeric && ((q1 = strchr(p, '-')) != NULL)) {
+      expr_num = strtol(p, &endptr, 16);
+      if (endptr == q1) {
+        expr_num1 = strtol(q1 + 1, &endptr, 16);
+        if (endptr == q || !*endptr) {
+          assert(expr_num1 > expr_num);
+          if (val_num >= expr_num && val_num <= expr_num1) {
+            return true;
           }
-        } else {
-          numtrue++;
-          if (orexp)
-            break;
         }
-      }
-    } else if (*p == '<' && isxdigit((int) (unsigned char) p[1])) {
-      if (!*val) {
-        if (andexp) {
-          testfailed = 1;
-          break;
-        }
-      }
-      expr_num = strtol(p + 1, &endptr, 16);
-      val_num = strtol(val, &endptr, 16);
-      if (val_num >= expr_num || *endptr) {
-        if (andexp) {
-          testfailed = 1;
-          break;
-        }
-      } else {
-        numtrue++;
-        if (orexp)
-          break;
-      }
-    } else if (*p == '>' && isxdigit((int) (unsigned char) p[1])) {
-      if (!*val) {
-        if (andexp) {
-          testfailed = 1;
-          break;
-        }
-      }
-      expr_num = strtol(p + 1, &endptr, 16);
-      val_num = strtol(val, &endptr, 16);
-      if (val_num <= expr_num || *endptr) {
-        if (andexp) {
-          testfailed = 1;
-          break;
-        }
-      } else {
-        numtrue++;
-        if (orexp)
-          break;
-      }
-    } else if (((q1 = strchr(p, '-')) != NULL) && isxdigit((int) (unsigned char) p[0]) && isxdigit((int) (unsigned char) q1[1])) {
-      if (!*val) {
-        if (andexp) {
-          testfailed = 1;
-          break;
-        }
-      }
-      *q1 = '\0';
-      expr_num = strtol(p, NULL, 16);
-      expr_num1 = strtol(q1 + 1, NULL, 16);
-      if (expr_num1 < expr_num && o.debugging) {
-        error("Range error in reference expr: %s", expr);
-      }
-      val_num = strtol(val, &endptr, 16);
-      if (val_num < expr_num || val_num > expr_num1 || *endptr) {
-        if (andexp) {
-          testfailed = 1;
-          break;
-        }
-      } else {
-        numtrue++;
-        if (orexp)
-          break;
       }
     } else {
-      if (strcmp(p, val)) {
-        if (andexp) {
-          testfailed = 1;
-          break;
-        }
-      } else {
-        numtrue++;
-        if (orexp)
-          break;
+      if ((q && !strncmp(p, val, q - p)) || (!q && !strcmp(p, val))) {
+        return true;
       }
     }
     if (q)
       p = q + 1;
   } while (q);
 
-  if (numtrue == 0)
-    testfailed = 1;
-
-  return !testfailed;
+  return false;
 }
 
 /* Returns true if perfect match -- if num_subtests &
@@ -674,12 +447,15 @@ void WriteSInfo(char *ostr, int ostrlen, bool isGoodFP,
                                 enum dist_calc_method distance_calculation_method,
                                 const u8 *mac, int openTcpPort,
                                 int closedTcpPort, int closedUdpPort) {
-  struct tm *ltime;
+  struct tm ltime;
+  int err;
   time_t timep;
   char dsbuf[10], otbuf[8], ctbuf[8], cubuf[8], dcbuf[8];
   char macbuf[16];
   timep = time(NULL);
-  ltime = localtime(&timep);
+  err = n_localtime(&timep, &ltime);
+  if (err)
+    error("Error in localtime: %s", strerror(err));
 
   otbuf[0] = '\0';
   if (openTcpPort != -1)
@@ -704,7 +480,7 @@ void WriteSInfo(char *ostr, int ostrlen, bool isGoodFP,
     Snprintf(macbuf, sizeof(macbuf), "%%M=%02X%02X%02X", mac[0], mac[1], mac[2]);
 
   Snprintf(ostr, ostrlen, "SCAN(V=%s%%E=%s%%D=%d/%d%%OT=%s%%CT=%s%%CU=%s%%PV=%c%s%s%%G=%c%s%%TM=%X%%P=%s)",
-                   NMAP_VERSION, engine_id, ltime->tm_mon + 1, ltime->tm_mday,
+                   NMAP_VERSION, engine_id, err ? 0 : ltime.tm_mon + 1, err ? 0 : ltime.tm_mday,
                    otbuf, ctbuf, cubuf, isipprivate(addr) ? 'Y' : 'N', dsbuf, dcbuf, isGoodFP ? 'Y' : 'N',
                    macbuf, (int) timep, NMAP_PLATFORM);
 }
@@ -1289,7 +1065,7 @@ FingerPrintDB *parse_fingerprint_reference_file(const char *dbname) {
   char filename[256];
 
   if (nmap_fetchfile(filename, sizeof(filename), dbname) != 1) {
-    fatal("OS scan requested but I cannot find %s file.  It should be in %s, ~/.nmap/ or .", dbname, NMAPDATADIR);
+    fatal("OS scan requested but I cannot find %s file.", dbname);
   }
   /* Record where this data file was found. */
   o.loaded_data_files[dbname] = filename;

@@ -1,3 +1,10 @@
+nmap (7.91+dfsg1-1) unstable; urgency=medium
+
+  * New upstream version 7.91+dfsg1
+  * Update patches; add patch to fix automake breakage
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 12 Oct 2020 00:32:24 +0200
+
 nmap (7.80+dfsg1-5kali1) kali-dev; urgency=medium
 
   * Import new upstream release. Keep libpcap embedded for Kali

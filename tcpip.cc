@@ -6,130 +6,62 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2019 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2020 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
- * This program is free software; you may redistribute and/or modify it    *
- * under the terms of the GNU General Public License as published by the   *
- * Free Software Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE   *
- * CLARIFICATIONS AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your   *
- * right to use, modify, and redistribute this software under certain      *
- * conditions.  If you wish to embed Nmap technology into proprietary      *
- * software, we sell alternative licenses (contact sales@nmap.com).        *
- * Dozens of software vendors already license Nmap technology such as      *
- * host discovery, port scanning, OS detection, version detection, and     *
- * the Nmap Scripting Engine.                                              *
  *                                                                         *
- * Note that the GPL places important restrictions on "derivative works",  *
- * yet it does not provide a detailed definition of that term.  To avoid   *
- * misunderstandings, we interpret that term as broadly as copyright law   *
- * allows.  For example, we consider an application to constitute a        *
- * derivative work for the purpose of this license if it does any of the   *
- * following with any software or content covered by this license          *
- * ("Covered Software"):                                                   *
+ * This program is distributed under the terms of the Nmap Public Source   *
+ * License (NPSL). The exact license text applying to a particular Nmap    *
+ * release or source code control revision is contained in the LICENSE     *
+ * file distributed with that version of Nmap or source code control       *
+ * revision. More Nmap copyright/legal information is available from       *
+ * https://nmap.org/book/man-legal.html, and further information on the    *
+ * NPSL license itself can be found at https://nmap.org/npsl. This header  *
+ * summarizes some key points from the Nmap license, but is no substitute  *
+ * for the actual license text.                                            *
  *                                                                         *
- * o Integrates source code from Covered Software.                         *
+ * Nmap is generally free for end users to download and use themselves,    *
+ * including commercial use. It is available from https://nmap.org.        *
  *                                                                         *
- * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
- * or nmap-service-probes.                                                 *
+ * The Nmap license generally prohibits companies from using and           *
+ * redistributing Nmap in commercial products, but we sell a special Nmap  *
+ * OEM Edition with a more permissive license and special features for     *
+ * this purpose. See https://nmap.org/oem                                  *
  *                                                                         *
- * o Is designed specifically to execute Covered Software and parse the    *
- * results (as opposed to typical shell or execution-menu apps, which will *
- * execute anything you tell them to).                                     *
+ * If you have received a written Nmap license agreement or contract       *
+ * stating terms other than these (such as an Nmap OEM license), you may   *
+ * choose to use and redistribute Nmap under those terms instead.          *
  *                                                                         *
- * o Includes Covered Software in a proprietary executable installer.  The *
- * installers produced by InstallShield are an example of this.  Including *
- * Nmap with other software in compressed or archival form does not        *
- * trigger this provision, provided appropriate open source decompression  *
- * or de-archiving software is widely available for no charge.  For the    *
- * purposes of this license, an installer is considered to include Covered *
- * Software even if it actually retrieves a copy of Covered Software from  *
- * another source during runtime (such as by downloading it from the       *
- * Internet).                                                              *
- *                                                                         *
- * o Links (statically or dynamically) to a library which does any of the  *
- * above.                                                                  *
- *                                                                         *
- * o Executes a helper program, module, or script to do any of the above.  *
- *                                                                         *
- * This list is not exclusive, but is meant to clarify our interpretation  *
- * of derived works with some common examples.  Other people may interpret *
- * the plain GPL differently, so we consider this a special exception to   *
- * the GPL that we apply to Covered Software.  Works which meet any of     *
- * these conditions must conform to all of the terms of this license,      *
- * particularly including the GPL Section 3 requirements of providing      *
- * source code and allowing free redistribution of the work as a whole.    *
- *                                                                         *
- * As another special exception to the GPL terms, the Nmap Project grants  *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two.                                  *
- *                                                                         *
- * The Nmap Project has permission to redistribute Npcap, a packet         *
- * capturing driver and library for the Microsoft Windows platform.        *
- * Npcap is a separate work with it's own license rather than this Nmap    *
- * license.  Since the Npcap license does not permit redistribution        *
- * without special permission, our Nmap Windows binary packages which      *
- * contain Npcap may not be redistributed without special permission.      *
- *                                                                         *
- * Any redistribution of Covered Software, including any derived works,    *
- * must obey and carry forward all of the terms of this license, including *
- * obeying all GPL rules and restrictions.  For example, source code of    *
- * the whole work must be provided and free redistribution must be         *
- * allowed.  All GPL references to "this License", are to be treated as    *
- * including the terms and conditions of this license text as well.        *
- *                                                                         *
- * Because this license imposes special exceptions to the GPL, Covered     *
- * Work may not be combined (even as part of a larger work) with plain GPL *
- * software.  The terms, conditions, and exceptions of this license must   *
- * be included as well.  This license is incompatible with some other open *
- * source licenses as well.  In some cases we can relicense portions of    *
- * Nmap or grant special permissions to use it in other open source        *
- * software.  Please contact fyodor@nmap.org with any such requests.       *
- * Similarly, we don't incorporate incompatible open source software into  *
- * Covered Software without special permission from the copyright holders. *
- *                                                                         *
- * If you have any questions about the licensing restrictions on using     *
- * Nmap in other works, we are happy to help.  As mentioned above, we also *
- * offer an alternative license to integrate Nmap into proprietary         *
- * applications and appliances.  These contracts have been sold to dozens  *
- * of software vendors, and generally include a perpetual license as well  *
- * as providing support and updates.  They also fund the continued         *
- * development of Nmap.  Please email sales@nmap.com for further           *
- * information.                                                            *
- *                                                                         *
- * If you have received a written license agreement or contract for        *
- * Covered Software stating terms other than these, you may choose to use  *
- * and redistribute Covered Software under those terms instead of these.   *
+ * The official Nmap Windows builds include the Npcap software             *
+ * (https://npcap.org) for packet capture and transmission. It is under    *
+ * separate license terms which forbid redistribution without special      *
+ * permission. So the official Nmap Windows builds may not be              *
+ * redistributed without special permission (such as an Nmap OEM           *
+ * license).                                                               *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
  * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
- * and add new features.  You are highly encouraged to send your changes   *
- * to the dev@nmap.org mailing list for possible incorporation into the    *
- * main distribution.  By sending these changes to Fyodor or one of the    *
- * Insecure.Org development mailing lists, or checking them into the Nmap  *
- * source code repository, it is understood (unless you specify            *
- * otherwise) that you are offering the Nmap Project the unlimited,        *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because     *
- * the inability to relicense code has caused devastating problems for     *
- * other Free Software projects (such as KDE and NASM).  We also           *
- * occasionally relicense the code to third parties as discussed above.    *
- * If you wish to specify special license conditions of your               *
- * contributions, just say so when you send them.                          *
+ * and add new features.  You are highly encouraged to submit your         *
+ * changes as a Github PR or by email to the dev@nmap.org mailing list     *
+ * for possible incorporation into the main distribution. Unless you       *
+ * specify otherwise, it is understood that you are offering us very       *
+ * broad rights to use your submissions as described in the Nmap Public    *
+ * Source License Contributor Agreement. This is important because we      *
+ * fund the project by selling licenses with various terms, and also       *
+ * because the inability to relicense code has caused devastating          *
+ * problems for other Free Software projects (such as KDE and NASM).       *
  *                                                                         *
- * This program is distributed in the hope that it will be useful, but     *
- * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
- * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
+ * The free version of Nmap is distributed in the hope that it will be     *
+ * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of  *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,        *
+ * indemnification and commercial support are all available through the    *
+ * Npcap OEM program--see https://nmap.org/oem.                            *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: tcpip.cc 37640 2019-05-28 21:36:04Z dmiller $ */
+/* $Id: tcpip.cc 38078 2020-10-02 16:12:22Z dmiller $ */
 
 #include "nmap.h"
 
@@ -163,11 +95,15 @@ static PacketCounter PktCt;
    AF_INET6, depending on the operating system. */
 int nmap_raw_socket() {
   int rawsd;
+  int one = 1;
 
   rawsd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
   if (rawsd < 0)
     return rawsd;
-  broadcast_socket(rawsd);
+  if (setsockopt (rawsd, SOL_SOCKET, SO_BROADCAST, (const char *) &one, sizeof(int)) != 0) {
+    error("Failed to secure socket broadcasting permission");
+    perror("setsockopt");
+  }
 #ifndef WIN32
   sethdrinclude(rawsd);
 #endif
@@ -1346,9 +1282,9 @@ int readudppacket(const u8 *packet, int readdata) {
 
 /* Used by validatepkt() to validate the TCP header (including option lengths).
    The options checked are MSS, WScale, SackOK, Sack, and Timestamp. */
-static bool validateTCPhdr(u8 *tcpc, unsigned len) {
+static bool validateTCPhdr(const u8 *tcpc, unsigned len) {
   struct tcp_hdr *tcp = (struct tcp_hdr *) tcpc;
-  unsigned hdrlen, optlen;
+  int hdrlen, optlen;
 
   hdrlen = tcp->th_off * 4;
 
@@ -1361,13 +1297,14 @@ static bool validateTCPhdr(u8 *tcpc, unsigned len) {
   optlen = hdrlen - sizeof(struct tcp_hdr);
 
 #define OPTLEN_IS(expected) do { \
-  if (optlen < (expected) || *++tcpc != (expected)) \
+  if ((expected) == 0 || optlen < (expected) || hdrlen != (expected)) \
     return false; \
   optlen -= (expected); \
-  tcpc += (expected) - 1; \
+  tcpc += (expected); \
 } while(0);
 
-  while (optlen > 0) {
+  while (optlen > 1) {
+    hdrlen = *(tcpc + 1);
     switch (*tcpc) {
     case 0: // EOL
       /* Options processing is over. */
@@ -1387,12 +1324,9 @@ static bool validateTCPhdr(u8 *tcpc, unsigned len) {
       OPTLEN_IS(2);
       break;
     case 5: /* SACK */
-      if (optlen < *++tcpc)
+      if (!(hdrlen - 2) || ((hdrlen - 2) % 8))
         return false;
-      if (!(*tcpc - 2) || ((*tcpc - 2) % 8))
-        return false;
-      optlen -= *tcpc;
-      tcpc += (*tcpc - 1);
+      OPTLEN_IS(hdrlen);
       break;
     case 8: /* Timestamp */
       OPTLEN_IS(10);
@@ -1404,12 +1338,18 @@ static bool validateTCPhdr(u8 *tcpc, unsigned len) {
       OPTLEN_IS(3);
       break;
     default:
-      if (optlen < 2 || optlen < *++tcpc)
-        return false;
-      optlen -= *tcpc;
-      tcpc += (*tcpc - 1);
+      OPTLEN_IS(hdrlen);
       break;
     }
+  }
+
+  if (optlen == 1) {
+    // Only 1 byte left in options, this has to be NOP or EOL
+    return (*tcpc == 0 || *tcpc == 1);
+  }
+  else if (optlen < 0) {
+    // Last option claimed to be longer than options list
+    return false;
   }
 
   return true;
@@ -1431,7 +1371,7 @@ static bool validateTCPhdr(u8 *tcpc, unsigned len) {
  * read more than the IP header says we should have so as to not pass garbage
  * data to the caller.
  */
-static bool validatepkt(u8 *ipc, unsigned *len) {
+static bool validatepkt(const u8 *ipc, unsigned *len) {
   struct ip *ip = (struct ip *) ipc;
   const void *data;
   unsigned int datalen, iplen;
@@ -1531,14 +1471,14 @@ static bool validatepkt(u8 *ipc, unsigned *len) {
    linknfo->header will be filled with the appropriate values. */
 /* Specifying true for validate will enable validity checks against the
    received IP packet.  See validatepkt() for a list of checks. */
-char *readipv4_pcap(pcap_t *pd, unsigned int *len, long to_usec,
+const u8 *readipv4_pcap(pcap_t *pd, unsigned int *len, long to_usec,
                     struct timeval *rcvdtime, struct link_header *linknfo,
                     bool validate) {
-  char *buf;
+  const u8 *buf;
 
   buf = readip_pcap(pd, len, to_usec, rcvdtime, linknfo, validate);
   if (buf != NULL) {
-    struct ip *ip;
+    const struct ip *ip;
 
     ip = (struct ip *) buf;
     if (*len < 1 || ip->ip_v != 4)
@@ -1548,304 +1488,76 @@ char *readipv4_pcap(pcap_t *pd, unsigned int *len, long to_usec,
   return buf;
 }
 
-char *readip_pcap(pcap_t *pd, unsigned int *len, long to_usec,
+static bool accept_any (const unsigned char *p, const struct pcap_pkthdr *h, int datalink, size_t offset) {
+  return true;
+}
+
+static bool accept_ip (const unsigned char *p, const struct pcap_pkthdr *h, int datalink, size_t offset) {
+  struct ip *ip = NULL;
+
+  if (h->caplen < offset + sizeof(struct ip)) {
+    return false;
+  }
+  ip = (struct ip *) (p + offset);
+  switch (ip->ip_v) {
+    case 4:
+    case 6:
+      break;
+    default:
+      return false;
+      break;
+  }
+
+  return true;
+}
+
+const u8 *readip_pcap(pcap_t *pd, unsigned int *len, long to_usec,
                   struct timeval *rcvdtime, struct link_header *linknfo, bool validate) {
-  unsigned int offset = 0;
-  struct pcap_pkthdr head;
-  char *p;
   int datalink;
-  int timedout = 0;
-  struct timeval tv_start, tv_end;
-  static char *alignedbuf = NULL;
-  static unsigned int alignedbufsz = 0;
-  static int warning = 0;
+  size_t offset = 0;
+  struct pcap_pkthdr *head;
+  const u8 *p;
+  int got_one = 0;
 
   if (linknfo) {
     memset(linknfo, 0, sizeof(*linknfo));
   }
 
-  if (!pd)
-    fatal("NULL packet device passed to %s", __func__);
-
-  if (to_usec < 0) {
-    if (!warning) {
-      warning = 1;
-      error("WARNING: Negative timeout value (%lu) passed to %s() -- using 0", to_usec, __func__);
-    }
-    to_usec = 0;
+  if (validate) {
+    got_one = read_reply_pcap(pd, to_usec, accept_ip, &p, &head, rcvdtime, &datalink, &offset);
+  }
+  else {
+    got_one = read_reply_pcap(pd, to_usec, accept_any, &p, &head, rcvdtime, &datalink, &offset);
   }
 
-  /* New packet capture device, need to recompute offset */
-  if ((datalink = pcap_datalink(pd)) < 0)
-    fatal("Cannot obtain datalink information: %s", pcap_geterr(pd));
-
-  /* NOTE: IF A NEW OFFSET EVER EXCEEDS THE CURRENT MAX (24), ADJUST
-     MAX_LINK_HEADERSZ in libnetutil/netutil.h */
-  switch (datalink) {
-  case DLT_EN10MB:
-    offset = 14;
-    break;
-  case DLT_IEEE802:
-    offset = 22;
-    break;
-#ifdef __amigaos__
-  case DLT_MIAMI:
-    offset = 16;
-    break;
-#endif
-#ifdef DLT_LOOP
-  case DLT_LOOP:
-#endif
-  case DLT_NULL:
-    offset = 4;
-    break;
-  case DLT_SLIP:
-#ifdef DLT_SLIP_BSDOS
-  case DLT_SLIP_BSDOS:
-#endif
-#if (FREEBSD || OPENBSD || NETBSD || BSDI || MACOSX)
-    offset = 16;
-#else
-    offset = 24; /* Anyone use this??? */
-#endif
-    break;
-  case DLT_PPP:
-#ifdef DLT_PPP_BSDOS
-  case DLT_PPP_BSDOS:
-#endif
-#ifdef DLT_PPP_SERIAL
-  case DLT_PPP_SERIAL:
-#endif
-#ifdef DLT_PPP_ETHER
-  case DLT_PPP_ETHER:
-#endif
-#if (FREEBSD || OPENBSD || NETBSD || BSDI || MACOSX)
-    offset = 4;
-#else
-#ifdef SOLARIS
-    offset = 8;
-#else
-    offset = 24; /* Anyone use this? */
-#endif /* ifdef solaris */
-#endif /* if freebsd || openbsd || netbsd || bsdi */
-    break;
-  case DLT_RAW:
-    offset = 0;
-    break;
-  case DLT_FDDI:
-    offset = 21;
-    break;
-#ifdef DLT_ENC
-  case DLT_ENC:
-    offset = 12;
-    break;
-#endif /* DLT_ENC */
-#ifdef DLT_LINUX_SLL
-  case DLT_LINUX_SLL:
-    offset = 16;
-    break;
-#endif
-#ifdef DLT_IPNET
-  case DLT_IPNET:
-    offset = 24;
-    break;
-#endif
-  default:
-    p = (char *) pcap_next(pd, &head);
-    if (head.caplen == 0) {
-      /* Lets sleep a brief time and try again to increase the chance of seeing
-         a real packet ... */
-      usleep(500000);
-      p = (char *) pcap_next(pd, &head);
-    }
-    if (head.caplen > 100000) {
-      fatal("FATAL: %s: bogus caplen from libpcap (%d) on interface type %d", __func__, head.caplen, datalink);
-    }
-    error("FATAL:  Unknown datalink type (%d). Caplen: %d; Packet:", datalink, head.caplen);
-    nmap_hexdump((unsigned char *) p, head.caplen);
-    exit(1);
-  }
-
-  if (to_usec > 0) {
-    gettimeofday(&tv_start, NULL);
-  }
-
-  do {
-
-    p = NULL;
-    /* It may be that protecting this with !pcap_selectable_fd_one_to_one is not
-       necessary, that it is always safe to do a nonblocking read in this way on
-       all platforms. But I have only tested it on Solaris. */
-    if (!pcap_selectable_fd_one_to_one()) {
-      int rc, nonblock;
-
-      nonblock = pcap_getnonblock(pd, NULL);
-      assert(nonblock == 0);
-      rc = pcap_setnonblock(pd, 1, NULL);
-      assert(rc == 0);
-      p = (char *) pcap_next(pd, &head);
-      rc = pcap_setnonblock(pd, nonblock, NULL);
-      assert(rc == 0);
-    }
-
-    if (p == NULL) {
-      /* Nonblocking pcap_next didn't get anything. */
-      if (pcap_select(pd, to_usec) == 0)
-        timedout = 1;
-      else
-        p = (char *) pcap_next(pd, &head);
-    }
-
-    if (p) {
-      if (head.caplen <= offset) {
-        *len = 0;
-        return NULL;
-      }
-      if (offset && linknfo) {
-        linknfo->datalinktype = datalink;
-        linknfo->headerlen = offset;
-        assert(offset <= MAX_LINK_HEADERSZ);
-        memcpy(linknfo->header, p, MIN(sizeof(linknfo->header), offset));
-      }
-      p += offset;
-    }
-    if (!p) {
-      /* Should we timeout? */
-      if (to_usec == 0) {
-        timedout = 1;
-      } else if (to_usec > 0) {
-        gettimeofday(&tv_end, NULL);
-        if (TIMEVAL_SUBTRACT(tv_end, tv_start) >= to_usec) {
-          timedout = 1;
-        }
-      }
-    }
-  } while (!timedout && (!p));
-
-  if (timedout) {
+  if (!got_one) {
     *len = 0;
     return NULL;
   }
-  *len = head.caplen - offset;
-  if (*len > alignedbufsz) {
-    alignedbuf = (char *) safe_realloc(alignedbuf, *len);
-    alignedbufsz = *len;
-  }
-  memcpy(alignedbuf, p, *len);
+
+  *len = head->caplen - offset;
+  p += offset;
 
   if (validate) {
-    /* Let's see if this packet passes inspection.. */
-    if (!validatepkt((u8 *) alignedbuf, len)) {
+    if (!validatepkt(p, len)) {
       *len = 0;
       return NULL;
     }
   }
-  // printf("Just got a packet at %li,%li\n", head.ts.tv_sec, head.ts.tv_usec);
-  if (rcvdtime) {
-    // FIXME: I eventually need to figure out why Windows head.ts time is sometimes BEFORE the time I
-    // sent the packet (which is according to gettimeofday() in nbase).  For now, I will sadly have to
-    // use gettimeofday() for Windows in this case
-    // Actually I now allow .05 discrepancy.   So maybe this isn't needed.  I'll comment out for now.
-    // Nope: it is still needed at least for Windows.  Sometimes the time from he pcap header is a
-    // COUPLE SECONDS before the gettimeofday() results :(.
-#if defined(WIN32) || defined(__amigaos__)
-    gettimeofday(&tv_end, NULL);
-    *rcvdtime = tv_end;
-#else
-    rcvdtime->tv_sec = head.ts.tv_sec;
-    rcvdtime->tv_usec = head.ts.tv_usec;
-    assert(head.ts.tv_sec);
-#endif
+  if (offset && linknfo) {
+    linknfo->datalinktype = datalink;
+    linknfo->headerlen = offset;
+    assert(offset <= MAX_LINK_HEADERSZ);
+    memcpy(linknfo->header, p - offset, MIN(sizeof(linknfo->header), offset));
   }
-
   if (rcvdtime)
-    PacketTrace::trace(PacketTrace::RCVD, (u8 *) alignedbuf, *len,
-                       rcvdtime);
+    PacketTrace::trace(PacketTrace::RCVD, (u8 *) p, *len,
+        rcvdtime);
   else
-    PacketTrace::trace(PacketTrace::RCVD, (u8 *) alignedbuf, *len);
+    PacketTrace::trace(PacketTrace::RCVD, (u8 *) p, *len);
 
-  return alignedbuf;
-}
-
-/* Attempts to read one IPv6 Neighbor Solicitation reply packet from the pcap
-   descriptor pd.  If it receives one, fills in sendermac (must pass
-   in 6 bytes), senderIP, and rcvdtime (can be NULL if you don't care)
-   and returns 1.  If it times out and reads no Neighbor Advertisement, returns
-   0.  to_usec is the timeout period in microseconds.  Use 0 to avoid
-   blocking to the extent possible.  Returns -1 or exits if there is
-   an error.  The last parameter is a pointer to a callback function
-   that can be used for packet tracing. This is intended to be used
-   by Nmap only. Any other calling this should pass NULL instead. */
-int read_na_pcap(pcap_t *pd, u8 *sendermac, struct sockaddr_in6 *senderIP, long to_usec,
-                 struct timeval *rcvdtime, bool *has_mac) {
-  struct ip *ip_tmp;
-  struct icmpv6_hdr *icmp6_header;
-  struct icmpv6_msg_nd *na;
-  struct timeval tv_start, tv_end;
-  const void *data = NULL;
-  unsigned int datalen;
-  static int warning = 0;
-  int timedout = 0;
-  struct abstract_ip_hdr hdr;
-  struct link_header linknfo;
-
-
-  if (to_usec < 0) {
-    if (!warning) {
-      warning = 1;
-      error("WARNING: Negative timeout value (%lu) passed to %s() -- using 0", to_usec, __func__);
-    }
-    to_usec = 0;
-  }
-
-  if (to_usec > 0) {
-    gettimeofday(&tv_start, NULL);
-  }
-
-  do {
-    ip_tmp = (struct ip *) readip_pcap(pd, &datalen, to_usec, rcvdtime, &linknfo, true);
-    if (ip_tmp) { //Check Neighbor Advertisement Packet.
-      /* OK, we got a packet.  Most packet validity tests are taken care
-       * of in readip_pcap, so this is simple
-       */
-      data = ip_get_data(ip_tmp, &datalen, &hdr);
-      if (data == NULL)
-        continue;
-      if (hdr.proto == IPPROTO_ICMPV6) {
-        icmp6_header = (struct icmpv6_hdr *)data;
-        na = (struct icmpv6_msg_nd *) ((unsigned char*)data + ICMPV6_HDR_LEN);
-        if (icmp6_header->icmpv6_type == ICMPV6_NEIGHBOR_ADVERTISEMENT &&
-            icmp6_header->icmpv6_code == 0) {
-          //Set target IPv6 address
-          senderIP->sin6_family = AF_INET6;
-          memcpy(&senderIP->sin6_addr.s6_addr, &na->icmpv6_target, 16);
-          //Set MAC
-          if (datalen == ICMPV6_HDR_LEN + sizeof(struct icmpv6_msg_nd)) {
-            if (na->icmpv6_option_type == 2 && na->icmpv6_option_length == 1) {
-              *has_mac = true;
-              memcpy(sendermac, &na->icmpv6_mac, 6);
-            }
-          } else {
-            *has_mac = false;
-          }
-        }
-      }
-    } else {
-      /* Should we timeout? */
-      if (to_usec == 0) {
-        timedout = 1;
-      } else if (to_usec > 0) {
-        gettimeofday(&tv_end, NULL);
-        if (TIMEVAL_SUBTRACT(tv_end, tv_start) >= to_usec) {
-          timedout = 1;
-        }
-      }
-    }
-  } while (!timedout && !ip_tmp);
-
-  if (timedout)
-    return 0;
-  return 1;
+  *len = head->caplen - offset;
+  return p;
 }
 
 // Returns whether the packet receive time value obtained from libpcap
@@ -2002,29 +1714,6 @@ bool getNextHopMAC(const char *iface, const u8 *srcmac, const struct sockaddr_st
 }
 
 
-
-
-
-
-
-
-pcap_if_t *getpcapinterfaces() {
-#ifndef WIN32
-  return NULL;
-#endif
-  pcap_if_t *p_ifaces;
-  char errbuf[PCAP_ERRBUF_SIZE];
-
-  if ((pcap_findalldevs(&p_ifaces, errbuf)) == -1) {
-    fatal("pcap_findalldevs(): Cannot retrieve pcap interfaces: %s", errbuf);
-    return NULL;
-  }
-  return p_ifaces;
-}
-
-
-
-
 int nmap_route_dst(const struct sockaddr_storage *dst, struct route_nfo *rnfo) {
   struct sockaddr_storage spoofss;
   size_t spoofsslen;
@@ -2054,19 +1743,6 @@ void max_rcvbuf(int sd) {
 #endif /* WIN32 */
 }
 
-
-/* Give broadcast permission to a socket */
-void broadcast_socket(int sd) {
-  int one = 1;
-#ifdef WIN32
-  if (sd == 501)
-    return;
-#endif
-  if (setsockopt (sd, SOL_SOCKET, SO_BROADCAST, (const char *) &one, sizeof(int)) != 0) {
-    error("Failed to secure socket broadcasting permission");
-    perror("setsockopt");
-  }
-}
 
 /* Do a receive (recv()) on a socket and stick the results (up to
    len) into buf .  Give up after 'seconds'.  Returns the number of

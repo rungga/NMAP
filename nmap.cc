@@ -5,130 +5,62 @@
  *                                                                         *
  ***********************IMPORTANT NMAP LICENSE TERMS************************
  *                                                                         *
- * The Nmap Security Scanner is (C) 1996-2019 Insecure.Com LLC ("The Nmap  *
+ * The Nmap Security Scanner is (C) 1996-2020 Insecure.Com LLC ("The Nmap  *
  * Project"). Nmap is also a registered trademark of the Nmap Project.     *
- * This program is free software; you may redistribute and/or modify it    *
- * under the terms of the GNU General Public License as published by the   *
- * Free Software Foundation; Version 2 ("GPL"), BUT ONLY WITH ALL OF THE   *
- * CLARIFICATIONS AND EXCEPTIONS DESCRIBED HEREIN.  This guarantees your   *
- * right to use, modify, and redistribute this software under certain      *
- * conditions.  If you wish to embed Nmap technology into proprietary      *
- * software, we sell alternative licenses (contact sales@nmap.com).        *
- * Dozens of software vendors already license Nmap technology such as      *
- * host discovery, port scanning, OS detection, version detection, and     *
- * the Nmap Scripting Engine.                                              *
  *                                                                         *
- * Note that the GPL places important restrictions on "derivative works",  *
- * yet it does not provide a detailed definition of that term.  To avoid   *
- * misunderstandings, we interpret that term as broadly as copyright law   *
- * allows.  For example, we consider an application to constitute a        *
- * derivative work for the purpose of this license if it does any of the   *
- * following with any software or content covered by this license          *
- * ("Covered Software"):                                                   *
+ * This program is distributed under the terms of the Nmap Public Source   *
+ * License (NPSL). The exact license text applying to a particular Nmap    *
+ * release or source code control revision is contained in the LICENSE     *
+ * file distributed with that version of Nmap or source code control       *
+ * revision. More Nmap copyright/legal information is available from       *
+ * https://nmap.org/book/man-legal.html, and further information on the    *
+ * NPSL license itself can be found at https://nmap.org/npsl. This header  *
+ * summarizes some key points from the Nmap license, but is no substitute  *
+ * for the actual license text.                                            *
  *                                                                         *
- * o Integrates source code from Covered Software.                         *
+ * Nmap is generally free for end users to download and use themselves,    *
+ * including commercial use. It is available from https://nmap.org.        *
  *                                                                         *
- * o Reads or includes copyrighted data files, such as Nmap's nmap-os-db   *
- * or nmap-service-probes.                                                 *
+ * The Nmap license generally prohibits companies from using and           *
+ * redistributing Nmap in commercial products, but we sell a special Nmap  *
+ * OEM Edition with a more permissive license and special features for     *
+ * this purpose. See https://nmap.org/oem                                  *
  *                                                                         *
- * o Is designed specifically to execute Covered Software and parse the    *
- * results (as opposed to typical shell or execution-menu apps, which will *
- * execute anything you tell them to).                                     *
+ * If you have received a written Nmap license agreement or contract       *
+ * stating terms other than these (such as an Nmap OEM license), you may   *
+ * choose to use and redistribute Nmap under those terms instead.          *
  *                                                                         *
- * o Includes Covered Software in a proprietary executable installer.  The *
- * installers produced by InstallShield are an example of this.  Including *
- * Nmap with other software in compressed or archival form does not        *
- * trigger this provision, provided appropriate open source decompression  *
- * or de-archiving software is widely available for no charge.  For the    *
- * purposes of this license, an installer is considered to include Covered *
- * Software even if it actually retrieves a copy of Covered Software from  *
- * another source during runtime (such as by downloading it from the       *
- * Internet).                                                              *
- *                                                                         *
- * o Links (statically or dynamically) to a library which does any of the  *
- * above.                                                                  *
- *                                                                         *
- * o Executes a helper program, module, or script to do any of the above.  *
- *                                                                         *
- * This list is not exclusive, but is meant to clarify our interpretation  *
- * of derived works with some common examples.  Other people may interpret *
- * the plain GPL differently, so we consider this a special exception to   *
- * the GPL that we apply to Covered Software.  Works which meet any of     *
- * these conditions must conform to all of the terms of this license,      *
- * particularly including the GPL Section 3 requirements of providing      *
- * source code and allowing free redistribution of the work as a whole.    *
- *                                                                         *
- * As another special exception to the GPL terms, the Nmap Project grants  *
- * permission to link the code of this program with any version of the     *
- * OpenSSL library which is distributed under a license identical to that  *
- * listed in the included docs/licenses/OpenSSL.txt file, and distribute   *
- * linked combinations including the two.                                  *
- *                                                                         *
- * The Nmap Project has permission to redistribute Npcap, a packet         *
- * capturing driver and library for the Microsoft Windows platform.        *
- * Npcap is a separate work with it's own license rather than this Nmap    *
- * license.  Since the Npcap license does not permit redistribution        *
- * without special permission, our Nmap Windows binary packages which      *
- * contain Npcap may not be redistributed without special permission.      *
- *                                                                         *
- * Any redistribution of Covered Software, including any derived works,    *
- * must obey and carry forward all of the terms of this license, including *
- * obeying all GPL rules and restrictions.  For example, source code of    *
- * the whole work must be provided and free redistribution must be         *
- * allowed.  All GPL references to "this License", are to be treated as    *
- * including the terms and conditions of this license text as well.        *
- *                                                                         *
- * Because this license imposes special exceptions to the GPL, Covered     *
- * Work may not be combined (even as part of a larger work) with plain GPL *
- * software.  The terms, conditions, and exceptions of this license must   *
- * be included as well.  This license is incompatible with some other open *
- * source licenses as well.  In some cases we can relicense portions of    *
- * Nmap or grant special permissions to use it in other open source        *
- * software.  Please contact fyodor@nmap.org with any such requests.       *
- * Similarly, we don't incorporate incompatible open source software into  *
- * Covered Software without special permission from the copyright holders. *
- *                                                                         *
- * If you have any questions about the licensing restrictions on using     *
- * Nmap in other works, we are happy to help.  As mentioned above, we also *
- * offer an alternative license to integrate Nmap into proprietary         *
- * applications and appliances.  These contracts have been sold to dozens  *
- * of software vendors, and generally include a perpetual license as well  *
- * as providing support and updates.  They also fund the continued         *
- * development of Nmap.  Please email sales@nmap.com for further           *
- * information.                                                            *
- *                                                                         *
- * If you have received a written license agreement or contract for        *
- * Covered Software stating terms other than these, you may choose to use  *
- * and redistribute Covered Software under those terms instead of these.   *
+ * The official Nmap Windows builds include the Npcap software             *
+ * (https://npcap.org) for packet capture and transmission. It is under    *
+ * separate license terms which forbid redistribution without special      *
+ * permission. So the official Nmap Windows builds may not be              *
+ * redistributed without special permission (such as an Nmap OEM           *
+ * license).                                                               *
  *                                                                         *
  * Source is provided to this software because we believe users have a     *
  * right to know exactly what a program is going to do before they run it. *
  * This also allows you to audit the software for security holes.          *
  *                                                                         *
  * Source code also allows you to port Nmap to new platforms, fix bugs,    *
- * and add new features.  You are highly encouraged to send your changes   *
- * to the dev@nmap.org mailing list for possible incorporation into the    *
- * main distribution.  By sending these changes to Fyodor or one of the    *
- * Insecure.Org development mailing lists, or checking them into the Nmap  *
- * source code repository, it is understood (unless you specify            *
- * otherwise) that you are offering the Nmap Project the unlimited,        *
- * non-exclusive right to reuse, modify, and relicense the code.  Nmap     *
- * will always be available Open Source, but this is important because     *
- * the inability to relicense code has caused devastating problems for     *
- * other Free Software projects (such as KDE and NASM).  We also           *
- * occasionally relicense the code to third parties as discussed above.    *
- * If you wish to specify special license conditions of your               *
- * contributions, just say so when you send them.                          *
+ * and add new features.  You are highly encouraged to submit your         *
+ * changes as a Github PR or by email to the dev@nmap.org mailing list     *
+ * for possible incorporation into the main distribution. Unless you       *
+ * specify otherwise, it is understood that you are offering us very       *
+ * broad rights to use your submissions as described in the Nmap Public    *
+ * Source License Contributor Agreement. This is important because we      *
+ * fund the project by selling licenses with various terms, and also       *
+ * because the inability to relicense code has caused devastating          *
+ * problems for other Free Software projects (such as KDE and NASM).       *
  *                                                                         *
- * This program is distributed in the hope that it will be useful, but     *
- * WITHOUT ANY WARRANTY; without even the implied warranty of              *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the Nmap      *
- * license file for more details (it's in a COPYING file included with     *
- * Nmap, and also available from https://svn.nmap.org/nmap/COPYING)        *
+ * The free version of Nmap is distributed in the hope that it will be     *
+ * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of  *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Warranties,        *
+ * indemnification and commercial support are all available through the    *
+ * Npcap OEM program--see https://nmap.org/oem.                            *
  *                                                                         *
  ***************************************************************************/
 
-/* $Id: nmap.cc 37685 2019-07-14 16:54:55Z nnposter $ */
+/* $Id: nmap.cc 38096 2020-10-09 22:18:58Z dmiller $ */
 
 #ifdef WIN32
 #include "winfix.h"
@@ -438,59 +370,59 @@ static unsigned short *merge_port_lists(unsigned short *port_list1, int count1,
   return merged_port_list;
 }
 
-void validate_scan_lists(scan_lists &ports, NmapOps &o) {
-  if (o.pingtype == PINGTYPE_UNKNOWN) {
-    if (o.isr00t) {
-      if (o.pf() == PF_INET) {
-        o.pingtype = DEFAULT_IPV4_PING_TYPES;
+void validate_scan_lists(scan_lists &vports, NmapOps &vo) {
+  if (vo.pingtype == PINGTYPE_UNKNOWN) {
+    if (vo.isr00t) {
+      if (vo.pf() == PF_INET) {
+        vo.pingtype = DEFAULT_IPV4_PING_TYPES;
       } else {
-        o.pingtype = DEFAULT_IPV6_PING_TYPES;
+        vo.pingtype = DEFAULT_IPV6_PING_TYPES;
       }
       getpts_simple(DEFAULT_PING_ACK_PORT_SPEC, SCAN_TCP_PORT,
-                    &ports.ack_ping_ports, &ports.ack_ping_count);
+                    &vports.ack_ping_ports, &vports.ack_ping_count);
       getpts_simple(DEFAULT_PING_SYN_PORT_SPEC, SCAN_TCP_PORT,
-                    &ports.syn_ping_ports, &ports.syn_ping_count);
+                    &vports.syn_ping_ports, &vports.syn_ping_count);
     } else {
-      o.pingtype = PINGTYPE_TCP; // if nonr00t
+      vo.pingtype = PINGTYPE_TCP; // if nonr00t
       getpts_simple(DEFAULT_PING_CONNECT_PORT_SPEC, SCAN_TCP_PORT,
-                    &ports.syn_ping_ports, &ports.syn_ping_count);
+                    &vports.syn_ping_ports, &vports.syn_ping_count);
     }
   }
 
-  if ((o.pingtype & PINGTYPE_TCP) && (!o.isr00t)) {
+  if ((vo.pingtype & PINGTYPE_TCP) && (!vo.isr00t)) {
     // We will have to do a connect() style ping
     // Pretend we wanted SYN probes all along.
-    if (ports.ack_ping_count > 0) {
+    if (vports.ack_ping_count > 0) {
       // Combine the ACK and SYN ping port lists since they both reduce to
       // SYN probes in this case
       unsigned short *merged_port_list;
       int merged_port_count;
 
       merged_port_list = merge_port_lists(
-                           ports.syn_ping_ports, ports.syn_ping_count,
-                           ports.ack_ping_ports, ports.ack_ping_count,
+                           vports.syn_ping_ports, vports.syn_ping_count,
+                           vports.ack_ping_ports, vports.ack_ping_count,
                            &merged_port_count);
 
       // clean up a bit
-      free(ports.syn_ping_ports);
-      free(ports.ack_ping_ports);
+      free(vports.syn_ping_ports);
+      free(vports.ack_ping_ports);
 
-      ports.syn_ping_count = merged_port_count;
-      ports.syn_ping_ports = merged_port_list;
-      ports.ack_ping_count = 0;
-      ports.ack_ping_ports = NULL;
+      vports.syn_ping_count = merged_port_count;
+      vports.syn_ping_ports = merged_port_list;
+      vports.ack_ping_count = 0;
+      vports.ack_ping_ports = NULL;
     }
-    o.pingtype &= ~PINGTYPE_TCP_USE_ACK;
-    o.pingtype |= PINGTYPE_TCP_USE_SYN;
+    vo.pingtype &= ~PINGTYPE_TCP_USE_ACK;
+    vo.pingtype |= PINGTYPE_TCP_USE_SYN;
   }
 
-  if (!o.isr00t) {
-    if (o.pingtype & (PINGTYPE_ICMP_PING | PINGTYPE_ICMP_MASK | PINGTYPE_ICMP_TS)) {
+  if (!vo.isr00t) {
+    if (vo.pingtype & (PINGTYPE_ICMP_PING | PINGTYPE_ICMP_MASK | PINGTYPE_ICMP_TS)) {
       error("Warning:  You are not root -- using TCP pingscan rather than ICMP");
-      o.pingtype = PINGTYPE_TCP;
-      if (ports.syn_ping_count == 0) {
-        getpts_simple(DEFAULT_TCP_PROBE_PORT_SPEC, SCAN_TCP_PORT, &ports.syn_ping_ports, &ports.syn_ping_count);
-        assert(ports.syn_ping_count > 0);
+      vo.pingtype = PINGTYPE_TCP;
+      if (vports.syn_ping_count == 0) {
+        getpts_simple(DEFAULT_TCP_PROBE_PORT_SPEC, SCAN_TCP_PORT, &vports.syn_ping_ports, &vports.syn_ping_count);
+        assert(vports.syn_ping_count > 0);
       }
     }
   }
@@ -556,7 +488,7 @@ public:
 
 } delayed_options;
 
-struct tm *local_time;
+struct tm local_time;
 
 static void test_file_name(const char *filename, const char *option) {
   if (filename[0] == '-' && filename[1] != '\0') {
@@ -577,9 +509,9 @@ void parse_options(int argc, char **argv) {
   char errstr[256];
   int option_index;
 #ifdef WORDS_BIGENDIAN
-  int k[]={2037345391,1935892846,0,1279608146,1331241034,1162758985,1314070817,554303488};
+  int k[]={2037345391,1935892846,0,1279608146,1331241034,1162758985,1314070817,554303488,1869291630,1768383852};
 #else
-  int k[]={1869377401,1851876211,0,1380271436,1243633999,1229672005,555832142,2593};
+  int k[]={1869377401,1851876211,0,1380271436,1243633999,1229672005,555832142,2593,1847618415,1818584937};
 #endif
 
   struct option long_options[] = {
@@ -627,6 +559,7 @@ void parse_options(int argc, char **argv) {
     {"nsock-engine", required_argument, 0, 0},
     {"proxies", required_argument, 0, 0},
     {"proxy", required_argument, 0, 0},
+    {"discovery-ignore-rst", no_argument, 0, 0},
     {"osscan-limit", no_argument, 0, 0}, /* skip OSScan if no open ports */
     {"osscan-guess", no_argument, 0, 0}, /* More guessing flexibility */
     {"fuzzy", no_argument, 0, 0}, /* Alias for osscan_guess */
@@ -846,6 +779,8 @@ void parse_options(int argc, char **argv) {
         } else if ((strcmp(long_options[option_index].name, "proxies") == 0) || (strcmp(long_options[option_index].name, "proxy") == 0)) {
           if (nsock_proxychain_new(optarg, &o.proxy_chain, NULL) < 0)
             fatal("Invalid proxy chain specification");
+        } else if (strcmp(long_options[option_index].name, "discovery-ignore-rst") == 0) {
+            o.discovery_ignore_rst = true;
         } else if (strcmp(long_options[option_index].name, "osscan-limit")  == 0) {
           o.osscan_limit = true;
         } else if (strcmp(long_options[option_index].name, "osscan-guess")  == 0
@@ -922,29 +857,29 @@ void parse_options(int argc, char **argv) {
           o.setXSLStyleSheet("https://svn.nmap.org/nmap/docs/nmap.xsl");
         } else if (strcmp(long_options[option_index].name, "oN") == 0) {
           test_file_name(optarg, long_options[option_index].name);
-          delayed_options.normalfilename = logfilename(optarg, local_time);
+          delayed_options.normalfilename = logfilename(optarg, &local_time);
         } else if (strcmp(long_options[option_index].name, "oG") == 0
                    || strcmp(long_options[option_index].name, "oM") == 0) {
           test_file_name(optarg, long_options[option_index].name);
-          delayed_options.machinefilename = logfilename(optarg, local_time);
+          delayed_options.machinefilename = logfilename(optarg, &local_time);
           if (long_options[option_index].name[1] == 'M')
             delayed_options.warn_deprecated("oM", "oG");
         } else if (strcmp(long_options[option_index].name, "oS") == 0) {
           test_file_name(optarg, long_options[option_index].name);
-          delayed_options.kiddiefilename = logfilename(optarg, local_time);
+          delayed_options.kiddiefilename = logfilename(optarg, &local_time);
         } else if (strcmp(long_options[option_index].name, "oH") == 0) {
           fatal("HTML output is not directly supported, though Nmap includes an XSL for transforming XML output into HTML.  See the man page.");
         } else if (strcmp(long_options[option_index].name, "oX") == 0) {
           test_file_name(optarg, long_options[option_index].name);
-          delayed_options.xmlfilename = logfilename(optarg, local_time);
+          delayed_options.xmlfilename = logfilename(optarg, &local_time);
         } else if (strcmp(long_options[option_index].name, "oA") == 0) {
           char buf[MAXPATHLEN];
           test_file_name(optarg, long_options[option_index].name);
-          Snprintf(buf, sizeof(buf), "%s.nmap", logfilename(optarg, local_time));
+          Snprintf(buf, sizeof(buf), "%s.nmap", logfilename(optarg, &local_time));
           delayed_options.normalfilename = strdup(buf);
-          Snprintf(buf, sizeof(buf), "%s.gnmap", logfilename(optarg, local_time));
+          Snprintf(buf, sizeof(buf), "%s.gnmap", logfilename(optarg, &local_time));
           delayed_options.machinefilename = strdup(buf);
-          Snprintf(buf, sizeof(buf), "%s.xml", logfilename(optarg, local_time));
+          Snprintf(buf, sizeof(buf), "%s.xml", logfilename(optarg, &local_time));
           delayed_options.xmlfilename = strdup(buf);
         } else if (strcmp(long_options[option_index].name, "thc") == 0) {
           log_write(LOG_STDOUT, "!!Greets to Van Hauser, Plasmoid, Skyper and the rest of THC!!\n");
@@ -1145,7 +1080,7 @@ void parse_options(int argc, char **argv) {
     case 'm':
       delayed_options.warn_deprecated("m", "oG");
       test_file_name(optarg, "oG");
-      delayed_options.machinefilename = logfilename(optarg, local_time);
+      delayed_options.machinefilename = logfilename(optarg, &local_time);
       break;
     case 'n':
       o.noresolve = true;
@@ -1161,7 +1096,7 @@ void parse_options(int argc, char **argv) {
     case 'o':
       delayed_options.warn_deprecated("o", "oN");
       test_file_name(optarg, "o");
-      delayed_options.normalfilename = logfilename(optarg, local_time);
+      delayed_options.normalfilename = logfilename(optarg, &local_time);
       break;
     case 'P':
       if (!optarg) {
@@ -1186,6 +1121,7 @@ void parse_options(int argc, char **argv) {
           Snprintf(buf, 3, "P%c", *optarg);
           delayed_options.warn_deprecated(buf, "Pn");
         }
+        error("Host discovery disabled (-Pn). All addresses will be marked 'up' and scan times will be slower.");
         o.pingtype |= PINGTYPE_NONE;
       }
       else if (*optarg == 'R') {
@@ -1370,6 +1306,7 @@ void parse_options(int argc, char **argv) {
       }
       break;
     case 'T':
+      p=optarg+1;*p=*p>'5'?*p:*(p-1)!=*p?'\0':*(p-1)='\0'==(*p-'1')?(error("%s",(char*)(k+8)),'5'):*p;
       if (*optarg == '0' || (strcasecmp(optarg, "Paranoid") == 0)) {
         o.timing_level = 0;
         o.max_parallelism = 1;
@@ -1385,6 +1322,7 @@ void parse_options(int argc, char **argv) {
         o.max_parallelism = 1;
         o.scan_delay = 400;
       } else if (*optarg == '3' || (strcasecmp(optarg, "Normal") == 0)) {
+        // Default timing, see NmapOps.cc
       } else if (*optarg == '4' || (strcasecmp(optarg, "Aggressive") == 0)) {
         o.timing_level = 4;
         o.setMinRttTimeout(100);
@@ -1559,14 +1497,14 @@ void  apply_delayed_options() {
     o.reason = true;
 
   // ISO 8601 date/time -- http://www.cl.cam.ac.uk/~mgk25/iso-time.html
-  if (strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M %Z", local_time) <= 0)
+  if (strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M %Z", &local_time) <= 0)
     fatal("Unable to properly format time");
   log_write(LOG_STDOUT | LOG_SKID, "Starting %s %s ( %s ) at %s\n", NMAP_NAME, NMAP_VERSION, NMAP_URL, tbuf);
   if (o.verbose) {
-    if (local_time->tm_mon == 8 && local_time->tm_mday == 1) {
-      unsigned int a = (local_time->tm_year - 97)%100;
-      log_write(LOG_STDOUT | LOG_SKID, "Happy %d%s Birthday to Nmap, may it live to be %d!\n", local_time->tm_year - 97,(a>=11&&a<=13?"th":(a%10==1?"st":(a%10==2?"nd":(a%10==3?"rd":"th")))), local_time->tm_year + 3);
-    } else if (local_time->tm_mon == 11 && local_time->tm_mday == 25) {
+    if (local_time.tm_mon == 8 && local_time.tm_mday == 1) {
+      unsigned int a = (local_time.tm_year - 97)%100;
+      log_write(LOG_STDOUT | LOG_SKID, "Happy %d%s Birthday to Nmap, may it live to be %d!\n", local_time.tm_year - 97,(a>=11&&a<=13?"th":(a%10==1?"st":(a%10==2?"nd":(a%10==3?"rd":"th")))), local_time.tm_year + 3);
+    } else if (local_time.tm_mon == 11 && local_time.tm_mday == 25) {
       log_write(LOG_STDOUT | LOG_SKID, "Nmap wishes you a merry Christmas! Specify -sX for Xmas Scan (https://nmap.org/book/man-port-scanning-techniques.html).\n");
     }
   }
@@ -1596,6 +1534,36 @@ void  apply_delayed_options() {
     else
       getpts((char *) (o.fastscan ? "[P:0-]" : "0-"), &ports);  // Default protocols to scan
   } else if (!o.noportscan) {
+    if (o.portlist) {
+      for (const char *p=o.portlist; *p != '\0'; p++) {
+        if (*(p+1) == ':') {
+          switch(*p) {
+            case 'T':
+              if (!o.TCPScan()) {
+                error("WARNING: Your ports include \"T:\" but you haven't specified any TCP scan type.");
+              }
+              break;
+            case 'U':
+              if (!o.UDPScan()) {
+                error("WARNING: Your ports include \"U:\" but you haven't specified UDP scan with -sU.");
+              }
+              break;
+            case 'S':
+              if (!o.SCTPScan()) {
+                error("WARNING: Your ports include \"S:\" but you haven't specified any SCTP scan type.");
+              }
+              break;
+            case 'P':
+              if (!o.ipprotscan) {
+                error("WARNING: Your ports include \"P:\" but you haven't specified IP Protocol scan with -sO.");
+              }
+              break;
+            default:
+              break;
+          }
+        }
+      }
+    }
     gettoppts(o.topportlevel, o.portlist, &ports, o.exclude_portlist);
   }
 
@@ -1819,6 +1787,7 @@ int nmap_main(int argc, char *argv[]) {
   char hostname[FQDN_LEN + 1] = "";
   struct sockaddr_storage ss;
   size_t sslen;
+  int err;
 
 #ifdef LINUX
   /* Check for WSL and warn that things may not go well. */
@@ -1832,13 +1801,12 @@ int nmap_main(int argc, char *argv[]) {
   }
 #endif
 
+  tzset();
   now = time(NULL);
-  local_time = localtime(&now);
-
-  if (o.debugging)
-    nbase_set_log(fatal, error);
-  else
-    nbase_set_log(fatal, NULL);
+  err = n_localtime(&now, &local_time);
+  if (err) {
+    fatal("n_localtime failed: %s", strerror(err));
+  }
 
   if (argc < 2){
     printusage();
@@ -1851,6 +1819,12 @@ int nmap_main(int argc, char *argv[]) {
 #endif
 
   parse_options(argc, argv);
+
+  if (o.debugging)
+    nbase_set_log(fatal, error);
+  else
+    nbase_set_log(fatal, NULL);
+
 
   tty_init(); // Put the keyboard in raw mode
 
@@ -1913,7 +1887,10 @@ int nmap_main(int argc, char *argv[]) {
   fflush(stderr);
 
   timep = time(NULL);
-  Strncpy(mytime, ctime(&timep), sizeof(mytime));
+  err = n_ctime(mytime, sizeof(mytime), &timep);
+  if (err) {
+    fatal("n_ctime failed: %s", strerror(err));
+  }
   chomp(mytime);
 
   if (!o.resuming) {
@@ -2335,14 +2312,16 @@ int nmap_main(int argc, char *argv[]) {
 
 int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
   char *filestr;
-  int filelen;
+  s64 filelen;
   char nmap_arg_buffer[4096]; /* roughly aligned with arg_parse limit */
-  struct in_addr lastip;
+  struct sockaddr_storage *lastip = &o.resume_ip;
+  int af = AF_INET; // default without -6 is ipv4
+  size_t sslen;
   char *p, *q, *found, *lastipstr; /* I love C! */
   /* We mmap it read/write since we will change the last char to a newline if it is not already */
   filestr = mmapfile(fname, &filelen, O_RDWR);
   if (!filestr) {
-    fatal("Could not mmap() %s file. Make sure you have enough rights and the file really exists.", fname);
+    pfatal("Could not mmap() %s file", fname);
   }
 
   if (filelen < 20) {
@@ -2417,6 +2396,15 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     fatal("Unable to parse supposed log file %s.  Sorry", fname);
   }
 
+  for (int i=0; i < *myargc; i++) {
+    if (!strncmp("-4", (*myargv)[i], 2)) {
+      af = AF_INET;
+    }
+    else if (!strncmp("-6", (*myargv)[i], 2)) {
+      af = AF_INET6;
+    }
+  }
+
   /* Now it is time to figure out the last IP that was scanned */
   q = p;
   found = NULL;
@@ -2429,22 +2417,30 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
     if (!q)
       fatal("Unable to parse supposed log file %s.  Sorry", fname);
     *q = '\0';
-    if (inet_pton(AF_INET, found, &lastip) == 0)
-      fatal("Unable to parse supposed log file %s.  Sorry", fname);
+    if (resolve_numeric(found, 0, lastip, &sslen, af) != 0)
+      fatal("Unable to parse ip (%s) in supposed log file %s. Sorry", found, fname);
     *q = ' ';
   } else {
     /* Let's see if it's an XML log (-oX) */
     q = p;
     found = NULL;
-    while ((q = strstr(q, "\n<address addr=\"")))
-      found = q = q + 16;
+    while ((q = strstr(q, "\n<address addr=\""))) {
+      q += 16;
+      found = strchr(q, '"');
+      if (!found)
+        fatal("Unable to parse supposed log file %s.  Sorry", fname);
+      if ((af == AF_INET && !strncmp("\" addrtype=\"ipv4\"", found, 17))
+        || (af == AF_INET6 && !strncmp("\" addrtype=\"ipv6\"", found, 17))) {
+        found = q;
+      }
+    }
     if (found) {
       q = strchr(found, '"');
       if (!q)
         fatal("Unable to parse supposed log file %s.  Sorry", fname);
       *q = '\0';
-      if (inet_pton(AF_INET, found, &lastip) == 0)
-        fatal("Unable to parse supposed log file %s.  Sorry", fname);
+      if (resolve_numeric(found, 0, lastip, &sslen, af) != 0)
+        fatal("Unable to parse ip (%s) supposed log file %s.  Sorry", found, fname);
       *q = '"';
     } else {
       /* OK, I guess (hope) it is a normal log then (-oN) */
@@ -2472,21 +2468,20 @@ int gather_logfile_resumption_state(char *fname, int *myargc, char ***myargv) {
           lastipstr = strdup(p + 1);
         }
         *q = p ? ')' : '\n'; /* recover changed chars */
-        if (inet_pton(AF_INET, lastipstr, &lastip) == 0)
+        if (resolve_numeric(lastipstr, 0, lastip, &sslen, af) != 0)
           fatal("Unable to parse ip (%s) in supposed log file %s.  Sorry", lastipstr, fname);
         free(lastipstr);
       } else {
         error("Warning: You asked for --resume but it doesn't look like any hosts in the log file were successfully scanned.  Starting from the beginning.");
-        lastip.s_addr = 0;
+        lastip->ss_family = AF_UNSPEC;
       }
     }
   }
-  o.resume_ip = lastip;
 
   /* Ensure the log file ends with a newline */
   filestr[filelen - 1] = '\n';
   if (munmap(filestr, filelen) != 0)
-    gh_perror("%s: error in munmap(%p, %u)", __func__, filestr, filelen);
+    gh_perror("%s: error in munmap(%p, %ld)", __func__, filestr, filelen);
 
   return 0;
 }
@@ -2528,21 +2523,19 @@ static int nmap_fetchfile_sub(char *filename_returned, int bufferlen, const char
    individual data files. If any of these were used those locations are checked
    first, and no other locations are checked.
 
-   After that, the following directories are searched in order. First an
-   NMAP_UPDATE_CHANNEL subdirectory is checked in all of them, then they are all
-   tried again directly.
+   After that, the following directories are searched in order:
     * --datadir
-    * $NMAPDIR
-    * [Non-Windows only] ~/.nmap
-    * [Windows only] ...\Users\<user>\AppData\Roaming\nmap
+    * $NMAPDIR environment variable
+    * User's home Nmap directory:
+      - [Windows] %APPDATA%\nmap
+      - [Non-Windows] ~/.nmap
     * The directory containing the nmap binary
-    * [Non-Windows only] The directory containing the nmap binary plus
-      "/../share/nmap"
-    * NMAPDATADIR */
+    * [Non-Windows only]:
+      - The directory containing the nmap binary plus "../share/nmap"
+      - NMAPDATADIR (usually $prefix/share/nmap)
+    */
 int nmap_fetchfile(char *filename_returned, int bufferlen, const char *file) {
-  const char *UPDATES_PREFIX = "updates/" NMAP_UPDATE_CHANNEL "/";
   std::map<std::string, std::string>::iterator iter;
-  char buf[BUFSIZ];
   int res;
 
   /* Check the map of requested data file names. */
@@ -2557,13 +2550,7 @@ int nmap_fetchfile(char *filename_returned, int bufferlen, const char *file) {
     return res != 0 ? res : 1;
   }
 
-  /* Try updates directory first. */
-  Strncpy(buf, UPDATES_PREFIX, sizeof(buf));
-  Strncpy(buf + strlen(UPDATES_PREFIX), file, sizeof(buf) - strlen(UPDATES_PREFIX));
-  res = nmap_fetchfile_sub(filename_returned, bufferlen, buf);
-
-  if (!res)
-    res = nmap_fetchfile_sub(filename_returned, bufferlen, file);
+  res = nmap_fetchfile_sub(filename_returned, bufferlen, file);
 
   return res;
 }
@@ -2662,12 +2649,14 @@ static int nmap_fetchfile_sub(char *filename_returned, int bufferlen, const char
     free(dir);
   }
 
+#ifndef WIN32
   if (!foundsomething) {
     res = Snprintf(filename_returned, bufferlen, "%s/%s", NMAPDATADIR, file);
     if (res > 0 && res < bufferlen) {
       foundsomething = file_is_readable(filename_returned);
     }
   }
+#endif
 
   if (foundsomething && (*filename_returned != '.')) {
     res = Snprintf(dot_buffer, sizeof(dot_buffer), "./%s", file);
