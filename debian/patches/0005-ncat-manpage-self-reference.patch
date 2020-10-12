@@ -8,7 +8,7 @@ Subject: ncat-manpage-self-reference
  1 file changed, 1 deletion(-)
 
 diff --git a/ncat/docs/ncat.1 b/ncat/docs/ncat.1
-index 076c1b4..95ee63c 100644
+index 766bf74..0bb06a1 100644
 --- a/ncat/docs/ncat.1
 +++ b/ncat/docs/ncat.1
 @@ -98,7 +98,6 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
