@@ -45,7 +45,7 @@ index 145ebc6..9bb50d6 100644
  env:
    - SSL_FLAG="--without-openssl" LUA_FLAG="--without-liblua"
 diff --git a/Makefile.in b/Makefile.in
-index 8236bbd..9e8f6b0 100644
+index ccfceda..8fd3342 100644
 --- a/Makefile.in
 +++ b/Makefile.in
 @@ -34,6 +34,7 @@ ZENMAPDIR = @ZENMAPDIR@
@@ -1490,7 +1490,7 @@ index e33c46e..f59285f 100755
 diff --git a/ndiff/setup.py b/ndiff/setup.py
 old mode 100644
 new mode 100755
-index cb35459..4610f8c
+index 129f888..84e5c14
 --- a/ndiff/setup.py
 +++ b/ndiff/setup.py
 @@ -94,7 +94,7 @@ class checked_install(distutils.command.install.install):
