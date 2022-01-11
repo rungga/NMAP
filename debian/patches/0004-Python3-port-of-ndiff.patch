@@ -17,16 +17,14 @@ Resolves: #1484
 ---
  .travis.yml                   |   8 +-
  Makefile.in                   |   6 +-
- ndiff/ndiff.py                | 458 +++++++++++++++++++++---------------------
- ndiff/ndifftest.py            |  94 ++++-----
+ ndiff/ndiff.py                | 495 +++++++++++++++++++++---------------------
+ ndiff/ndifftest.py            |  94 ++++----
  ndiff/scripts/ndiff           |  14 +-
- ndiff/setup.py                |  34 ++--
+ ndiff/setup.py                |  34 +--
  ndiff/test-scans/anonymize.py |  18 +-
- 7 files changed, 320 insertions(+), 312 deletions(-)
+ 7 files changed, 337 insertions(+), 332 deletions(-)
  mode change 100644 => 100755 ndiff/setup.py
 
-diff --git a/.travis.yml b/.travis.yml
-index 145ebc6..9bb50d6 100644
 --- a/.travis.yml
 +++ b/.travis.yml
 @@ -4,7 +4,13 @@ compiler:
@@ -44,8 +42,6 @@ index 145ebc6..9bb50d6 100644
  
  env:
    - SSL_FLAG="--without-openssl" LUA_FLAG="--without-liblua"
-diff --git a/Makefile.in b/Makefile.in
-index 8236bbd..9e8f6b0 100644
 --- a/Makefile.in
 +++ b/Makefile.in
 @@ -34,6 +34,7 @@ ZENMAPDIR = @ZENMAPDIR@
@@ -82,8 +78,6 @@ index 8236bbd..9e8f6b0 100644
  
  check-nsock:
  	@cd $(NSOCKDIR)/src && $(MAKE) check
-diff --git a/ndiff/ndiff.py b/ndiff/ndiff.py
-index 42a091a..7ca0642 100755
 --- a/ndiff/ndiff.py
 +++ b/ndiff/ndiff.py
 @@ -1,4 +1,4 @@
@@ -92,7 +86,7 @@ index 42a091a..7ca0642 100755
  
  # Ndiff
  #
-@@ -26,11 +26,11 @@ xml.__path__ = [x for x in xml.__path__ if "_xmlplus" not in x]
+@@ -26,11 +26,11 @@ xml.__path__ = [x for x in xml.__path__
  import xml.sax
  import xml.sax.saxutils
  import xml.dom.minidom
@@ -345,7 +339,7 @@ index 42a091a..7ca0642 100755
  
      def sort_key(self):
          return (2, self.s)
-@@ -317,12 +317,12 @@ class Port(object):
+@@ -317,31 +317,28 @@ class Port(object):
  
      def state_string(self):
          if self.state is None:
@@ -361,7 +355,16 @@ index 42a091a..7ca0642 100755
  
      def __hash__(self):
          return hash(self.spec)
-@@ -336,12 +336,12 @@ class Port(object):
+ 
+-    def __cmp__(self, other):
+-        d = cmp(self.spec, other.spec)
+-        if d != 0:
+-            return d
+-        return cmp((self.spec, self.service, self.script_results),
+-            (other.spec, other.service, other.script_results))
++    def __lt__(self, other):
++        return (self.spec, self.service, self.script_results) < (
++            other.spec, other.service, other.script_results)
  
      def to_dom_fragment(self, document):
          frag = document.createDocumentFragment()
@@ -379,7 +382,7 @@ index 42a091a..7ca0642 100755
              elem.appendChild(state_elem)
          elem.appendChild(self.service.to_dom_fragment(document))
          for sr in self.script_results:
-@@ -385,7 +385,7 @@ class Service(object):
+@@ -385,7 +382,7 @@ class Service(object):
          if len(parts) == 0:
              return None
          else:
@@ -388,7 +391,7 @@ index 42a091a..7ca0642 100755
  
      def version_string(self):
          """Get a string like in the VERSION column of Nmap output."""
-@@ -395,17 +395,17 @@ class Service(object):
+@@ -395,17 +392,17 @@ class Service(object):
          if self.version is not None:
              parts.append(self.version)
          if self.extrainfo is not None:
@@ -410,7 +413,7 @@ index 42a091a..7ca0642 100755
              v = getattr(self, attr)
              if v is None:
                  continue
-@@ -435,53 +435,53 @@ class ScriptResult(object):
+@@ -435,53 +432,53 @@ class ScriptResult(object):
          result = []
          lines = self.output.splitlines()
          if len(lines) > 0:
@@ -482,7 +485,7 @@ index 42a091a..7ca0642 100755
  
  
  def script_result_diffs_to_dom_fragment(elem, script_results_a,
-@@ -489,13 +489,13 @@ def script_result_diffs_to_dom_fragment(elem, script_results_a,
+@@ -489,13 +486,13 @@ def script_result_diffs_to_dom_fragment(
      if len(script_results_a) == 0 and len(script_results_b) == 0:
          return document.createDocumentFragment()
      elif len(script_results_b) == 0:
@@ -498,7 +501,7 @@ index 42a091a..7ca0642 100755
          for sr in script_results_b:
              elem.appendChild(sr.to_dom_fragment(document))
          b_elem.appendChild(elem)
-@@ -580,10 +580,10 @@ class ScanDiffText(ScanDiff):
+@@ -580,10 +577,10 @@ class ScanDiffText(ScanDiff):
          banner_a = format_banner(self.scan_a)
          banner_b = format_banner(self.scan_b)
          if banner_a != banner_b:
@@ -512,7 +515,7 @@ index 42a091a..7ca0642 100755
  
      def output_pre_scripts(self, pre_script_result_diffs):
          print_script_result_diffs_text("Pre-scan script results",
-@@ -596,7 +596,7 @@ class ScanDiffText(ScanDiff):
+@@ -596,7 +593,7 @@ class ScanDiffText(ScanDiff):
              post_script_result_diffs, self.f)
  
      def output_host_diff(self, h_diff):
@@ -521,7 +524,7 @@ index 42a091a..7ca0642 100755
          h_diff.print_text(self.f)
  
      def output_ending(self):
-@@ -621,8 +621,8 @@ class ScanDiffXML(ScanDiff):
+@@ -621,8 +618,8 @@ class ScanDiffXML(ScanDiff):
  
      def output_beginning(self):
          self.writer.startDocument()
@@ -532,7 +535,7 @@ index 42a091a..7ca0642 100755
  
          if self.nmaprun_differs():
              self.writer.frag_a(
-@@ -635,7 +635,7 @@ class ScanDiffXML(ScanDiff):
+@@ -635,7 +632,7 @@ class ScanDiffXML(ScanDiff):
  
      def output_pre_scripts(self, pre_script_result_diffs):
          if len(pre_script_result_diffs) > 0 or verbose:
@@ -541,7 +544,7 @@ index 42a091a..7ca0642 100755
              frag = script_result_diffs_to_dom_fragment(
                  prescript_elem, self.scan_a.pre_script_results,
                  self.scan_b.pre_script_results, pre_script_result_diffs,
-@@ -645,7 +645,7 @@ class ScanDiffXML(ScanDiff):
+@@ -645,7 +642,7 @@ class ScanDiffXML(ScanDiff):
  
      def output_post_scripts(self, post_script_result_diffs):
          if len(post_script_result_diffs) > 0 or verbose:
@@ -550,7 +553,7 @@ index 42a091a..7ca0642 100755
              frag = script_result_diffs_to_dom_fragment(
                  postscript_elem, self.scan_a.post_script_results,
                  self.scan_b.post_script_results, post_script_result_diffs,
-@@ -659,8 +659,8 @@ class ScanDiffXML(ScanDiff):
+@@ -659,8 +656,8 @@ class ScanDiffXML(ScanDiff):
          frag.unlink()
  
      def output_ending(self):
@@ -561,7 +564,7 @@ index 42a091a..7ca0642 100755
          self.writer.endDocument()
  
  
-@@ -718,9 +718,9 @@ class HostDiff(object):
+@@ -718,9 +715,9 @@ class HostDiff(object):
          self.cost += os_cost
  
          extraports_a = tuple((count, state)
@@ -573,7 +576,7 @@ index 42a091a..7ca0642 100755
          if extraports_a != extraports_b:
              self.extraports_changed = True
              self.cost += 1
-@@ -746,69 +746,69 @@ class HostDiff(object):
+@@ -746,69 +743,69 @@ class HostDiff(object):
          # Names and addresses.
          if self.id_changed:
              if host_a.state is not None:
@@ -664,7 +667,7 @@ index 42a091a..7ca0642 100755
  
          print_script_result_diffs_text("Host script results",
              host_a.script_results, host_b.script_results,
-@@ -819,32 +819,32 @@ class HostDiff(object):
+@@ -819,32 +816,32 @@ class HostDiff(object):
          host_b = self.host_b
  
          frag = document.createDocumentFragment()
@@ -703,7 +706,7 @@ index 42a091a..7ca0642 100755
              b_elem.appendChild(host_b.state_to_dom_fragment(document))
              host_elem.appendChild(b_elem)
  
-@@ -853,31 +853,31 @@ class HostDiff(object):
+@@ -853,31 +850,31 @@ class HostDiff(object):
          addrset_b = set(host_b.addresses)
          for addr in sorted(addrset_a.intersection(addrset_b)):
              host_elem.appendChild(addr.to_dom_fragment(document))
@@ -740,7 +743,7 @@ index 42a091a..7ca0642 100755
          for hostname in sorted(hostnameset_b - hostnameset_a):
              b_elem.appendChild(
                      host_b.hostname_to_dom_fragment(document, hostname))
-@@ -886,15 +886,15 @@ class HostDiff(object):
+@@ -886,15 +883,15 @@ class HostDiff(object):
          if hostnames_elem.hasChildNodes():
              host_elem.appendChild(hostnames_elem)
  
@@ -759,7 +762,7 @@ index 42a091a..7ca0642 100755
              b_elem.appendChild(host_b.extraports_to_dom_fragment(document))
              ports_elem.appendChild(b_elem)
          # Port list.
-@@ -910,18 +910,18 @@ class HostDiff(object):
+@@ -910,18 +907,18 @@ class HostDiff(object):
  
          # OS changes.
          if self.os_changed or verbose:
@@ -781,7 +784,7 @@ index 42a091a..7ca0642 100755
                      for i in range(j1, j2):
                          b_elem.appendChild(host_b.os_to_dom_fragment(
                              document, host_b.os[i]))
-@@ -935,7 +935,7 @@ class HostDiff(object):
+@@ -935,7 +932,7 @@ class HostDiff(object):
  
          # Host script changes.
          if len(self.script_result_diffs) > 0 or verbose:
@@ -790,7 +793,7 @@ index 42a091a..7ca0642 100755
              host_elem.appendChild(script_result_diffs_to_dom_fragment(
                  hostscript_elem, host_a.script_results,
                  host_b.script_results, self.script_result_diffs,
-@@ -988,38 +988,38 @@ class PortDiff(object):
+@@ -988,38 +985,38 @@ class PortDiff(object):
              self.port_b.service.version_string()]
          if a_columns == b_columns:
              if verbose or self.script_result_diffs > 0:
@@ -840,7 +843,7 @@ index 42a091a..7ca0642 100755
                  b_elem.appendChild(
                          self.port_b.service.to_dom_fragment(document))
                  port_elem.appendChild(b_elem)
-@@ -1027,10 +1027,10 @@ class PortDiff(object):
+@@ -1027,10 +1024,10 @@ class PortDiff(object):
                  port_elem.appendChild(sr_diff.to_dom_fragment(document))
              portdiff_elem.appendChild(port_elem)
          else:
@@ -853,7 +856,7 @@ index 42a091a..7ca0642 100755
              b_elem.appendChild(self.port_b.to_dom_fragment(document))
              portdiff_elem.appendChild(b_elem)
  
-@@ -1085,13 +1085,13 @@ class ScriptResultDiff(object):
+@@ -1085,13 +1082,13 @@ class ScriptResultDiff(object):
              for op, i1, i2, j1, j2 in diffs.get_opcodes():
                  if op == "replace" or op == "delete":
                      for k in range(i1, i2):
@@ -870,7 +873,7 @@ index 42a091a..7ca0642 100755
  
      def to_dom_fragment(self, document):
          frag = document.createDocumentFragment()
-@@ -1101,11 +1101,11 @@ class ScriptResultDiff(object):
+@@ -1101,11 +1098,11 @@ class ScriptResultDiff(object):
              frag.appendChild(self.sr_a.to_dom_fragment(document))
          else:
              if self.sr_a is not None:
@@ -884,7 +887,7 @@ index 42a091a..7ca0642 100755
                  b_elem.appendChild(self.sr_b.to_dom_fragment(document))
                  frag.appendChild(b_elem)
          return frag
-@@ -1119,7 +1119,7 @@ class Table(object):
+@@ -1119,7 +1116,7 @@ class Table(object):
          copied to the output."""
          self.widths = []
          self.rows = []
@@ -893,7 +896,7 @@ index 42a091a..7ca0642 100755
          self.padding = []
          j = 0
          while j < len(template) and template[j] != "*":
-@@ -1144,7 +1144,7 @@ class Table(object):
+@@ -1144,7 +1141,7 @@ class Table(object):
  
          for i in range(len(row)):
              if row[i] is None:
@@ -902,7 +905,7 @@ index 42a091a..7ca0642 100755
              else:
                  s = str(row[i])
              if i == len(self.widths):
-@@ -1166,7 +1166,7 @@ class Table(object):
+@@ -1166,7 +1163,7 @@ class Table(object):
          for row in self.rows:
              parts = [self.prefix]
              i = 0
@@ -911,7 +914,7 @@ index 42a091a..7ca0642 100755
                  # A raw string.
                  lines.append(row)
              else:
-@@ -1175,13 +1175,13 @@ class Table(object):
+@@ -1175,13 +1172,13 @@ class Table(object):
                      if i < len(self.padding):
                          parts.append(self.padding[i])
                      i += 1
@@ -928,7 +931,48 @@ index 42a091a..7ca0642 100755
  
  
  class NmapContentHandler(xml.sax.handler.ContentHandler):
-@@ -1248,15 +1248,15 @@ class NmapContentHandler(xml.sax.handler.ContentHandler):
+@@ -1201,24 +1198,24 @@ class NmapContentHandler(xml.sax.handler
+         self.skip_over = False
+ 
+         self._start_elem_handlers = {
+-            u"nmaprun": self._start_nmaprun,
+-            u"host": self._start_host,
+-            u"hosthint": self._start_hosthint,
+-            u"status": self._start_status,
+-            u"address": self._start_address,
+-            u"hostname": self._start_hostname,
+-            u"extraports": self._start_extraports,
+-            u"port": self._start_port,
+-            u"state": self._start_state,
+-            u"service": self._start_service,
+-            u"script": self._start_script,
+-            u"osmatch": self._start_osmatch,
+-            u"finished": self._start_finished,
++            "nmaprun": self._start_nmaprun,
++            "host": self._start_host,
++            "hosthint": self._start_hosthint,
++            "status": self._start_status,
++            "address": self._start_address,
++            "hostname": self._start_hostname,
++            "extraports": self._start_extraports,
++            "port": self._start_port,
++            "state": self._start_state,
++            "service": self._start_service,
++            "script": self._start_script,
++            "osmatch": self._start_osmatch,
++            "finished": self._start_finished,
+         }
+         self._end_elem_handlers = {
+-            u'host': self._end_host,
+-            u"hosthint": self._end_hosthint,
+-            u'port': self._end_port,
++            'host': self._end_host,
++            "hosthint": self._end_hosthint,
++            'port': self._end_port,
+         }
+ 
+     def parent_element(self):
+@@ -1248,72 +1245,72 @@ class NmapContentHandler(xml.sax.handler
      def _start_nmaprun(self, name, attrs):
          assert self.parent_element() is None
          if "start" in attrs:
@@ -949,7 +993,9 @@ index 42a091a..7ca0642 100755
          self.current_host = Host()
          self.scan.hosts.append(self.current_host)
  
-@@ -1265,55 +1265,55 @@ class NmapContentHandler(xml.sax.handler.ContentHandler):
+     def _start_hosthint(self, name, attrs):
+-        assert self.parent_element() == u"nmaprun"
++        assert self.parent_element() == "nmaprun"
          self.skip_over = True
  
      def _start_status(self, name, attrs):
@@ -959,8 +1005,9 @@ index 42a091a..7ca0642 100755
 -        state = attrs.get(u"state")
 +        state = attrs.get("state")
          if state is None:
-             warn(u'%s element of host %s is missing the "state" attribute; '
+-            warn(u'%s element of host %s is missing the "state" attribute; '
 -                    'assuming \unknown\.' % (
++            warn('%s element of host %s is missing the "state" attribute; '
 +                    r'assuming \unknown\.' % (
                          name, self.current_host.format_name()))
              return
@@ -1021,7 +1068,7 @@ index 42a091a..7ca0642 100755
                      'attribute; assuming 0.' % (
                          name, self.current_host.format_name()))
              count = 0
-@@ -1321,99 +1321,99 @@ class NmapContentHandler(xml.sax.handler.ContentHandler):
+@@ -1321,99 +1318,99 @@ class NmapContentHandler(xml.sax.handler
              try:
                  count = int(count)
              except ValueError:
@@ -1152,7 +1199,7 @@ index 42a091a..7ca0642 100755
              self.scan.end_date = datetime.datetime.fromtimestamp(end_timestamp)
  
      def _end_host(self, name):
-@@ -1435,23 +1435,23 @@ class XMLWriter (xml.sax.saxutils.XMLGenerator):
+@@ -1435,23 +1432,23 @@ class XMLWriter (xml.sax.saxutils.XMLGen
  
      def frag(self, frag):
          for node in frag.childNodes:
@@ -1184,7 +1231,7 @@ index 42a091a..7ca0642 100755
  Usage: %s [option] FILE1 FILE2
  Compare two Nmap XML files and display a list of their differences.
  Differences include host state changes, port state changes, and changes to
-@@ -1461,7 +1461,7 @@ service and OS detection.
+@@ -1461,7 +1458,7 @@ service and OS detection.
    -v, --verbose  also show hosts and ports that haven't changed.
    --text         display output in text format (default)
    --xml          display output in XML format\
@@ -1193,7 +1240,7 @@ index 42a091a..7ca0642 100755
  
  EXIT_EQUAL = 0
  EXIT_DIFFERENT = 1
-@@ -1469,8 +1469,8 @@ EXIT_ERROR = 2
+@@ -1469,8 +1466,8 @@ EXIT_ERROR = 2
  
  
  def usage_error(msg):
@@ -1204,7 +1251,7 @@ index 42a091a..7ca0642 100755
      sys.exit(EXIT_ERROR)
  
  
-@@ -1481,7 +1481,7 @@ def main():
+@@ -1481,7 +1478,7 @@ def main():
      try:
          opts, input_filenames = getopt.gnu_getopt(
                  sys.argv[1:], "hv", ["help", "text", "verbose", "xml"])
@@ -1213,7 +1260,7 @@ index 42a091a..7ca0642 100755
          usage_error(e.msg)
      for o, a in opts:
          if o == "-h" or o == "--help":
-@@ -1491,15 +1491,15 @@ def main():
+@@ -1491,15 +1488,15 @@ def main():
              verbose = True
          elif o == "--text":
              if output_format is not None and output_format != "text":
@@ -1232,7 +1279,7 @@ index 42a091a..7ca0642 100755
  
      if output_format is None:
          output_format = "text"
-@@ -1512,8 +1512,8 @@ def main():
+@@ -1512,8 +1509,8 @@ def main():
          scan_a.load_from_file(filename_a)
          scan_b = Scan()
          scan_b.load_from_file(filename_b)
@@ -1243,8 +1290,6 @@ index 42a091a..7ca0642 100755
          sys.exit(EXIT_ERROR)
  
      if output_format == "text":
-diff --git a/ndiff/ndifftest.py b/ndiff/ndifftest.py
-index 2fa4ae0..27fc525 100755
 --- a/ndiff/ndifftest.py
 +++ b/ndiff/ndifftest.py
 @@ -1,4 +1,4 @@
@@ -1424,7 +1469,7 @@ index 2fa4ae0..27fc525 100755
  
  
  class ScanDiffSub(ScanDiff):
-@@ -703,7 +703,7 @@ class scan_diff_xml_test(unittest.TestCase):
+@@ -703,7 +703,7 @@ class scan_diff_xml_test(unittest.TestCa
          a.load_from_file("test-scans/empty.xml")
          b = Scan()
          b.load_from_file("test-scans/simple.xml")
@@ -1433,7 +1478,7 @@ index 2fa4ae0..27fc525 100755
          self.scan_diff = ScanDiffXML(a, b, f)
          self.scan_diff.output()
          self.xml = f.getvalue()
-@@ -712,8 +712,8 @@ class scan_diff_xml_test(unittest.TestCase):
+@@ -712,8 +712,8 @@ class scan_diff_xml_test(unittest.TestCa
      def test_well_formed(self):
          try:
              document = xml.dom.minidom.parseString(self.xml)
@@ -1455,8 +1500,6 @@ index 2fa4ae0..27fc525 100755
                  if port.state == state:
                      del host.ports[port.spec]
          host.extraports = diff.host_b.extraports.copy()
-diff --git a/ndiff/scripts/ndiff b/ndiff/scripts/ndiff
-index e33c46e..f59285f 100755
 --- a/ndiff/scripts/ndiff
 +++ b/ndiff/scripts/ndiff
 @@ -1,4 +1,4 @@
@@ -1465,7 +1508,7 @@ index e33c46e..f59285f 100755
  
  # Ndiff
  #
-@@ -67,15 +67,15 @@ if INSTALL_LIB is not None and is_secure_dir(INSTALL_LIB):
+@@ -67,15 +67,15 @@ if INSTALL_LIB is not None and is_secure
  
  try:
      import ndiff
@@ -1487,13 +1530,9 @@ index e33c46e..f59285f 100755
      sys.exit(1)
  
  import ndiff
-diff --git a/ndiff/setup.py b/ndiff/setup.py
-old mode 100644
-new mode 100755
-index cb35459..4610f8c
 --- a/ndiff/setup.py
 +++ b/ndiff/setup.py
-@@ -94,7 +94,7 @@ class checked_install(distutils.command.install.install):
+@@ -94,7 +94,7 @@ class checked_install(distutils.command.
          self.saved_prefix = sys.prefix
          try:
              distutils.command.install.install.finalize_options(self)
@@ -1502,7 +1541,7 @@ index cb35459..4610f8c
              raise distutils.errors.DistutilsPlatformError(str(e) + """
  Installing your distribution's python-dev package may solve this problem.""")
  
-@@ -155,13 +155,13 @@ Installing your distribution's python-dev package may solve this problem.""")
+@@ -155,13 +155,13 @@ Installing your distribution's python-de
  #!/usr/bin/env python
  import errno, os, os.path, sys
  
@@ -1579,7 +1618,7 @@ index cb35459..4610f8c
  
  
  class my_uninstall(distutils.cmd.Command):
-@@ -263,7 +263,7 @@ class my_uninstall(distutils.cmd.Command):
+@@ -263,7 +263,7 @@ class my_uninstall(distutils.cmd.Command
          # Read the list of installed files.
          try:
              f = open(INSTALLED_FILES_NAME, "r")
@@ -1588,7 +1627,7 @@ index cb35459..4610f8c
              if e.errno == errno.ENOENT:
                  log.error("Couldn't open the installation record '%s'. "
                          "Have you installed yet?" % INSTALLED_FILES_NAME)
-@@ -286,7 +286,7 @@ class my_uninstall(distutils.cmd.Command):
+@@ -286,7 +286,7 @@ class my_uninstall(distutils.cmd.Command
              try:
                  if not self.dry_run:
                      os.remove(file)
@@ -1597,7 +1636,7 @@ index cb35459..4610f8c
                  log.error(str(e))
          # Delete the directories. First reverse-sort the normalized paths by
          # length so that child directories are deleted before their parents.
-@@ -297,7 +297,7 @@ class my_uninstall(distutils.cmd.Command):
+@@ -297,7 +297,7 @@ class my_uninstall(distutils.cmd.Command
                  log.info("Removing the directory '%s'." % dir)
                  if not self.dry_run:
                      os.rmdir(dir)
@@ -1606,8 +1645,6 @@ index cb35459..4610f8c
                  if e.errno == errno.ENOTEMPTY:
                      log.info("Directory '%s' not empty; not removing." % dir)
                  else:
-diff --git a/ndiff/test-scans/anonymize.py b/ndiff/test-scans/anonymize.py
-index 4ee2e29..7b35237 100755
 --- a/ndiff/test-scans/anonymize.py
 +++ b/ndiff/test-scans/anonymize.py
 @@ -1,4 +1,4 @@

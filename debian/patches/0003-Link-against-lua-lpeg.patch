@@ -7,8 +7,6 @@ Subject: Link against lua-lpeg
  nse_lpeg.cc  | 1 -
  2 files changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/configure.ac b/configure.ac
-index 9d2fff8..b9e7393 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -828,6 +828,7 @@ else
@@ -19,8 +17,6 @@ index 9d2fff8..b9e7393 100644
      AC_LANG_PUSH(C)
      # We need Lua 5.3 exactly
      AC_MSG_CHECKING([for lua version == 503])
-diff --git a/nse_lpeg.cc b/nse_lpeg.cc
-index ec7b6c4..219530b 100644
 --- a/nse_lpeg.cc
 +++ b/nse_lpeg.cc
 @@ -18,4 +18,3 @@
