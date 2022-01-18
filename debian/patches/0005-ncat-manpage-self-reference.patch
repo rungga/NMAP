@@ -7,11 +7,9 @@ Subject: ncat-manpage-self-reference
  ncat/docs/ncat.1 | 1 -
  1 file changed, 1 deletion(-)
 
-diff --git a/ncat/docs/ncat.1 b/ncat/docs/ncat.1
-index 7695fe5..32c5e69 100644
 --- a/ncat/docs/ncat.1
 +++ b/ncat/docs/ncat.1
-@@ -99,7 +99,6 @@ Options taking a time assume seconds\&. Append \*(Aqms\*(Aq for milliseconds,
+@@ -99,7 +99,6 @@ Options taking a time assume seconds\&.
        \-\-ssl\-alpn             ALPN protocol list to use
        \-\-version              Display Ncat\*(Aqs version information and exit
  

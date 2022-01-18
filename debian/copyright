@@ -11,6 +11,7 @@ Files-Excluded: mswin32
  liblua
  libpcap
  libpcre
+ libssh2
  libz
  nselib/data/jdwp-class/*.class
 

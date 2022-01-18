@@ -1,3 +1,18 @@
+nmap (7.92+dfsg2-1) unstable; urgency=medium
+
+  [ Samuel Henrique ]
+  * New upstream version 7.92+dfsg2-1 (closes: #995340)
+    This is the last release that can still use the previous DFSG-compatible
+    license. We haven't decided yet what to do with the next ones but it might
+    take a bit for them to be packaged.
+  * d/copyright: Add missing libssh2 to Files-Excluded
+  * d/patches:
+    - Refresh patches
+    - 0004-Python3-port-of-ndiff.patch: Update patch
+    - update-mac-prefixes.patch: Drop patch, unneeded
+
+ -- Samuel Henrique <samueloph@debian.org>  Mon, 10 Jan 2022 21:27:10 -0300
+
 nmap (7.92+dfsg1-0kali1) kali-dev; urgency=medium
 
   [ Arnaud Rebillout ]
@@ -13,6 +28,30 @@ nmap (7.92+dfsg1-0kali1) kali-dev; urgency=medium
   * Update debian/copyright
 
  -- Sophie Brun <sophie@offensive-security.com>  Tue, 26 Oct 2021 09:29:00 +0200
+
+nmap (7.91+dfsg1+really7.80+dfsg1-2) unstable; urgency=medium
+
+  * d/p/update-mac-prefixes.patch: New patch to update file based on
+    upstream's 7.91 release
+
+ -- Samuel Henrique <samueloph@debian.org>  Wed, 17 Mar 2021 17:09:14 +0000
+
+nmap (7.91+dfsg1+really7.80+dfsg1-1) unstable; urgency=medium
+
+  * New upstream version 7.91+dfsg1+really7.80+dfsg1
+    - Rolling back to 7.80 as the latest version has a license issue which
+      most likely makes nmap not compatible with the DFSG. There are still
+      discussions ongoing and upstream is deciding on what to do, meanwhile
+      we are rolling back to the previous release as we are getting close
+      to bullseye becoming stable. More info at the bug this is closing or
+      at upstream discussion on github:
+      https://github.com/nmap/nmap/issues/2199
+      (closes: #972216)
+  * Bump Standards-Version to 4.5.1
+  * Revert "Update patches; add patch to fix automake breakage" due
+    to the rollback
+
+ -- Samuel Henrique <samueloph@debian.org>  Tue, 02 Feb 2021 22:01:01 +0000
 
 nmap (7.91+dfsg1-1kali1) kali-dev; urgency=medium
 
