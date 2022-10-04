@@ -1,5 +1,5 @@
 Source: nmap
-Section: net
+Section: non-free/net
 Priority: optional
 XSBC-Original-Maintainer: Debian Security Tools <team+pkg-security@tracker.debian.org>
 Maintainer: Kali Developers <devel@kali.org>
