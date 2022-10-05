@@ -2,5 +2,6 @@
 description-synopsis-starts-with-article
 
 # false positives
-spelling-error-in-binary usr/bin/nping ment meant
-spelling-error-in-binary usr/bin/nmap ment meant
+spelling-error-in-binary nam name [usr/bin/ncat]
+spelling-error-in-binary nam name [usr/bin/nmap]
+spelling-error-in-binary nam name [usr/bin/nping]
