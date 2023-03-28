@@ -1,3 +1,9 @@
+nmap (7.93+dfsg1-0kali3) kali-experimental; urgency=medium
+
+  * Fix issues in ms-sql* scripts
+
+ -- Sophie Brun <sophie@offensive-security.com>  Tue, 28 Mar 2023 11:20:29 +0200
+
 nmap (7.93+dfsg1-0kali2) kali-dev; urgency=medium
 
   * Set ncat's alternatives priority to zero
