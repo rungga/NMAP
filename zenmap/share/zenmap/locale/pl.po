@@ -1,4 +1,4 @@
-# Copyright (C) 2008 Insecure.Com LLC
+# Copyright (C) 2008 - 2021 Nmap Software LLC
 # This file is distributed under the same license as Nmap.
 #
 #, fuzzy
@@ -11,10 +11,6 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-
-#: zenmapCore/NmapCommand.py:139
-msgid "Python 2.4 or later is required."
-msgstr "Wymagany jest Python w wersji 2.4 lub nowszej."
 
 #: zenmapCore/UmitDB.py:139
 msgid "No module named dbapi2.pysqlite2 or sqlite3"

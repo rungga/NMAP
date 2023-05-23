@@ -1,4 +1,4 @@
-# Copyright (C) 2008 Insecure.Com LLC
+# Copyright (C) 2008 - 2021 Nmap Software LLC
 # This file is distributed under the same license as Nmap.
 #
 msgid ""
@@ -82,10 +82,6 @@ msgid ""
 msgstr ""
 "Accresci la verbosità dell'output. Può essere utilizzato più di una volta "
 "per ottenere maggiore verbosità"
-
-#: zenmapCore/NmapCommand.py:139
-msgid "Python 2.4 or later is required."
-msgstr "E' richiesto python 2.4 o superiore."
 
 #: zenmapGUI/ScriptInterface.py:262
 msgid ""

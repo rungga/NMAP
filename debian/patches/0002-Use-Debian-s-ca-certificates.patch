@@ -6,9 +6,11 @@ Subject: Use Debian's ca-certificates
  ncat/ncat_posix.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
---- a/ncat/ncat_posix.c
-+++ b/ncat/ncat_posix.c
-@@ -347,7 +347,7 @@ void set_lf_mode(void)
+Index: nmap/ncat/ncat_posix.c
+===================================================================
+--- nmap.orig/ncat/ncat_posix.c
++++ nmap/ncat/ncat_posix.c
+@@ -356,7 +356,7 @@ void set_lf_mode(void)
  
  #ifdef HAVE_OPENSSL
  

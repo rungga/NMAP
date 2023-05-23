@@ -1,5 +1,5 @@
 # Translation of Zenmap to Português Brasil
-# Copyright (C) 2008 Insecure.Com LLC
+# Copyright (C) 2008 - 2021 Nmap Software LLC
 # This file is distributed under the same license as Nmap.
 # Adriano Monteiro Marques <py.adriano@gmail.com>, 2006.
 #
@@ -72,10 +72,6 @@ msgstr ""
 msgid ""
 "Increase verbosity of the output. May be used more than once to get even "
 "more verbosity"
-msgstr ""
-
-#: zenmapCore/NmapCommand.py:139
-msgid "Python 2.4 or later is required."
 msgstr ""
 
 #: zenmapGUI/ScriptInterface.py:262
