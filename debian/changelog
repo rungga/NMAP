@@ -1,3 +1,36 @@
+nmap (7.94+dfsg1-1~exp1) experimental; urgency=medium
+
+  * New upstream version 7.94+dfsg1
+  * Update liblua dependency to 5.4
+  * d/patches: Update patches for new release
+  * d/watch: Change repack suffix to drop enumeration '1'
+
+ -- Samuel Henrique <samueloph@debian.org>  Tue, 23 May 2023 22:35:31 +0100
+
+nmap (7.93+dfsg1-1) unstable; urgency=medium
+
+  [ Samuel Henrique ]
+  * New upstream version 7.93+dfsg1
+    - There are still discussions ongoing on whether NMAP's license is
+      DFSG-free or not, you can keep an eye on the following places for
+      updates:
+      https://bugs.debian.org/1025650
+      https://github.com/nmap/nmap/issues/2199
+  * Bump Standards-Version to 4.6.2
+  * d/nmap-common.lintian-overrides: Update overrides as lintian changed
+    finding's names
+  * d/copyright: Remove entries for non-existent files
+  * d/nmap.lintian-overrides: Remove unused overrides
+
+  [ Andreas Hasenack ]
+  * d/rules: drop Ubuntu-specific configure option
+
+  [ Debian Janitor ]
+  * Avoid explicitly specifying -Wl,--as-needed linker flag.
+  * Remove constraints unnecessary since buster
+
+ -- Samuel Henrique <samueloph@debian.org>  Mon, 16 Jan 2023 20:23:39 +0000
+
 nmap (7.93+dfsg1-0kali3) kali-experimental; urgency=medium
 
   * Fix issues in ms-sql* scripts

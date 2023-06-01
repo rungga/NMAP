@@ -23,12 +23,12 @@ override_dh_autoreconf:
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
-		--with-liblua \
+		--with-liblua=/usr \
 		--with-liblinear \
 		--without-zenmap \
 		--without-ndiff \
 		--enable-ipv6 \
-		STRIP=/bin/true $(VENDOR_CONFIGURE_OPTIONS)
+		STRIP=/bin/true
 	dh_auto_configure --sourcedir=ndiff --buildsystem=pybuild
 
 override_dh_auto_build-indep:

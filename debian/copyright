@@ -29,7 +29,7 @@ Copyright: 1997-1999, Bdale Garbee <bdale@gag.com>
            2018, Raphaël Hertzog <hertzog@debian.org>
 License: nmap-GPL-2
 
-Files: aclocal.m4 depcomp ltmain.sh nbase/configure ncat/Makefile.in
+Files: aclocal.m4 configure depcomp ltmain.sh nbase/configure ncat/Makefile.in
  ncat/configure ncat/missing nping/configure
  nsock/src/aclocal.m4 nsock/src/configure
 Copyright: 1991-2015, Free Software Foundation, Inc.
