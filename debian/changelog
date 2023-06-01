@@ -1,3 +1,11 @@
+nmap (7.94+dfsg1-1kali1) kali-dev; urgency=medium
+
+  * Sync with Debian
+  * Refresh patches
+  * Update lintian-overrides
+
+ -- Sophie Brun <sophie@offensive-security.com>  Thu, 01 Jun 2023 15:02:29 +0200
+
 nmap (7.94+dfsg1-1~exp1) experimental; urgency=medium
 
   * New upstream version 7.94+dfsg1
