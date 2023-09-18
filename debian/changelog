@@ -1,3 +1,9 @@
+nmap (7.94+dfsg1-1kali2) kali-dev; urgency=medium
+
+  * Strip unknown ARM64 CFLAG from the build.
+
+ -- Steev Klimaszewski <steev@kali.org>  Mon, 18 Sep 2023 14:18:53 -0500
+
 nmap (7.94+dfsg1-1kali1) kali-dev; urgency=medium
 
   * Sync with Debian

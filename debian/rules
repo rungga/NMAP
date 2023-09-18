@@ -1,6 +1,9 @@
 #!/usr/bin/make -f
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+# mingw does not know about the arm64 specific cflag branch-protection
+# so strip it out of the build, so that the build doesn't fail.
+export DEB_CFLAGS_MAINT_STRIP = -mbranch-protection=standard
 
 ifeq ($(shell dpkg-vendor --derives-from Ubuntu && echo yes),yes)
 	VENDOR_CONFIGURE_OPTIONS = --with-libssh2=included
