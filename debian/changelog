@@ -1,3 +1,52 @@
+nmap (7.94+git20230807.3be01efb1+dfsg-2) unstable; urgency=medium
+
+  * Team upload.
+  * Remove d/p/0003-Link-against-lua-lpeg.patch:
+    - It is being removed because it is no longer needed, since the problem
+    was resolved in 2016, and because it is making the package unreproduciple.
+    The build failed due to "undefined reference to luaopen_lpeg(lua_State*)".
+    More info at the bug this is related or at upstream discussion on github:
+    https://github.com/nmap/nmap/issues/237
+    https://seclists.org/nmap-dev/2016/q1/268
+    (closes: #1054687)
+
+ -- Sergio de Almeida Cipriano Junior <sergiosacj@riseup.net>  Fri, 27 Oct 2023 19:42:53 -0300
+
+nmap (7.94+git20230807.3be01efb1+dfsg-1) unstable; urgency=medium
+
+  * New upstream version 7.94+git20230807.3be01efb1+dfsg
+  * d/patches: Drop all upstream patches:
+    - upstream-Handle-unknown-service-name-in-p.patch
+    - upstream-Ncat-server-udp-do-not-quit-after-EOF-on-STDIN.patch
+    - upstream-Remove-nse_pcrelib-from-build.patch
+    - upstream-Upgrade-libpcre-to-PCRE2-10.42.-Windows-macOS-bu.patch
+
+ -- Samuel Henrique <samueloph@debian.org>  Mon, 07 Aug 2023 19:07:50 +0100
+
+nmap (7.94+dfsg1-4) unstable; urgency=medium
+
+  * d/p/upstream-Handle-unknown-service-name-in-p.patch: New patch to fix -p
+    parameter's SIGSEGV (closes: #1043171)
+
+ -- Samuel Henrique <samueloph@debian.org>  Mon, 07 Aug 2023 14:49:07 +0100
+
+nmap (7.94+dfsg1-3) unstable; urgency=medium
+
+  [ Samuel Henrique ]
+  * d/p/upstream-Ncat-server-udp...: New patch to fix UDP server listener
+    (closes: #1039613)
+
+  [ Wookey ]
+  * d/clean: Create file and add build artifact to it (closes: #1011638)
+
+ -- Samuel Henrique <samueloph@debian.org>  Thu, 27 Jul 2023 20:09:55 +0100
+
+nmap (7.94+dfsg1-2) unstable; urgency=medium
+
+  * Switch to PCRE2, using patches from upstream git (Closes: #1000012)
+
+ -- Hilko Bengen <bengen@debian.org>  Tue, 04 Jul 2023 13:25:28 +0200
+
 nmap (7.94+dfsg1-1kali2) kali-dev; urgency=medium
 
   * Strip unknown ARM64 CFLAG from the build.
@@ -12,7 +61,7 @@ nmap (7.94+dfsg1-1kali1) kali-dev; urgency=medium
 
  -- Sophie Brun <sophie@offensive-security.com>  Thu, 01 Jun 2023 15:02:29 +0200
 
-nmap (7.94+dfsg1-1~exp1) experimental; urgency=medium
+nmap (7.94+dfsg1-1) unstable; urgency=medium
 
   * New upstream version 7.94+dfsg1
   * Update liblua dependency to 5.4
