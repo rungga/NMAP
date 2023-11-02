@@ -1,3 +1,9 @@
+nmap (7.94+git20230807.3be01efb1+dfsg-2+kali1) kali-dev; urgency=medium
+
+  * Sync with Debian
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Thu, 02 Nov 2023 09:10:47 +0700
+
 nmap (7.94+git20230807.3be01efb1+dfsg-2) unstable; urgency=medium
 
   * Team upload.
